@@ -123,7 +123,7 @@ export default function AdminLayout() {
 
   useEffect(() => {
     if (!organisationId) return
-    supabase
+    void supabase
       .from('organisations')
       .select('nom')
       .eq('id', organisationId)
@@ -131,7 +131,6 @@ export default function AdminLayout() {
       .then(({ data }) => {
         if (data) setOrganisationNom((data as { nom: string }).nom)
       })
-      .catch(() => { /* non-blocking, nom stays null */ })
   }, [organisationId])
 
   async function handleLogout() {

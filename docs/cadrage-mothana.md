@@ -172,8 +172,12 @@ Reçus fiscaux annuels, agrégeant les dons d'un participant pour une année don
 ### 5.2 Dashboard Super-Admin
 - Vue globale de toutes les organisations (liste, stats agrégées : nb d'associations, total dons, nb participants)
 - CRUD des organisations (créer, modifier, désactiver une association)
-- Gestion des comptes admin par organisation
+- Gestion des comptes admin par organisation :
+  - Formulaire de création d'un admin (nom, email, mot de passe) → appel Edge Function qui crée le compte Supabase Auth + insère dans `profils_organisation` en une seule action
+  - Liste des admins par organisation, désactivation d'un compte
+  - L'admin créé reçoit un email avec ses identifiants (à implémenter)
 - Accès en lecture aux données de n'importe quelle organisation (support, debug)
+- ⚠️ La création de comptes admin passe obligatoirement par ce dashboard (jamais manuellement via Supabase)
 
 ### 5.3 Dashboard Dons (admin)
 - Reprend la maquette existante :

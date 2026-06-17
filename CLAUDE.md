@@ -136,8 +136,12 @@ Promouvoir un compte super-admin :
 update auth.users set raw_app_meta_data = raw_app_meta_data || '{"is_super_admin": true}'::jsonb where email = 'email';
 ```
 
-### ⏳ À venir
-- Étape 9 — Finitions & QA
+### ⏳ Post-MVP — À implémenter
+- **Gestion des comptes admin depuis le dashboard super-admin** (voir cadrage §5.2) :
+  - Edge Function `create-admin` : crée le compte Supabase Auth + insère dans `profils_organisation` en une seule action
+  - Liste des admins par organisation dans le dashboard super-admin, avec désactivation de compte
+  - Envoi automatique des identifiants par email à l'admin créé
+  - ⚠️ Règle métier : la création de comptes admin passe obligatoirement par ce dashboard (jamais manuellement via Supabase)
 
 ---
 
