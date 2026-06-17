@@ -36,7 +36,7 @@ create policy "org_delete_superadmin" on organisations
     (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
   );
 
--- dons : super-admin peut lire tous les dons
+-- dons : super-admin peut lire et écrire tous les dons
 drop policy if exists "dons_select_admin" on dons;
 create policy "dons_select_admin" on dons
   for select using (
@@ -44,12 +44,47 @@ create policy "dons_select_admin" on dons
     or organisation_id = current_user_organisation_id()
   );
 
--- profils_participant : super-admin peut lire tous les profils
+drop policy if exists "dons_insert" on dons;
+create policy "dons_insert" on dons
+  for insert with check (
+    (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
+    or organisation_id = current_effective_organisation_id()
+  );
+
+drop policy if exists "dons_update_admin" on dons;
+create policy "dons_update_admin" on dons
+  for update using (
+    (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
+    or organisation_id = current_user_organisation_id()
+  );
+
+drop policy if exists "dons_delete_admin" on dons;
+create policy "dons_delete_admin" on dons
+  for delete using (
+    (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
+    or organisation_id = current_user_organisation_id()
+  );
+
+-- profils_participant : super-admin peut lire et écrire tous les profils
 drop policy if exists "profils_participant_select" on profils_participant;
 create policy "profils_participant_select" on profils_participant
   for select using (
     (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
     or organisation_id = current_effective_organisation_id()
+  );
+
+drop policy if exists "profils_participant_insert" on profils_participant;
+create policy "profils_participant_insert" on profils_participant
+  for insert with check (
+    (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
+    or organisation_id = current_effective_organisation_id()
+  );
+
+drop policy if exists "profils_participant_update_admin" on profils_participant;
+create policy "profils_participant_update_admin" on profils_participant
+  for update using (
+    (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
+    or organisation_id = current_user_organisation_id()
   );
 
 -- personnes : super-admin peut lire toutes les personnes
