@@ -66,10 +66,14 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>({ type: 'loading' })
-  const [viewingOrgId, setViewingOrgId] = useState<string | null>(null)
+  const [viewingOrgId, setViewingOrgId] = useState<string | null>(
+    () => sessionStorage.getItem('viewingOrgId')
+  )
 
   const setViewingOrg = useCallback((orgId: string | null) => {
     setViewingOrgId(orgId)
+    if (orgId) sessionStorage.setItem('viewingOrgId', orgId)
+    else sessionStorage.removeItem('viewingOrgId')
   }, [])
 
   useEffect(() => {
@@ -212,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
     setAuth({ type: 'unauthenticated' })
     setViewingOrgId(null)
+    sessionStorage.removeItem('viewingOrgId')
   }, [])
 
   return (

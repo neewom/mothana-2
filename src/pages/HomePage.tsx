@@ -45,11 +45,12 @@ export default function HomePage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (auth.type === 'admin') navigate('/admin/dons', { replace: true })
+    if (auth.type === 'super_admin') navigate('/super-admin', { replace: true })
+    else if (auth.type === 'admin') navigate('/admin/dons', { replace: true })
     else if (auth.type === 'benevole') navigate('/benevole', { replace: true })
   }, [auth.type, navigate])
 
-  if (auth.type === 'loading' || auth.type === 'admin' || auth.type === 'benevole') {
+  if (auth.type === 'loading' || auth.type === 'super_admin' || auth.type === 'admin' || auth.type === 'benevole') {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />

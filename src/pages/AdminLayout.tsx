@@ -123,7 +123,7 @@ export default function AdminLayout() {
 
   useEffect(() => {
     if (!organisationId) return
-    supabase
+    void supabase
       .from('organisations')
       .select('nom')
       .eq('id', organisationId)
