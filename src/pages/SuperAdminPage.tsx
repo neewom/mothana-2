@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -15,6 +18,15 @@ interface OrgRow {
   nb_participants: number
   nb_dons: number
   total_dons: number
+}
+
+interface AdminRow {
+  utilisateur_id: string
+  nom_affiche: string | null
+  email: string
+  role: string
+  created_at: string
+  is_banned: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -137,6 +149,257 @@ function OrgModal({ open, onClose, onSaved, org }: OrgModalProps) {
 }
 
 // ---------------------------------------------------------------------------
+// AdminsModal — list + add + ban/unban admins for an org
+// ---------------------------------------------------------------------------
+
+interface AdminsModalProps {
+  open: boolean
+  org: OrgRow | null
+  onClose: () => void
+}
+
+function AdminsModal({ open, org, onClose }: AdminsModalProps) {
+  const [admins, setAdmins] = useState<AdminRow[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Add admin form
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newNom, setNewNom] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [addError, setAddError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+
+  // Ban/unban in progress
+  const [banningId, setBanningId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (open && org) {
+      setShowAddForm(false)
+      setNewNom('')
+      setNewEmail('')
+      setNewPassword('')
+      setAddError(null)
+      setError(null)
+      fetchAdmins()
+    }
+  }, [open, org])
+
+  async function fetchAdmins() {
+    if (!org) return
+    setLoading(true)
+    setError(null)
+    const { data, error: err } = await supabase.rpc('get_org_admins', { org_id: org.id })
+    if (err) {
+      setError(err.message)
+    } else {
+      setAdmins((data ?? []) as AdminRow[])
+    }
+    setLoading(false)
+  }
+
+  async function handleAddAdmin(e: FormEvent) {
+    e.preventDefault()
+    setAddError(null)
+    setAdding(true)
+
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token ?? ''
+
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/create-admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ nom: newNom, email: newEmail, password: newPassword, organisation_id: org!.id }),
+    })
+    const json = await res.json()
+    setAdding(false)
+
+    if (!res.ok) {
+      setAddError(json.error ?? 'Erreur lors de la création du compte')
+      return
+    }
+
+    setShowAddForm(false)
+    setNewNom('')
+    setNewEmail('')
+    setNewPassword('')
+    fetchAdmins()
+  }
+
+  async function handleToggleBan(admin: AdminRow) {
+    setBanningId(admin.utilisateur_id)
+
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token ?? ''
+
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/disable-admin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ utilisateur_id: admin.utilisateur_id, ban: !admin.is_banned }),
+    })
+    setBanningId(null)
+
+    if (!res.ok) {
+      const json = await res.json()
+      setError(json.error ?? 'Erreur lors de la mise à jour du compte')
+      return
+    }
+
+    fetchAdmins()
+  }
+
+  if (!open || !org) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Comptes admin</h2>
+            <p className="text-sm text-slate-500">{org.nom}</p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Error */}
+          {error && (
+            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          )}
+
+          {/* Admin list */}
+          {loading ? (
+            <div className="py-8 text-center text-sm text-slate-400">Chargement…</div>
+          ) : admins.length === 0 ? (
+            <div className="py-8 text-center text-sm text-slate-400">Aucun compte admin pour cette organisation.</div>
+          ) : (
+            <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+              {admins.map((admin) => (
+                <li key={admin.utilisateur_id} className="flex items-center justify-between px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900">
+                      {admin.nom_affiche ?? '—'}
+                    </p>
+                    <p className="truncate text-xs text-slate-500">{admin.email}</p>
+                  </div>
+                  <div className="ml-4 flex items-center gap-3 flex-shrink-0">
+                    {admin.is_banned && (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                        Désactivé
+                      </span>
+                    )}
+                    <button
+                      onClick={() => handleToggleBan(admin)}
+                      disabled={banningId === admin.utilisateur_id}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-60 ${
+                        admin.is_banned
+                          ? 'text-green-700 hover:bg-green-50'
+                          : 'text-red-600 hover:bg-red-50'
+                      }`}
+                    >
+                      {banningId === admin.utilisateur_id
+                        ? '…'
+                        : admin.is_banned
+                        ? 'Réactiver'
+                        : 'Désactiver'}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Add admin form */}
+          {showAddForm ? (
+            <form onSubmit={handleAddAdmin} className="space-y-3 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Nouveau compte admin</p>
+              {addError && (
+                <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{addError}</div>
+              )}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Nom affiché <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  required
+                  value={newNom}
+                  onChange={(e) => setNewNom(e.target.value)}
+                  placeholder="Prénom Nom"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Email <span className="text-red-500">*</span></label>
+                <input
+                  type="email"
+                  required
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="admin@exemple.fr"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-600">Mot de passe <span className="text-red-500">*</span></label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="8 caractères minimum"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setShowAddForm(false); setAddError(null) }}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={adding}
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+                >
+                  {adding ? 'Création…' : 'Créer le compte'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-indigo-300 py-3 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Ajouter un admin
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // SuperAdminPage
 // ---------------------------------------------------------------------------
 
@@ -153,6 +416,7 @@ export default function SuperAdminPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<OrgRow | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [adminsModalOrg, setAdminsModalOrg] = useState<OrgRow | null>(null)
 
   function handleConsulter(org: OrgRow) {
     setViewingOrg(org.id)
@@ -343,6 +607,12 @@ export default function SuperAdminPage() {
                         Consulter
                       </button>
                       <button
+                        onClick={() => setAdminsModalOrg(org)}
+                        className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                      >
+                        Admins
+                      </button>
+                      <button
                         onClick={() => { setEditing(org); setModalOpen(true) }}
                         className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
                       >
@@ -369,6 +639,13 @@ export default function SuperAdminPage() {
         onClose={() => setModalOpen(false)}
         onSaved={fetchAll}
         org={editing}
+      />
+
+      {/* Admins modal */}
+      <AdminsModal
+        open={adminsModalOrg !== null}
+        org={adminsModalOrg}
+        onClose={() => setAdminsModalOrg(null)}
       />
 
       {/* Delete confirmation */}

@@ -134,19 +134,25 @@ Trois niveaux d'accès, choisis depuis la page d'accueil :
 
 ### ✅ MVP terminé
 
-### ⚠️ Action requise (super-admin)
-Exécuter `supabase/migrations/super_admin_rls.sql` **en entier** dans Supabase SQL Editor (couvre organisations, dons, profils_participant, personnes, activites, recus_fiscaux, profils_organisation).
-Promouvoir un compte super-admin :
-```sql
-update auth.users set raw_app_meta_data = raw_app_meta_data || '{"is_super_admin": true}'::jsonb where email = 'email';
-```
 
-### ⏳ Post-MVP — À implémenter
-- **Gestion des comptes admin depuis le dashboard super-admin** (voir cadrage §5.2) :
-  - Edge Function `create-admin` : crée le compte Supabase Auth + insère dans `profils_organisation` en une seule action
-  - Liste des admins par organisation dans le dashboard super-admin, avec désactivation de compte
-  - Envoi automatique des identifiants par email à l'admin créé
-  - ⚠️ Règle métier : la création de comptes admin passe obligatoirement par ce dashboard (jamais manuellement via Supabase)
+- Post-MVP (gestion comptes admin) :
+  - Edge Function `create-admin` : vérifie super-admin via JWT, crée le compte Auth, insère dans `profils_organisation` avec `role='admin'`, rollback Auth si l'insert échoue
+  - Edge Function `disable-admin` : ban/unban via `admin.updateUserById` (`ban_duration: '876000h'` / `'none'`)
+  - Fonction SQL `get_org_admins(org_id)` (security definer, réservée super-admin) : joint `profils_organisation` et `auth.users` pour retourner email + `is_banned` — à exécuter depuis `supabase/migrations/get_org_admins.sql`
+  - `AdminsModal` dans `SuperAdminPage` : liste des admins par org (nom, email, badge désactivé, bouton Désactiver/Réactiver), formulaire d'ajout inline (nom, email, mot de passe), bouton "Admins" par ligne d'organisation
+
+### ⚠️ Actions requises (déploiement)
+- Exécuter `supabase/migrations/super_admin_rls.sql` dans Supabase SQL Editor
+- Exécuter `supabase/migrations/get_org_admins.sql` dans Supabase SQL Editor
+- Déployer les Edge Functions : `create-admin`, `disable-admin` (en plus de `verify-pin`, `generate-recu`, `update-pin`)
+- Promouvoir un compte super-admin :
+  ```sql
+  update auth.users set raw_app_meta_data = raw_app_meta_data || '{"is_super_admin": true}'::jsonb where email = 'email';
+  ```
+
+### ⏳ Post-MVP — Reste à implémenter
+- Envoi automatique des identifiants par email à l'admin créé
+- ⚠️ Règle métier rappel : la création de comptes admin passe obligatoirement par le dashboard super-admin (jamais manuellement via Supabase)
 
 ---
 
