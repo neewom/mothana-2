@@ -122,9 +122,9 @@ Trois niveaux d'accès, choisis depuis la page d'accueil :
 - Étape 4 : page Activités (liste, ajout, édition, suppression avec vérification dons liés). Bug RLS `personnes` corrigé.
 - Étape 5 : écran bénévole (layout minimaliste, autocomplete participant, création rapide inline, formulaire don, confirmation visuelle, overlay PIN). Auth bénévole refactorisée : compte Auth technique `benevole-{org_id}@mothana.internal`, `signInWithPassword` via Edge Function, session via `setSession()`.
 - Étape 6 : page Reçus fiscaux (sélecteur d'année, liste participants avec total dons, génération PDF via Edge Function `generate-recu` avec pdf-lib, upload bucket `recus-fiscaux`, upsert `recus_fiscaux`, téléchargement signed URL, "Générer tous").
+- Étape 7 : page Paramètres (nom organisation, PIN bénévole avec révélation/régénération via Edge Function `update-pin` — met à jour DB + mot de passe compte Auth technique, modèle de reçu fiscal avec 4 champs stockés dans `modele_recu_pdf` JSONB).
 
 ### ⏳ À venir
-- Étape 7 — Paramètres organisation (inclut gestion PIN, modèle reçu)
 - Étape 8 — Dashboard super-admin (`/super-admin`)
 - Étape 9 — Finitions & QA
 
