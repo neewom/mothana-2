@@ -25,6 +25,8 @@ export type AuthState =
 
 interface AuthContextValue {
   auth: AuthState
+  viewingOrgId: string | null
+  setViewingOrg: (orgId: string | null) => void
   loginAdmin: (email: string, password: string) => Promise<{ error: string | null; authType?: 'super_admin' | 'admin' }>
   loginBenevole: (pin: string) => Promise<{ error: string | null }>
   logout: () => Promise<void>
@@ -64,6 +66,11 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>({ type: 'loading' })
+  const [viewingOrgId, setViewingOrgId] = useState<string | null>(null)
+
+  const setViewingOrg = useCallback((orgId: string | null) => {
+    setViewingOrgId(orgId)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -204,10 +211,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await supabase.auth.signOut()
     setAuth({ type: 'unauthenticated' })
+    setViewingOrgId(null)
   }, [])
 
   return (
-    <AuthContext.Provider value={{ auth, loginAdmin, loginBenevole, logout }}>
+    <AuthContext.Provider value={{ auth, viewingOrgId, setViewingOrg, loginAdmin, loginBenevole, logout }}>
       {children}
     </AuthContext.Provider>
   )

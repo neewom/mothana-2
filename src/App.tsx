@@ -26,7 +26,7 @@ function App() {
         <Route path="/login/benevole" element={<BenevoleLoginPage />} />
 
         {/* Admin (protected) */}
-        <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+        <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route path="dons" element={<DonsPage />} />
             <Route path="participants" element={<ParticipantsPage />} />

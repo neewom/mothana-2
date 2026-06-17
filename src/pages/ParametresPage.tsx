@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { useAuth } from '../contexts/AuthContext'
+import { useOrganisationId } from '../hooks/useOrganisationId'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,8 +51,7 @@ function Section({ title, description, children }: {
 // ---------------------------------------------------------------------------
 
 export default function ParametresPage() {
-  const { auth } = useAuth()
-  const organisationId = auth.type === 'admin' ? auth.organisationId : ''
+  const organisationId = useOrganisationId()
 
   const [settings, setSettings] = useState<OrgSettings | null>(null)
   const [loading, setLoading] = useState(true)

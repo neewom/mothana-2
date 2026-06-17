@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { useAuth } from '../contexts/AuthContext'
+import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { ProfilParticipant, Don, Activite } from '../types'
 import ParticipantModal from '../components/ParticipantModal'
 import DonModal from '../components/DonModal'
@@ -236,8 +236,7 @@ function DetailPanel({
 // ---------------------------------------------------------------------------
 
 export default function ParticipantsPage() {
-  const { auth } = useAuth()
-  const organisationId = auth.type === 'admin' ? auth.organisationId : ''
+  const organisationId = useOrganisationId()
 
   const { participants, dons, allActivites, loading, error, refetch } = useParticipants()
 

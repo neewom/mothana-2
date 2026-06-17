@@ -1,5 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../contexts/AuthContext'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -139,6 +141,9 @@ function OrgModal({ open, onClose, onSaved, org }: OrgModalProps) {
 // ---------------------------------------------------------------------------
 
 export default function SuperAdminPage() {
+  const { setViewingOrg } = useAuth()
+  const navigate = useNavigate()
+
   const [orgs, setOrgs] = useState<OrgRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -148,6 +153,11 @@ export default function SuperAdminPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<OrgRow | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  function handleConsulter(org: OrgRow) {
+    setViewingOrg(org.id)
+    navigate('/admin/dons')
+  }
 
   // ---------------------------------------------------------------------------
   // Fetch
@@ -326,6 +336,12 @@ export default function SuperAdminPage() {
                   <td className="px-6 py-4 text-slate-500">{formatDate(org.created_at)}</td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => handleConsulter(org)}
+                        className="rounded-lg px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50"
+                      >
+                        Consulter
+                      </button>
                       <button
                         onClick={() => { setEditing(org); setModalOpen(true) }}
                         className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
