@@ -71,7 +71,7 @@ interface ParticipantsData {
   refetch: () => void
 }
 
-function useParticipants(): ParticipantsData {
+function useParticipants(organisationId: string): ParticipantsData {
   const [participants, setParticipants] = useState<ProfilParticipant[]>([])
   const [dons, setDons] = useState<DonSimple[]>([])
   const [allActivites, setAllActivites] = useState<Activite[]>([])
@@ -80,6 +80,7 @@ function useParticipants(): ParticipantsData {
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
+    if (!organisationId) return
     let cancelled = false
 
     async function fetchAll() {
@@ -90,9 +91,10 @@ function useParticipants(): ParticipantsData {
         supabase
           .from('profils_participant')
           .select(`id, personne_id, organisation_id, notes, created_at, personnes!inner(id, nom, prenom, email, telephone)`)
+          .eq('organisation_id', organisationId)
           .order('created_at', { ascending: false }),
-        supabase.from('dons').select('profil_participant_id, montant'),
-        supabase.from('activites').select('id, nom, organisation_id'),
+        supabase.from('dons').select('profil_participant_id, montant').eq('organisation_id', organisationId),
+        supabase.from('activites').select('id, nom, organisation_id').eq('organisation_id', organisationId),
       ])
 
       if (cancelled) return
@@ -111,7 +113,7 @@ function useParticipants(): ParticipantsData {
 
     fetchAll()
     return () => { cancelled = true }
-  }, [tick])
+  }, [organisationId, tick])
 
   return {
     participants,
@@ -238,7 +240,7 @@ function DetailPanel({
 export default function ParticipantsPage() {
   const organisationId = useOrganisationId()
 
-  const { participants, dons, allActivites, loading, error, refetch } = useParticipants()
+  const { participants, dons, allActivites, loading, error, refetch } = useParticipants(organisationId)
 
   // Search
   const [search, setSearch] = useState('')
