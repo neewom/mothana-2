@@ -131,6 +131,7 @@ export default function AdminLayout() {
       .then(({ data }) => {
         if (data) setOrganisationNom((data as { nom: string }).nom)
       })
+      .catch(() => { /* non-blocking, nom stays null */ })
   }, [organisationId])
 
   async function handleLogout() {

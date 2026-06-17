@@ -125,6 +125,10 @@ Trois niveaux d'accès, choisis depuis la page d'accueil :
 - Étape 7 : page Paramètres (nom organisation, PIN bénévole avec révélation/régénération via Edge Function `update-pin` — met à jour DB + mot de passe compte Auth technique, modèle de reçu fiscal avec 4 champs stockés dans `modele_recu_pdf` JSONB).
 - Étape 8 : dashboard super-admin (`/super-admin`) — stats globales (nb orgs, total dons, nb participants), liste organisations avec stats par org, CRUD organisations. `AuthState` étendu avec type `super_admin`, détecté via `app_metadata.is_super_admin`. Redirection automatique post-login. Migration RLS dans `supabase/migrations/super_admin_rls.sql` (à exécuter dans Supabase SQL Editor).
 
+- Étape 9 : finitions & QA — redirection super-admin depuis HomePage, remplacement alert() par état d'erreur inline (RecusFiscauxPage), catch unhandled promise (AdminLayout), guide de déploiement (`docs/deploiement.md`).
+
+### ✅ MVP terminé
+
 ### ⚠️ Action requise (super-admin)
 Exécuter `supabase/migrations/super_admin_rls.sql` dans Supabase SQL Editor pour activer le bypass RLS super-admin.
 Promouvoir un compte super-admin :

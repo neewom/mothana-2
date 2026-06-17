@@ -49,6 +49,7 @@ export default function RecusFiscauxPage() {
   const [genLoading, setGenLoading] = useState<Record<string, boolean>>({})
   const [genError, setGenError] = useState<Record<string, string>>({})
   const [dlLoading, setDlLoading] = useState<Record<string, boolean>>({})
+  const [dlError, setDlError] = useState<Record<string, string>>({})
 
   const [generateAllLoading, setGenerateAllLoading] = useState(false)
 
@@ -177,20 +178,22 @@ export default function RecusFiscauxPage() {
 
   async function downloadRecu(row: ParticipantRow) {
     if (!row.recu?.fichier_url) return
-    setDlLoading((prev) => ({ ...prev, [row.profil_participant_id]: true }))
+    const id = row.profil_participant_id
+    setDlLoading((prev) => ({ ...prev, [id]: true }))
+    setDlError((prev) => ({ ...prev, [id]: '' }))
 
     const { data, error: urlErr } = await supabase.storage
       .from('recus-fiscaux')
       .createSignedUrl(row.recu.fichier_url, 3600)
 
     if (urlErr || !data?.signedUrl) {
-      alert('Impossible de générer le lien de téléchargement')
-      setDlLoading((prev) => ({ ...prev, [row.profil_participant_id]: false }))
+      setDlError((prev) => ({ ...prev, [id]: 'Impossible de générer le lien' }))
+      setDlLoading((prev) => ({ ...prev, [id]: false }))
       return
     }
 
     window.open(data.signedUrl, '_blank')
-    setDlLoading((prev) => ({ ...prev, [row.profil_participant_id]: false }))
+    setDlLoading((prev) => ({ ...prev, [id]: false }))
   }
 
   // ---------------------------------------------------------------------------
@@ -297,6 +300,7 @@ export default function RecusFiscauxPage() {
                 const isGenLoading = genLoading[row.profil_participant_id]
                 const genErr = genError[row.profil_participant_id]
                 const isDlLoading = dlLoading[row.profil_participant_id]
+                const dlErr = dlError[row.profil_participant_id]
                 const hasRecu = row.recu !== null
 
                 return (
@@ -328,6 +332,9 @@ export default function RecusFiscauxPage() {
                       )}
                       {genErr && (
                         <p className="mt-1 text-xs text-red-600">{genErr}</p>
+                      )}
+                      {dlErr && (
+                        <p className="mt-1 text-xs text-red-600">{dlErr}</p>
                       )}
                     </td>
 
