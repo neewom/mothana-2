@@ -21,6 +21,16 @@ export interface Activite {
   nom: string
 }
 
+export interface RecuFiscal {
+  id: string
+  profil_participant_id: string
+  organisation_id: string
+  annee: number
+  montant_total: number
+  fichier_url: string | null
+  date_generation: string
+}
+
 export interface Don {
   id: string
   profil_participant_id: string

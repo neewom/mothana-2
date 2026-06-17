@@ -35,7 +35,7 @@ mothana-app/
 │   └── plan-dev-mothana.md
 ├── supabase/
 │   └── functions/
-│       └── verify-pin/          # Edge Function auth bénévole (à refactorer, voir ci-dessous)
+│       └── verify-pin/          # Edge Function auth bénévole (déployée)
 ├── src/
 │   ├── lib/
 │   │   └── supabaseClient.ts    # Client Supabase initialisé
@@ -82,22 +82,32 @@ La clé `service_role` (Secret) n'est **jamais** dans le code — elle est confi
 
 ## Modèle d'authentification
 
-Deux types d'accès, choisis depuis la page d'accueil :
+Trois niveaux d'accès, choisis depuis la page d'accueil :
+
+**Super-Admin** (email/mot de passe via Supabase Auth)
+- Identifié par `is_super_admin = true` dans `app_metadata` de `auth.users` (pas de table custom)
+- Accès au dashboard super-admin (`/super-admin`) : vue globale toutes organisations, CRUD organisations, gestion des comptes admin
+- Bypass total des RLS — voit toutes les données de toutes les organisations
+- Rôle réservé à l'éditeur de la plateforme (Mothana)
+- Après connexion, redirigé vers `/super-admin` au lieu du dashboard organisation
+- SQL pour promouvoir un super-admin :
+  ```sql
+  update auth.users set raw_app_meta_data = raw_app_meta_data || '{"is_super_admin": true}'::jsonb where email = 'email';
+  ```
+- Lisible dans les RLS via : `(auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true`
+- ⚠️ Pas de table `utilisateurs_app` — les comptes sont gérés directement via `auth.users` Supabase
 
 **Admin** (email/mot de passe via Supabase Auth)
-- Accès complet au dashboard et tous les CRUDs
+- Accès complet au dashboard et tous les CRUDs de son organisation uniquement
 - Organisation déterminée via `profils_organisation`
 
 **Bénévole** (code PIN partagé par organisation)
-- ⚠️ L'approche JWT custom (Edge Function `verify-pin`) a été abandonnée : le projet Supabase utilise RS256 (clés asymétriques), incompatible avec la signature HS256 depuis une Edge Function.
-- **Nouvelle approche : compte Supabase Auth technique partagé par organisation**
-  - Un compte Auth est créé par organisation avec la convention : email = `benevole-[organisation_id]@mothana.internal`, mot de passe = le code PIN de l'organisation
-  - Quand le bénévole saisit son PIN, l'app appelle une Edge Function qui :
-    1. Recherche l'organisation correspondant au PIN dans la table `organisations`
-    2. Appelle `signInWithPassword` avec l'email conventionnel et le PIN comme mot de passe (si le compte n'existe pas encore, le crée d'abord avec `admin.createUser`)
-    3. Retourne la session Supabase Auth native (`access_token` + `refresh_token`) au frontend
-  - Ce compte a `app_metadata: { role: 'benevole', organisation_id }` — les RLS utilisent `current_benevole_organisation_id()` qui lit ces claims JWT
-  - Quand le PIN change (étape 7), le mot de passe du compte technique est mis à jour via `admin.updateUserById`
+- ⚠️ L'approche JWT custom a été abandonnée : le projet Supabase utilise RS256, incompatible avec HS256.
+- **Approche actuelle : compte Supabase Auth technique par organisation**
+  - Email : `benevole-[organisation_id]@mothana.internal`, mot de passe = le PIN
+  - `verify-pin` Edge Function : vérifie le PIN → `signInWithPassword` → retourne la session native
+  - `app_metadata: { role: 'benevole', organisation_id }` — utilisé par `current_benevole_organisation_id()` dans les RLS
+  - Quand le PIN change (étape 7), le mot de passe du compte est mis à jour via `admin.updateUserById`
 
 ---
 
@@ -110,13 +120,13 @@ Deux types d'accès, choisis depuis la page d'accueil :
 - Étape 2 : dashboard dons complet (stats, tableau, filtres, panneau détail, CRUD don)
 - Étape 3 : page Participants (liste + recherche + total dons), panneau détail (infos + historique + ajout don pré-sélectionné), modal ajout/édition (création simultanée `personnes` + `profils_participant`), `DonModal` accepte `defaultParticipantId`
 - Étape 4 : page Activités (liste, ajout, édition, suppression avec vérification dons liés). Bug RLS `personnes` corrigé.
-- Étape 5 : écran bénévole (layout minimaliste, autocomplete participant, création rapide inline, formulaire don, confirmation visuelle, overlay PIN en cas d'expiration de session). Auth bénévole refactorisée : compte Supabase Auth technique par organisation (`benevole-{org_id}@mothana.internal`, mot de passe = PIN), `signInWithPassword` via Edge Function `verify-pin`, vraie session Supabase via `setSession()`.
-
+- Étape 5 : écran bénévole (layout minimaliste, autocomplete participant, création rapide inline, formulaire don, confirmation visuelle, overlay PIN). Auth bénévole refactorisée : compte Auth technique `benevole-{org_id}@mothana.internal`, `signInWithPassword` via Edge Function, session via `setSession()`.
+- Étape 6 : page Reçus fiscaux (sélecteur d'année, liste participants avec total dons, génération PDF via Edge Function `generate-recu` avec pdf-lib, upload bucket `recus-fiscaux`, upsert `recus_fiscaux`, téléchargement signed URL, "Générer tous").
 
 ### ⏳ À venir
-- Étape 6 — Reçus fiscaux
-- Étape 7 — Paramètres organisation (inclut mise à jour du mot de passe bénévole lors du changement de PIN)
-- Étape 8 — Finitions & QA
+- Étape 7 — Paramètres organisation (inclut gestion PIN, modèle reçu)
+- Étape 8 — Dashboard super-admin (`/super-admin`)
+- Étape 9 — Finitions & QA
 
 ---
 

@@ -29,24 +29,32 @@ Mothana est une application de gestion des dons pour des associations à but non
   - **Edge Functions** pour la génération des PDF de reçus fiscaux
 
 ### Hébergement
-- Non décidé à ce stade (Vercel/Netlify pour le frontend envisageable, Supabase pour le backend)
+- **Frontend** : Vercel (Pro)
+- **Backend** : Supabase (Pro)
 
 ---
 
 ## 3. Modèle d'authentification
 
-Deux modes d'accès distincts, choisis depuis une **page d'accueil unique** :
+Trois niveaux d'accès, choisis depuis une **page d'accueil unique** :
 
-### 3.1 Accès Admin
+### 3.1 Accès Super-Admin
+- Authentification via **Supabase Auth** (email + mot de passe)
+- Identifié par le flag `is_super_admin = true` dans `utilisateurs_app`
+- Donne accès au **dashboard super-admin** : vue globale de toutes les organisations, CRUD des organisations, gestion des comptes admin
+- **Bypass total des RLS** : accès en lecture/écriture sur toutes les organisations
+- Rôle réservé à l'éditeur de la plateforme (Mothana)
+
+### 3.2 Accès Admin
 - Authentification classique via **Supabase Auth** (email + mot de passe)
-- Donne accès au dashboard complet et aux différents CRUD (dons, participants, activités, paramètres, reçus fiscaux)
+- Donne accès au dashboard complet et aux différents CRUD (dons, participants, activités, paramètres, reçus fiscaux) **de son organisation uniquement**
 - Rôle : `admin`
 
-### 3.2 Accès Bénévole
+### 3.3 Accès Bénévole
 - Authentification via un **code PIN unique** (généré par l'organisation, régénérable depuis les paramètres admin)
 - Le code PIN est **unique globalement** (toutes organisations confondues) — il permet donc d'identifier directement l'organisation sans étape de sélection supplémentaire
 - Donne accès uniquement à un **écran de saisie de dons simplifié**
-- Rôle : `benevole` (accès restreint, compte technique partagé — non nominatif)
+- Rôle : `benevole` (compte technique partagé — non nominatif, créé automatiquement à la création d'une organisation)
 
 ---
 
@@ -61,25 +69,36 @@ Deux modes d'accès distincts, choisis depuis une **page d'accueil unique** :
 | code_pin_benevole | text (unique) | Code PIN d'accès bénévole, unique globalement |
 | created_at | timestamp | Date de création |
 
-### `utilisateurs_app`
-Comptes admin, gérés via Supabase Auth (table `auth.users` étendue).
+### `auth.users` (Supabase Auth — pas de table custom)
+Les comptes admin et super-admin sont gérés directement via Supabase Auth. Pas de table `utilisateurs_app` séparée.
 
-| Champ | Type | Description |
-|---|---|---|
-| id | uuid (PK) | Identifiant (= auth.users.id) |
-| email | text | Email de connexion |
-| created_at | timestamp | Date de création |
+Le flag super-admin est stocké dans `app_metadata` de `auth.users` :
+```json
+{ "is_super_admin": true }
+```
+
+Lisible dans les RLS via :
+```sql
+(auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
+```
+
+Pour promouvoir un utilisateur super-admin :
+```sql
+update auth.users
+set raw_app_meta_data = raw_app_meta_data || '{"is_super_admin": true}'::jsonb
+where email = 'email-du-super-admin';
+```
 
 ### `profils_organisation`
-Lien entre un compte admin et une organisation (structure many-to-many prête pour le futur, un seul profil actif par utilisateur pour le MVP).
+Lien entre un compte utilisateur et une organisation.
 
 | Champ | Type | Description |
 |---|---|---|
 | id | uuid (PK) | Identifiant unique |
-| utilisateur_id | uuid (FK → utilisateurs_app) | Compte admin associé |
+| utilisateur_id | uuid (FK → auth.users) | Compte Supabase Auth associé |
 | organisation_id | uuid (FK → organisations) | Organisation associée |
 | nom_affiche | text | Nom affiché dans l'interface |
-| role | text (enum: `admin`) | Rôle de l'utilisateur dans cette organisation |
+| role | text (enum: `admin`, `benevole`) | Rôle dans cette organisation |
 | created_at | timestamp | Date de création |
 
 ### `personnes`
@@ -147,36 +166,42 @@ Reçus fiscaux annuels, agrégeant les dons d'un participant pour une année don
 
 ### 5.1 Page d'accueil / Connexion
 - Choix entre "Admin" et "Bénévole"
-- Admin → formulaire email/mot de passe (Supabase Auth)
+- Admin → formulaire email/mot de passe (Supabase Auth) → redirige vers dashboard super-admin ou dashboard organisation selon le flag `is_super_admin`
 - Bénévole → saisie d'un code PIN
 
-### 5.2 Dashboard Dons (admin)
+### 5.2 Dashboard Super-Admin
+- Vue globale de toutes les organisations (liste, stats agrégées : nb d'associations, total dons, nb participants)
+- CRUD des organisations (créer, modifier, désactiver une association)
+- Gestion des comptes admin par organisation
+- Accès en lecture aux données de n'importe quelle organisation (support, debug)
+
+### 5.3 Dashboard Dons (admin)
 - Reprend la maquette existante :
   - Statistiques : total collecté, nombre de dons, don moyen, participants distincts
   - Filtres : période, participant, activité, mode de paiement
   - Liste des dons avec panneau de détail
   - Ajout / édition / suppression d'un don (modal ou panneau)
 
-### 5.3 Participants (admin)
+### 5.4 Participants (admin)
 - Liste des participants (profils_participant + infos personnes)
 - Fiche détail d'un participant : informations + historique des dons
 - Ajout / édition d'un participant
 - Possibilité de saisir un don directement depuis la fiche participant
 
-### 5.4 Activités (admin)
+### 5.5 Activités (admin)
 - Liste des activités de l'organisation
 - Ajout / édition d'une activité
 
-### 5.5 Reçus fiscaux (admin)
+### 5.6 Reçus fiscaux (admin)
 - Génération de reçus fiscaux annuels (par participant, ou génération en masse pour une année donnée)
 - Liste des reçus déjà générés, avec téléchargement
 
-### 5.6 Paramètres organisation (admin)
+### 5.7 Paramètres organisation (admin)
 - Nom de l'association
 - Modèle de reçu fiscal (configuration/template)
 - Gestion du code PIN bénévole (génération / régénération)
 
-### 5.7 Écran de saisie bénévole
+### 5.8 Écran de saisie bénévole
 - Accès via code PIN uniquement
 - Formulaire simplifié :
   - Sélection d'un participant existant OU création rapide d'un nouveau participant
@@ -187,12 +212,20 @@ Reçus fiscaux annuels, agrégeant les dons d'un participant pour une année don
 
 ## 6. Règles de sécurité (RLS) — principes
 
-- Toutes les tables liées à une organisation (`profils_participant`, `activites`, `dons`, `recus_fiscaux`, `profils_organisation`) sont filtrées par `organisation_id`
+- **Rôle `super_admin`** (`is_super_admin = true`) : bypass total des RLS, accès en lecture/écriture sur toutes les organisations
 - **Rôle `admin`** : accès complet en lecture/écriture aux données de son organisation uniquement
-- **Rôle `benevole`** (via code PIN, session technique) :
+- **Rôle `benevole`** (compte technique partagé via PIN) :
   - Lecture/écriture restreinte à la création de `dons` et `profils_participant`/`personnes` pour son organisation
   - Aucun accès en lecture aux statistiques, listes complètes, reçus fiscaux ou paramètres
+- Toutes les tables liées à une organisation sont filtrées par `organisation_id` pour les rôles non super-admin
 - Aucune donnée d'une organisation ne doit être accessible à une autre organisation, à aucun niveau
+
+### Requête SQL pour promouvoir un super-admin
+```sql
+update auth.users
+set raw_app_meta_data = raw_app_meta_data || '{"is_super_admin": true}'::jsonb
+where email = 'email-du-super-admin';
+```
 
 ---
 
@@ -202,4 +235,5 @@ Reçus fiscaux annuels, agrégeant les dons d'un participant pour une année don
 - Rôles supplémentaires / permissions fines
 - Export comptable global
 - Notifications automatiques (ex: relance, remerciement participant)
-- Tableau de bord multi-organisation (vue consolidée)
+- Gestion des abonnements/plans (Gratuit, Essentiel, Pro)
+- Brique événements/coupons (à unifier avec les dons autour des participants)
