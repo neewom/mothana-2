@@ -11,6 +11,7 @@ import DonsPage from './pages/DonsPage'
 import ParticipantsPage from './pages/ParticipantsPage'
 import ActivitesPage from './pages/ActivitesPage'
 import RecusFiscauxPage from './pages/RecusFiscauxPage'
+import ParametresPage from './pages/ParametresPage'
 
 function Placeholder({ label }: { label: string }) {
   return (
@@ -36,7 +37,7 @@ function App() {
             <Route path="participants" element={<ParticipantsPage />} />
             <Route path="activites" element={<ActivitesPage />} />
             <Route path="recus" element={<RecusFiscauxPage />} />
-            <Route path="parametres" element={<Placeholder label="Paramètres — à venir" />} />
+            <Route path="parametres" element={<ParametresPage />} />
           </Route>
         </Route>
 
