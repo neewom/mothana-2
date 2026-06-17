@@ -83,31 +83,32 @@ export default function DonModal({
         return
       }
 
-      const { data: personneData, error: personneErr } = await supabase
+      // Generate UUIDs client-side to avoid relying on select-back after insert
+      // (personnes_select RLS would block the row before profil_participant exists)
+      const personneId = crypto.randomUUID()
+      const profilId = crypto.randomUUID()
+
+      const { error: personneErr } = await supabase
         .from('personnes')
-        .insert({ nom: newNom.trim(), prenom: newPrenom.trim() || null, email: newEmail.trim() || null })
-        .select('id')
-        .single()
+        .insert({ id: personneId, nom: newNom.trim(), prenom: newPrenom.trim() || null, email: newEmail.trim() || null })
 
-      if (personneErr || !personneData) {
-        setError(personneErr?.message ?? 'Erreur lors de la création de la personne.')
+      if (personneErr) {
+        setError(personneErr.message)
         setSaving(false)
         return
       }
 
-      const { data: profilData, error: profilErr } = await supabase
+      const { error: profilErr } = await supabase
         .from('profils_participant')
-        .insert({ personne_id: (personneData as { id: string }).id, organisation_id: organisationId })
-        .select('id')
-        .single()
+        .insert({ id: profilId, personne_id: personneId, organisation_id: organisationId })
 
-      if (profilErr || !profilData) {
-        setError(profilErr?.message ?? 'Erreur lors de la création du participant.')
+      if (profilErr) {
+        setError(profilErr.message)
         setSaving(false)
         return
       }
 
-      resolvedProfilId = (profilData as { id: string }).id
+      resolvedProfilId = profilId
     }
 
     if (!resolvedProfilId) {
