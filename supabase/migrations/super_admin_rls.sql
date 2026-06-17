@@ -24,11 +24,13 @@ create policy "org_update_admin" on organisations
     or id = current_user_organisation_id()
   );
 
+drop policy if exists "org_insert_superadmin" on organisations;
 create policy "org_insert_superadmin" on organisations
   for insert with check (
     (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
   );
 
+drop policy if exists "org_delete_superadmin" on organisations;
 create policy "org_delete_superadmin" on organisations
   for delete using (
     (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
