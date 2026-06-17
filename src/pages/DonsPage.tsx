@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { useAuth } from '../contexts/AuthContext'
+import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Don, ProfilParticipant, Activite } from '../types'
 import DonModal from '../components/DonModal'
 
@@ -72,7 +72,7 @@ interface DonsData {
   refetch: () => void
 }
 
-function useDons(): DonsData {
+function useDons(organisationId: string): DonsData {
   const [dons, setDons] = useState<Don[]>([])
   const [participants, setParticipants] = useState<ProfilParticipant[]>([])
   const [activites, setActivites] = useState<Activite[]>([])
@@ -81,6 +81,7 @@ function useDons(): DonsData {
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
+    if (!organisationId) return
     let cancelled = false
 
     async function fetchAll() {
@@ -98,11 +99,13 @@ function useDons(): DonsData {
             ),
             activites(id, nom, organisation_id)
           `)
+          .eq('organisation_id', organisationId)
           .order('date', { ascending: false }),
         supabase
           .from('profils_participant')
-          .select(`id, personne_id, organisation_id, personnes!inner(id, nom, prenom, email, telephone)`),
-        supabase.from('activites').select('id, nom, organisation_id'),
+          .select(`id, personne_id, organisation_id, personnes!inner(id, nom, prenom, email, telephone)`)
+          .eq('organisation_id', organisationId),
+        supabase.from('activites').select('id, nom, organisation_id').eq('organisation_id', organisationId),
       ])
 
       if (cancelled) return
@@ -121,7 +124,7 @@ function useDons(): DonsData {
 
     fetchAll()
     return () => { cancelled = true }
-  }, [tick])
+  }, [organisationId, tick])
 
   return {
     dons,
@@ -272,10 +275,9 @@ function DetailPanel({ don, onClose, onEdit, onDeleted }: DetailPanelProps) {
 // ---------------------------------------------------------------------------
 
 export default function DonsPage() {
-  const { auth } = useAuth()
-  const organisationId = auth.type === 'admin' ? auth.organisationId : ''
+  const organisationId = useOrganisationId()
 
-  const { dons, participants, activites, loading, error, refetch } = useDons()
+  const { dons, participants, activites, loading, error, refetch } = useDons(organisationId)
 
   // Filters
   const today = todayISO()

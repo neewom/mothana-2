@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { useAuth } from '../contexts/AuthContext'
+import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Activite } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -107,8 +107,7 @@ function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: Act
 // ---------------------------------------------------------------------------
 
 export default function ActivitesPage() {
-  const { auth } = useAuth()
-  const organisationId = auth.type === 'admin' ? auth.organisationId : ''
+  const organisationId = useOrganisationId()
 
   const [activites, setActivites] = useState<Activite[]>([])
   const [loading, setLoading] = useState(true)

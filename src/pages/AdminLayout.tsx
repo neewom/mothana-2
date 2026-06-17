@@ -1,6 +1,7 @@
 import { useState, useEffect, type ReactElement } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useOrganisationId } from '../hooks/useOrganisationId'
 import { supabase } from '../lib/supabaseClient'
 
 interface NavItem {
@@ -112,13 +113,13 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
 }
 
 export default function AdminLayout() {
-  const { auth, logout } = useAuth()
+  const { auth, logout, setViewingOrg } = useAuth()
+  const organisationId = useOrganisationId()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [organisationNom, setOrganisationNom] = useState<string | null>(null)
 
-  const organisationId =
-    auth.type === 'admin' ? auth.organisationId : ''
+  const isSuperAdminViewing = auth.type === 'super_admin'
 
   useEffect(() => {
     if (!organisationId) return
@@ -135,6 +136,11 @@ export default function AdminLayout() {
   async function handleLogout() {
     await logout()
     navigate('/', { replace: true })
+  }
+
+  function handleBackToSuperAdmin() {
+    setViewingOrg(null)
+    navigate('/super-admin', { replace: true })
   }
 
   return (
@@ -159,6 +165,25 @@ export default function AdminLayout() {
 
       {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Super-admin banner */}
+        {isSuperAdminViewing && (
+          <div className="flex items-center justify-between bg-indigo-600 px-4 py-2 text-sm text-white">
+            <span>
+              Mode consultation super-admin —{' '}
+              <span className="font-semibold">{organisationNom ?? '…'}</span>
+            </span>
+            <button
+              onClick={handleBackToSuperAdmin}
+              className="flex items-center gap-1.5 rounded-md bg-white/20 px-3 py-1 text-xs font-medium hover:bg-white/30"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+              </svg>
+              Retour au dashboard
+            </button>
+          </div>
+        )}
+
         {/* Top bar */}
         <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm">
           <div className="flex items-center gap-3">
@@ -173,12 +198,14 @@ export default function AdminLayout() {
               <span className="font-semibold text-slate-900">{organisationNom ?? organisationId ?? '—'}</span>
             </span>
           </div>
-          <button
-            onClick={handleLogout}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
-          >
-            Se déconnecter
-          </button>
+          {!isSuperAdminViewing && (
+            <button
+              onClick={handleLogout}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+            >
+              Se déconnecter
+            </button>
+          )}
         </header>
 
         {/* Content */}

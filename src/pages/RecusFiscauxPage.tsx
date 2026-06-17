@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { useAuth } from '../contexts/AuthContext'
+import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { RecuFiscal } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -38,8 +38,7 @@ function yearOptions() {
 // ---------------------------------------------------------------------------
 
 export default function RecusFiscauxPage() {
-  const { auth } = useAuth()
-  const organisationId = auth.type === 'admin' ? auth.organisationId : ''
+  const organisationId = useOrganisationId()
 
   const [annee, setAnnee] = useState<number>(currentYear())
   const [rows, setRows] = useState<ParticipantRow[]>([])

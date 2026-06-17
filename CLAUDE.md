@@ -123,9 +123,16 @@ Trois niveaux d'accès, choisis depuis la page d'accueil :
 - Étape 5 : écran bénévole (layout minimaliste, autocomplete participant, création rapide inline, formulaire don, confirmation visuelle, overlay PIN). Auth bénévole refactorisée : compte Auth technique `benevole-{org_id}@mothana.internal`, `signInWithPassword` via Edge Function, session via `setSession()`.
 - Étape 6 : page Reçus fiscaux (sélecteur d'année, liste participants avec total dons, génération PDF via Edge Function `generate-recu` avec pdf-lib, upload bucket `recus-fiscaux`, upsert `recus_fiscaux`, téléchargement signed URL, "Générer tous").
 - Étape 7 : page Paramètres (nom organisation, PIN bénévole avec révélation/régénération via Edge Function `update-pin` — met à jour DB + mot de passe compte Auth technique, modèle de reçu fiscal avec 4 champs stockés dans `modele_recu_pdf` JSONB).
+- Étape 8 : dashboard super-admin (`/super-admin`) — stats globales (nb orgs, total dons, nb participants), liste organisations avec stats par org, CRUD organisations. `AuthState` étendu avec type `super_admin`, détecté via `app_metadata.is_super_admin`. Redirection automatique post-login. Migration RLS dans `supabase/migrations/super_admin_rls.sql` (à exécuter dans Supabase SQL Editor).
+
+### ⚠️ Action requise (super-admin)
+Exécuter `supabase/migrations/super_admin_rls.sql` dans Supabase SQL Editor pour activer le bypass RLS super-admin.
+Promouvoir un compte super-admin :
+```sql
+update auth.users set raw_app_meta_data = raw_app_meta_data || '{"is_super_admin": true}'::jsonb where email = 'email';
+```
 
 ### ⏳ À venir
-- Étape 8 — Dashboard super-admin (`/super-admin`)
 - Étape 9 — Finitions & QA
 
 ---
