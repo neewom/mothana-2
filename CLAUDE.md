@@ -123,14 +123,19 @@ Trois niveaux d'accès, choisis depuis la page d'accueil :
 - Étape 5 : écran bénévole (layout minimaliste, autocomplete participant, création rapide inline, formulaire don, confirmation visuelle, overlay PIN). Auth bénévole refactorisée : compte Auth technique `benevole-{org_id}@mothana.internal`, `signInWithPassword` via Edge Function, session via `setSession()`.
 - Étape 6 : page Reçus fiscaux (sélecteur d'année, liste participants avec total dons, génération PDF via Edge Function `generate-recu` avec pdf-lib, upload bucket `recus-fiscaux`, upsert `recus_fiscaux`, téléchargement signed URL, "Générer tous").
 - Étape 7 : page Paramètres (nom organisation, PIN bénévole avec révélation/régénération via Edge Function `update-pin` — met à jour DB + mot de passe compte Auth technique, modèle de reçu fiscal avec 4 champs stockés dans `modele_recu_pdf` JSONB).
-- Étape 8 : dashboard super-admin (`/super-admin`) — stats globales (nb orgs, total dons, nb participants), liste organisations avec stats par org, CRUD organisations. `AuthState` étendu avec type `super_admin`, détecté via `app_metadata.is_super_admin`. Redirection automatique post-login. Migration RLS dans `supabase/migrations/super_admin_rls.sql` (à exécuter dans Supabase SQL Editor).
+- Étape 8 : dashboard super-admin (`/super-admin`) — stats globales (nb orgs, total dons, nb participants), liste organisations avec stats par org, CRUD organisations. `AuthState` étendu avec type `super_admin`, détecté via `app_metadata.is_super_admin`. Redirection automatique post-login. Consultation du dashboard d'une organisation depuis le super-admin : `viewingOrgId` dans `AuthContext`, hook `useOrganisationId()`, bannière de mode consultation dans `AdminLayout`, filtrage explicite par `organisation_id` dans toutes les requêtes admin. Migration RLS dans `supabase/migrations/super_admin_rls.sql`.
 
-- Étape 9 : finitions & QA — redirection super-admin depuis HomePage, remplacement alert() par état d'erreur inline (RecusFiscauxPage), catch unhandled promise (AdminLayout), guide de déploiement (`docs/deploiement.md`).
+- Étape 9 : finitions & QA — redirection super-admin depuis HomePage, remplacement alert() par état d'erreur inline (RecusFiscauxPage), guide de déploiement (`docs/deploiement.md`).
+
+- Post-MVP (corrections) :
+  - Migration RLS étendue : bypass super-admin pour `personnes` (select), `activites` (select), `recus_fiscaux` (all), `profils_participant` (insert, update), `dons` (insert, update, delete)
+  - `DonModal` : création de participant à la volée (nom/prénom/email inline), UUIDs générés côté client via `crypto.getRandomValues()` pour éviter l'issue de lecture-retour bloquée par RLS
+  - `AuthContext` : `viewingOrgId` persisté dans `sessionStorage` pour survivre aux rechargements de page
 
 ### ✅ MVP terminé
 
 ### ⚠️ Action requise (super-admin)
-Exécuter `supabase/migrations/super_admin_rls.sql` dans Supabase SQL Editor pour activer le bypass RLS super-admin.
+Exécuter `supabase/migrations/super_admin_rls.sql` **en entier** dans Supabase SQL Editor (couvre organisations, dons, profils_participant, personnes, activites, recus_fiscaux, profils_organisation).
 Promouvoir un compte super-admin :
 ```sql
 update auth.users set raw_app_meta_data = raw_app_meta_data || '{"is_super_admin": true}'::jsonb where email = 'email';
