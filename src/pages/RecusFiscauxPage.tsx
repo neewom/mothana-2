@@ -113,7 +113,7 @@ export default function RecusFiscauxPage() {
 
     // 5. Build rows
     const built: ParticipantRow[] = (profils ?? []).map((p) => {
-      const personne = p.personnes as { nom: string; prenom: string | null; email: string | null } | null
+      const personne = p.personnes as unknown as { nom: string; prenom: string | null; email: string | null } | null
       return {
         profil_participant_id: p.id,
         nom: personne?.nom ?? '',
