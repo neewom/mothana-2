@@ -13,13 +13,6 @@ import ActivitesPage from './pages/ActivitesPage'
 import RecusFiscauxPage from './pages/RecusFiscauxPage'
 import ParametresPage from './pages/ParametresPage'
 
-function Placeholder({ label }: { label: string }) {
-  return (
-    <div className="flex items-center justify-center py-24">
-      <p className="text-slate-400">{label}</p>
-    </div>
-  )
-}
 
 function App() {
   return (
