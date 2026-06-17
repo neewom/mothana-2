@@ -12,6 +12,8 @@ import ParticipantsPage from './pages/ParticipantsPage'
 import ActivitesPage from './pages/ActivitesPage'
 import RecusFiscauxPage from './pages/RecusFiscauxPage'
 import ParametresPage from './pages/ParametresPage'
+import SuperAdminLayout from './pages/SuperAdminLayout'
+import SuperAdminPage from './pages/SuperAdminPage'
 
 
 function App() {
@@ -31,6 +33,13 @@ function App() {
             <Route path="activites" element={<ActivitesPage />} />
             <Route path="recus" element={<RecusFiscauxPage />} />
             <Route path="parametres" element={<ParametresPage />} />
+          </Route>
+        </Route>
+
+        {/* Super-admin (protected) */}
+        <Route element={<ProtectedRoute allowedRoles={['super_admin']} />}>
+          <Route path="/super-admin" element={<SuperAdminLayout />}>
+            <Route index element={<SuperAdminPage />} />
           </Route>
         </Route>
 

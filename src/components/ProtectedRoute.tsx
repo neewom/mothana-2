@@ -2,7 +2,7 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 interface ProtectedRouteProps {
-  allowedRoles: Array<'admin' | 'benevole'>
+  allowedRoles: Array<'super_admin' | 'admin' | 'benevole'>
 }
 
 export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
@@ -20,7 +20,7 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
     return <Navigate to="/" replace />
   }
 
-  if (!allowedRoles.includes(auth.type as 'admin' | 'benevole')) {
+  if (!allowedRoles.includes(auth.type as 'super_admin' | 'admin' | 'benevole')) {
     return <Navigate to="/" replace />
   }
 

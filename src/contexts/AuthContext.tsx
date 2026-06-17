@@ -19,12 +19,13 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 export type AuthState =
   | { type: 'loading' }
   | { type: 'unauthenticated' }
+  | { type: 'super_admin'; user: User }
   | { type: 'admin'; user: User; organisationId: string }
   | { type: 'benevole'; organisationId: string }
 
 interface AuthContextValue {
   auth: AuthState
-  loginAdmin: (email: string, password: string) => Promise<{ error: string | null }>
+  loginAdmin: (email: string, password: string) => Promise<{ error: string | null; authType?: 'super_admin' | 'admin' }>
   loginBenevole: (pin: string) => Promise<{ error: string | null }>
   logout: () => Promise<void>
 }
@@ -41,6 +42,11 @@ async function fetchOrganisationId(userId: string): Promise<string | null> {
     .single()
   if (error || !data) return null
   return (data as { organisation_id: string }).organisation_id
+}
+
+function isSuperAdmin(user: User): boolean {
+  const appMeta = user.app_metadata as Record<string, unknown> | undefined
+  return appMeta?.is_super_admin === true
 }
 
 function getBenevoleOrgFromUser(user: User): string | null {
@@ -71,6 +77,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const benevoleOrgId = getBenevoleOrgFromUser(user)
         if (benevoleOrgId) {
           setAuth({ type: 'benevole', organisationId: benevoleOrgId })
+          return
+        }
+
+        // Super-admin: app_metadata.is_super_admin = true
+        if (isSuperAdmin(user)) {
+          if (!cancelled) setAuth({ type: 'super_admin', user })
           return
         }
 
@@ -108,6 +120,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuth({ type: 'benevole', organisationId: benevoleOrgId })
           return
         }
+        if (isSuperAdmin(session.user)) {
+          if (!cancelled) setAuth({ type: 'super_admin', user: session.user })
+          return
+        }
         const organisationId = await fetchOrganisationId(session.user.id)
         if (!cancelled) {
           setAuth(
@@ -126,18 +142,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const loginAdmin = useCallback(
-    async (email: string, password: string): Promise<{ error: string | null }> => {
+    async (email: string, password: string): Promise<{ error: string | null; authType?: 'super_admin' | 'admin' }> => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error || !data.user) {
         return { error: error?.message ?? 'Erreur de connexion' }
       }
+
+      // Super-admin: no profils_organisation needed
+      if (isSuperAdmin(data.user)) {
+        setAuth({ type: 'super_admin', user: data.user })
+        return { error: null, authType: 'super_admin' }
+      }
+
       const organisationId = await fetchOrganisationId(data.user.id)
       if (!organisationId) {
         await supabase.auth.signOut()
         return { error: 'Aucune organisation associée à ce compte.' }
       }
       setAuth({ type: 'admin', user: data.user, organisationId })
-      return { error: null }
+      return { error: null, authType: 'admin' }
     },
     []
   )

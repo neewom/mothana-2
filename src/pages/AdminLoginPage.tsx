@@ -15,12 +15,12 @@ export default function AdminLoginPage() {
     e.preventDefault()
     setError(null)
     setLoading(true)
-    const { error: loginError } = await loginAdmin(email, password)
+    const { error: loginError, authType } = await loginAdmin(email, password)
     setLoading(false)
     if (loginError) {
       setError(loginError)
     } else {
-      navigate('/admin/dons', { replace: true })
+      navigate(authType === 'super_admin' ? '/super-admin' : '/admin/dons', { replace: true })
     }
   }
 
