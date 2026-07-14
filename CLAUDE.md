@@ -150,9 +150,18 @@ Trois niveaux d'accès, choisis depuis la page d'accueil :
   update auth.users set raw_app_meta_data = raw_app_meta_data || '{"is_super_admin": true}'::jsonb where email = 'email';
   ```
 
+- Post-MVP (nouveaux champs participant) :
+  - Table `personnes` en base : `civilite` (smallint, 1=Monsieur 2=Madame 3=Mademoiselle 4=Foyer 5=Société 6=Association 7=Famille), `adresse`, `code_postal`, `ville`, `pays`, `nom2`/`prenom2` (co-signataire foyer). Table `profils_participant` : `id_externe` (traçabilité imports). Ces colonnes existaient déjà en base (import participants réel) mais n'étaient pas exposées dans le frontend.
+  - `src/types/index.ts` : `Personne` et `ProfilParticipant` étendus avec ces champs, type `Civilite`
+  - `src/lib/civilite.ts` : labels et options de civilité partagés
+  - `ParticipantModal` : formulaire étendu (select civilité, champs co-signataire affichés uniquement si civilité = Foyer, adresse/code postal/ville/pays)
+  - `ParticipantsPage` (fiche détail participant) : affichage civilité, co-signataire (foyer), bloc adresse
+  - Edge Function `generate-recu` : en-tête du PDF utilise `civilite`/`nom2`/`prenom2` — titre de civilité pour 1/2/3, "Monsieur X et Madame Y" pour Foyer (ou "Monsieur et Madame {nom}" si pas de co-signataire renseigné), libellé seul (Société/Association/Famille) sans titre personnel pour 5/6/7
+
 ### ⏳ Post-MVP — Reste à implémenter
 - Envoi automatique des identifiants par email à l'admin créé
 - ⚠️ Règle métier rappel : la création de comptes admin passe obligatoirement par le dashboard super-admin (jamais manuellement via Supabase)
+- Déployer la nouvelle version de l'Edge Function `generate-recu` (en-tête civilité/foyer)
 
 ---
 

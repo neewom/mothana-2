@@ -4,6 +4,7 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { ProfilParticipant, Don, Activite } from '../types'
 import ParticipantModal from '../components/ParticipantModal'
 import DonModal from '../components/DonModal'
+import { CIVILITE_LABELS } from '../lib/civilite'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -90,7 +91,7 @@ function useParticipants(organisationId: string): ParticipantsData {
       const [participantsResult, donsResult, activitesResult] = await Promise.all([
         supabase
           .from('profils_participant')
-          .select(`id, personne_id, organisation_id, notes, created_at, personnes!inner(id, nom, prenom, email, telephone)`)
+          .select(`id, personne_id, organisation_id, notes, id_externe, created_at, personnes!inner(id, nom, prenom, email, telephone, civilite, nom2, prenom2, adresse, code_postal, ville, pays)`)
           .eq('organisation_id', organisationId)
           .order('created_at', { ascending: false }),
         supabase.from('dons').select('profil_participant_id, montant').eq('organisation_id', organisationId),
@@ -167,10 +168,32 @@ function DetailPanel({
       <div className="flex-1 overflow-y-auto space-y-5 px-6 py-5">
         {/* Identity */}
         <div>
+          {p.civilite && (
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              {CIVILITE_LABELS[p.civilite]}
+            </p>
+          )}
           <p className="text-xl font-bold text-slate-900">{participantFullName(participant)}</p>
+          {p.civilite === 4 && (p.nom2 || p.prenom2) && (
+            <p className="text-sm text-slate-500">
+              et {[p.prenom2, p.nom2].filter(Boolean).join(' ')}
+            </p>
+          )}
           {p.email && <p className="mt-1 text-sm text-slate-500">{p.email}</p>}
           {p.telephone && <p className="text-sm text-slate-500">{p.telephone}</p>}
         </div>
+
+        {/* Adresse */}
+        {(p.adresse || p.code_postal || p.ville || p.pays) && (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Adresse</p>
+            <div className="mt-1 text-sm text-slate-700">
+              {p.adresse && <p>{p.adresse}</p>}
+              {(p.code_postal || p.ville) && <p>{[p.code_postal, p.ville].filter(Boolean).join(' ')}</p>}
+              {p.pays && <p>{p.pays}</p>}
+            </div>
+          </div>
+        )}
 
         {/* Notes */}
         {participant.notes && (

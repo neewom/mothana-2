@@ -19,6 +19,46 @@ function formatMontant(n: number): string {
   return n.toFixed(2).replace('.', ',') + ' \u20ac'
 }
 
+interface Personne {
+  nom: string
+  prenom: string | null
+  email: string | null
+  civilite: number | null
+  nom2: string | null
+  prenom2: string | null
+}
+
+const CIVILITE_TITLES: Record<number, string> = {
+  1: 'Monsieur',
+  2: 'Madame',
+  3: 'Mademoiselle',
+  5: 'Soci\u00e9t\u00e9',
+  6: 'Association',
+  7: 'Famille',
+}
+
+function buildDonorName(p: Personne): string {
+  const fullName = [p.prenom, p.nom].filter(Boolean).join(' ')
+
+  if (p.civilite === 4) {
+    if (p.nom2 || p.prenom2) {
+      const coSignataire = [p.prenom2, p.nom2].filter(Boolean).join(' ')
+      return `Monsieur ${fullName} et Madame ${coSignataire}`
+    }
+    return `Monsieur et Madame ${p.nom}`
+  }
+
+  if (p.civilite === 5 || p.civilite === 6 || p.civilite === 7) {
+    return `${CIVILITE_TITLES[p.civilite]} ${p.nom}`
+  }
+
+  if (p.civilite && CIVILITE_TITLES[p.civilite]) {
+    return `${CIVILITE_TITLES[p.civilite]} ${fullName}`
+  }
+
+  return fullName
+}
+
 function wrapText(text: string, charWidth: number, maxWidth: number): string[] {
   const words = text.split(' ')
   const lines: string[] = []
@@ -157,7 +197,7 @@ Deno.serve(async (req) => {
     // Verify participant belongs to this org and get their info
     const { data: participant } = await adminClient
       .from('profils_participant')
-      .select('id, organisation_id, personnes(nom, prenom, email)')
+      .select('id, organisation_id, personnes(nom, prenom, email, civilite, nom2, prenom2)')
       .eq('id', profil_participant_id)
       .eq('organisation_id', organisationId)
       .single()
@@ -195,8 +235,8 @@ Deno.serve(async (req) => {
       .single()
 
     const orgNom = org?.nom ?? ''
-    const personne = participant.personnes as { nom: string; prenom: string | null; email: string | null }
-    const donorName = [personne.prenom, personne.nom].filter(Boolean).join(' ')
+    const personne = participant.personnes as unknown as Personne
+    const donorName = buildDonorName(personne)
 
     // ---------------------------------------------------------------------------
     // Generate PDF
@@ -241,14 +281,21 @@ Deno.serve(async (req) => {
 
     y -= 18
     page.drawText(orgNom, { x: M, y, size: 12, font: fontBold, color: black })
-    page.drawText(donorName, { x: colRight, y, size: 12, font: fontBold, color: black })
 
-    if (personne.email) {
-      y -= 16
-      page.drawText(personne.email, { x: colRight, y, size: 9, font: fontReg, color: midGray })
+    const donorColWidth = width - M - colRight
+    const donorNameLines = wrapText(donorName, 7.2, donorColWidth)
+    let donorY = y
+    for (const line of donorNameLines) {
+      page.drawText(line, { x: colRight, y: donorY, size: 12, font: fontBold, color: black })
+      donorY -= 15
     }
 
-    y -= 30
+    if (personne.email) {
+      page.drawText(personne.email, { x: colRight, y: donorY, size: 9, font: fontReg, color: midGray })
+      donorY -= 16
+    }
+
+    y = Math.min(y - 16, donorY) - 14
 
     // Separator
     page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, thickness: 0.5, color: lightGray })
