@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchAllRows } from '../lib/fetchAllRows'
+import Modal from '../components/Modal'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -96,11 +97,9 @@ function OrgModal({ open, onClose, onSaved, org }: OrgModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-xl">
+    <Modal open={open} onClose={onClose} maxWidthClassName="max-w-sm" labelledBy="org-modal-title">
         <div className="border-b border-slate-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 id="org-modal-title" className="text-lg font-semibold text-slate-900">
             {isEdit ? "Modifier l'organisation" : 'Nouvelle organisation'}
           </h2>
         </div>
@@ -115,7 +114,6 @@ function OrgModal({ open, onClose, onSaved, org }: OrgModalProps) {
             <input
               type="text"
               required
-              autoFocus
               value={nom}
               onChange={(e) => setNom(e.target.value)}
               placeholder="Ex : Association Mothana"
@@ -144,8 +142,7 @@ function OrgModal({ open, onClose, onSaved, org }: OrgModalProps) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -258,23 +255,14 @@ function AdminsModal({ open, org, onClose }: AdminsModalProps) {
     fetchAdmins()
   }
 
-  if (!open || !org) return null
+  if (!org) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg rounded-2xl bg-white shadow-xl">
+    <Modal open={open} onClose={onClose} maxWidthClassName="max-w-lg" labelledBy="admins-modal-title">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Comptes admin</h2>
-            <p className="text-sm text-slate-500">{org.nom}</p>
-          </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <div className="border-b border-slate-200 px-6 py-4">
+          <h2 id="admins-modal-title" className="text-lg font-semibold text-slate-900">Comptes admin</h2>
+          <p className="text-sm text-slate-500">{org.nom}</p>
         </div>
 
         <div className="p-6 space-y-5">
@@ -395,8 +383,7 @@ function AdminsModal({ open, org, onClose }: AdminsModalProps) {
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -659,11 +646,9 @@ export default function SuperAdminPage() {
 
       {/* Delete confirmation */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteConfirm(null)} />
-          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-xl">
+        <Modal open onClose={() => setDeleteConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="delete-org-title">
             <div className="p-6">
-              <h2 className="text-lg font-semibold text-slate-900">Supprimer l'organisation</h2>
+              <h2 id="delete-org-title" className="text-lg font-semibold text-slate-900">Supprimer l'organisation</h2>
               <p className="mt-2 text-sm text-slate-600">
                 Êtes-vous sûr de vouloir supprimer{' '}
                 <span className="font-medium">« {deleteConfirm.nom} »</span> ?
@@ -688,8 +673,7 @@ export default function SuperAdminPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

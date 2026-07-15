@@ -6,6 +6,7 @@ import ParticipantModal from '../components/ParticipantModal'
 import DonModal from '../components/DonModal'
 import { CIVILITE_LABELS } from '../lib/civilite'
 import { fetchAllRows } from '../lib/fetchAllRows'
+import { participantFullName, filterParticipants } from '../lib/participantSearch'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -21,12 +22,6 @@ function formatDate(iso: string): string {
     month: 'long',
     year: 'numeric',
   })
-}
-
-function participantFullName(p: ProfilParticipant): string {
-  return p.personnes.prenom
-    ? `${p.personnes.prenom} ${p.personnes.nom}`
-    : p.personnes.nom
 }
 
 type SortField = 'civilite' | 'nom' | 'prenom' | 'total'
@@ -357,18 +352,10 @@ export default function ParticipantsPage() {
   }, [dons])
 
   // Filtered participants
-  const filteredParticipants = useMemo(() => {
-    if (!search.trim()) return participants
-    const tokens = search.trim().toLowerCase().split(/\s+/)
-    return participants.filter((p) => {
-      const civiliteLabel = p.personnes.civilite ? CIVILITE_LABELS[p.personnes.civilite] : null
-      const haystack = [p.personnes.nom, p.personnes.prenom, p.personnes.nom2, p.personnes.prenom2, civiliteLabel]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return tokens.every((token) => haystack.includes(token))
-    })
-  }, [participants, search])
+  const filteredParticipants = useMemo(
+    () => filterParticipants(participants, search),
+    [participants, search]
+  )
 
   // Sorted participants
   const sortedParticipants = useMemo(() => {

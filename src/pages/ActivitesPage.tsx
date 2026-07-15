@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Activite } from '../types'
+import Modal from '../components/Modal'
 
 // ---------------------------------------------------------------------------
 // ActiviteModal
@@ -54,11 +55,9 @@ function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: Act
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-xl">
+    <Modal open={open} onClose={onClose} maxWidthClassName="max-w-sm" labelledBy="activite-modal-title">
         <div className="border-b border-slate-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 id="activite-modal-title" className="text-lg font-semibold text-slate-900">
             {isEdit ? "Modifier l'activité" : 'Nouvelle activité'}
           </h2>
         </div>
@@ -73,7 +72,6 @@ function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: Act
             <input
               type="text"
               required
-              autoFocus
               value={nom}
               onChange={(e) => setNom(e.target.value)}
               placeholder="Ex : Nouvel An Lao 2026"
@@ -97,8 +95,7 @@ function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: Act
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -260,11 +257,9 @@ export default function ActivitesPage() {
 
       {/* Delete confirmation */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteConfirm(null)} />
-          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-xl">
+        <Modal open onClose={() => setDeleteConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="delete-activite-title">
             <div className="p-6">
-              <h2 className="text-lg font-semibold text-slate-900">Supprimer l'activité</h2>
+              <h2 id="delete-activite-title" className="text-lg font-semibold text-slate-900">Supprimer l'activité</h2>
               <p className="mt-2 text-sm text-slate-600">
                 Êtes-vous sûr de vouloir supprimer{' '}
                 <span className="font-medium">« {deleteConfirm.nom} »</span> ?
@@ -291,8 +286,7 @@ export default function ActivitesPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

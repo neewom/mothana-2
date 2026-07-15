@@ -2,11 +2,20 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { Civilite, ProfilParticipant } from '../types'
 import { CIVILITE_OPTIONS } from '../lib/civilite'
+import Modal from './Modal'
+
+function generateUUID(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40 // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80 // variant RFC 4122
+  const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0'))
+  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10).join('')}`
+}
 
 interface ParticipantModalProps {
   open: boolean
   onClose: () => void
-  onSaved: () => void
+  onSaved: (participant: ProfilParticipant) => void
   participant?: ProfilParticipant
   organisationId: string
 }
@@ -114,13 +123,32 @@ export default function ParticipantModal({
         setSaving(false)
         return
       }
+
+      setSaving(false)
+      onSaved({
+        ...participant,
+        notes: notes || null,
+        personnes: {
+          ...participant.personnes,
+          nom,
+          prenom: hasNoPrenom ? null : prenom || null,
+          email: email || null,
+          telephone: telephone || null,
+          civilite: civilite || null,
+          nom2: isFoyer ? nom2 || null : null,
+          prenom2: isFoyer ? prenom2 || null : null,
+          adresse: adresse || null,
+          code_postal: codePostal || null,
+          ville: ville || null,
+          pays: pays || null,
+        },
+      })
+      onClose()
+      return
     } else {
-      // Generate UUID client-side to avoid triggering the SELECT policy via RETURNING
-      const bytes = crypto.getRandomValues(new Uint8Array(16))
-      bytes[6] = (bytes[6] & 0x0f) | 0x40 // version 4
-      bytes[8] = (bytes[8] & 0x3f) | 0x80 // variant RFC 4122
-      const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0'))
-      const personneId = `${hex.slice(0,4).join('')}-${hex.slice(4,6).join('')}-${hex.slice(6,8).join('')}-${hex.slice(8,10).join('')}-${hex.slice(10).join('')}`
+      // Generate UUIDs client-side to avoid triggering the SELECT policy via RETURNING
+      const personneId = generateUUID()
+      const profilId = generateUUID()
 
       // Insert personne
       const { error: personneErr } = await supabase
@@ -150,6 +178,7 @@ export default function ParticipantModal({
       const { error: profilErr } = await supabase
         .from('profils_participant')
         .insert({
+          id: profilId,
           personne_id: personneId,
           organisation_id: organisationId,
           notes: notes || null,
@@ -160,22 +189,39 @@ export default function ParticipantModal({
         setSaving(false)
         return
       }
-    }
 
-    setSaving(false)
-    onSaved()
-    onClose()
+      setSaving(false)
+      onSaved({
+        id: profilId,
+        personne_id: personneId,
+        organisation_id: organisationId,
+        notes: notes || null,
+        id_externe: null,
+        created_at: new Date().toISOString(),
+        personnes: {
+          id: personneId,
+          nom,
+          prenom: hasNoPrenom ? null : prenom || null,
+          email: email || null,
+          telephone: telephone || null,
+          civilite: civilite || null,
+          nom2: isFoyer ? nom2 || null : null,
+          prenom2: isFoyer ? prenom2 || null : null,
+          adresse: adresse || null,
+          code_postal: codePostal || null,
+          ville: ville || null,
+          pays: pays || null,
+        },
+      })
+      onClose()
+      return
+    }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-
-      {/* Modal card */}
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-md flex-col rounded-2xl bg-white shadow-xl">
+    <Modal open={open} onClose={onClose} labelledBy="participant-modal-title">
         <div className="border-b border-slate-200 px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 id="participant-modal-title" className="text-lg font-semibold text-slate-900">
             {isEdit ? 'Modifier le participant' : 'Ajouter un participant'}
           </h2>
         </div>
@@ -385,7 +431,6 @@ export default function ParticipantModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
