@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import type { ProfilParticipant, Activite } from '../types'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -36,6 +37,11 @@ function PinOverlay({ onSuccess }: { onSuccess: () => void }) {
   const [pin, setPin] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Non-dismissible: no onEscape, session re-authentication is mandatory.
+  // Still traps Tab so focus can't leave onto the page hidden behind it.
+  useFocusTrap(containerRef, true)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -49,8 +55,8 @@ function PinOverlay({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl">
-        <h2 className="text-lg font-semibold text-slate-900">Session expirée</h2>
+      <div ref={containerRef} role="dialog" aria-modal="true" aria-labelledby="pin-overlay-title" className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl">
+        <h2 id="pin-overlay-title" className="text-lg font-semibold text-slate-900">Session expirée</h2>
         <p className="mt-1 text-sm text-slate-500">
           Ressaisissez le code PIN pour continuer — votre saisie en cours est conservée.
         </p>
@@ -60,7 +66,6 @@ function PinOverlay({ onSuccess }: { onSuccess: () => void }) {
             inputMode="numeric"
             maxLength={10}
             required
-            autoFocus
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             className="block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-4 text-center text-3xl font-bold tracking-[0.5em] text-slate-900 focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
