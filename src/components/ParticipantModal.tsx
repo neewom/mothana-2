@@ -36,6 +36,7 @@ export default function ParticipantModal({
   const [error, setError] = useState<string | null>(null)
 
   const isFoyer = civilite === 4
+  const hasNoPrenom = civilite === 5 || civilite === 6
 
   useEffect(() => {
     if (open) {
@@ -83,7 +84,7 @@ export default function ParticipantModal({
         .from('personnes')
         .update({
           nom,
-          prenom: prenom || null,
+          prenom: hasNoPrenom ? null : prenom || null,
           email: email || null,
           telephone: telephone || null,
           civilite: civilite || null,
@@ -127,7 +128,7 @@ export default function ParticipantModal({
         .insert({
           id: personneId,
           nom,
-          prenom: prenom || null,
+          prenom: hasNoPrenom ? null : prenom || null,
           email: email || null,
           telephone: telephone || null,
           civilite: civilite || null,
@@ -193,7 +194,11 @@ export default function ParticipantModal({
             </label>
             <select
               value={civilite}
-              onChange={(e) => setCivilite(e.target.value ? (Number(e.target.value) as Civilite) : '')}
+              onChange={(e) => {
+                const value = e.target.value ? (Number(e.target.value) as Civilite) : ''
+                setCivilite(value)
+                if (value === 5 || value === 6) setPrenom('')
+              }}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Non renseigné</option>
@@ -219,25 +224,27 @@ export default function ParticipantModal({
           </div>
 
           {/* Prénom */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Prénom
-            </label>
-            <input
-              type="text"
-              value={prenom}
-              onChange={(e) => setPrenom(e.target.value)}
-              placeholder="Jean"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+          {!hasNoPrenom && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Prénom
+              </label>
+              <input
+                type="text"
+                value={prenom}
+                onChange={(e) => setPrenom(e.target.value)}
+                placeholder="Jean"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          )}
 
           {/* Co-signataire (foyer) */}
           {isFoyer && (
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Nom du co-signataire
+                  Nom 2
                 </label>
                 <input
                   type="text"
@@ -249,7 +256,7 @@ export default function ParticipantModal({
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Prénom du co-signataire
+                  Prénom 2
                 </label>
                 <input
                   type="text"

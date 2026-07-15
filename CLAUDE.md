@@ -131,6 +131,7 @@ Trois niveaux d'accès, choisis depuis la page d'accueil :
   - Migration RLS étendue : bypass super-admin pour `personnes` (select), `activites` (select), `recus_fiscaux` (all), `profils_participant` (insert, update), `dons` (insert, update, delete)
   - `DonModal` : création de participant à la volée (nom/prénom/email inline), UUIDs générés côté client via `crypto.getRandomValues()` pour éviter l'issue de lecture-retour bloquée par RLS
   - `AuthContext` : `viewingOrgId` persisté dans `sessionStorage` pour survivre aux rechargements de page
+  - ⚠️ Bug corrigé : `personnes_update` n'avait pas le bypass super-admin (contrairement à `personnes_select`) — en mode consultation super-admin, `current_effective_organisation_id()` renvoie `NULL` (pas de ligne `profils_organisation` pour le super-admin), donc l'UPDATE modifiait silencieusement 0 ligne (aucune erreur renvoyée par Supabase). Corrigé via `supabase/migrations/personnes_update_super_admin_bypass.sql`, appliqué en production.
 
 ### ✅ MVP terminé
 
@@ -156,12 +157,15 @@ Trois niveaux d'accès, choisis depuis la page d'accueil :
   - `src/lib/civilite.ts` : labels et options de civilité partagés
   - `ParticipantModal` : formulaire étendu (select civilité, champs co-signataire affichés uniquement si civilité = Foyer, adresse/code postal/ville/pays)
   - `ParticipantsPage` (fiche détail participant) : affichage civilité, co-signataire (foyer), bloc adresse
-  - Edge Function `generate-recu` : en-tête du PDF utilise `civilite`/`nom2`/`prenom2` — titre de civilité pour 1/2/3, "Monsieur X et Madame Y" pour Foyer (ou "Monsieur et Madame {nom}" si pas de co-signataire renseigné), libellé seul (Société/Association/Famille) sans titre personnel pour 5/6/7
+  - Edge Function `generate-recu` : en-tête du PDF utilise `civilite`/`nom2`/`prenom2` — titre de civilité pour 1/2/3, "Monsieur X et Madame Y" pour Foyer (ou "Monsieur et Madame {nom}" si pas de co-signataire renseigné), libellé seul (Société/Association/Famille) sans titre personnel pour 5/6/7 — déployé en production
+  - Ajustements formulaire `ParticipantModal` : labels "Nom 2"/"Prénom 2" (au lieu de "co-signataire"), champ Prénom masqué (et vidé) si civilité = Société/Association
+  - `ParticipantsPage` : recherche combinée nom + prénom + civilité (tokenisée, ordre indifférent), tri par colonne cliquable (Civilité, Nom, Prénom, Total dons — défaut Nom croissant), colonnes Email/Téléphone retirées du tableau, Civilité en 1ère colonne, panneau détail `sticky`, fiche détail affichant toutes les infos (co-signataire indépendamment de la civilité, adresse complète, identifiant externe)
+  - ⚠️ Bug corrigé : troncature silencieuse à 1000 lignes (limite par défaut PostgREST) sur les listes de `profils_participant`/`dons` pour les organisations à fort volume (Wat Velouvanaram : 3335 participants). Helper `src/lib/fetchAllRows.ts` (pagination `.range()` par blocs de 1000, tri stable par `id`) appliqué à `ParticipantsPage`, `DonsPage`, `RecusFiscauxPage`, `SuperAdminPage` (stats globales). Pagination UI (lignes par page + navigation) ajoutée sur les tableaux de `ParticipantsPage`, `DonsPage`, `RecusFiscauxPage`.
 
 ### ⏳ Post-MVP — Reste à implémenter
 - Envoi automatique des identifiants par email à l'admin créé
 - ⚠️ Règle métier rappel : la création de comptes admin passe obligatoirement par le dashboard super-admin (jamais manuellement via Supabase)
-- Déployer la nouvelle version de l'Edge Function `generate-recu` (en-tête civilité/foyer)
+- Corriger manuellement la fiche BOULOM (prénom "BERNARD - DOUANGDARA" jamais scindé en prénom/prénom2) depuis l'UI
 
 ---
 
