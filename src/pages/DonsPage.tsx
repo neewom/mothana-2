@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Don, ProfilParticipant, Activite } from '../types'
 import DonModal from '../components/DonModal'
+import { fetchAllRows } from '../lib/fetchAllRows'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -89,35 +90,42 @@ function useDons(organisationId: string): DonsData {
       setError(null)
 
       const [donsResult, participantsResult, activitesResult] = await Promise.all([
-        supabase
-          .from('dons')
-          .select(`
-            *,
-            profils_participant!inner(
-              id, personne_id, organisation_id,
-              personnes!inner(id, nom, prenom, email, telephone)
-            ),
-            activites(id, nom, organisation_id)
-          `)
-          .eq('organisation_id', organisationId)
-          .order('date', { ascending: false }),
-        supabase
-          .from('profils_participant')
-          .select(`id, personne_id, organisation_id, personnes!inner(id, nom, prenom, email, telephone)`)
-          .eq('organisation_id', organisationId),
+        fetchAllRows<Don>((from, to) =>
+          supabase
+            .from('dons')
+            .select(`
+              *,
+              profils_participant!inner(
+                id, personne_id, organisation_id,
+                personnes!inner(id, nom, prenom, email, telephone)
+              ),
+              activites(id, nom, organisation_id)
+            `)
+            .eq('organisation_id', organisationId)
+            .order('id', { ascending: true })
+            .range(from, to) as unknown as PromiseLike<{ data: Don[] | null; error: { message: string } | null }>
+        ),
+        fetchAllRows<ProfilParticipant>((from, to) =>
+          supabase
+            .from('profils_participant')
+            .select(`id, personne_id, organisation_id, personnes!inner(id, nom, prenom, email, telephone)`)
+            .eq('organisation_id', organisationId)
+            .order('id', { ascending: true })
+            .range(from, to) as unknown as PromiseLike<{ data: ProfilParticipant[] | null; error: { message: string } | null }>
+        ),
         supabase.from('activites').select('id, nom, organisation_id').eq('organisation_id', organisationId),
       ])
 
       if (cancelled) return
 
       if (donsResult.error) {
-        setError(donsResult.error.message)
+        setError(donsResult.error)
         setLoading(false)
         return
       }
 
-      setDons((donsResult.data as unknown as Don[]) ?? [])
-      setParticipants((participantsResult.data as unknown as ProfilParticipant[]) ?? [])
+      setDons(donsResult.data)
+      setParticipants(participantsResult.data)
       setActivites((activitesResult.data as unknown as Activite[]) ?? [])
       setLoading(false)
     }
@@ -311,16 +319,19 @@ export default function DonsPage() {
       setDateDebut(startOfYear(today))
       setDateFin(today)
     }
+    setCurrentPage(1)
   }
 
   function handleDateDebutChange(val: string) {
     setDateDebut(val)
     setShortcut('tout') // deselect shortcut
+    setCurrentPage(1)
   }
 
   function handleDateFinChange(val: string) {
     setDateFin(val)
     setShortcut('tout') // deselect shortcut
+    setCurrentPage(1)
   }
 
   const filteredDons = useMemo(() => {
@@ -342,6 +353,18 @@ export default function DonsPage() {
     const distinctParticipants = new Set(filteredDons.map((d) => d.profil_participant_id)).size
     return { total, count, avg, distinctParticipants }
   }, [filteredDons])
+
+  // Pagination
+  const [pageSize, setPageSize] = useState(50)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const pageCount = Math.max(1, Math.ceil(filteredDons.length / pageSize))
+  const safePage = Math.min(currentPage, pageCount)
+
+  const paginatedDons = useMemo(() => {
+    const start = (safePage - 1) * pageSize
+    return filteredDons.slice(start, start + pageSize)
+  }, [filteredDons, safePage, pageSize])
 
   function openAdd() {
     setEditingDon(undefined)
@@ -429,7 +452,7 @@ export default function DonsPage() {
             <label className="mb-1 block text-xs font-medium text-slate-500">Participant</label>
             <select
               value={filterParticipant}
-              onChange={(e) => setFilterParticipant(e.target.value)}
+              onChange={(e) => { setFilterParticipant(e.target.value); setCurrentPage(1) }}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Tous les participants</option>
@@ -444,7 +467,7 @@ export default function DonsPage() {
             <label className="mb-1 block text-xs font-medium text-slate-500">Activité</label>
             <select
               value={filterActivite}
-              onChange={(e) => setFilterActivite(e.target.value)}
+              onChange={(e) => { setFilterActivite(e.target.value); setCurrentPage(1) }}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Toutes les activités</option>
@@ -459,7 +482,7 @@ export default function DonsPage() {
             <label className="mb-1 block text-xs font-medium text-slate-500">Mode de paiement</label>
             <select
               value={filterMode}
-              onChange={(e) => setFilterMode(e.target.value)}
+              onChange={(e) => { setFilterMode(e.target.value); setCurrentPage(1) }}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Tous les modes</option>
@@ -515,7 +538,7 @@ export default function DonsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredDons.map((don) => (
+                  {paginatedDons.map((don) => (
                     <tr
                       key={don.id}
                       onClick={() => setSelectedDon(don.id === selectedDon?.id ? null : don)}
@@ -549,6 +572,63 @@ export default function DonsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && filteredDons.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-3">
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <span>Lignes par page</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
+                  className="rounded-lg border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {[25, 50, 100, 250].map((size) => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
+                <span>
+                  {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filteredDons.length)} sur {filteredDons.length}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safePage === 1}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  «
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ‹ Précédent
+                </button>
+                <span className="text-sm text-slate-500">Page {safePage} / {pageCount}</span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={safePage === pageCount}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Suivant ›
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(pageCount)}
+                  disabled={safePage === pageCount}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  »
+                </button>
+              </div>
             </div>
           )}
         </div>

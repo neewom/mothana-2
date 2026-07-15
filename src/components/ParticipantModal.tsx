@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import type { ProfilParticipant } from '../types'
+import type { Civilite, ProfilParticipant } from '../types'
+import { CIVILITE_OPTIONS } from '../lib/civilite'
 
 interface ParticipantModalProps {
   open: boolean
@@ -23,9 +24,19 @@ export default function ParticipantModal({
   const [prenom, setPrenom] = useState('')
   const [email, setEmail] = useState('')
   const [telephone, setTelephone] = useState('')
+  const [civilite, setCivilite] = useState<Civilite | ''>('')
+  const [nom2, setNom2] = useState('')
+  const [prenom2, setPrenom2] = useState('')
+  const [adresse, setAdresse] = useState('')
+  const [codePostal, setCodePostal] = useState('')
+  const [ville, setVille] = useState('')
+  const [pays, setPays] = useState('')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const isFoyer = civilite === 4
+  const hasNoPrenom = civilite === 5 || civilite === 6
 
   useEffect(() => {
     if (open) {
@@ -34,12 +45,26 @@ export default function ParticipantModal({
         setPrenom(participant.personnes.prenom ?? '')
         setEmail(participant.personnes.email ?? '')
         setTelephone(participant.personnes.telephone ?? '')
+        setCivilite(participant.personnes.civilite ?? '')
+        setNom2(participant.personnes.nom2 ?? '')
+        setPrenom2(participant.personnes.prenom2 ?? '')
+        setAdresse(participant.personnes.adresse ?? '')
+        setCodePostal(participant.personnes.code_postal ?? '')
+        setVille(participant.personnes.ville ?? '')
+        setPays(participant.personnes.pays ?? '')
         setNotes(participant.notes ?? '')
       } else {
         setNom('')
         setPrenom('')
         setEmail('')
         setTelephone('')
+        setCivilite('')
+        setNom2('')
+        setPrenom2('')
+        setAdresse('')
+        setCodePostal('')
+        setVille('')
+        setPays('')
         setNotes('')
       }
       setError(null)
@@ -59,9 +84,16 @@ export default function ParticipantModal({
         .from('personnes')
         .update({
           nom,
-          prenom: prenom || null,
+          prenom: hasNoPrenom ? null : prenom || null,
           email: email || null,
           telephone: telephone || null,
+          civilite: civilite || null,
+          nom2: isFoyer ? nom2 || null : null,
+          prenom2: isFoyer ? prenom2 || null : null,
+          adresse: adresse || null,
+          code_postal: codePostal || null,
+          ville: ville || null,
+          pays: pays || null,
         })
         .eq('id', participant.personne_id)
 
@@ -96,9 +128,16 @@ export default function ParticipantModal({
         .insert({
           id: personneId,
           nom,
-          prenom: prenom || null,
+          prenom: hasNoPrenom ? null : prenom || null,
           email: email || null,
           telephone: telephone || null,
+          civilite: civilite || null,
+          nom2: isFoyer ? nom2 || null : null,
+          prenom2: isFoyer ? prenom2 || null : null,
+          adresse: adresse || null,
+          code_postal: codePostal || null,
+          ville: ville || null,
+          pays: pays || null,
         })
 
       if (personneErr) {
@@ -134,19 +173,40 @@ export default function ParticipantModal({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       {/* Modal card */}
-      <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-xl">
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-md flex-col rounded-2xl bg-white shadow-xl">
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="text-lg font-semibold text-slate-900">
             {isEdit ? 'Modifier le participant' : 'Ajouter un participant'}
           </h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto p-6">
           {error && (
             <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
+
+          {/* Civilité */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Civilité
+            </label>
+            <select
+              value={civilite}
+              onChange={(e) => {
+                const value = e.target.value ? (Number(e.target.value) as Civilite) : ''
+                setCivilite(value)
+                if (value === 5 || value === 6) setPrenom('')
+              }}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Non renseigné</option>
+              {CIVILITE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
 
           {/* Nom */}
           <div>
@@ -164,18 +224,50 @@ export default function ParticipantModal({
           </div>
 
           {/* Prénom */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Prénom
-            </label>
-            <input
-              type="text"
-              value={prenom}
-              onChange={(e) => setPrenom(e.target.value)}
-              placeholder="Jean"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+          {!hasNoPrenom && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Prénom
+              </label>
+              <input
+                type="text"
+                value={prenom}
+                onChange={(e) => setPrenom(e.target.value)}
+                placeholder="Jean"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          )}
+
+          {/* Co-signataire (foyer) */}
+          {isFoyer && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Nom 2
+                </label>
+                <input
+                  type="text"
+                  value={nom2}
+                  onChange={(e) => setNom2(e.target.value)}
+                  placeholder="Dupont"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Prénom 2
+                </label>
+                <input
+                  type="text"
+                  value={prenom2}
+                  onChange={(e) => setPrenom2(e.target.value)}
+                  placeholder="Marie"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Email */}
           <div>
@@ -201,6 +293,62 @@ export default function ParticipantModal({
               value={telephone}
               onChange={(e) => setTelephone(e.target.value)}
               placeholder="06 00 00 00 00"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          {/* Adresse */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Adresse
+            </label>
+            <input
+              type="text"
+              value={adresse}
+              onChange={(e) => setAdresse(e.target.value)}
+              placeholder="12 rue des Lilas"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          {/* Code postal / Ville */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Code postal
+              </label>
+              <input
+                type="text"
+                value={codePostal}
+                onChange={(e) => setCodePostal(e.target.value)}
+                placeholder="75000"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Ville
+              </label>
+              <input
+                type="text"
+                value={ville}
+                onChange={(e) => setVille(e.target.value)}
+                placeholder="Paris"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          {/* Pays */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Pays
+            </label>
+            <input
+              type="text"
+              value={pays}
+              onChange={(e) => setPays(e.target.value)}
+              placeholder="France"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>

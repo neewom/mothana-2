@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { RecuFiscal } from '../types'
+import { fetchAllRows } from '../lib/fetchAllRows'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -66,18 +67,22 @@ export default function RecusFiscauxPage() {
     const dateStart = `${annee}-01-01`
     const dateEnd = `${annee}-12-31`
 
-    const { data: dons, error: donsErr } = await supabase
-      .from('dons')
-      .select('profil_participant_id, montant')
-      .eq('organisation_id', organisationId)
-      .gte('date', dateStart)
-      .lte('date', dateEnd)
+    const { data: dons, error: donsErr } = await fetchAllRows<{ profil_participant_id: string; montant: number }>((from, to) =>
+      supabase
+        .from('dons')
+        .select('profil_participant_id, montant')
+        .eq('organisation_id', organisationId)
+        .gte('date', dateStart)
+        .lte('date', dateEnd)
+        .order('id', { ascending: true })
+        .range(from, to)
+    )
 
-    if (donsErr) { setError(donsErr.message); setLoading(false); return }
+    if (donsErr) { setError(donsErr); setLoading(false); return }
 
     // 2. Aggregate totals per profil_participant_id
     const totalsMap: Record<string, number> = {}
-    for (const don of dons ?? []) {
+    for (const don of dons) {
       totalsMap[don.profil_participant_id] = (totalsMap[don.profil_participant_id] ?? 0) + Number(don.montant)
     }
 
@@ -90,29 +95,37 @@ export default function RecusFiscauxPage() {
     }
 
     // 3. Fetch participant info for those IDs
-    const { data: profils, error: profilsErr } = await supabase
-      .from('profils_participant')
-      .select('id, personnes(nom, prenom, email)')
-      .in('id', profilIds)
+    const { data: profils, error: profilsErr } = await fetchAllRows<{ id: string; personnes: unknown }>((from, to) =>
+      supabase
+        .from('profils_participant')
+        .select('id, personnes(nom, prenom, email)')
+        .in('id', profilIds)
+        .order('id', { ascending: true })
+        .range(from, to)
+    )
 
-    if (profilsErr) { setError(profilsErr.message); setLoading(false); return }
+    if (profilsErr) { setError(profilsErr); setLoading(false); return }
 
     // 4. Fetch existing recus_fiscaux for this org + year
-    const { data: recus, error: recusErr } = await supabase
-      .from('recus_fiscaux')
-      .select('*')
-      .eq('organisation_id', organisationId)
-      .eq('annee', annee)
+    const { data: recus, error: recusErr } = await fetchAllRows<RecuFiscal>((from, to) =>
+      supabase
+        .from('recus_fiscaux')
+        .select('*')
+        .eq('organisation_id', organisationId)
+        .eq('annee', annee)
+        .order('id', { ascending: true })
+        .range(from, to)
+    )
 
-    if (recusErr) { setError(recusErr.message); setLoading(false); return }
+    if (recusErr) { setError(recusErr); setLoading(false); return }
 
     const recusMap: Record<string, RecuFiscal> = {}
-    for (const r of recus ?? []) {
-      recusMap[r.profil_participant_id] = r as RecuFiscal
+    for (const r of recus) {
+      recusMap[r.profil_participant_id] = r
     }
 
     // 5. Build rows
-    const built: ParticipantRow[] = (profils ?? []).map((p) => {
+    const built: ParticipantRow[] = profils.map((p) => {
       const personne = p.personnes as unknown as { nom: string; prenom: string | null; email: string | null } | null
       return {
         profil_participant_id: p.id,
@@ -215,6 +228,21 @@ export default function RecusFiscauxPage() {
   const totalGeneres = rows.filter((r) => r.recu !== null).length
 
   // ---------------------------------------------------------------------------
+  // Pagination
+  // ---------------------------------------------------------------------------
+
+  const [pageSize, setPageSize] = useState(50)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize))
+  const safePage = Math.min(currentPage, pageCount)
+
+  const paginatedRows = useMemo(() => {
+    const start = (safePage - 1) * pageSize
+    return rows.slice(start, start + pageSize)
+  }, [rows, safePage, pageSize])
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -234,7 +262,7 @@ export default function RecusFiscauxPage() {
           {/* Year selector */}
           <select
             value={annee}
-            onChange={(e) => setAnnee(Number(e.target.value))}
+            onChange={(e) => { setAnnee(Number(e.target.value)); setCurrentPage(1) }}
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {yearOptions().map((y) => (
@@ -295,7 +323,7 @@ export default function RecusFiscauxPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => {
+              {paginatedRows.map((row) => {
                 const fullName = [row.prenom, row.nom].filter(Boolean).join(' ')
                 const isGenLoading = genLoading[row.profil_participant_id]
                 const genErr = genError[row.profil_participant_id]
@@ -388,6 +416,63 @@ export default function RecusFiscauxPage() {
               })}
             </tbody>
           </table>
+        )}
+
+        {/* Pagination */}
+        {!loading && rows.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-3">
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <span>Lignes par page</span>
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
+                className="rounded-lg border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {[25, 50, 100, 250].map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+              <span>
+                {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, rows.length)} sur {rows.length}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={safePage === 1}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                «
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ‹ Précédent
+              </button>
+              <span className="text-sm text-slate-500">Page {safePage} / {pageCount}</span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
+                disabled={safePage === pageCount}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Suivant ›
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(pageCount)}
+                disabled={safePage === pageCount}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                »
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

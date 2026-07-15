@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
+import { fetchAllRows } from '../lib/fetchAllRows'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -444,25 +445,33 @@ export default function SuperAdminPage() {
     }
 
     // 2. All dons (for stats per org)
-    const { data: donsData } = await supabase
-      .from('dons')
-      .select('organisation_id, montant')
+    const { data: donsData } = await fetchAllRows<{ organisation_id: string; montant: number }>((from, to) =>
+      supabase
+        .from('dons')
+        .select('organisation_id, montant')
+        .order('id', { ascending: true })
+        .range(from, to)
+    )
 
     // 3. All profils_participant (for count per org)
-    const { data: profilsData } = await supabase
-      .from('profils_participant')
-      .select('organisation_id')
+    const { data: profilsData } = await fetchAllRows<{ organisation_id: string }>((from, to) =>
+      supabase
+        .from('profils_participant')
+        .select('organisation_id')
+        .order('id', { ascending: true })
+        .range(from, to)
+    )
 
     // Aggregate
     const donsByOrg: Record<string, { count: number; total: number }> = {}
-    for (const d of donsData ?? []) {
+    for (const d of donsData) {
       if (!donsByOrg[d.organisation_id]) donsByOrg[d.organisation_id] = { count: 0, total: 0 }
       donsByOrg[d.organisation_id].count++
       donsByOrg[d.organisation_id].total += Number(d.montant)
     }
 
     const participantsByOrg: Record<string, number> = {}
-    for (const p of profilsData ?? []) {
+    for (const p of profilsData) {
       participantsByOrg[p.organisation_id] = (participantsByOrg[p.organisation_id] ?? 0) + 1
     }
 

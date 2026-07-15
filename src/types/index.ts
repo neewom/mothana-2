@@ -1,9 +1,18 @@
+export type Civilite = 1 | 2 | 3 | 4 | 5 | 6 | 7
+
 export interface Personne {
   id: string
   nom: string
   prenom: string | null
   email: string | null
   telephone: string | null
+  civilite: Civilite | null
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
+  pays: string | null
+  nom2: string | null
+  prenom2: string | null
 }
 
 export interface ProfilParticipant {
@@ -11,6 +20,7 @@ export interface ProfilParticipant {
   personne_id: string
   organisation_id: string
   notes: string | null
+  id_externe: string | null
   created_at: string
   personnes: Personne
 }

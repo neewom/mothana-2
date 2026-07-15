@@ -4,6 +4,8 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { ProfilParticipant, Don, Activite } from '../types'
 import ParticipantModal from '../components/ParticipantModal'
 import DonModal from '../components/DonModal'
+import { CIVILITE_LABELS } from '../lib/civilite'
+import { fetchAllRows } from '../lib/fetchAllRows'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -26,6 +28,8 @@ function participantFullName(p: ProfilParticipant): string {
     ? `${p.personnes.prenom} ${p.personnes.nom}`
     : p.personnes.nom
 }
+
+type SortField = 'civilite' | 'nom' | 'prenom' | 'total'
 
 const MODE_LABELS: Record<Don['mode_paiement'], string> = {
   virement: 'Virement',
@@ -88,25 +92,35 @@ function useParticipants(organisationId: string): ParticipantsData {
       setError(null)
 
       const [participantsResult, donsResult, activitesResult] = await Promise.all([
-        supabase
-          .from('profils_participant')
-          .select(`id, personne_id, organisation_id, notes, created_at, personnes!inner(id, nom, prenom, email, telephone)`)
-          .eq('organisation_id', organisationId)
-          .order('created_at', { ascending: false }),
-        supabase.from('dons').select('profil_participant_id, montant').eq('organisation_id', organisationId),
+        fetchAllRows<ProfilParticipant>((from, to) =>
+          supabase
+            .from('profils_participant')
+            .select(`id, personne_id, organisation_id, notes, id_externe, created_at, personnes!inner(id, nom, prenom, email, telephone, civilite, nom2, prenom2, adresse, code_postal, ville, pays)`)
+            .eq('organisation_id', organisationId)
+            .order('id', { ascending: true })
+            .range(from, to) as unknown as PromiseLike<{ data: ProfilParticipant[] | null; error: { message: string } | null }>
+        ),
+        fetchAllRows<DonSimple>((from, to) =>
+          supabase
+            .from('dons')
+            .select('profil_participant_id, montant')
+            .eq('organisation_id', organisationId)
+            .order('id', { ascending: true })
+            .range(from, to)
+        ),
         supabase.from('activites').select('id, nom, organisation_id').eq('organisation_id', organisationId),
       ])
 
       if (cancelled) return
 
       if (participantsResult.error) {
-        setError(participantsResult.error.message)
+        setError(participantsResult.error)
         setLoading(false)
         return
       }
 
-      setParticipants((participantsResult.data as unknown as ProfilParticipant[]) ?? [])
-      setDons((donsResult.data as DonSimple[]) ?? [])
+      setParticipants(participantsResult.data)
+      setDons(donsResult.data)
       setAllActivites((activitesResult.data as unknown as Activite[]) ?? [])
       setLoading(false)
     }
@@ -167,16 +181,49 @@ function DetailPanel({
       <div className="flex-1 overflow-y-auto space-y-5 px-6 py-5">
         {/* Identity */}
         <div>
+          {p.civilite && (
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              {CIVILITE_LABELS[p.civilite]}
+            </p>
+          )}
           <p className="text-xl font-bold text-slate-900">{participantFullName(participant)}</p>
           {p.email && <p className="mt-1 text-sm text-slate-500">{p.email}</p>}
           {p.telephone && <p className="text-sm text-slate-500">{p.telephone}</p>}
         </div>
+
+        {/* Co-signataire */}
+        {(p.nom2 || p.prenom2) && (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Co-signataire</p>
+            <p className="mt-1 text-sm text-slate-700">{[p.prenom2, p.nom2].filter(Boolean).join(' ')}</p>
+          </div>
+        )}
+
+        {/* Adresse */}
+        {(p.adresse || p.code_postal || p.ville || p.pays) && (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Adresse</p>
+            <div className="mt-1 text-sm text-slate-700">
+              {p.adresse && <p>{p.adresse}</p>}
+              {(p.code_postal || p.ville) && <p>{[p.code_postal, p.ville].filter(Boolean).join(' ')}</p>}
+              {p.pays && <p>{p.pays}</p>}
+            </div>
+          </div>
+        )}
 
         {/* Notes */}
         {participant.notes && (
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Notes</p>
             <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{participant.notes}</p>
+          </div>
+        )}
+
+        {/* Identifiant externe */}
+        {participant.id_externe && (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Identifiant externe</p>
+            <p className="mt-1 text-sm text-slate-700">{participant.id_externe}</p>
           </div>
         )}
 
@@ -245,6 +292,20 @@ export default function ParticipantsPage() {
   // Search
   const [search, setSearch] = useState('')
 
+  // Sort
+  const [sortField, setSortField] = useState<SortField>('nom')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+
+  function toggleSort(field: SortField) {
+    if (field === sortField) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+    setCurrentPage(1)
+  }
+
   // Selected participant for detail panel
   const [selectedParticipant, setSelectedParticipant] = useState<ProfilParticipant | null>(null)
 
@@ -298,13 +359,46 @@ export default function ParticipantsPage() {
   // Filtered participants
   const filteredParticipants = useMemo(() => {
     if (!search.trim()) return participants
-    const q = search.trim().toLowerCase()
+    const tokens = search.trim().toLowerCase().split(/\s+/)
     return participants.filter((p) => {
-      const nom = p.personnes.nom.toLowerCase()
-      const prenom = (p.personnes.prenom ?? '').toLowerCase()
-      return nom.includes(q) || prenom.includes(q)
+      const civiliteLabel = p.personnes.civilite ? CIVILITE_LABELS[p.personnes.civilite] : null
+      const haystack = [p.personnes.nom, p.personnes.prenom, p.personnes.nom2, p.personnes.prenom2, civiliteLabel]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return tokens.every((token) => haystack.includes(token))
     })
   }, [participants, search])
+
+  // Sorted participants
+  const sortedParticipants = useMemo(() => {
+    const dir = sortDirection === 'asc' ? 1 : -1
+    return [...filteredParticipants].sort((a, b) => {
+      switch (sortField) {
+        case 'civilite':
+          return dir * ((a.personnes.civilite ?? 0) - (b.personnes.civilite ?? 0))
+        case 'prenom':
+          return dir * (a.personnes.prenom ?? '').localeCompare(b.personnes.prenom ?? '')
+        case 'total':
+          return dir * ((totalDonsByParticipant.get(a.id) ?? 0) - (totalDonsByParticipant.get(b.id) ?? 0))
+        case 'nom':
+        default:
+          return dir * a.personnes.nom.localeCompare(b.personnes.nom)
+      }
+    })
+  }, [filteredParticipants, sortField, sortDirection, totalDonsByParticipant])
+
+  // Pagination
+  const [pageSize, setPageSize] = useState(50)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const pageCount = Math.max(1, Math.ceil(sortedParticipants.length / pageSize))
+  const safePage = Math.min(currentPage, pageCount)
+
+  const paginatedParticipants = useMemo(() => {
+    const start = (safePage - 1) * pageSize
+    return sortedParticipants.slice(start, start + pageSize)
+  }, [sortedParticipants, safePage, pageSize])
 
   function openAdd() {
     setEditingParticipant(undefined)
@@ -360,8 +454,8 @@ export default function ParticipantsPage() {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher par nom ou prénom…"
+              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
+              placeholder="Rechercher par nom et prénom…"
               className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <button
@@ -385,16 +479,23 @@ export default function ParticipantsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                    <th className="px-6 py-3">Nom</th>
-                    <th className="px-6 py-3">Prénom</th>
-                    <th className="px-6 py-3">Email</th>
-                    <th className="px-6 py-3">Téléphone</th>
-                    <th className="px-6 py-3 text-right">Total dons</th>
+                    <th className="cursor-pointer select-none px-6 py-3 hover:text-slate-700" onClick={() => toggleSort('civilite')}>
+                      Civilité{sortField === 'civilite' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                    </th>
+                    <th className="cursor-pointer select-none px-6 py-3 hover:text-slate-700" onClick={() => toggleSort('nom')}>
+                      Nom{sortField === 'nom' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                    </th>
+                    <th className="cursor-pointer select-none px-6 py-3 hover:text-slate-700" onClick={() => toggleSort('prenom')}>
+                      Prénom{sortField === 'prenom' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                    </th>
+                    <th className="cursor-pointer select-none px-6 py-3 text-right hover:text-slate-700" onClick={() => toggleSort('total')}>
+                      Total dons{sortField === 'total' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                    </th>
                     <th className="px-6 py-3" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredParticipants.map((p) => (
+                  {paginatedParticipants.map((p) => (
                     <tr
                       key={p.id}
                       onClick={() => setSelectedParticipant(p.id === selectedParticipant?.id ? null : p)}
@@ -402,17 +503,14 @@ export default function ParticipantsPage() {
                         p.id === selectedParticipant?.id ? 'bg-indigo-50' : ''
                       }`}
                     >
+                      <td className="px-6 py-3 text-slate-500">
+                        {p.personnes.civilite ? CIVILITE_LABELS[p.personnes.civilite] : '—'}
+                      </td>
                       <td className="px-6 py-3 font-medium text-indigo-600 hover:underline">
                         {p.personnes.nom}
                       </td>
                       <td className="px-6 py-3 text-slate-700">
                         {p.personnes.prenom ?? '—'}
-                      </td>
-                      <td className="px-6 py-3 text-slate-500">
-                        {p.personnes.email ?? '—'}
-                      </td>
-                      <td className="px-6 py-3 text-slate-500">
-                        {p.personnes.telephone ?? '—'}
                       </td>
                       <td className="whitespace-nowrap px-6 py-3 text-right font-medium text-slate-900">
                         {formatEur(totalDonsByParticipant.get(p.id) ?? 0)}
@@ -428,11 +526,68 @@ export default function ParticipantsPage() {
               </table>
             </div>
           )}
+
+          {/* Pagination */}
+          {!loading && filteredParticipants.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-3">
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <span>Lignes par page</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
+                  className="rounded-lg border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {[25, 50, 100, 250].map((size) => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
+                <span>
+                  {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, sortedParticipants.length)} sur {sortedParticipants.length}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safePage === 1}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  «
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ‹ Précédent
+                </button>
+                <span className="text-sm text-slate-500">Page {safePage} / {pageCount}</span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={safePage === pageCount}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Suivant ›
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(pageCount)}
+                  disabled={safePage === pageCount}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  »
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Detail panel — desktop */}
         {selectedParticipant && (
-          <div className="hidden w-80 flex-shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm lg:flex lg:flex-col" style={{ minHeight: '400px' }}>
+          <div className="hidden w-80 flex-shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-6 lg:flex lg:max-h-[calc(100vh-3rem)] lg:flex-col" style={{ minHeight: '400px' }}>
             {loadingDons ? (
               <div className="flex flex-1 items-center justify-center py-16">
                 <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
