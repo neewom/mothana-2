@@ -526,7 +526,7 @@ export default function DonsPage() {
                 onClick={openAdd}
                 className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
               >
-                + Ajouter un don
+                Ajouter
               </button>
             </div>
           </div>

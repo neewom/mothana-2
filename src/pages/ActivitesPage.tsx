@@ -245,7 +245,7 @@ export default function ActivitesPage() {
             onClick={openAdd}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
           >
-            + Ajouter une activité
+            Ajouter
           </button>
         </div>
       </div>

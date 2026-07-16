@@ -531,7 +531,7 @@ export default function ParticipantsPage() {
                 onClick={openAdd}
                 className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
               >
-                + Ajouter un participant
+                Ajouter
               </button>
             </div>
           </div>
