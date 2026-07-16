@@ -7,6 +7,8 @@ import DonModal from '../components/DonModal'
 import { CIVILITE_LABELS } from '../lib/civilite'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { participantFullName, filterParticipants } from '../lib/participantSearch'
+import { useToast } from '../hooks/useToast'
+import Toast from '../components/Toast'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -68,6 +70,7 @@ interface ParticipantsData {
   loading: boolean
   error: string | null
   refetch: () => void
+  upsertParticipant: (participant: ProfilParticipant) => void
 }
 
 function useParticipants(organisationId: string): ParticipantsData {
@@ -124,6 +127,15 @@ function useParticipants(organisationId: string): ParticipantsData {
     return () => { cancelled = true }
   }, [organisationId, tick])
 
+  function upsertParticipant(participant: ProfilParticipant) {
+    setParticipants((prev) => {
+      const exists = prev.some((p) => p.id === participant.id)
+      return exists
+        ? prev.map((p) => (p.id === participant.id ? participant : p))
+        : [participant, ...prev]
+    })
+  }
+
   return {
     participants,
     dons,
@@ -131,6 +143,7 @@ function useParticipants(organisationId: string): ParticipantsData {
     loading,
     error,
     refetch: () => setTick((t) => t + 1),
+    upsertParticipant,
   }
 }
 
@@ -282,7 +295,8 @@ function DetailPanel({
 export default function ParticipantsPage() {
   const organisationId = useOrganisationId()
 
-  const { participants, dons, allActivites, loading, error, refetch } = useParticipants(organisationId)
+  const { participants, dons, allActivites, loading, error, refetch, upsertParticipant } = useParticipants(organisationId)
+  const { toast, showToast, dismissToast } = useToast()
 
   // Search
   const [search, setSearch] = useState('')
@@ -402,9 +416,11 @@ export default function ParticipantsPage() {
     setDonModalOpen(true)
   }
 
-  function handleParticipantSaved() {
-    refetch()
+  function handleParticipantSaved(saved: ProfilParticipant) {
+    const wasEdit = !!editingParticipant
+    upsertParticipant(saved)
     setSelectedParticipant(null)
+    showToast(`${participantFullName(saved)} ${wasEdit ? 'modifié' : 'ajouté'}`)
   }
 
   function handleDonSaved() {
@@ -638,6 +654,9 @@ export default function ParticipantsPage() {
         organisationId={organisationId}
         defaultParticipantId={defaultParticipantId}
       />
+
+      {/* Toast */}
+      {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
     </div>
   )
 }
