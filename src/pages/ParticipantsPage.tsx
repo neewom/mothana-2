@@ -10,6 +10,8 @@ import { fetchAllRows } from '../lib/fetchAllRows'
 import { participantFullName, filterParticipants } from '../lib/participantSearch'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import ImportWizard from '../components/import/ImportWizard'
+import { participantsImportConfig } from '../lib/import/configs'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -345,6 +347,7 @@ export default function ParticipantsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<ProfilParticipant | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
 
   // Participant detail dons — fetch when a participant is selected
   const [participantDons, setParticipantDons] = useState<DonDetail[]>([])
@@ -514,12 +517,20 @@ export default function ParticipantsPage() {
               placeholder="Rechercher par nom et prénom…"
               className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            <button
-              onClick={openAdd}
-              className="flex-shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-              + Ajouter un participant
-            </button>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <button
+                onClick={() => setImportOpen(true)}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Importer
+              </button>
+              <button
+                onClick={openAdd}
+                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                + Ajouter un participant
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -699,6 +710,17 @@ export default function ParticipantsPage() {
         participant={editingParticipant}
         organisationId={organisationId}
       />
+
+      {/* Import CSV/Excel */}
+      {importOpen && (
+        <ImportWizard
+          open
+          onClose={() => setImportOpen(false)}
+          config={participantsImportConfig}
+          organisationId={organisationId}
+          onImported={refetch}
+        />
+      )}
 
       {/* Don add modal */}
       <DonModal

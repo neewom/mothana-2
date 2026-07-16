@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Activite } from '../types'
 import Modal from '../components/Modal'
+import ImportWizard from '../components/import/ImportWizard'
+import { activitesImportConfig } from '../lib/import/configs'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -151,6 +153,7 @@ export default function ActivitesPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<Activite | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
 
   async function fetchActivites() {
     setLoading(true)
@@ -228,15 +231,26 @@ export default function ActivitesPage() {
             {activites.length} activité{activites.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Nouvelle activité
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setImportOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            Importer
+          </button>
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Nouvelle activité
+          </button>
+        </div>
       </div>
 
       {/* List */}
@@ -306,6 +320,17 @@ export default function ActivitesPage() {
         activite={editing}
         organisationId={organisationId}
       />
+
+      {/* Import CSV/Excel */}
+      {importOpen && (
+        <ImportWizard
+          open
+          onClose={() => setImportOpen(false)}
+          config={activitesImportConfig}
+          organisationId={organisationId}
+          onImported={fetchActivites}
+        />
+      )}
 
       {/* Delete confirmation */}
       {deleteConfirm && (

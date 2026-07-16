@@ -1,8 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
-import ImportWizard from '../components/import/ImportWizard'
-import { participantsImportConfig, activitesImportConfig, donsImportConfig, type ImportConfig } from '../lib/import/configs'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -77,9 +75,6 @@ export default function ParametresPage() {
   const [modeleSaving, setModeleSaving] = useState(false)
   const [modeleSuccess, setModeleSuccess] = useState(false)
   const [modeleError, setModeleError] = useState<string | null>(null)
-
-  // Import de données legacy
-  const [importConfig, setImportConfig] = useState<ImportConfig | null>(null)
 
   // ---------------------------------------------------------------------------
   // Fetch
@@ -230,7 +225,6 @@ export default function ParametresPage() {
   }
 
   return (
-    <>
     <div className="space-y-6">
       {/* Header */}
       <div>
@@ -410,46 +404,6 @@ export default function ParametresPage() {
           </div>
         </form>
       </Section>
-
-      {/* Section 4 — Import de données legacy */}
-      <Section
-        title="Import de données legacy"
-        description="Importez des participants, activités ou dons depuis un fichier CSV ou Excel (.xlsx), avec correspondance des colonnes. Réimporter le même fichier met à jour les lignes déjà importées sans créer de doublons."
-      >
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => setImportConfig(participantsImportConfig)}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Importer des participants
-          </button>
-          <button
-            type="button"
-            onClick={() => setImportConfig(activitesImportConfig)}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Importer des activités
-          </button>
-          <button
-            type="button"
-            onClick={() => setImportConfig(donsImportConfig)}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Importer des dons
-          </button>
-        </div>
-      </Section>
     </div>
-
-      {importConfig && (
-        <ImportWizard
-          open
-          onClose={() => setImportConfig(null)}
-          config={importConfig}
-          organisationId={organisationId}
-        />
-      )}
-    </>
   )
 }

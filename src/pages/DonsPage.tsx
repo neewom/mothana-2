@@ -4,6 +4,8 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Don, ProfilParticipant, Activite } from '../types'
 import DonModal from '../components/DonModal'
 import { fetchAllRows } from '../lib/fetchAllRows'
+import ImportWizard from '../components/import/ImportWizard'
+import { donsImportConfig } from '../lib/import/configs'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -300,6 +302,7 @@ export default function DonsPage() {
   const [selectedDon, setSelectedDon] = useState<Don | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingDon, setEditingDon] = useState<Don | undefined>(undefined)
+  const [importOpen, setImportOpen] = useState(false)
 
   function applyShortcut(s: Shortcut) {
     setShortcut(s)
@@ -509,12 +512,20 @@ export default function DonsPage() {
         <div className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
             <h2 className="font-semibold text-slate-900">Liste des dons</h2>
-            <button
-              onClick={openAdd}
-              className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-              + Ajouter un don
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setImportOpen(true)}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Importer
+              </button>
+              <button
+                onClick={openAdd}
+                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                + Ajouter un don
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -676,6 +687,17 @@ export default function DonsPage() {
         activites={activites}
         organisationId={organisationId}
       />
+
+      {/* Import CSV/Excel */}
+      {importOpen && (
+        <ImportWizard
+          open
+          onClose={() => setImportOpen(false)}
+          config={donsImportConfig}
+          organisationId={organisationId}
+          onImported={refetch}
+        />
+      )}
     </>
   )
 }
