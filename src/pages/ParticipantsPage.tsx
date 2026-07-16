@@ -4,6 +4,7 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { ProfilParticipant, Don, Activite } from '../types'
 import ParticipantModal from '../components/ParticipantModal'
 import DonModal from '../components/DonModal'
+import Modal from '../components/Modal'
 import { CIVILITE_LABELS } from '../lib/civilite'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { participantFullName, filterParticipants } from '../lib/participantSearch'
@@ -71,6 +72,7 @@ interface ParticipantsData {
   error: string | null
   refetch: () => void
   upsertParticipant: (participant: ProfilParticipant) => void
+  removeParticipant: (id: string) => void
 }
 
 function useParticipants(organisationId: string): ParticipantsData {
@@ -136,6 +138,10 @@ function useParticipants(organisationId: string): ParticipantsData {
     })
   }
 
+  function removeParticipant(id: string) {
+    setParticipants((prev) => prev.filter((p) => p.id !== id))
+  }
+
   return {
     participants,
     dons,
@@ -144,6 +150,7 @@ function useParticipants(organisationId: string): ParticipantsData {
     error,
     refetch: () => setTick((t) => t + 1),
     upsertParticipant,
+    removeParticipant,
   }
 }
 
@@ -158,6 +165,7 @@ interface DetailPanelProps {
   onClose: () => void
   onEdit: () => void
   onAddDon: () => void
+  onDelete: () => void
 }
 
 function DetailPanel({
@@ -167,6 +175,7 @@ function DetailPanel({
   onClose,
   onEdit,
   onAddDon,
+  onDelete,
 }: DetailPanelProps) {
   const p = participant.personnes
 
@@ -283,6 +292,12 @@ function DetailPanel({
             Ajouter un don
           </button>
         </div>
+        <button
+          onClick={onDelete}
+          className="mt-2 w-full rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+        >
+          Supprimer le participant
+        </button>
       </div>
     </div>
   )
@@ -295,7 +310,7 @@ function DetailPanel({
 export default function ParticipantsPage() {
   const organisationId = useOrganisationId()
 
-  const { participants, dons, allActivites, loading, error, refetch, upsertParticipant } = useParticipants(organisationId)
+  const { participants, dons, allActivites, loading, error, refetch, upsertParticipant, removeParticipant } = useParticipants(organisationId)
   const { toast, showToast, dismissToast } = useToast()
 
   // Search
@@ -325,6 +340,11 @@ export default function ParticipantsPage() {
   // Don modal (add)
   const [donModalOpen, setDonModalOpen] = useState(false)
   const [defaultParticipantId, setDefaultParticipantId] = useState<string | undefined>(undefined)
+
+  // Delete confirmation
+  const [deleteConfirm, setDeleteConfirm] = useState<ProfilParticipant | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Participant detail dons — fetch when a participant is selected
   const [participantDons, setParticipantDons] = useState<DonDetail[]>([])
@@ -414,6 +434,38 @@ export default function ParticipantsPage() {
   function openAddDon(participantId: string) {
     setDefaultParticipantId(participantId)
     setDonModalOpen(true)
+  }
+
+  function openDelete(p: ProfilParticipant) {
+    setDeleteConfirm(p)
+    setDeleteError(null)
+  }
+
+  async function handleDelete() {
+    if (!deleteConfirm) return
+
+    const linkedDons = dons.filter((d) => d.profil_participant_id === deleteConfirm.id).length
+    if (linkedDons > 0) {
+      setDeleteError(
+        `Impossible de supprimer : ${linkedDons} don${linkedDons > 1 ? 's' : ''} ${linkedDons > 1 ? 'sont rattachés' : 'est rattaché'} à ce participant.`
+      )
+      return
+    }
+
+    setDeleting(true)
+    const { error: err } = await supabase.from('profils_participant').delete().eq('id', deleteConfirm.id)
+    setDeleting(false)
+
+    if (err) {
+      setDeleteError(err.message)
+      return
+    }
+
+    const fullName = participantFullName(deleteConfirm)
+    removeParticipant(deleteConfirm.id)
+    setSelectedParticipant(null)
+    setDeleteConfirm(null)
+    showToast(`${fullName} supprimé`)
   }
 
   function handleParticipantSaved(saved: ProfilParticipant) {
@@ -604,6 +656,7 @@ export default function ParticipantsPage() {
                 onClose={() => setSelectedParticipant(null)}
                 onEdit={() => openEdit(selectedParticipant)}
                 onAddDon={() => openAddDon(selectedParticipant.id)}
+                onDelete={() => openDelete(selectedParticipant)}
               />
             )}
           </div>
@@ -631,6 +684,7 @@ export default function ParticipantsPage() {
                 onClose={() => setSelectedParticipant(null)}
                 onEdit={() => openEdit(selectedParticipant)}
                 onAddDon={() => openAddDon(selectedParticipant.id)}
+                onDelete={() => openDelete(selectedParticipant)}
               />
             )}
           </div>
@@ -656,6 +710,40 @@ export default function ParticipantsPage() {
         organisationId={organisationId}
         defaultParticipantId={defaultParticipantId}
       />
+
+      {/* Delete confirmation */}
+      {deleteConfirm && (
+        <Modal open onClose={() => setDeleteConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="delete-participant-title">
+            <div className="p-6">
+              <h2 id="delete-participant-title" className="text-lg font-semibold text-slate-900">Supprimer le participant</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Êtes-vous sûr de vouloir supprimer{' '}
+                <span className="font-medium">« {participantFullName(deleteConfirm)} »</span> ?
+                Cette action est irréversible.
+              </p>
+              {deleteError && (
+                <div className="mt-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {deleteError}
+                </div>
+              )}
+              <div className="mt-5 flex justify-end gap-3">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+                >
+                  {deleting ? 'Suppression…' : 'Supprimer'}
+                </button>
+              </div>
+            </div>
+        </Modal>
+      )}
 
       {/* Toast */}
       {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
