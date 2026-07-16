@@ -142,16 +142,6 @@ Trois niveaux d'accès, choisis depuis la page d'accueil :
   - Fonction SQL `get_org_admins(org_id)` (security definer, réservée super-admin) : joint `profils_organisation` et `auth.users` pour retourner email + `is_banned` — à exécuter depuis `supabase/migrations/get_org_admins.sql`
   - `AdminsModal` dans `SuperAdminPage` : liste des admins par org (nom, email, badge désactivé, bouton Désactiver/Réactiver), formulaire d'ajout inline (nom, email, mot de passe), bouton "Admins" par ligne d'organisation
 
-### ⚠️ Actions requises (déploiement)
-- Exécuter `supabase/migrations/super_admin_rls.sql` dans Supabase SQL Editor
-- Exécuter `supabase/migrations/get_org_admins.sql` dans Supabase SQL Editor
-- Exécuter `supabase/migrations/profils_participant_delete.sql` dans Supabase SQL Editor (nécessaire pour la suppression de participant — sans elle, le bouton "Supprimer" semble fonctionner côté UI mais ne supprime aucune ligne en base, RLS bloquant silencieusement le DELETE)
-- Déployer les Edge Functions : `create-admin`, `disable-admin` (en plus de `verify-pin`, `generate-recu`, `update-pin`)
-- Promouvoir un compte super-admin :
-  ```sql
-  update auth.users set raw_app_meta_data = raw_app_meta_data || '{"is_super_admin": true}'::jsonb where email = 'email';
-  ```
-
 - Post-MVP (nouveaux champs participant) :
   - Table `personnes` en base : `civilite` (smallint, 1=Monsieur 2=Madame 3=Mademoiselle 4=Foyer 5=Société 6=Association 7=Famille), `adresse`, `code_postal`, `ville`, `pays`, `nom2`/`prenom2` (co-signataire foyer). Table `profils_participant` : `id_externe` (traçabilité imports). Ces colonnes existaient déjà en base (import participants réel) mais n'étaient pas exposées dans le frontend.
   - `src/types/index.ts` : `Personne` et `ProfilParticipant` étendus avec ces champs, type `Civilite`
@@ -169,7 +159,7 @@ Trois niveaux d'accès, choisis depuis la page d'accueil :
   - `ParticipantsPage` : sauvegarde d'un participant (ajout/édition) ne déclenche plus de refetch complet (coûteux pour 3335 participants) — mise à jour optimiste locale via `upsertParticipant` (nouveau, exposé par `useParticipants`), plus un toast de confirmation affichant nom/prénom ("X modifié" / "X ajouté"). Nouveau système de toast réutilisable : `src/hooks/useToast.ts` + `src/components/Toast.tsx` (message unique, auto-dismiss ~3s, `role="status"` `aria-live="polite"`).
   - `vercel.json` ajouté (rewrite SPA `/(.*) → /index.html`) : sans lui, l'accès direct (rechargement, lien externe) à une route React Router (ex: `/login/admin`) renvoyait un 404 sur Vercel.
   - ⚠️ Bug corrigé : l'overlay des modales (`ParticipantsPage`, `DonsPage`, `ActivitesPage`, `SuperAdminPage`) ne couvrait pas toute la hauteur de l'écran — ces pages enveloppaient toute leur sortie JSX (y compris les modales `fixed`) dans un seul `div.space-y-6`/`space-y-8`, qui applique un `margin-top` aux enfants non-premiers via un sélecteur de frères ; un élément `fixed` reste soumis à son propre `margin` même hors du flux normal. Modales/overlays sortis du conteneur `space-y-*` via un Fragment.
-  - Suppression d'un participant : CTA "Supprimer le participant" dans le panneau de détail (`DetailPanel`, `ParticipantsPage`), avec confirmation (`Modal` partagé). Bloquée si le participant a des dons liés (vérifié via l'array `dons` déjà chargé en mémoire, cohérent avec le pattern de blocage déjà utilisé pour les activités) — protège l'historique de dons et les reçus fiscaux, qui ne peuvent exister que s'il y a des dons. Nécessite la migration `supabase/migrations/profils_participant_delete.sql` (nouvelle policy RLS `delete`, absente jusqu'ici). La table `personnes` n'est pas supprimée (reste orpheline), volontairement, pour éviter tout risque lié au cascade delete si une `personne` venait à être partagée entre plusieurs organisations.
+  - Suppression d'un participant : CTA "Supprimer le participant" dans le panneau de détail (`DetailPanel`, `ParticipantsPage`), avec confirmation (`Modal` partagé). Bloquée si le participant a des dons liés (vérifié via l'array `dons` déjà chargé en mémoire, cohérent avec le pattern de blocage déjà utilisé pour les activités) — protège l'historique de dons et les reçus fiscaux, qui ne peuvent exister que s'il y a des dons. Nécessite la migration `supabase/migrations/profils_participant_delete.sql` (nouvelle policy RLS `delete`, absente jusqu'ici — **exécutée en production le 2026-07-16**, corrige le bug où le CTA semblait fonctionner côté UI mais ne supprimait aucune ligne, RLS bloquant silencieusement le DELETE sans erreur). La table `personnes` n'est pas supprimée (reste orpheline), volontairement, pour éviter tout risque lié au cascade delete si une `personne` venait à être partagée entre plusieurs organisations.
 
 ### ⏳ Post-MVP — Reste à implémenter
 - Envoi automatique des identifiants par email à l'admin créé
