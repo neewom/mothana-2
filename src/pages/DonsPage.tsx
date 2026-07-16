@@ -395,6 +395,7 @@ export default function DonsPage() {
   ]
 
   return (
+    <>
     <div className="space-y-6">
       {/* Page title */}
       <div>
@@ -645,6 +646,7 @@ export default function DonsPage() {
           </div>
         )}
       </div>
+    </div>
 
       {/* Mobile detail panel (slides over) */}
       {selectedDon && (
@@ -674,6 +676,6 @@ export default function DonsPage() {
         activites={activites}
         organisationId={organisationId}
       />
-    </div>
+    </>
   )
 }

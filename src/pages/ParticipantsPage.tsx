@@ -434,6 +434,7 @@ export default function ParticipantsPage() {
   }
 
   return (
+    <>
     <div className="space-y-6">
       {/* Page title */}
       <div>
@@ -608,6 +609,7 @@ export default function ParticipantsPage() {
           </div>
         )}
       </div>
+    </div>
 
       {/* Mobile detail panel */}
       {selectedParticipant && (
@@ -657,6 +659,6 @@ export default function ParticipantsPage() {
 
       {/* Toast */}
       {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
-    </div>
+    </>
   )
 }

@@ -516,6 +516,7 @@ export default function SuperAdminPage() {
   // ---------------------------------------------------------------------------
 
   return (
+    <>
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -628,6 +629,7 @@ export default function SuperAdminPage() {
           </table>
         )}
       </div>
+    </div>
 
       {/* Create / edit modal */}
       <OrgModal
@@ -675,6 +677,6 @@ export default function SuperAdminPage() {
             </div>
         </Modal>
       )}
-    </div>
+    </>
   )
 }
