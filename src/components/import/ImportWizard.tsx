@@ -77,6 +77,7 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
       setMapping(guessMapping(parsed.headers, config.fieldDefs))
       setStep('map')
     } catch (err) {
+      console.error('Erreur de lecture du fichier import :', err)
       setError(err instanceof Error ? err.message : 'Erreur de lecture du fichier')
     }
   }
@@ -105,6 +106,7 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
         setStep('confirm')
       }
     } catch (err) {
+      console.error('Erreur de préparation de l’import :', err)
       setError(err instanceof Error ? err.message : 'Erreur de préparation de l’import')
     } finally {
       setPreparing(false)

@@ -48,7 +48,13 @@ async function parseXlsxFile(file: File): Promise<ParsedFile> {
 
   const rows: unknown[][] = []
   sheet.eachRow((row) => {
-    const values = row.values as unknown[]
+    // Une colonne jamais renseignée (ex : en-tête vide) crée un "trou" dans
+    // row.values plutôt qu'un simple undefined explicite. Array.from() comble
+    // ces trous (undefined explicite) : sans ça, .map() ci-dessous les
+    // ignorerait silencieusement, laissant le trou se propager jusqu'à
+    // guessMapping où .findIndex() (qui NE saute PAS les trous, contrairement
+    // à .map()) finit par appeler normalizeHeader/partialMatch avec undefined.
+    const values = Array.from(row.values as unknown[])
     // ExcelJS indexe row.values à partir de 1 ; l'index 0 est toujours vide.
     rows.push(values.slice(1).map(normalizeCellValue))
   })

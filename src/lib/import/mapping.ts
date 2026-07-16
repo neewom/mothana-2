@@ -1,7 +1,10 @@
 import type { FieldDef, ParsedRow } from './types'
 
-function normalizeHeader(s: string): string {
-  return s
+// Accepte unknown (pas seulement string) par défense : une colonne de fichier
+// jamais renseignée peut produire un "trou" (undefined) selon le chemin de
+// parsing emprunté, plutôt qu'une chaîne vide.
+function normalizeHeader(s: unknown): string {
+  return String(s ?? '')
     .normalize('NFD')
     .replace(new RegExp(`[${String.fromCharCode(0x0300)}-${String.fromCharCode(0x036f)}]`, 'g'), '')
     .toLowerCase()
@@ -14,6 +17,7 @@ function normalizeHeader(s: string): string {
 const MIN_LENGTH_FOR_PARTIAL_MATCH = 3
 
 function partialMatch(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false
   if (a.length < MIN_LENGTH_FOR_PARTIAL_MATCH || b.length < MIN_LENGTH_FOR_PARTIAL_MATCH) return false
   return a.includes(b) || b.includes(a)
 }
