@@ -4,6 +4,10 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Activite } from '../types'
 import Modal from '../components/Modal'
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 // ---------------------------------------------------------------------------
 // ActiviteModal
 // ---------------------------------------------------------------------------
@@ -19,12 +23,16 @@ interface ActiviteModalProps {
 function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: ActiviteModalProps) {
   const isEdit = !!activite
   const [nom, setNom] = useState('')
+  const [dateDebut, setDateDebut] = useState('')
+  const [dateFin, setDateFin] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
       setNom(activite?.nom ?? '')
+      setDateDebut(activite?.date_debut ?? '')
+      setDateFin(activite?.date_fin ?? '')
       setError(null)
     }
   }, [open, activite])
@@ -36,16 +44,22 @@ function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: Act
     setError(null)
     setSaving(true)
 
+    const payload = {
+      nom,
+      date_debut: dateDebut || null,
+      date_fin: dateFin || null,
+    }
+
     if (isEdit && activite) {
       const { error: err } = await supabase
         .from('activites')
-        .update({ nom })
+        .update(payload)
         .eq('id', activite.id)
       if (err) { setError(err.message); setSaving(false); return }
     } else {
       const { error: err } = await supabase
         .from('activites')
-        .insert({ nom, organisation_id: organisationId })
+        .insert({ ...payload, organisation_id: organisationId })
       if (err) { setError(err.message); setSaving(false); return }
     }
 
@@ -77,6 +91,30 @@ function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: Act
               placeholder="Ex : Nouvel An Lao 2026"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Date de début
+              </label>
+              <input
+                type="date"
+                value={dateDebut}
+                onChange={(e) => setDateDebut(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Date de fin
+              </label>
+              <input
+                type="date"
+                value={dateFin}
+                onChange={(e) => setDateFin(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button
@@ -225,7 +263,19 @@ export default function ActivitesPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
                     </svg>
                   </div>
-                  <span className="text-sm font-medium text-slate-900">{a.nom}</span>
+                  <div>
+                    <span className="text-sm font-medium text-slate-900">{a.nom}</span>
+                    {(a.date_debut || a.date_fin) && (
+                      <p className="text-xs text-slate-500">
+                        {a.date_debut ? formatDate(a.date_debut) : '?'}
+                        {' → '}
+                        {a.date_fin ? formatDate(a.date_fin) : '?'}
+                      </p>
+                    )}
+                    {a.id_externe && (
+                      <p className="text-xs text-slate-400">Réf. import : {a.id_externe}</p>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button

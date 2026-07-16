@@ -29,6 +29,9 @@ export interface Activite {
   id: string
   organisation_id: string
   nom: string
+  id_externe: string | null
+  date_debut: string | null
+  date_fin: string | null
 }
 
 export interface RecuFiscal {
@@ -50,6 +53,7 @@ export interface Don {
   date: string  // ISO date string YYYY-MM-DD
   mode_paiement: 'virement' | 'cheque' | 'especes'
   created_by_role: 'admin' | 'benevole'
+  id_externe: string | null
   created_at: string
   updated_at: string
   profils_participant: ProfilParticipant
