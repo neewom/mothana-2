@@ -10,6 +10,8 @@ import { fetchAllRows } from '../lib/fetchAllRows'
 import { participantFullName, filterParticipants } from '../lib/participantSearch'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import ImportWizard from '../components/import/ImportWizard'
+import { participantsImportConfig } from '../lib/import/configs'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -345,6 +347,7 @@ export default function ParticipantsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<ProfilParticipant | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
 
   // Participant detail dons — fetch when a participant is selected
   const [participantDons, setParticipantDons] = useState<DonDetail[]>([])
@@ -514,12 +517,26 @@ export default function ParticipantsPage() {
               placeholder="Rechercher par nom et prénom…"
               className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            <button
-              onClick={openAdd}
-              className="flex-shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-              + Ajouter un participant
-            </button>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <button
+                onClick={() => setImportOpen(true)}
+                className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                Importer
+              </button>
+              <button
+                onClick={openAdd}
+                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Ajouter
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -699,6 +716,17 @@ export default function ParticipantsPage() {
         participant={editingParticipant}
         organisationId={organisationId}
       />
+
+      {/* Import CSV/Excel */}
+      {importOpen && (
+        <ImportWizard
+          open
+          onClose={() => setImportOpen(false)}
+          config={participantsImportConfig}
+          organisationId={organisationId}
+          onImported={refetch}
+        />
+      )}
 
       {/* Don add modal */}
       <DonModal
