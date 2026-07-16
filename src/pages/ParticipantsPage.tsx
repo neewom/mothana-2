@@ -591,7 +591,7 @@ export default function ParticipantsPage() {
                 <select
                   value={pageSize}
                   onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
-                  className="rounded-lg border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="select-field rounded-lg border border-slate-300 py-1 pl-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {[25, 50, 100, 250].map((size) => (
                     <option key={size} value={size}>{size}</option>

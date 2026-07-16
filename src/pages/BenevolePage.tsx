@@ -510,7 +510,7 @@ export default function BenevolePage() {
                 <select
                   value={activiteId}
                   onChange={(e) => setActiviteId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">Aucune activité</option>
                   {activites.map((a) => (
