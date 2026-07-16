@@ -6,6 +6,25 @@ export interface ParsedFile {
   rows: unknown[][]
 }
 
+// Convertit un index de colonne 1-indexé en lettre(s) façon tableur (1->A, 26->Z, 27->AA...).
+function columnLetter(n: number): string {
+  let s = ''
+  while (n > 0) {
+    const rem = (n - 1) % 26
+    s = String.fromCharCode(65 + rem) + s
+    n = Math.floor((n - 1) / 26)
+  }
+  return s
+}
+
+// En-tête vide (colonne jamais renseignée dans le fichier) : plutôt qu'une
+// chaîne vide invisible dans le menu de mapping, un nom lisible basé sur la
+// position de la colonne (ex : "Colonne C").
+function headerLabel(raw: unknown, columnIndex0: number): string {
+  const trimmed = String(raw ?? '').trim()
+  return trimmed === '' ? `Colonne ${columnLetter(columnIndex0 + 1)}` : trimmed
+}
+
 export async function parseImportFile(file: File): Promise<ParsedFile> {
   const isCsv = file.name.toLowerCase().endsWith('.csv')
   return isCsv ? parseCsvFile(file) : parseXlsxFile(file)
@@ -16,7 +35,7 @@ async function parseCsvFile(file: File): Promise<ParsedFile> {
   const result = Papa.parse<string[]>(text, { skipEmptyLines: true })
   const [headerRow, ...dataRows] = result.data
   return {
-    headers: (headerRow ?? []).map((h) => String(h ?? '').trim()),
+    headers: (headerRow ?? []).map((h, i) => headerLabel(h, i)),
     rows: dataRows,
   }
 }
@@ -60,6 +79,6 @@ async function parseXlsxFile(file: File): Promise<ParsedFile> {
   })
 
   const [headerRow, ...dataRows] = rows
-  const headers = (headerRow ?? []).map((h) => String(h ?? '').trim())
+  const headers = (headerRow ?? []).map((h, i) => headerLabel(h, i))
   return { headers, rows: dataRows }
 }
