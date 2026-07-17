@@ -1,5 +1,7 @@
 export type Civilite = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
+export type ModePaiement = 1 | 2 | 3 | 4
+
 export interface Personne {
   id: string
   nom: string
@@ -51,7 +53,7 @@ export interface Don {
   activite_id: string | null
   montant: number
   date: string  // ISO date string YYYY-MM-DD
-  mode_paiement: 'virement' | 'cheque' | 'especes'
+  mode_paiement: ModePaiement
   created_by_role: 'admin' | 'benevole'
   id_externe: string | null
   created_at: string
