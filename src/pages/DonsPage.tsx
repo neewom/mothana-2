@@ -6,6 +6,7 @@ import DonModal from '../components/DonModal'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import ImportWizard from '../components/import/ImportWizard'
 import { donsImportConfig } from '../lib/import/configs'
+import { MODE_PAIEMENT_LABELS, MODE_PAIEMENT_BADGE_CLASSES, MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -46,18 +47,6 @@ function participantName(don: Don): string {
   const p = don.profils_participant?.personnes
   if (!p) return '—'
   return p.prenom ? `${p.prenom} ${p.nom}` : p.nom
-}
-
-const MODE_LABELS: Record<Don['mode_paiement'], string> = {
-  virement: 'Virement',
-  cheque: 'Chèque',
-  especes: 'Espèces',
-}
-
-const MODE_BADGE: Record<Don['mode_paiement'], string> = {
-  virement: 'bg-blue-100 text-blue-800',
-  cheque: 'bg-amber-100 text-amber-800',
-  especes: 'bg-green-100 text-green-800',
 }
 
 type Shortcut = '30j' | '90j' | 'mois' | 'annee' | 'tout'
@@ -222,8 +211,8 @@ function DetailPanel({ don, onClose, onEdit, onDeleted }: DetailPanelProps) {
 
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Mode de paiement</p>
-          <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_BADGE[don.mode_paiement]}`}>
-            {MODE_LABELS[don.mode_paiement]}
+          <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_PAIEMENT_BADGE_CLASSES[don.mode_paiement]}`}>
+            {MODE_PAIEMENT_LABELS[don.mode_paiement]}
           </span>
         </div>
 
@@ -343,7 +332,7 @@ export default function DonsPage() {
       if (dateFin && d.date > dateFin) return false
       if (filterParticipant && d.profil_participant_id !== filterParticipant) return false
       if (filterActivite && d.activite_id !== filterActivite) return false
-      if (filterMode && d.mode_paiement !== filterMode) return false
+      if (filterMode && String(d.mode_paiement) !== filterMode) return false
       return true
     })
   }, [dons, dateDebut, dateFin, filterParticipant, filterActivite, filterMode])
@@ -490,9 +479,9 @@ export default function DonsPage() {
               className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Tous les modes</option>
-              <option value="virement">Virement</option>
-              <option value="cheque">Chèque</option>
-              <option value="especes">Espèces</option>
+              {MODE_PAIEMENT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -577,8 +566,8 @@ export default function DonsPage() {
                         {formatEur(don.montant)}
                       </td>
                       <td className="px-6 py-3">
-                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_BADGE[don.mode_paiement]}`}>
-                          {MODE_LABELS[don.mode_paiement]}
+                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_PAIEMENT_BADGE_CLASSES[don.mode_paiement]}`}>
+                          {MODE_PAIEMENT_LABELS[don.mode_paiement]}
                         </span>
                       </td>
                       <td className="px-6 py-3 text-right text-slate-400">

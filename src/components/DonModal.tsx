@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import type { Don, ProfilParticipant, Activite } from '../types'
+import type { Don, ProfilParticipant, Activite, ModePaiement } from '../types'
 import ParticipantAutocomplete from './ParticipantAutocomplete'
 import ParticipantModal from './ParticipantModal'
 import Modal from './Modal'
+import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 
 interface DonModalProps {
   open: boolean
@@ -36,7 +37,7 @@ export default function DonModal({
   const [activiteId, setActiviteId] = useState('')
   const [montant, setMontant] = useState('')
   const [date, setDate] = useState(todayISO())
-  const [modePaiement, setModePaiement] = useState<'virement' | 'cheque' | 'especes'>('virement')
+  const [modePaiement, setModePaiement] = useState<ModePaiement>(3)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -64,7 +65,7 @@ export default function DonModal({
         setActiviteId('')
         setMontant('')
         setDate(todayISO())
-        setModePaiement('virement')
+        setModePaiement(3)
       }
       setFullModalOpen(false)
       setExtraParticipants([])
@@ -219,12 +220,12 @@ export default function DonModal({
             <select
               required
               value={modePaiement}
-              onChange={(e) => setModePaiement(e.target.value as 'virement' | 'cheque' | 'especes')}
+              onChange={(e) => setModePaiement(Number(e.target.value) as ModePaiement)}
               className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="virement">Virement</option>
-              <option value="cheque">Chèque</option>
-              <option value="especes">Espèces</option>
+              {MODE_PAIEMENT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
             </select>
           </div>
 

@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { fetchAllRows } from '../fetchAllRows'
+import type { ModePaiement } from '../../types'
 
 export interface ExistingRef {
   id: string
@@ -100,7 +101,7 @@ interface DonRow {
   id_externe: string | null
   montant: number
   date: string
-  mode_paiement: string
+  mode_paiement: ModePaiement
   profil_participant_id: string
   activite_id: string | null
 }

@@ -1,4 +1,4 @@
-import type { Civilite } from '../../types'
+import type { Civilite, ModePaiement } from '../../types'
 import type { ParseOutcome } from './types'
 
 const DIACRITICS_PATTERN = new RegExp(`[${String.fromCharCode(0x0300)}-${String.fromCharCode(0x036f)}]`, 'g')
@@ -86,23 +86,35 @@ export function parseCiviliteCell(raw: unknown): ParseOutcome<Civilite | null> {
   return { ok: false, error: `Civilité non reconnue : "${s}"` }
 }
 
-const MODE_PAIEMENT_ALIASES: Record<string, 'virement' | 'cheque' | 'especes'> = {
-  virement: 'virement',
-  vir: 'virement',
-  'virement bancaire': 'virement',
-  cheque: 'cheque',
-  chq: 'cheque',
-  especes: 'especes',
-  espece: 'especes',
-  cash: 'especes',
-  liquide: 'especes',
+// Codes alignés sur la classification des données legacy à importer :
+// 1 = Espèces, 2 = Chèque, 3 = Prélèvement - virement, 4 = Autres (cf. modePaiement.ts).
+const MODE_PAIEMENT_ALIASES: Record<string, ModePaiement> = {
+  espece: 1,
+  especes: 1,
+  cash: 1,
+  liquide: 1,
+  cheque: 2,
+  chq: 2,
+  virement: 3,
+  vir: 3,
+  'virement bancaire': 3,
+  prelevement: 3,
+  'prelevement virement': 3,
+  'prelevement-virement': 3,
+  autre: 4,
+  autres: 4,
+  other: 4,
 }
 
-export function parseModePaiementCell(raw: unknown): ParseOutcome<'virement' | 'cheque' | 'especes'> {
+export function parseModePaiementCell(raw: unknown): ParseOutcome<ModePaiement> {
   if (raw === null || raw === undefined || raw === '') {
     return { ok: false, error: 'Champ obligatoire manquant' }
   }
-  const key = stripAccents(String(raw).trim().toLowerCase())
+  if (typeof raw === 'number' && raw >= 1 && raw <= 4) return { ok: true, value: raw as ModePaiement }
+  const s = String(raw).trim()
+  const numeric = Number(s)
+  if (!isNaN(numeric) && numeric >= 1 && numeric <= 4) return { ok: true, value: numeric as ModePaiement }
+  const key = stripAccents(s.toLowerCase())
   if (key in MODE_PAIEMENT_ALIASES) return { ok: true, value: MODE_PAIEMENT_ALIASES[key] }
   return { ok: false, error: `Mode de paiement non reconnu : "${raw}"` }
 }

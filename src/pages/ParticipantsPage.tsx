@@ -12,6 +12,7 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import ImportWizard from '../components/import/ImportWizard'
 import { participantsImportConfig } from '../lib/import/configs'
+import { MODE_PAIEMENT_LABELS, MODE_PAIEMENT_BADGE_CLASSES } from '../lib/modePaiement'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -30,18 +31,6 @@ function formatDate(iso: string): string {
 }
 
 type SortField = 'civilite' | 'nom' | 'prenom' | 'total'
-
-const MODE_LABELS: Record<Don['mode_paiement'], string> = {
-  virement: 'Virement',
-  cheque: 'Chèque',
-  especes: 'Espèces',
-}
-
-const MODE_BADGE: Record<Don['mode_paiement'], string> = {
-  virement: 'bg-blue-100 text-blue-800',
-  cheque: 'bg-amber-100 text-amber-800',
-  especes: 'bg-green-100 text-green-800',
-}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -263,8 +252,8 @@ function DetailPanel({
                 <div key={don.id} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-slate-900">{formatEur(don.montant)}</span>
-                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_BADGE[don.mode_paiement]}`}>
-                      {MODE_LABELS[don.mode_paiement]}
+                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_PAIEMENT_BADGE_CLASSES[don.mode_paiement]}`}>
+                      {MODE_PAIEMENT_LABELS[don.mode_paiement]}
                     </span>
                   </div>
                   <p className="mt-0.5 text-xs text-slate-500">{formatDate(don.date)}</p>

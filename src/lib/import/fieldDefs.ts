@@ -1,6 +1,7 @@
-import type { Civilite } from '../../types'
+import type { Civilite, ModePaiement } from '../../types'
 import type { FieldDef } from './types'
 import { CIVILITE_LABELS } from '../civilite'
+import { MODE_PAIEMENT_LABELS } from '../modePaiement'
 import {
   parseTextCell,
   parseRequiredTextCell,
@@ -14,6 +15,11 @@ import {
 function formatCivilite(value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
   return `${CIVILITE_LABELS[value as Civilite]} (${value})`
+}
+
+function formatModePaiement(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—'
+  return MODE_PAIEMENT_LABELS[value as ModePaiement]
 }
 
 export const participantsFieldDefs: FieldDef[] = [
@@ -45,5 +51,5 @@ export const donsFieldDefs: FieldDef[] = [
   { key: 'activite_id_externe', label: 'Identifiant externe activité', required: false, parse: parseTextCell, aliases: ['activity id', 'event id'] },
   { key: 'montant', label: 'Montant', required: true, parse: parseMontantCell, aliases: ['amount', 'total'] },
   { key: 'date', label: 'Date du don', required: true, parse: parseRequiredDateCell, aliases: ['donation date', 'date don'] },
-  { key: 'mode_paiement', label: 'Mode de paiement', required: true, parse: parseModePaiementCell, aliases: ['payment method', 'payment type', 'method'] },
+  { key: 'mode_paiement', label: 'Mode de paiement', required: true, parse: parseModePaiementCell, formatValue: formatModePaiement, aliases: ['payment method', 'payment type', 'method'] },
 ]
