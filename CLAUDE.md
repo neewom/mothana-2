@@ -10,6 +10,7 @@ Ce fichier est lu automatiquement par Claude Code à chaque session. Il contient
 - Chercher automatiquement le fichier de la dernière session dans `.claude/sessions/`
 - Identifier où on s'est arrêté et les blockers en cours
 - Résumer en 3 lignes avant de commencer
+- Ce réflexe est aussi noté dans la mémoire persistante (MEMORY.md) pour qu'il s'applique même si ce fichier n'est pas relu
 
 ### En fin de session
 - Sauvegarder un résumé dans `.claude/sessions/[date]_[sujet].md`
