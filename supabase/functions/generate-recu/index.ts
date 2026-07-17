@@ -329,7 +329,12 @@ Deno.serve(async (req) => {
     page.drawText('Montant', { x: colMontant - fontBold.widthOfTextAtSize('Montant', 8.5), y: y - 14, size: 8.5, font: fontBold, color: white })
     y -= 26
 
-    const modeLabels: Record<string, string> = { virement: 'Virement', cheque: 'Cheque', especes: 'Especes' }
+    const modeLabels: Record<number, string> = {
+      1: 'Espèces',
+      2: 'Chèque',
+      3: 'Prélèvement - virement',
+      4: 'Autres',
+    }
 
     for (let i = 0; i < dons.length; i++) {
       const don = dons[i]
@@ -337,7 +342,7 @@ Deno.serve(async (req) => {
       page.drawRectangle({ x: M, y: y - 20, width: tableWidth, height: 24, color: rowColor })
 
       const dateStr = formatDate(don.date)
-      const modeStr = modeLabels[don.mode_paiement] ?? don.mode_paiement
+      const modeStr = modeLabels[don.mode_paiement] ?? 'Autres'
       const montantStr = formatMontant(Number(don.montant))
 
       page.drawText(dateStr, { x: colDate, y: y - 12, size: 9, font: fontReg, color: black })
