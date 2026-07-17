@@ -7,23 +7,33 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 // ---------------------------------------------------------------------------
 
 interface ModeleRecu {
-  adresse: string
-  siret: string
-  objet_association: string
-  mentions_complementaires: string
+  rna: string
+  siren: string
+  objet_social: string
+  mention_legale: string
+  numero_recu_depart: number
+  taux_reduction: number
 }
 
 interface OrgSettings {
   nom: string
   code_pin_benevole: string
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
+  pays: string | null
   modele_recu_pdf: ModeleRecu
 }
 
+const MENTION_LEGALE_DEFAUT = "Organisme d'intérêt général éligible au mécénat – article 200 du CGI"
+
 const DEFAULT_MODELE: ModeleRecu = {
-  adresse: '',
-  siret: '',
-  objet_association: '',
-  mentions_complementaires: '',
+  rna: '',
+  siren: '',
+  objet_social: '',
+  mention_legale: MENTION_LEGALE_DEFAUT,
+  numero_recu_depart: 1,
+  taux_reduction: 66,
 }
 
 // ---------------------------------------------------------------------------
@@ -70,7 +80,11 @@ export default function ParametresPage() {
   const [pinError, setPinError] = useState<string | null>(null)
   const [pinSuccess, setPinSuccess] = useState(false)
 
-  // Modèle reçu
+  // Informations fiscales (adresse organisation + modèle reçu)
+  const [adresse, setAdresse] = useState('')
+  const [codePostal, setCodePostal] = useState('')
+  const [ville, setVille] = useState('')
+  const [pays, setPays] = useState('France')
   const [modele, setModele] = useState<ModeleRecu>(DEFAULT_MODELE)
   const [modeleSaving, setModeleSaving] = useState(false)
   const [modeleSuccess, setModeleSuccess] = useState(false)
@@ -89,7 +103,7 @@ export default function ParametresPage() {
 
       const { data, error } = await supabase
         .from('organisations')
-        .select('nom, code_pin_benevole, modele_recu_pdf')
+        .select('nom, code_pin_benevole, adresse, code_postal, ville, pays, modele_recu_pdf')
         .eq('id', organisationId)
         .single()
 
@@ -105,11 +119,17 @@ export default function ParametresPage() {
       setSettings(raw)
       setNom(raw.nom)
       setPin(raw.code_pin_benevole ?? '')
+      setAdresse(raw.adresse ?? '')
+      setCodePostal(raw.code_postal ?? '')
+      setVille(raw.ville ?? '')
+      setPays(raw.pays ?? 'France')
       setModele({
-        adresse: modeleRaw.adresse ?? '',
-        siret: modeleRaw.siret ?? '',
-        objet_association: modeleRaw.objet_association ?? '',
-        mentions_complementaires: modeleRaw.mentions_complementaires ?? '',
+        rna: modeleRaw.rna ?? '',
+        siren: modeleRaw.siren ?? '',
+        objet_social: modeleRaw.objet_social ?? '',
+        mention_legale: modeleRaw.mention_legale ?? MENTION_LEGALE_DEFAUT,
+        numero_recu_depart: modeleRaw.numero_recu_depart ?? 1,
+        taux_reduction: modeleRaw.taux_reduction ?? 66,
       })
       setLoading(false)
     }
@@ -194,7 +214,13 @@ export default function ParametresPage() {
 
     const { error } = await supabase
       .from('organisations')
-      .update({ modele_recu_pdf: modele })
+      .update({
+        adresse: adresse || null,
+        code_postal: codePostal || null,
+        ville: ville || null,
+        pays: pays || 'France',
+        modele_recu_pdf: modele,
+      })
       .eq('id', organisationId)
 
     if (error) {
@@ -333,55 +359,128 @@ export default function ParametresPage() {
         </div>
       </Section>
 
-      {/* Section 3 — Modèle de reçu fiscal */}
+      {/* Section 3 — Informations fiscales */}
       <Section
-        title="Modèle de reçu fiscal"
-        description="Ces informations apparaissent sur les reçus fiscaux générés pour vos donateurs."
+        title="Informations fiscales"
+        description="Ces informations apparaissent sur les reçus fiscaux générés pour vos donateurs et sont requises pour être conforme."
       >
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="font-medium">⚠️ Obligations légales</p>
+          <ul className="mt-1.5 list-disc space-y-1 pl-4">
+            <li>L'association doit conserver une copie de chaque reçu émis pendant 6 ans.</li>
+            <li>Depuis le 1er janvier 2021, l'association doit déclarer annuellement le montant total des dons et le nombre de reçus émis (article 222 bis du CGI).</li>
+            <li>Une association qui émet des reçus sans y être habilitée s'expose à une amende égale à 66% des sommes inscrites.</li>
+          </ul>
+        </div>
+
         <form onSubmit={handleSaveModele} className="space-y-4 max-w-lg">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Adresse de l'association</label>
-            <input
-              type="text"
-              value={modele.adresse}
-              onChange={(e) => setModele((m) => ({ ...m, adresse: e.target.value }))}
-              placeholder="Ex : 12 rue des Lilas, 75011 Paris"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <p className="mb-2 text-sm font-medium text-slate-700">Adresse de l'association</p>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={adresse}
+                onChange={(e) => setAdresse(e.target.value)}
+                placeholder="Ex : 12 rue des Lilas"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={codePostal}
+                  onChange={(e) => setCodePostal(e.target.value)}
+                  placeholder="Code postal"
+                  className="w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <input
+                  type="text"
+                  value={ville}
+                  onChange={(e) => setVille(e.target.value)}
+                  placeholder="Ville"
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <input
+                type="text"
+                value={pays}
+                onChange={(e) => setPays(e.target.value)}
+                placeholder="Pays"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Numéro RNA</label>
+              <input
+                type="text"
+                value={modele.rna}
+                onChange={(e) => setModele((m) => ({ ...m, rna: e.target.value }))}
+                placeholder="Ex : W751234567"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Numéro SIREN</label>
+              <input
+                type="text"
+                value={modele.siren}
+                onChange={(e) => setModele((m) => ({ ...m, siren: e.target.value }))}
+                placeholder="Optionnel si RNA renseigné"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Numéro RNA / SIRET</label>
-            <input
-              type="text"
-              value={modele.siret}
-              onChange={(e) => setModele((m) => ({ ...m, siret: e.target.value }))}
-              placeholder="Ex : W751234567 ou 123 456 789 00012"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Objet de l'association</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Objet social</label>
             <textarea
               rows={2}
-              value={modele.objet_association}
-              onChange={(e) => setModele((m) => ({ ...m, objet_association: e.target.value }))}
+              value={modele.objet_social}
+              onChange={(e) => setModele((m) => ({ ...m, objet_social: e.target.value }))}
               placeholder="Ex : association d'intérêt général à but non lucratif"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
             />
-            <p className="mt-1 text-xs text-slate-400">Affiché dans la phrase de certification du reçu.</p>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Mentions complémentaires</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Mention légale</label>
             <textarea
-              rows={3}
-              value={modele.mentions_complementaires}
-              onChange={(e) => setModele((m) => ({ ...m, mentions_complementaires: e.target.value }))}
-              placeholder="Ex : mentions légales supplémentaires, coordonnées bancaires, etc."
+              rows={2}
+              value={modele.mention_legale}
+              onChange={(e) => setModele((m) => ({ ...m, mention_legale: e.target.value }))}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
             />
+            <p className="mt-1 text-xs text-slate-400">Affichée sur le reçu pour justifier l'éligibilité au mécénat.</p>
+          </div>
+
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Numéro du premier reçu</label>
+              <input
+                type="number"
+                min={1}
+                value={modele.numero_recu_depart}
+                onChange={(e) => setModele((m) => ({ ...m, numero_recu_depart: Number(e.target.value) }))}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Taux de réduction fiscale</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={modele.taux_reduction}
+                  onChange={(e) => setModele((m) => ({ ...m, taux_reduction: Number(e.target.value) }))}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">%</span>
+              </div>
+              <p className="mt-1 text-xs text-slate-400">66% standard, 75% pour certains organismes (ex : aide aux personnes en difficulté).</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 pt-1">
@@ -390,7 +489,7 @@ export default function ParametresPage() {
               disabled={modeleSaving}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
             >
-              {modeleSaving ? 'Enregistrement…' : 'Enregistrer le modèle'}
+              {modeleSaving ? 'Enregistrement…' : 'Enregistrer'}
             </button>
             {modeleSuccess && (
               <span className="flex items-center gap-1.5 text-sm text-emerald-600">
