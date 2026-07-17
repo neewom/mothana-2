@@ -95,6 +95,13 @@ Mothana est une application de gestion des dons pour associations. C'est un MVP 
 
 ---
 
+## Git — workflow
+
+- Ne jamais merger une PR sans demander l'autorisation explicite à l'utilisateur, même si le code a déjà été testé/validé manuellement
+- Quand l'utilisateur informe qu'une PR est mergée, `checkout main` puis `pull` pour mettre la branche locale à jour avant de démarrer les développements suivants
+
+---
+
 ## État d'avancement
 
 ### ✅ MVP + Post-MVP terminés
