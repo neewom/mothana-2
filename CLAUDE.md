@@ -10,6 +10,7 @@ Ce fichier est lu automatiquement par Claude Code à chaque session. Il contient
 - Chercher automatiquement le fichier de la dernière session dans `.claude/sessions/`
 - Identifier où on s'est arrêté et les blockers en cours
 - Résumer en 3 lignes avant de commencer
+- Ce réflexe est aussi noté dans la mémoire persistante (MEMORY.md) pour qu'il s'applique même si ce fichier n'est pas relu
 
 ### En fin de session
 - Sauvegarder un résumé dans `.claude/sessions/[date]_[sujet].md`
@@ -125,10 +126,11 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Ordre d'implémentat
    - Fonction SQL `next_numero_recu()` (`next_numero_recu.sql`), numérotation atomique par séquence PostgreSQL dédiée par org/année — testée sur Wat Velouvanaram (`2026-001`), séquence remise à zéro après le test (`is_called: false`) pour ne pas brûler le premier numéro réel
    - ✅ Chevauchement avec les données existantes de `modele_recu_pdf` résolu : seule `adresse` (chaîne combinée "rue, CP Ville") avait une vraie donnée (Wat Velouvanaram) — backfillée vers les colonnes structurées via `organisations_backfill_adresse.sql` (regex sur le CP à 5 chiffres). `siret` (valeur placeholder `"..."`) et `objet_association` (vide) n'avaient pas de donnée réelle exploitable : pas de backfill, seront simplement ressaisis en `rna`/`siren`/`objet_social` à l'étape 2
 
-2. **Paramètres organisation** (brief §5) :
-   - Nouveaux champs formulaire (adresse org, RNA, SIREN, objet social, mention légale, numéro de départ)
-   - Affichage informatif obligations légales
-   - Taux de réduction configurable par organisation (défaut 66%, certaines orgs peuvent avoir droit à 75%)
+2. 🔄 **Paramètres organisation** (brief §5) — code prêt sur `feat/cerfa-parametres-organisation` (commit local, PR pas encore ouverte : utilisateur teste manuellement avant push, cf. "Décisions") :
+   - Section "Informations fiscales" de `ParametresPage.tsx` refondue : adresse structurée (`organisations.adresse`/`code_postal`/`ville`/`pays`), RNA, SIREN, objet social, mention légale (pré-remplie), numéro du premier reçu, taux de réduction fiscale (défaut 66%, éditable pour les orgs à 75%) — tous dans `modele_recu_pdf` JSONB sauf l'adresse
+   - Remplace l'ancien modèle `siret`/`objet_association`/`mentions_complementaires` (aucune donnée réelle en prod hors adresse déjà migrée en étape 1, confirmé par requête directe avant la refonte)
+   - Bannière d'obligations légales affichée (conservation 6 ans, déclaration article 222 bis CGI, amende 66%)
+   - Build/lint/typecheck OK ; app testée au chargement (aucune erreur console) — test complet du formulaire (saisie/sauvegarde/persistance DB) laissé à la charge de l'utilisateur, pas d'identifiants admin disponibles pour l'agent
 
 3. **Templates HTML par défaut** (brief §3) :
    - Deux templates conformes Cerfa (11580 particuliers + 16216 entreprises/personnes morales)
