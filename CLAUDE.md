@@ -134,16 +134,17 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Ordre d'implémentat
    - Fonction SQL `next_numero_recu()` (`next_numero_recu.sql`), numérotation atomique par séquence PostgreSQL dédiée par org/année — testée sur Wat Velouvanaram (`2026-001`), séquence remise à zéro après le test (`is_called: false`) pour ne pas brûler le premier numéro réel
    - ✅ Chevauchement avec les données existantes de `modele_recu_pdf` résolu : seule `adresse` (chaîne combinée "rue, CP Ville") avait une vraie donnée (Wat Velouvanaram) — backfillée vers les colonnes structurées via `organisations_backfill_adresse.sql` (regex sur le CP à 5 chiffres). `siret` (valeur placeholder `"..."`) et `objet_association` (vide) n'avaient pas de donnée réelle exploitable : pas de backfill, seront simplement ressaisis en `rna`/`siren`/`objet_social` à l'étape 2
 
-2. 🔄 **Paramètres organisation** (brief §5) — code prêt sur `feat/cerfa-parametres-organisation` (commit local, PR pas encore ouverte : utilisateur teste manuellement avant push, cf. "Décisions") :
+2. ✅ **Paramètres organisation** (brief §5) — mergé sur `main` le 2026-07-17 (PR #16 → `feat/cerfa-migrations`, puis PR #17 → `main`) :
    - Section "Informations fiscales" de `ParametresPage.tsx` refondue : adresse structurée (`organisations.adresse`/`code_postal`/`ville`/`pays`), RNA, SIREN, objet social, mention légale (pré-remplie), numéro du premier reçu, taux de réduction fiscale (défaut 66%, éditable pour les orgs à 75%) — tous dans `modele_recu_pdf` JSONB sauf l'adresse
    - Remplace l'ancien modèle `siret`/`objet_association`/`mentions_complementaires` (aucune donnée réelle en prod hors adresse déjà migrée en étape 1, confirmé par requête directe avant la refonte)
    - Bannière d'obligations légales affichée (conservation 6 ans, déclaration article 222 bis CGI, amende 66%)
-   - Build/lint/typecheck OK ; app testée au chargement (aucune erreur console) — test complet du formulaire (saisie/sauvegarde/persistance DB) laissé à la charge de l'utilisateur, pas d'identifiants admin disponibles pour l'agent
+   - Testé manuellement par l'utilisateur (saisie, sauvegarde, persistance DB) — confirmé OK
 
-3. **Templates HTML par défaut** (brief §3) :
-   - Deux templates conformes Cerfa (11580 particuliers + 16216 entreprises/personnes morales)
-   - Seedés automatiquement à la création d'une organisation
-   - Placeholders `{{variable}}` selon liste du brief §2.2
+3. ✅ **Templates HTML par défaut** (brief §3) — code sur `feat/cerfa-templates-defaut`, migration RLS exécutée en production le 2026-07-17 :
+   - Deux templates conformes Cerfa dans `src/lib/defaultCerfaTemplates.ts` (11580 particuliers articles 200/200 bis CGI, 16216 entreprises article 238 bis CGI) — placeholders `{{variable}}` selon liste du brief §2.2, CSS partagé A4 imprimable
+   - Seedés automatiquement dans `SuperAdminPage.tsx` (`OrgModal.handleSubmit`) à la création d'une organisation : insert `organisations` avec `.select('id')` pour récupérer l'id, puis insert des 2 lignes `templates_recu` (`is_active: true`)
+   - Migration `templates_recu_super_admin_bypass.sql` : la policy RLS `templates_recu_org` n'avait pas le bypass super-admin (table créée après `super_admin_rls.sql`) — sans elle le seed échouait car le super-admin n'est pas encore membre de l'organisation qu'il vient de créer (`current_effective_organisation_id()` renvoie NULL)
+   - Rendu visuel vérifié via Playwright headless (screenshot des 2 templates avec données d'exemple) — pas de test de création d'organisation réelle en production pour éviter de polluer les données (à valider par l'utilisateur)
 
 4. **Refonte Edge Function `generate-recu`** (brief §2) :
    - Abandonner pdf-lib
