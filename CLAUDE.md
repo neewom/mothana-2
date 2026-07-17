@@ -145,6 +145,7 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Ordre d'implémentat
    - Seedés automatiquement dans `SuperAdminPage.tsx` (`OrgModal.handleSubmit`) à la création d'une organisation : insert `organisations` avec `.select('id')` pour récupérer l'id, puis insert des 2 lignes `templates_recu` (`is_active: true`)
    - Migration `templates_recu_super_admin_bypass.sql` : la policy RLS `templates_recu_org` n'avait pas le bypass super-admin (table créée après `super_admin_rls.sql`) — sans elle le seed échouait car le super-admin n'est pas encore membre de l'organisation qu'il vient de créer (`current_effective_organisation_id()` renvoie NULL)
    - Rendu visuel vérifié via Playwright headless (screenshot des 2 templates avec données d'exemple) — pas de test de création d'organisation réelle en production pour éviter de polluer les données (à valider par l'utilisateur)
+   - Bug bloquant trouvé par l'utilisateur en testant cette PR (génération de reçu Wat Strasbourg → erreur serveur), corrigé dans cette même PR plutôt qu'à part : `generate-recu` utilisait encore l'ancien `mode_paiement` texte alors qu'il est numérique depuis la PR #14 — `pdf-lib` recevait un nombre au lieu d'une chaîne et plantait. Corrigé, déployé en production, testé OK par l'utilisateur
 
 4. **Refonte Edge Function `generate-recu`** (brief §2) :
    - Abandonner pdf-lib

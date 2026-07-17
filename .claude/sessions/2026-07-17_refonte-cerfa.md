@@ -32,20 +32,32 @@
   - Seed automatique branché dans `SuperAdminPage.tsx` (`OrgModal.handleSubmit`, création d'organisation) : l'insert `organisations` récupère maintenant l'id créé (`.select('id').single()`), puis insert des 2 lignes `templates_recu` (`is_active: true`)
   - Migration `templates_recu_super_admin_bypass.sql` **exécutée en production** : la policy RLS `templates_recu_org` n'avait pas le bypass super-admin (table créée après `super_admin_rls.sql` en étape 1) — sans cette migration, le seed échouait silencieusement car le super-admin n'est pas encore membre de l'organisation qu'il vient de créer (`current_effective_organisation_id()` renvoie NULL pour lui à ce moment précis)
   - Build/lint/typecheck OK ; rendu visuel des 2 templates vérifié via Playwright headless avec données d'exemple (screenshots) — pas de test de création d'organisation réelle en production pour ne pas polluer les données
+  - PR #19 (`feat/cerfa-templates-defaut` → `main`) ouverte
+
+- Bug bloquant trouvé par l'utilisateur en testant PR #19 : génération du reçu fiscal de Wat Strasbourg → "erreur serveur". Diagnostic : `generate-recu` (ancienne version pdf-lib, pas encore refaite) utilisait toujours un `mode_paiement` texte (`'virement'`/`'cheque'`/`'especes'`) alors qu'il est stocké en code numérique (1-4) depuis la PR #14 — le lookup échouait, le nombre brut était passé à `pdf-lib` qui exige une chaîne → crash. Reproduit et confirmé en local avec un script Node + `pdf-lib` avant correction.
+  - Corrigé, déployé en production immédiatement (`supabase functions deploy generate-recu`)
+  - D'abord ouvert comme PR séparée (#20) en pensant bien faire (fichiers sans rapport avec #19) — **corrigé après coup** : l'utilisateur a clarifié sa préférence, un blocage trouvé en testant une PR se corrige dans cette même PR, même sans rapport direct avec les fichiers d'origine. Nouvelle règle ajoutée à `CLAUDE.md` (PR #21) + mémoire persistante
+  - PR #20 fermée, son commit cherry-pické sur `feat/cerfa-templates-defaut`, PR #19 mise à jour (titre + description) pour inclure ce fix
+  - Testé en production par l'utilisateur : génération du reçu Wat Strasbourg fonctionne désormais
+
+- Question ouverte discutée avec l'utilisateur (pas encore d'action) : les contrôles de complétude des données (adresse donateur, RNA/SIREN + objet social organisation, etc.) prévus par `regles-recus-fiscaux.md` §2-3 ne sont pas encore implémentés — c'est le travail des étapes 4 (validation serveur dans le nouveau `generate-recu`) et 5 (bannière/icônes ⚠️ côté UI). Actuellement aucune validation n'existe, `generate-recu` génère avec les données disponibles même incomplètes (constaté sur Wat Strasbourg : donateur sans adresse, organisation sans quasi aucune info). Option proposée (patch minimal maintenant vs attendre étape 4/5) — pas encore tranchée, discussion partie sur autre chose (workflow PR)
 
 ## Reste à faire (prochaine session — suivre `docs/brief-cerfa.md` dans l'ordre)
 
-0. **Push + PR étape 3** : ouvrir la PR pour `feat/cerfa-templates-defaut` → `main`, ne pas merger sans le go explicite
-1. **Refonte Edge Function `generate-recu`** (brief §2) : abandon pdf-lib, intégration Gotenberg (HTML→PDF), nouveau flux complet — utilisera les templates créés à l'étape 3
-2. **Évolutions UI page Reçus fiscaux** (brief §6) : bannière blocage, icônes ⚠️ par ligne, colonnes N° reçu/Type, bouton Regénérer
-3. **Gestion des templates** dans Paramètres (brief §7) : liste, éditeur Monaco, prévisualisation iframe, activation/archivage
+0. **Tester PR #19 sur la preview Vercel** (`https://mothana-git-feat-cerfa-templates-defaut-chithda.vercel.app`) : créer une organisation, vérifier les 2 lignes `templates_recu`. Ne pas merger sans le go explicite
+1. **Trancher** : patch minimal de validation adresse/RNA-SIREN maintenant, ou attendre l'étape 4/5 pour l'implémenter proprement (question posée, réponse en attente)
+2. **Refonte Edge Function `generate-recu`** (brief §2) : abandon pdf-lib, intégration Gotenberg (HTML→PDF), nouveau flux complet — utilisera les templates créés à l'étape 3, + validation organisation/participant (brief §2.3 étapes 2-3)
+3. **Évolutions UI page Reçus fiscaux** (brief §6) : bannière blocage, icônes ⚠️ par ligne, colonnes N° reçu/Type, bouton Regénérer
+4. **Gestion des templates** dans Paramètres (brief §7) : liste, éditeur Monaco, prévisualisation iframe, activation/archivage
 
 ## Blockers
 
 - Aucun blocker actif. Rien n'est mergé sans autorisation explicite désormais (règle codifiée).
+- "Association de test" créée en production par l'utilisateur (le 2026-07-17) avec l'ancien code, sans templates — cosmétique, à nettoyer ou ignorer, pas bloquant
 - Points ouverts à trancher avant/pendant les prochaines étapes (brief §9, non bloquants pour l'instant) :
   - Choix définitif et déploiement du service HTML→PDF (Gotenberg recommandé) — nécessaire avant l'étape 4 (~5$/mois sur Railway/Render)
   - Numéro de départ des reçus pour Wat Velouvanaram à demander à l'association
+  - Contrôles de complétude adresse/RNA-SIREN : patch minimal immédiat ou attendre étape 4/5 (cf. "Réalisé")
 
 ## Décisions
 
