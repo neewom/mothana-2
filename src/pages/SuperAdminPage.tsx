@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchAllRows } from '../lib/fetchAllRows'
+import { DEFAULT_CERFA_TEMPLATES } from '../lib/defaultCerfaTemplates'
 import Modal from '../components/Modal'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
@@ -85,10 +86,26 @@ function OrgModal({ open, onClose, onSaved, org }: OrgModalProps) {
         .eq('id', org.id)
       if (err) { setError(err.message); setSaving(false); return }
     } else {
-      const { error: err } = await supabase
+      const { data: newOrg, error: err } = await supabase
         .from('organisations')
         .insert({ nom, code_pin_benevole: generatePin() })
+        .select('id')
+        .single()
       if (err) { setError(err.message); setSaving(false); return }
+
+      const { error: templatesErr } = await supabase
+        .from('templates_recu')
+        .insert(
+          DEFAULT_CERFA_TEMPLATES.map((t) => ({
+            organisation_id: newOrg.id,
+            nom: t.nom,
+            type_cerfa: t.type_cerfa,
+            html_template: t.html_template,
+            css: t.css,
+            is_active: true,
+          }))
+        )
+      if (templatesErr) { setError(templatesErr.message); setSaving(false); return }
     }
 
     setSaving(false)
