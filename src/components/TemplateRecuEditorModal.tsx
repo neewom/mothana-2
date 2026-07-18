@@ -1,9 +1,22 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import Editor from '@monaco-editor/react'
 import { supabase } from '../lib/supabaseClient'
-import { renderCerfaPreviewHtml, CERFA_PREVIEW_PLACEHOLDERS } from '../lib/cerfaPreview'
+import {
+  renderCerfaPreviewHtml,
+  CERFA_PREVIEW_PLACEHOLDERS,
+  CERFA_MANDATORY_KEYS,
+  CERFA_RNA_SIREN_GROUP,
+  getMissingMandatoryPlaceholders,
+} from '../lib/cerfaPreview'
 import type { TemplateRecu } from '../types'
 import Modal from './Modal'
+
+export interface TemplateRecuDraft {
+  nom: string
+  type_cerfa: '11580' | '16216'
+  html_template: string
+  css: string
+}
 
 interface TemplateRecuEditorModalProps {
   open: boolean
@@ -11,6 +24,17 @@ interface TemplateRecuEditorModalProps {
   onSaved: () => void
   organisationId: string
   template?: TemplateRecu
+  draft?: TemplateRecuDraft
+}
+
+const MANDATORY_TAGS: string[] = [...CERFA_MANDATORY_KEYS, ...CERFA_RNA_SIREN_GROUP]
+const OPTIONAL_TAGS = Object.keys(CERFA_PREVIEW_PLACEHOLDERS).filter((key) => !MANDATORY_TAGS.includes(key))
+
+function isTagMissing(key: string, html: string): boolean {
+  if ((CERFA_RNA_SIREN_GROUP as readonly string[]).includes(key)) {
+    return !CERFA_RNA_SIREN_GROUP.some((k) => html.includes(`{{${k}}}`))
+  }
+  return !html.includes(`{{${key}}}`)
 }
 
 const DEFAULT_HTML = `<div class="recu">
@@ -27,6 +51,7 @@ export default function TemplateRecuEditorModal({
   onSaved,
   organisationId,
   template,
+  draft,
 }: TemplateRecuEditorModalProps) {
   const isEdit = !!template
 
@@ -45,6 +70,11 @@ export default function TemplateRecuEditorModal({
         setTypeCerfa(template.type_cerfa)
         setHtmlTemplate(template.html_template)
         setCss(template.css ?? '')
+      } else if (draft) {
+        setNom(draft.nom)
+        setTypeCerfa(draft.type_cerfa)
+        setHtmlTemplate(draft.html_template)
+        setCss(draft.css)
       } else {
         setNom('')
         setTypeCerfa('11580')
@@ -54,9 +84,11 @@ export default function TemplateRecuEditorModal({
       setActiveTab('html')
       setError(null)
     }
-  }, [open, template])
+  }, [open, template, draft])
 
   const previewHtml = useMemo(() => renderCerfaPreviewHtml(htmlTemplate, css), [htmlTemplate, css])
+  const missingMandatory = useMemo(() => getMissingMandatoryPlaceholders(htmlTemplate), [htmlTemplate])
+  const mandatoryPresentCount = MANDATORY_TAGS.length - missingMandatory.length
 
   if (!open) return null
 
@@ -178,13 +210,43 @@ export default function TemplateRecuEditorModal({
                 )}
               </div>
               <div className="mt-2">
-                <p className="mb-1.5 text-xs font-medium text-slate-500">Placeholders disponibles</p>
+                <p
+                  className={`mb-1.5 text-xs font-medium ${
+                    missingMandatory.length > 0 ? 'text-red-600' : 'text-emerald-600'
+                  }`}
+                >
+                  {mandatoryPresentCount}/{MANDATORY_TAGS.length} placeholders obligatoires présents
+                  {missingMandatory.length > 0 && ` — manquants : ${missingMandatory.join(', ')}`}
+                </p>
                 <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(CERFA_PREVIEW_PLACEHOLDERS).map(([key, sample]) => (
+                  {MANDATORY_TAGS.map((key) => {
+                    const missing = isTagMissing(key, htmlTemplate)
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        title={`Exemple : ${CERFA_PREVIEW_PLACEHOLDERS[key]}`}
+                        onClick={() => navigator.clipboard?.writeText(`{{${key}}}`)}
+                        className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] ${
+                          missing
+                            ? 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200 hover:bg-red-100'
+                            : 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100'
+                        }`}
+                      >
+                        {missing ? '⚠️ ' : '✓ '}
+                        {`{{${key}}}`}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <p className="mb-1.5 mt-3 text-xs font-medium text-slate-500">Placeholders optionnels</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {OPTIONAL_TAGS.map((key) => (
                     <button
                       key={key}
                       type="button"
-                      title={`Exemple : ${sample}`}
+                      title={`Exemple : ${CERFA_PREVIEW_PLACEHOLDERS[key]}`}
                       onClick={() => navigator.clipboard?.writeText(`{{${key}}}`)}
                       className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 hover:bg-slate-200"
                     >
