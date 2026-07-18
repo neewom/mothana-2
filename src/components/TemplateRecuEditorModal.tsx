@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import Editor from '@monaco-editor/react'
 import { supabase } from '../lib/supabaseClient'
 import { renderCerfaPreviewHtml } from '../lib/cerfaPreview'
+import type { TemplateRecu } from '../types'
 import Modal from './Modal'
 
 interface TemplateRecuEditorModalProps {
@@ -9,6 +10,7 @@ interface TemplateRecuEditorModalProps {
   onClose: () => void
   onSaved: () => void
   organisationId: string
+  template?: TemplateRecu
 }
 
 const DEFAULT_HTML = `<div class="recu">
@@ -24,7 +26,10 @@ export default function TemplateRecuEditorModal({
   onClose,
   onSaved,
   organisationId,
+  template,
 }: TemplateRecuEditorModalProps) {
+  const isEdit = !!template
+
   const [nom, setNom] = useState('')
   const [typeCerfa, setTypeCerfa] = useState<'11580' | '16216'>('11580')
   const [htmlTemplate, setHtmlTemplate] = useState(DEFAULT_HTML)
@@ -35,14 +40,21 @@ export default function TemplateRecuEditorModal({
 
   useEffect(() => {
     if (open) {
-      setNom('')
-      setTypeCerfa('11580')
-      setHtmlTemplate(DEFAULT_HTML)
-      setCss(DEFAULT_CSS)
+      if (template) {
+        setNom(template.nom)
+        setTypeCerfa(template.type_cerfa)
+        setHtmlTemplate(template.html_template)
+        setCss(template.css ?? '')
+      } else {
+        setNom('')
+        setTypeCerfa('11580')
+        setHtmlTemplate(DEFAULT_HTML)
+        setCss(DEFAULT_CSS)
+      }
       setActiveTab('html')
       setError(null)
     }
-  }, [open])
+  }, [open, template])
 
   const previewHtml = useMemo(() => renderCerfaPreviewHtml(htmlTemplate, css), [htmlTemplate, css])
 
@@ -53,15 +65,20 @@ export default function TemplateRecuEditorModal({
     setError(null)
     setSaving(true)
 
-    const { error: err } = await supabase.from('templates_recu').insert({
-      organisation_id: organisationId,
-      nom,
-      type_cerfa: typeCerfa,
-      html_template: htmlTemplate,
-      css,
-      is_active: false,
-      is_archived: false,
-    })
+    const { error: err } = isEdit
+      ? await supabase
+          .from('templates_recu')
+          .update({ nom, type_cerfa: typeCerfa, html_template: htmlTemplate, css })
+          .eq('id', template.id)
+      : await supabase.from('templates_recu').insert({
+          organisation_id: organisationId,
+          nom,
+          type_cerfa: typeCerfa,
+          html_template: htmlTemplate,
+          css,
+          is_active: false,
+          is_archived: false,
+        })
 
     if (err) {
       setError(err.message)
@@ -77,8 +94,16 @@ export default function TemplateRecuEditorModal({
   return (
     <Modal open={open} onClose={onClose} maxWidthClassName="max-w-6xl" labelledBy="template-editor-title">
       <div className="border-b border-slate-200 px-6 py-4">
-        <h2 id="template-editor-title" className="text-lg font-semibold text-slate-900">Nouveau template de reçu</h2>
-        <p className="mt-0.5 text-xs text-slate-400">Créé désactivé — activez-le depuis la liste une fois vérifié.</p>
+        <h2 id="template-editor-title" className="text-lg font-semibold text-slate-900">
+          {isEdit ? `Modifier — ${template.nom}` : 'Nouveau template de reçu'}
+        </h2>
+        <p className="mt-0.5 text-xs text-slate-400">
+          {isEdit
+            ? template.is_active
+              ? 'Ce template est actif : les modifications seront utilisées dès la prochaine génération de reçu.'
+              : 'Les modifications seront utilisées dès que ce template sera activé.'
+            : 'Créé désactivé — activez-le depuis la liste une fois vérifié.'}
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
@@ -182,7 +207,7 @@ export default function TemplateRecuEditorModal({
             disabled={saving}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
           >
-            {saving ? 'Création…' : 'Créer le template'}
+            {saving ? 'Enregistrement…' : isEdit ? 'Enregistrer' : 'Créer le template'}
           </button>
         </div>
       </form>

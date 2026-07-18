@@ -27,7 +27,7 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
   const [actionError, setActionError] = useState<Record<string, string>>({})
 
   const [previewTemplate, setPreviewTemplate] = useState<TemplateRecu | null>(null)
-  const [editorOpen, setEditorOpen] = useState(false)
+  const [editorState, setEditorState] = useState<'new' | TemplateRecu | null>(null)
   const [archiveConfirm, setArchiveConfirm] = useState<TemplateRecu | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<TemplateRecu | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -187,7 +187,7 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
           Un seul template actif par type à la fois. Le template actif est celui utilisé pour générer les reçus.
         </p>
         <button
-          onClick={() => setEditorOpen(true)}
+          onClick={() => setEditorState('new')}
           className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
           Nouveau template
@@ -240,6 +240,15 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
                           >
                             Prévisualiser
                           </button>
+                          {!template.is_archived && (
+                            <button
+                              type="button"
+                              onClick={() => setEditorState(template)}
+                              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                              Modifier
+                            </button>
+                          )}
                           {!template.is_archived && !template.is_active && (
                             <button
                               type="button"
@@ -290,12 +299,13 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
         />
       )}
 
-      {/* Nouveau template */}
+      {/* Nouveau template / édition */}
       <TemplateRecuEditorModal
-        open={editorOpen}
-        onClose={() => setEditorOpen(false)}
+        open={editorState !== null}
+        onClose={() => setEditorState(null)}
         onSaved={fetchTemplates}
         organisationId={organisationId}
+        template={editorState === 'new' || editorState === null ? undefined : editorState}
       />
 
       {/* Confirmation archivage du template actif */}
