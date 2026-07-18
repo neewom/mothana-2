@@ -44,6 +44,8 @@ export interface RecuFiscal {
   montant_total: number
   fichier_url: string | null
   date_generation: string
+  numero_ordre: string | null
+  type_cerfa: '11580' | '16216' | null
 }
 
 export interface Don {
