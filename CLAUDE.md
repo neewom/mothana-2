@@ -159,6 +159,7 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Ordre d'implémentat
    - Icônes ⚠️ par ligne participant avec tooltip champs manquants
    - Colonnes N° reçu et Type dans la liste
    - Bouton Regénérer avec confirmation
+   - ⚠️ Décision utilisateur (2026-07-18) : quand un contrôle invalidant affiche une erreur (bannière organisation ou icône participant), le CTA de génération de reçu correspondant doit être **désactivé**, pas seulement accompagné d'un message — l'utilisateur ne doit pas pouvoir cliquer dessus tant que le blocage n'est pas levé
 
 6. **Gestion des templates** dans Paramètres (brief §7) :
    - Liste templates par type, éditeur Monaco, prévisualisation iframe
