@@ -410,7 +410,7 @@ export default function ParticipantModal({
           </div>
 
           {/* Actions — sticky, ombre portée vers le haut pour signaler le contenu scrollable au-dessus */}
-          <div className="flex shrink-0 justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)]">
+          <div className="flex shrink-0 justify-end gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)]">
             <button
               type="button"
               onClick={onClose}
