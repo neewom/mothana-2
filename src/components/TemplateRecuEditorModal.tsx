@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import Editor from '@monaco-editor/react'
 import { supabase } from '../lib/supabaseClient'
-import { renderCerfaPreviewHtml } from '../lib/cerfaPreview'
+import { renderCerfaPreviewHtml, CERFA_PREVIEW_PLACEHOLDERS } from '../lib/cerfaPreview'
 import type { TemplateRecu } from '../types'
 import Modal from './Modal'
 
@@ -177,9 +177,23 @@ export default function TemplateRecuEditorModal({
                   />
                 )}
               </div>
-              <p className="mt-1 text-xs text-slate-400">
-                Placeholders disponibles : {'{{organisation_nom}}'}, {'{{donateur_nom_complet}}'}, {'{{don_montant_chiffres}}'}, {'{{recu_numero_ordre}}'}, etc.
-              </p>
+              <div className="mt-2">
+                <p className="mb-1.5 text-xs font-medium text-slate-500">Placeholders disponibles</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(CERFA_PREVIEW_PLACEHOLDERS).map(([key, sample]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      title={`Exemple : ${sample}`}
+                      onClick={() => navigator.clipboard?.writeText(`{{${key}}}`)}
+                      className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 hover:bg-slate-200"
+                    >
+                      {`{{${key}}}`}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-xs text-slate-400">Cliquer pour copier. Survoler pour voir un exemple de valeur.</p>
+              </div>
             </div>
 
             {/* Prévisualisation */}
