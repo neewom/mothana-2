@@ -158,14 +158,16 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Ordre d'implémentat
    - Bug trouvé et corrigé pendant le test réel : le template 11580 concaténait `{{donateur_civilite}}` et `{{donateur_nom_complet}}` (qui inclut déjà le titre de civilité) → "Monsieur M. Nicolas BOULOM" en double. Corrigé dans `defaultCerfaTemplates.ts` + migration `templates_recu_fix_donateur_civilite_duplication.sql` pour les templates déjà en base
    - Testé bout-en-bout par l'utilisateur sur Wat Strasbourg : blocage organisation incomplète ✅, champ retiré de la liste une fois rempli ✅, blocage participant incomplet ✅, génération réelle avec PDF vérifié (rendu, montant en chiffres/lettres, numéro d'ordre conservé en régénération) ✅
 
-5. **Évolutions UI page Reçus fiscaux** (brief §6) :
-   - Bannière de blocage si paramètres incomplets
-   - Icônes ⚠️ par ligne participant avec tooltip champs manquants
-   - Colonnes N° reçu et Type dans la liste
-   - Bouton Regénérer avec confirmation
-   - ⚠️ Décision utilisateur (2026-07-18) : quand un contrôle invalidant affiche une erreur (bannière organisation ou icône participant), le CTA de génération de reçu correspondant doit être **désactivé**, pas seulement accompagné d'un message — l'utilisateur ne doit pas pouvoir cliquer dessus tant que le blocage n'est pas levé
-   - ⚠️ Décision utilisateur (2026-07-18) : en cas d'erreur de champs participant incomplets, afficher sous le message d'erreur un CTA qui ouvre directement la modale d'édition de ce participant (éviter l'aller-retour manuel vers la page Participants)
-   - ⚠️ Décision utilisateur (2026-07-18) : afficher un toaster de confirmation après une génération de reçu réussie (réutiliser le système de toasts déjà en place pour les mises à jour optimistes)
+5. ✅ **Évolutions UI page Reçus fiscaux** (brief §6) — codée sur `feat/cerfa-recus-fiscaux-ui`, build/lint/typecheck OK, smoke test navigateur fait (pas d'identifiants admin pour tester le rendu réel avec données) :
+   - `src/lib/cerfaValidation.ts` : logique de validation organisation/participant dupliquée côté client (mêmes règles que `generate-recu`, le backend reste la source de vérité) — `validateOrganisationCerfa()` et `validateParticipantCerfa()`
+   - Bannière de blocage si paramètres organisation incomplets, avec lien direct vers `/admin/parametres`
+   - Icône ⚠️ à côté du nom + message détaillé sous le statut, avec tooltip/texte listant les champs manquants ou la raison du blocage (civilité Famille/NULL)
+   - Colonnes N° reçu et Type (libellé "11580 · Particuliers" / "16216 · Entreprises") ajoutées au tableau
+   - CTA Générer/Regénérer **désactivé** quand l'organisation ou le participant est bloqué (décision utilisateur du 2026-07-18) — "Générer tous" filtre aussi les lignes bloquées plutôt que d'échouer dessus
+   - Bouton "Modifier le participant" sous le message d'erreur, ouvre `ParticipantModal` directement depuis cette page (décision utilisateur du 2026-07-18) — réutilise le composant existant de `ParticipantsPage`
+   - Confirmation avant regénération (modale réutilisant le composant `Modal` existant, même pattern que la suppression de participant), précise que le numéro d'ordre est conservé
+   - Toast de succès après génération réussie (décision utilisateur du 2026-07-18), réutilise `useToast`/`Toast` déjà utilisés sur `ParticipantsPage`
+   - `RecuFiscal` (types/index.ts) étendu avec `numero_ordre`/`type_cerfa`, présents en base depuis l'étape 1 mais jamais exposés côté frontend
 
 6. **Gestion des templates** dans Paramètres (brief §7) :
    - Liste templates par type, éditeur Monaco, prévisualisation iframe

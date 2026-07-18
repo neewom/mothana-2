@@ -28,17 +28,18 @@
   - **Bug trouvé en vérifiant le PDF généré** : "Monsieur M. Nicolas BOULOM" — le template 11580 concaténait `{{donateur_civilite}}` et `{{donateur_nom_complet}}` (qui inclut déjà le titre de civilité par construction). Corrigé dans `defaultCerfaTemplates.ts` + migration `templates_recu_fix_donateur_civilite_duplication.sql` appliquée aux templates déjà en base (le template 16216 n'avait pas ce bug, déjà correct depuis l'étape 3)
   - Régénération demandée à l'utilisateur, PDF re-téléchargé et vérifié visuellement (conversion PDF→PNG via `poppler`/`pdftoppm`, installé pour l'occasion) : nom correct, numéro d'ordre `2026-001` conservé (régénération, pas de nouveau numéro), montant en chiffres et en lettres corrects, mention légale, RNA, clause d'absence de contrepartie, tout conforme
   - Deux nouvelles décisions utilisateur notées pour l'étape 5 dans `CLAUDE.md` : CTA d'édition participant directement sous le message d'erreur de champs manquants (évite l'aller-retour vers la page Participants), toaster de confirmation après génération réussie
+  - PR #22 ouverte puis **mergée** par l'utilisateur, `main` synchronisé
+
+- **Étape 5 du brief (`docs/brief-cerfa.md` §6)** — évolutions UI page Reçus fiscaux, codée sur `feat/cerfa-recus-fiscaux-ui` :
+  - `src/lib/cerfaValidation.ts` créé : logique de validation dupliquée côté client (même règles que le backend `generate-recu`, qui reste la source de vérité — cf. décision de cette session sur l'articulation front/back)
+  - `RecusFiscauxPage.tsx` réécrite : bannière organisation incomplète (lien vers Paramètres), icône ⚠️ + message détaillé + tooltip par participant, colonnes N° reçu/Type, CTA Générer/Regénérer désactivé si blocage (organisation ou participant), "Générer tous" filtre les lignes bloquées, bouton "Modifier le participant" ouvrant `ParticipantModal` (réutilisé depuis `ParticipantsPage`), confirmation avant regénération (réutilise le composant `Modal`, même pattern que la suppression de participant), toast de succès (réutilise `useToast`/`Toast` déjà existants)
+  - `RecuFiscal` (types/index.ts) étendu avec `numero_ordre`/`type_cerfa` (en base depuis l'étape 1, jamais exposés côté frontend)
+  - Build/lint/typecheck OK, smoke test navigateur fait (chargement sans erreur) — pas de test du rendu réel avec données ni des interactions (modale, toast, confirmation), pas d'identifiants admin côté agent
 
 ## Reste à faire (prochaine session)
 
-0. **Commit + push + PR étape 4** : `feat/cerfa-generate-recu-gotenberg` — code complet et testé, reste à committer/pousser/ouvrir la PR (interrompu par la vérification visuelle du PDF, à finaliser)
-1. **Étape 5 — Évolutions UI page Reçus fiscaux** (brief §6), avec les 3 décisions utilisateur de cette session à respecter :
-   - Bannière de blocage organisation + icônes ⚠️ participant (base du brief)
-   - CTA de génération **désactivé** (pas juste un message) quand un blocage est affiché
-   - CTA d'édition du participant affiché sous le message d'erreur de champs manquants
-   - Toaster de confirmation après génération réussie
-   - Colonnes N° reçu et Type, bouton Regénérer avec confirmation
-2. **Étape 6 — Gestion des templates** dans Paramètres (brief §7)
+0. **Push + PR étape 5** puis test utilisateur : ouvrir la PR pour `feat/cerfa-recus-fiscaux-ui`, l'utilisateur teste le rendu réel (bannière, icônes, tooltips, CTA désactivés, modale d'édition participant, confirmation de régénération, toast) avant merge
+1. **Étape 6 — Gestion des templates** dans Paramètres (brief §7) : liste des templates par type, éditeur Monaco, prévisualisation iframe, activation/archivage/suppression
 
 ## Blockers
 

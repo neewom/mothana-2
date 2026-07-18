@@ -1,20 +1,30 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
-import type { RecuFiscal } from '../types'
+import { useToast } from '../hooks/useToast'
+import type { RecuFiscal, ProfilParticipant } from '../types'
 import { fetchAllRows } from '../lib/fetchAllRows'
+import { participantFullName } from '../lib/participantSearch'
+import {
+  validateOrganisationCerfa,
+  validateParticipantCerfa,
+  type OrganisationFiscale,
+  type ParticipantValidation,
+} from '../lib/cerfaValidation'
+import Modal from '../components/Modal'
+import ParticipantModal from '../components/ParticipantModal'
+import Toast from '../components/Toast'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 interface ParticipantRow {
-  profil_participant_id: string
-  nom: string
-  prenom: string | null
-  email: string | null
+  profil: ProfilParticipant
   total_dons: number
   recu: RecuFiscal | null
+  validation: ParticipantValidation
 }
 
 // ---------------------------------------------------------------------------
@@ -34,17 +44,27 @@ function yearOptions() {
   return [cy, cy - 1, cy - 2, cy - 3]
 }
 
+const TYPE_CERFA_LABELS: Record<string, string> = {
+  '11580': '11580 · Particuliers',
+  '16216': '16216 · Entreprises',
+}
+
 // ---------------------------------------------------------------------------
 // RecusFiscauxPage
 // ---------------------------------------------------------------------------
 
 export default function RecusFiscauxPage() {
   const organisationId = useOrganisationId()
+  const { toast, showToast, dismissToast } = useToast()
 
   const [annee, setAnnee] = useState<number>(currentYear())
   const [rows, setRows] = useState<ParticipantRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Validation organisation (bannière de blocage)
+  const [orgFiscal, setOrgFiscal] = useState<OrganisationFiscale | null>(null)
+  const orgMissing = useMemo(() => (orgFiscal ? validateOrganisationCerfa(orgFiscal) : []), [orgFiscal])
 
   // Per-row generation state: profil_participant_id → loading | error | null
   const [genLoading, setGenLoading] = useState<Record<string, boolean>>({})
@@ -53,6 +73,25 @@ export default function RecusFiscauxPage() {
   const [dlError, setDlError] = useState<Record<string, string>>({})
 
   const [generateAllLoading, setGenerateAllLoading] = useState(false)
+
+  // Regénération (confirmation) et édition participant
+  const [regenerateConfirm, setRegenerateConfirm] = useState<ParticipantRow | null>(null)
+  const [editingProfil, setEditingProfil] = useState<ProfilParticipant | undefined>(undefined)
+  const [participantModalOpen, setParticipantModalOpen] = useState(false)
+
+  // ---------------------------------------------------------------------------
+  // Organisation fiscale (indépendante de l'année)
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!organisationId) return
+    supabase
+      .from('organisations')
+      .select('adresse, code_postal, ville, modele_recu_pdf')
+      .eq('id', organisationId)
+      .single()
+      .then(({ data }) => setOrgFiscal(data as OrganisationFiscale | null))
+  }, [organisationId])
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -94,14 +133,14 @@ export default function RecusFiscauxPage() {
       return
     }
 
-    // 3. Fetch participant info for those IDs
-    const { data: profils, error: profilsErr } = await fetchAllRows<{ id: string; personnes: unknown }>((from, to) =>
+    // 3. Fetch participant info for those IDs (données complètes pour la validation Cerfa)
+    const { data: profils, error: profilsErr } = await fetchAllRows<ProfilParticipant>((from, to) =>
       supabase
         .from('profils_participant')
-        .select('id, personnes(nom, prenom, email)')
+        .select('id, personne_id, organisation_id, notes, id_externe, created_at, personnes!inner(id, nom, prenom, email, telephone, civilite, nom2, prenom2, adresse, code_postal, ville, pays)')
         .in('id', profilIds)
         .order('id', { ascending: true })
-        .range(from, to)
+        .range(from, to) as unknown as PromiseLike<{ data: ProfilParticipant[] | null; error: { message: string } | null }>
     )
 
     if (profilsErr) { setError(profilsErr); setLoading(false); return }
@@ -125,20 +164,18 @@ export default function RecusFiscauxPage() {
     }
 
     // 5. Build rows
-    const built: ParticipantRow[] = profils.map((p) => {
-      const personne = p.personnes as unknown as { nom: string; prenom: string | null; email: string | null } | null
-      return {
-        profil_participant_id: p.id,
-        nom: personne?.nom ?? '',
-        prenom: personne?.prenom ?? null,
-        email: personne?.email ?? null,
-        total_dons: totalsMap[p.id] ?? 0,
-        recu: recusMap[p.id] ?? null,
-      }
-    })
+    const built: ParticipantRow[] = profils.map((p) => ({
+      profil: p,
+      total_dons: totalsMap[p.id] ?? 0,
+      recu: recusMap[p.id] ?? null,
+      validation: validateParticipantCerfa(p.personnes),
+    }))
 
     // Sort by nom then prenom
-    built.sort((a, b) => a.nom.localeCompare(b.nom) || (a.prenom ?? '').localeCompare(b.prenom ?? ''))
+    built.sort((a, b) =>
+      a.profil.personnes.nom.localeCompare(b.profil.personnes.nom) ||
+      (a.profil.personnes.prenom ?? '').localeCompare(b.profil.personnes.prenom ?? '')
+    )
 
     setRows(built)
     setLoading(false)
@@ -152,7 +189,8 @@ export default function RecusFiscauxPage() {
   // Generate a single recu
   // ---------------------------------------------------------------------------
 
-  async function generateRecu(profilId: string) {
+  async function generateRecu(row: ParticipantRow) {
+    const profilId = row.profil.id
     setGenLoading((prev) => ({ ...prev, [profilId]: true }))
     setGenError((prev) => ({ ...prev, [profilId]: '' }))
 
@@ -182,7 +220,16 @@ export default function RecusFiscauxPage() {
     }
 
     setGenLoading((prev) => ({ ...prev, [profilId]: false }))
+    showToast(`Reçu généré pour ${participantFullName(row.profil)}`)
     fetchData()
+  }
+
+  function handleGenerateClick(row: ParticipantRow) {
+    if (row.recu) {
+      setRegenerateConfirm(row)
+    } else {
+      generateRecu(row)
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -191,7 +238,7 @@ export default function RecusFiscauxPage() {
 
   async function downloadRecu(row: ParticipantRow) {
     if (!row.recu?.fichier_url) return
-    const id = row.profil_participant_id
+    const id = row.profil.id
     setDlLoading((prev) => ({ ...prev, [id]: true }))
     setDlError((prev) => ({ ...prev, [id]: '' }))
 
@@ -210,15 +257,31 @@ export default function RecusFiscauxPage() {
   }
 
   // ---------------------------------------------------------------------------
-  // Generate all (no existing reçu or regenerate all)
+  // Generate all (skips les lignes bloquées)
   // ---------------------------------------------------------------------------
 
   async function generateAll() {
     setGenerateAllLoading(true)
-    for (const row of rows) {
-      await generateRecu(row.profil_participant_id)
+    const eligible = rows.filter((r) => orgMissing.length === 0 && !r.validation.blocking && r.validation.missing.length === 0)
+    for (const row of eligible) {
+      await generateRecu(row)
     }
     setGenerateAllLoading(false)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Édition participant
+  // ---------------------------------------------------------------------------
+
+  function openEditParticipant(row: ParticipantRow) {
+    setEditingProfil(row.profil)
+    setParticipantModalOpen(true)
+  }
+
+  function handleParticipantSaved() {
+    setParticipantModalOpen(false)
+    setEditingProfil(undefined)
+    fetchData()
   }
 
   // ---------------------------------------------------------------------------
@@ -274,7 +337,8 @@ export default function RecusFiscauxPage() {
           {rows.length > 0 && (
             <button
               onClick={generateAll}
-              disabled={generateAllLoading}
+              disabled={generateAllLoading || orgMissing.length > 0}
+              title={orgMissing.length > 0 ? "Complétez les paramètres de l'organisation pour générer des reçus" : undefined}
               className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
             >
               {generateAllLoading ? (
@@ -292,6 +356,19 @@ export default function RecusFiscauxPage() {
           )}
         </div>
       </div>
+
+      {/* Bannière organisation incomplète */}
+      {orgFiscal && orgMissing.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p>
+            <span className="font-medium">Complétez les paramètres de votre organisation</span> pour pouvoir générer des reçus fiscaux
+            {' '}— champs manquants : {orgMissing.join(', ')}.
+          </p>
+          <Link to="/admin/parametres" className="mt-1 inline-block font-medium underline hover:no-underline">
+            Aller aux paramètres
+          </Link>
+        </div>
+      )}
 
       {/* Error banner */}
       {error && (
@@ -318,30 +395,53 @@ export default function RecusFiscauxPage() {
               <tr className="border-b border-slate-200 text-left">
                 <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Participant</th>
                 <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Total dons</th>
+                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">N° reçu</th>
+                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Type</th>
                 <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Statut</th>
                 <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {paginatedRows.map((row) => {
-                const fullName = [row.prenom, row.nom].filter(Boolean).join(' ')
-                const isGenLoading = genLoading[row.profil_participant_id]
-                const genErr = genError[row.profil_participant_id]
-                const isDlLoading = dlLoading[row.profil_participant_id]
-                const dlErr = dlError[row.profil_participant_id]
+                const fullName = participantFullName(row.profil)
+                const profilId = row.profil.id
+                const isGenLoading = genLoading[profilId]
+                const genErr = genError[profilId]
+                const isDlLoading = dlLoading[profilId]
+                const dlErr = dlError[profilId]
                 const hasRecu = row.recu !== null
+                const isBlocked = orgMissing.length > 0 || row.validation.blocking || row.validation.missing.length > 0
+                const validationMessage = row.validation.message
+                  ?? (row.validation.missing.length > 0 ? `Champs manquants : ${row.validation.missing.join(', ')}` : null)
 
                 return (
-                  <tr key={row.profil_participant_id} className="hover:bg-slate-50">
+                  <tr key={profilId} className="hover:bg-slate-50">
                     {/* Participant */}
                     <td className="px-6 py-4">
-                      <div className="font-medium text-slate-900">{fullName}</div>
-                      {row.email && <div className="text-xs text-slate-400">{row.email}</div>}
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-slate-900">{fullName}</span>
+                        {validationMessage && (
+                          <span title={validationMessage} className="cursor-help text-amber-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l6.28 11.18c.75 1.334-.213 2.987-1.742 2.987H3.72c-1.53 0-2.493-1.653-1.743-2.987l6.28-11.18zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </span>
+                        )}
+                      </div>
+                      {row.profil.personnes.email && <div className="text-xs text-slate-400">{row.profil.personnes.email}</div>}
                     </td>
 
                     {/* Total */}
                     <td className="px-6 py-4 text-right font-medium text-slate-900">
                       {formatMontant(row.total_dons)}
+                    </td>
+
+                    {/* N° reçu */}
+                    <td className="px-6 py-4 text-slate-600">{row.recu?.numero_ordre ?? '—'}</td>
+
+                    {/* Type */}
+                    <td className="px-6 py-4 text-slate-600">
+                      {row.recu?.type_cerfa ? TYPE_CERFA_LABELS[row.recu.type_cerfa] ?? row.recu.type_cerfa : '—'}
                     </td>
 
                     {/* Status */}
@@ -357,6 +457,18 @@ export default function RecusFiscauxPage() {
                         <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
                           Non généré
                         </span>
+                      )}
+                      {validationMessage && (
+                        <div className="mt-1">
+                          <p className="text-xs text-amber-700">{validationMessage}</p>
+                          <button
+                            type="button"
+                            onClick={() => openEditParticipant(row)}
+                            className="mt-0.5 text-xs font-medium text-indigo-600 underline hover:no-underline"
+                          >
+                            Modifier le participant
+                          </button>
+                        </div>
                       )}
                       {genErr && (
                         <p className="mt-1 text-xs text-red-600">{genErr}</p>
@@ -393,8 +505,9 @@ export default function RecusFiscauxPage() {
 
                         {/* Generate / Regenerate */}
                         <button
-                          onClick={() => generateRecu(row.profil_participant_id)}
-                          disabled={isGenLoading || generateAllLoading}
+                          onClick={() => handleGenerateClick(row)}
+                          disabled={isGenLoading || generateAllLoading || isBlocked}
+                          title={isBlocked ? (orgMissing.length > 0 ? "Complétez les paramètres de l'organisation" : validationMessage ?? undefined) : undefined}
                           className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
                         >
                           {isGenLoading ? (
@@ -475,6 +588,53 @@ export default function RecusFiscauxPage() {
           </div>
         )}
       </div>
+
+      {/* Regenerate confirmation */}
+      {regenerateConfirm && (
+        <Modal open onClose={() => setRegenerateConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="regenerate-title">
+          <div className="p-6">
+            <h2 id="regenerate-title" className="text-lg font-semibold text-slate-900">Regénérer le reçu</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Un reçu a déjà été généré pour{' '}
+              <span className="font-medium">« {participantFullName(regenerateConfirm.profil)} »</span> en {annee}
+              {regenerateConfirm.recu?.numero_ordre && <> (n° {regenerateConfirm.recu.numero_ordre})</>}.
+              Le fichier PDF sera remplacé, mais le numéro d'ordre est conservé.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setRegenerateConfirm(null)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  const row = regenerateConfirm
+                  setRegenerateConfirm(null)
+                  generateRecu(row)
+                }}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                Regénérer
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Participant edit modal */}
+      {organisationId && (
+        <ParticipantModal
+          open={participantModalOpen}
+          onClose={() => setParticipantModalOpen(false)}
+          onSaved={handleParticipantSaved}
+          participant={editingProfil}
+          organisationId={organisationId}
+        />
+      )}
+
+      {/* Toast */}
+      {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
     </div>
   )
 }
