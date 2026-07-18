@@ -219,7 +219,8 @@ export default function ParticipantModal({
           </h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto p-6">
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+          <div className="space-y-4 overflow-y-auto p-6">
           {error && (
             <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
@@ -406,8 +407,10 @@ export default function ParticipantModal({
             />
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
+          </div>
+
+          {/* Actions — sticky, ombre portée vers le haut pour signaler le contenu scrollable au-dessus */}
+          <div className="flex shrink-0 justify-end gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)]">
             <button
               type="button"
               onClick={onClose}
