@@ -54,11 +54,23 @@
   - Archiver le template actif : confirmation spécifique (avertit que la génération sera bloquée pour ce type sans template actif)
   - Supprimer : vérifie d'abord qu'aucun `recus_fiscaux.template_id` ne le référence (bloque si utilisé), puis confirmation standard
   - Monaco testé et fonctionnel (coloration syntaxique, onglets, aperçu live) via une route de test temporaire (`/__test` + `src/pages/__TestHarness.tsx`), ajoutée puis **retirée avant commit** — pas d'identifiants admin pour tester le flux complet dans l'app
+  - PR #25 ouverte
+
+- **Deux retours utilisateur en testant PR #25, corrigés dans la même PR** :
+  - "Après création d'un template, impossible de le modifier" → bouton **Modifier** ajouté (réutilise `TemplateRecuEditorModal` en mode édition, pré-rempli, `update` au lieu d'`insert`) — sans ça, un template déjà utilisé pour générer un reçu ne pouvait plus jamais être ni corrigé ni supprimé (règle "supprimer seulement si jamais utilisé")
+  - "Lister tous les placeholders disponibles" → hint tronqué ("etc.") remplacé par les 19 placeholders complets en tags cliquables (copie presse-papier), exemple de valeur au survol, réutilise `CERFA_PREVIEW_PLACEHOLDERS` comme source unique
+  - PR #25 **mergée** par l'utilisateur
+
+- **Incident opérationnel identifié et corrigé** : l'utilisateur a signalé que son `npm run dev` s'arrêtait régulièrement. Cause trouvée : l'agent tourne sur une machine dédiée où le projet est exposé sur le réseau via une instance **permanente** `npm run dev` (port 5173) que l'utilisateur utilise pour piloter/vérifier le travail à distance (MacBook/smartphone) — mes `pkill -f "vite"` répétés pendant les tests visuels (Monaco, modales) tuaient cette instance à chaque fois, pas seulement mes instances de test
+  - Règle ajoutée dans `CLAUDE.md` ("Environnement de développement — ⚠️ règle critique") + mémoire persistante (`feedback_never_kill_vite_by_pattern.md`) : ne plus jamais `pkill` par pattern de nom, réutiliser l'instance existante sur le port 5173 pour toute vérification visuelle future, ne démarrer/arrêter un process séparé qu'en dernier recours et uniquement par PID exact
+  - PR #26 ouverte puis **mergée** par l'utilisateur
+
+**🎉 Les 6 étapes de la refonte Cerfa (priorité 1) sont terminées et en production.**
 
 ## Reste à faire (prochaine session)
 
-0. **Push + PR étape 6**, test utilisateur, puis célébrer : les 6 étapes de la refonte Cerfa (priorité 1) seront complètes une fois cette PR mergée
-1. **Priorité 2 — Export comptable** (roadmap post-Cerfa, `CLAUDE.md`) : à cadrer quand la refonte Cerfa sera bouclée
+1. **Priorité 2 — Export comptable** (roadmap post-Cerfa, `CLAUDE.md`) : à cadrer avec l'utilisateur — export CSV dons, export CSV reçus annuels (article 222 bis CGI), tableau de bord comptable, rapprochement chèques/virements
+2. Pour toute vérification visuelle future : réutiliser l'instance `npm run dev` déjà en cours sur le port 5173 (voir règle `CLAUDE.md`), ne jamais lancer/tuer de processus vite soi-même sauf PID exact
 
 ## Blockers
 

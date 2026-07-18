@@ -135,9 +135,9 @@ Claude Code tourne sur une machine dédiée où le projet est exposé sur le ré
 - Exécuter `supabase/migrations/super_admin_rls.sql` si pas encore fait
 - Exécuter `supabase/migrations/get_org_admins.sql` si pas encore fait
 
-### 🔄 En cours — Priorité 1 : Refonte Cerfa
+### ✅ Priorité 1 : Refonte Cerfa — terminée (2026-07-18)
 
-Voir `docs/brief-cerfa.md` pour le brief technique complet. Ordre d'implémentation :
+Voir `docs/brief-cerfa.md` pour le brief technique complet. Les 6 étapes sont en production. Détail de chaque étape :
 
 1. ✅ **Migrations SQL** (brief §1) — exécutées en production le 2026-07-17 :
    - Colonnes adresse sur `organisations` (`organisations_adresse_fiscale.sql`)
@@ -181,16 +181,19 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Ordre d'implémentat
    - `RecuFiscal` (types/index.ts) étendu avec `numero_ordre`/`type_cerfa`, présents en base depuis l'étape 1 mais jamais exposés côté frontend
    - Testé par l'utilisateur : bannière, icônes/tooltips, CTA désactivés, toast — tous OK. Bug UI trouvé sur `ParticipantModal` (bouton "Modifier le participant" ouvre une modale dont les boutons Annuler/Enregistrer n'étaient pas visibles sans scroll) : corrigé — corps scrollable + footer sticky avec ombre indicative et coins bas arrondis (`rounded-b-2xl`, sinon le fond opaque du footer recouvrait l'arrondi du conteneur `Modal`)
 
-6. ✅ **Gestion des templates** dans Paramètres (brief §7) — codée sur `feat/cerfa-templates-gestion`, dernière étape de la refonte Cerfa (priorité 1) :
+6. ✅ **Gestion des templates** dans Paramètres (brief §7) — mergé sur `main` le 2026-07-18 (PR #25), dernière étape de la refonte Cerfa (priorité 1) :
    - Nouvelle dépendance `@monaco-editor/react` (aucun éditeur de code n'existait dans le projet)
    - Nouvelle section "Modèles de reçus fiscaux" dans Paramètres (`TemplatesRecuSection.tsx`) : liste des templates groupés par type (11580/16216), badge Actif/Inactif/Archivé
-   - `TemplateRecuEditorModal.tsx` : création d'un nouveau template (nom, type, éditeur Monaco HTML/CSS avec onglets, aperçu iframe live) — créé désactivé par défaut, à activer explicitement depuis la liste une fois vérifié
+   - `TemplateRecuEditorModal.tsx` : création **et modification** d'un template (nom, type, éditeur Monaco HTML/CSS avec onglets, aperçu iframe live) — création désactivée par défaut (à activer explicitement) ; modification ajoutée en cours de PR (sans elle, un template déjà utilisé pour générer un reçu ne pouvait plus jamais être ni corrigé ni supprimé)
+   - Liste complète des 19 placeholders disponibles affichée sous l'éditeur (tags cliquables, copie presse-papier, exemple de valeur au survol) — ajoutée en cours de PR suite à un retour utilisateur
    - `TemplateRecuPreviewModal.tsx` : aperçu en lecture seule d'un template existant
    - `src/lib/cerfaPreview.ts` : données d'exemple + rendu HTML partagés entre les deux modales (mêmes placeholders que `generate-recu`)
    - Activer : désactive l'ancien template actif du même type puis active le nouveau (deux updates séquentiels, pas de transaction SQL — risque de concurrence jugé acceptable pour une action admin mono-utilisateur)
    - Archiver le template actif : confirmation spécifique avertissant que la génération sera bloquée pour ce type tant qu'un autre template n'est pas activé
    - Supprimer : vérifie d'abord qu'aucun `recus_fiscaux.template_id` ne référence le template (bloque avec message si utilisé), puis confirmation standard avant suppression définitive
-   - Testé visuellement : Monaco charge et fonctionne correctement (coloration syntaxique HTML/CSS, onglets, aperçu live) — vérifié via une route de test temporaire ajoutée puis retirée avant commit (pas d'identifiants admin pour tester le flux complet dans l'app)
+   - Monaco testé et fonctionnel (coloration syntaxique HTML/CSS, onglets, aperçu live, mode édition pré-rempli) via une route de test temporaire ajoutée puis retirée avant chaque commit — testé et validé par l'utilisateur, PR mergée
+
+**Suite à cette étape** : incident opérationnel identifié et corrigé — l'agent tuait par erreur l'instance `npm run dev` permanente de l'utilisateur (exposée réseau, utilisée pour piloter le travail à distance) via des `pkill -f vite` pendant les tests visuels. Règle ajoutée dans `CLAUDE.md` ("Environnement de développement") + mémoire persistante : ne plus jamais tuer de processus par pattern de nom, réutiliser l'instance existante sur le port 5173.
 
 ### ⏳ Roadmap post-Cerfa
 
