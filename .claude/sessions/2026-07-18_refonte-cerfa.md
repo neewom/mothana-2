@@ -35,11 +35,17 @@
   - `RecusFiscauxPage.tsx` réécrite : bannière organisation incomplète (lien vers Paramètres), icône ⚠️ + message détaillé + tooltip par participant, colonnes N° reçu/Type, CTA Générer/Regénérer désactivé si blocage (organisation ou participant), "Générer tous" filtre les lignes bloquées, bouton "Modifier le participant" ouvrant `ParticipantModal` (réutilisé depuis `ParticipantsPage`), confirmation avant regénération (réutilise le composant `Modal`, même pattern que la suppression de participant), toast de succès (réutilise `useToast`/`Toast` déjà existants)
   - `RecuFiscal` (types/index.ts) étendu avec `numero_ordre`/`type_cerfa` (en base depuis l'étape 1, jamais exposés côté frontend)
   - Build/lint/typecheck OK, smoke test navigateur fait (chargement sans erreur) — pas de test du rendu réel avec données ni des interactions (modale, toast, confirmation), pas d'identifiants admin côté agent
+  - PR #23 ouverte, corrigée en cours de route (le bouton "Modifier le participant" n'apparaissait pas pour les blocages sans liste de champs manquants — civilité Famille/NULL — corrigé pour apparaître sur tout blocage participant), puis **mergée** par l'utilisateur
+
+- **Bug UI trouvé par l'utilisateur en testant PR #23** : `ParticipantModal` (ouverte via le nouveau bouton "Modifier le participant") avait ses boutons Annuler/Enregistrer non visibles sans scroll, noyés dans le bloc de formulaire scrollable
+  - Corrigé sur une nouvelle branche `fix/participant-modal-sticky-actions` (PR #23 déjà mergée, pas de PR ouverte à ce moment) : formulaire séparé en corps scrollable + footer sticky avec ombre portée indiquant le contenu scrollable au-dessus
+  - Vérifié visuellement (reproduction isolée de la structure Tailwind exacte, capture d'écran à hauteur de fenêtre réduite) avant de pousser
+  - Deuxième retour utilisateur : les coins bas de la modale n'étaient plus arrondis (le footer `bg-white` opaque recouvrait l'arrondi `rounded-2xl` du conteneur `Modal`) — corrigé avec `rounded-b-2xl` sur le footer, revérifié visuellement, poussé sur la même PR (#24)
+  - PR #24 **mergée** par l'utilisateur, `main` synchronisé
 
 ## Reste à faire (prochaine session)
 
-0. **Push + PR étape 5** puis test utilisateur : ouvrir la PR pour `feat/cerfa-recus-fiscaux-ui`, l'utilisateur teste le rendu réel (bannière, icônes, tooltips, CTA désactivés, modale d'édition participant, confirmation de régénération, toast) avant merge
-1. **Étape 6 — Gestion des templates** dans Paramètres (brief §7) : liste des templates par type, éditeur Monaco, prévisualisation iframe, activation/archivage/suppression
+1. **Étape 6 — Gestion des templates** dans Paramètres (brief §7) : liste des templates par type, éditeur Monaco, prévisualisation iframe, activation/archivage/suppression — dernière étape de la refonte Cerfa (priorité 1)
 
 ## Blockers
 

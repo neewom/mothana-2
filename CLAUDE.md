@@ -168,6 +168,7 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Ordre d'implémentat
    - Confirmation avant regénération (modale réutilisant le composant `Modal` existant, même pattern que la suppression de participant), précise que le numéro d'ordre est conservé
    - Toast de succès après génération réussie (décision utilisateur du 2026-07-18), réutilise `useToast`/`Toast` déjà utilisés sur `ParticipantsPage`
    - `RecuFiscal` (types/index.ts) étendu avec `numero_ordre`/`type_cerfa`, présents en base depuis l'étape 1 mais jamais exposés côté frontend
+   - Testé par l'utilisateur : bannière, icônes/tooltips, CTA désactivés, toast — tous OK. Bug UI trouvé sur `ParticipantModal` (bouton "Modifier le participant" ouvre une modale dont les boutons Annuler/Enregistrer n'étaient pas visibles sans scroll) : corrigé — corps scrollable + footer sticky avec ombre indicative et coins bas arrondis (`rounded-b-2xl`, sinon le fond opaque du footer recouvrait l'arrondi du conteneur `Modal`)
 
 6. **Gestion des templates** dans Paramètres (brief §7) :
    - Liste templates par type, éditeur Monaco, prévisualisation iframe
