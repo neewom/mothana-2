@@ -45,7 +45,20 @@
 
 ## Reste à faire (prochaine session)
 
-1. **Étape 6 — Gestion des templates** dans Paramètres (brief §7) : liste des templates par type, éditeur Monaco, prévisualisation iframe, activation/archivage/suppression — dernière étape de la refonte Cerfa (priorité 1)
+- **Étape 6 du brief (`docs/brief-cerfa.md` §7)** — gestion des templates dans Paramètres, codée sur `feat/cerfa-templates-gestion`, **dernière étape de la refonte Cerfa (priorité 1)** :
+  - Nouvelle dépendance `@monaco-editor/react` (aucun éditeur de code n'existait dans le projet jusqu'ici)
+  - `TemplatesRecuSection.tsx` (nouvelle section dans `ParametresPage.tsx`) : liste des templates groupés par type, badges Actif/Inactif/Archivé, actions Activer/Prévisualiser/Archiver/Supprimer
+  - `TemplateRecuEditorModal.tsx` : création avec éditeur Monaco (onglets HTML/CSS) + aperçu iframe live, créé désactivé par défaut (activation explicite requise)
+  - `TemplateRecuPreviewModal.tsx` : aperçu en lecture seule, `src/lib/cerfaPreview.ts` : données d'exemple + rendu partagés entre les deux modales
+  - Activer : désactive l'ancien actif du même type puis active le nouveau (deux updates séquentiels)
+  - Archiver le template actif : confirmation spécifique (avertit que la génération sera bloquée pour ce type sans template actif)
+  - Supprimer : vérifie d'abord qu'aucun `recus_fiscaux.template_id` ne le référence (bloque si utilisé), puis confirmation standard
+  - Monaco testé et fonctionnel (coloration syntaxique, onglets, aperçu live) via une route de test temporaire (`/__test` + `src/pages/__TestHarness.tsx`), ajoutée puis **retirée avant commit** — pas d'identifiants admin pour tester le flux complet dans l'app
+
+## Reste à faire (prochaine session)
+
+0. **Push + PR étape 6**, test utilisateur, puis célébrer : les 6 étapes de la refonte Cerfa (priorité 1) seront complètes une fois cette PR mergée
+1. **Priorité 2 — Export comptable** (roadmap post-Cerfa, `CLAUDE.md`) : à cadrer quand la refonte Cerfa sera bouclée
 
 ## Blockers
 
