@@ -48,6 +48,19 @@ export interface RecuFiscal {
   type_cerfa: '11580' | '16216' | null
 }
 
+export interface TemplateRecu {
+  id: string
+  organisation_id: string
+  nom: string
+  type_cerfa: '11580' | '16216'
+  html_template: string
+  css: string | null
+  is_active: boolean
+  is_archived: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Don {
   id: string
   profil_participant_id: string

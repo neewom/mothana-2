@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
+import TemplatesRecuSection from '../components/TemplatesRecuSection'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -502,6 +503,14 @@ export default function ParametresPage() {
             {modeleError && <span className="text-sm text-red-600">{modeleError}</span>}
           </div>
         </form>
+      </Section>
+
+      {/* Section 4 — Modèles de reçus fiscaux */}
+      <Section
+        title="Modèles de reçus fiscaux"
+        description="Gérez les templates HTML utilisés pour générer les reçus 11580 (particuliers) et 16216 (entreprises)."
+      >
+        {organisationId && <TemplatesRecuSection organisationId={organisationId} />}
       </Section>
     </div>
   )

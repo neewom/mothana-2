@@ -170,9 +170,16 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Ordre d'implémentat
    - `RecuFiscal` (types/index.ts) étendu avec `numero_ordre`/`type_cerfa`, présents en base depuis l'étape 1 mais jamais exposés côté frontend
    - Testé par l'utilisateur : bannière, icônes/tooltips, CTA désactivés, toast — tous OK. Bug UI trouvé sur `ParticipantModal` (bouton "Modifier le participant" ouvre une modale dont les boutons Annuler/Enregistrer n'étaient pas visibles sans scroll) : corrigé — corps scrollable + footer sticky avec ombre indicative et coins bas arrondis (`rounded-b-2xl`, sinon le fond opaque du footer recouvrait l'arrondi du conteneur `Modal`)
 
-6. **Gestion des templates** dans Paramètres (brief §7) :
-   - Liste templates par type, éditeur Monaco, prévisualisation iframe
-   - Activation, archivage, suppression (si jamais utilisé)
+6. ✅ **Gestion des templates** dans Paramètres (brief §7) — codée sur `feat/cerfa-templates-gestion`, dernière étape de la refonte Cerfa (priorité 1) :
+   - Nouvelle dépendance `@monaco-editor/react` (aucun éditeur de code n'existait dans le projet)
+   - Nouvelle section "Modèles de reçus fiscaux" dans Paramètres (`TemplatesRecuSection.tsx`) : liste des templates groupés par type (11580/16216), badge Actif/Inactif/Archivé
+   - `TemplateRecuEditorModal.tsx` : création d'un nouveau template (nom, type, éditeur Monaco HTML/CSS avec onglets, aperçu iframe live) — créé désactivé par défaut, à activer explicitement depuis la liste une fois vérifié
+   - `TemplateRecuPreviewModal.tsx` : aperçu en lecture seule d'un template existant
+   - `src/lib/cerfaPreview.ts` : données d'exemple + rendu HTML partagés entre les deux modales (mêmes placeholders que `generate-recu`)
+   - Activer : désactive l'ancien template actif du même type puis active le nouveau (deux updates séquentiels, pas de transaction SQL — risque de concurrence jugé acceptable pour une action admin mono-utilisateur)
+   - Archiver le template actif : confirmation spécifique avertissant que la génération sera bloquée pour ce type tant qu'un autre template n'est pas activé
+   - Supprimer : vérifie d'abord qu'aucun `recus_fiscaux.template_id` ne référence le template (bloque avec message si utilisé), puis confirmation standard avant suppression définitive
+   - Testé visuellement : Monaco charge et fonctionne correctement (coloration syntaxique HTML/CSS, onglets, aperçu live) — vérifié via une route de test temporaire ajoutée puis retirée avant commit (pas d'identifiants admin pour tester le flux complet dans l'app)
 
 ### ⏳ Roadmap post-Cerfa
 
