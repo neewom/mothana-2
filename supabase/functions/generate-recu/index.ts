@@ -1,23 +1,20 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-')
-  return `${day}/${month}/${year}`
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
 }
 
-function formatMontant(n: number): string {
-  return n.toFixed(2).replace('.', ',') + ' \u20ac'
-}
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface Personne {
   nom: string
@@ -26,55 +23,41 @@ interface Personne {
   civilite: number | null
   nom2: string | null
   prenom2: string | null
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
+  pays: string | null
 }
 
-const CIVILITE_TITLES: Record<number, string> = {
-  1: 'Monsieur',
-  2: 'Madame',
-  3: 'Mademoiselle',
-  5: 'Soci\u00e9t\u00e9',
-  6: 'Association',
-  7: 'Famille',
+interface ModeleRecu {
+  rna?: string
+  siren?: string
+  objet_social?: string
+  mention_legale?: string
+  numero_recu_depart?: number
+  taux_reduction?: number
 }
 
-function buildDonorName(p: Personne): string {
-  const fullName = [p.prenom, p.nom].filter(Boolean).join(' ')
-
-  if (p.civilite === 4) {
-    if (p.nom2 || p.prenom2) {
-      const coSignataire = [p.prenom2, p.nom2].filter(Boolean).join(' ')
-      return `Monsieur ${fullName} et Madame ${coSignataire}`
-    }
-    return `Monsieur et Madame ${p.nom}`
-  }
-
-  if (p.civilite === 5 || p.civilite === 6 || p.civilite === 7) {
-    return `${CIVILITE_TITLES[p.civilite]} ${p.nom}`
-  }
-
-  if (p.civilite && CIVILITE_TITLES[p.civilite]) {
-    return `${CIVILITE_TITLES[p.civilite]} ${fullName}`
-  }
-
-  return fullName
+interface Organisation {
+  nom: string
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
+  pays: string | null
+  modele_recu_pdf: ModeleRecu | null
 }
 
-function wrapText(text: string, charWidth: number, maxWidth: number): string[] {
-  const words = text.split(' ')
-  const lines: string[] = []
-  let current = ''
+// ---------------------------------------------------------------------------
+// Helpers de formatage
+// ---------------------------------------------------------------------------
 
-  for (const word of words) {
-    const test = current ? `${current} ${word}` : word
-    if (test.length * charWidth > maxWidth && current) {
-      lines.push(current)
-      current = word
-    } else {
-      current = test
-    }
-  }
-  if (current) lines.push(current)
-  return lines
+function formatDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-')
+  return `${day}/${month}/${year}`
+}
+
+function formatMontant(n: number): string {
+  return n.toFixed(2).replace('.', ',') + ' €'
 }
 
 // French number-to-words (integers up to 999 999, then cents)
@@ -110,7 +93,7 @@ function numberToWords(amount: number): string {
 
   let words = ''
   if (euros === 0) {
-    words = 'zero'
+    words = 'zéro'
   } else if (euros < 1000) {
     words = belowThousand(euros)
   } else {
@@ -129,6 +112,101 @@ function numberToWords(amount: number): string {
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
+function renderTemplate(html: string, values: Record<string, string>): string {
+  return html.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? '')
+}
+
+// ---------------------------------------------------------------------------
+// Règles métier — regles-recus-fiscaux.md
+// ---------------------------------------------------------------------------
+
+function validateOrganisation(org: Organisation): string[] {
+  const modele = org.modele_recu_pdf ?? {}
+  const missing: string[] = []
+  if (!org.nom) missing.push("nom de l'organisation")
+  if (!org.adresse) missing.push('adresse')
+  if (!org.code_postal) missing.push('code postal')
+  if (!org.ville) missing.push('ville')
+  if (!modele.rna && !modele.siren) missing.push('RNA ou SIREN')
+  if (!modele.objet_social) missing.push('objet social')
+  if (!modele.mention_legale) missing.push('mention légale')
+  return missing
+}
+
+interface ParticipantValidation {
+  blocking: boolean
+  missing: string[]
+  message?: string
+}
+
+function validateParticipant(p: Personne): ParticipantValidation {
+  if (p.civilite === 7) {
+    return {
+      blocking: true,
+      missing: [],
+      message:
+        "Les dons enregistrés au nom d'une famille ne permettent pas de générer un reçu fiscal. " +
+        'Identifiez le foyer fiscal (Mr & Mme) ou le donateur individuel.',
+    }
+  }
+
+  if (!p.civilite) {
+    return {
+      blocking: true,
+      missing: [],
+      message: 'Civilité du donateur manquante — impossible de déterminer le type de reçu à générer.',
+    }
+  }
+
+  const missing: string[] = []
+  if (!p.nom) missing.push('nom')
+  if (!p.adresse) missing.push('adresse')
+  if (!p.code_postal) missing.push('code postal')
+  if (!p.ville) missing.push('ville')
+  if ((p.civilite === 1 || p.civilite === 2 || p.civilite === 3 || p.civilite === 4) && !p.prenom) {
+    missing.push('prénom')
+  }
+
+  return { blocking: missing.length > 0, missing }
+}
+
+function determineTypeCerfa(civilite: number): '11580' | '16216' {
+  return civilite === 5 || civilite === 6 ? '16216' : '11580'
+}
+
+// Règles de formatage du nom du donateur — brief-cerfa.md §4
+function buildDonorName(p: Personne): string {
+  const nomMaj = p.nom.toUpperCase()
+
+  if (p.civilite === 4) {
+    if (p.nom2 || p.prenom2) {
+      const coSignataire = [p.prenom2, p.nom2?.toUpperCase()].filter(Boolean).join(' ')
+      return `M. ${p.prenom} ${nomMaj} et Mme ${coSignataire}`
+    }
+    return `M. et Mme ${p.prenom} ${nomMaj}`
+  }
+
+  if (p.civilite === 5 || p.civilite === 6) {
+    return p.nom
+  }
+
+  const titles: Record<number, string> = { 1: 'M.', 2: 'Mme', 3: 'Mlle' }
+  const title = p.civilite ? titles[p.civilite] : ''
+  return [title, p.prenom, nomMaj].filter(Boolean).join(' ')
+}
+
+function buildDonorCivilite(civilite: number): string {
+  const labels: Record<number, string> = {
+    1: 'Monsieur',
+    2: 'Madame',
+    3: 'Mademoiselle',
+    4: 'Monsieur et Madame',
+    5: '',
+    6: '',
+  }
+  return labels[civilite] ?? ''
+}
+
 // ---------------------------------------------------------------------------
 // Main handler
 // ---------------------------------------------------------------------------
@@ -141,23 +219,19 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get('authorization')
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Non autorise' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
+      return jsonResponse({ error: 'Non autorisé' }, 401)
     }
 
     const { profil_participant_id, annee } = await req.json()
-    if (!profil_participant_id || !annee) {
-      return new Response(
-        JSON.stringify({ error: 'Parametres manquants' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
+    const anneeNum = Number(annee)
+    if (!profil_participant_id || !annee || Number.isNaN(anneeNum)) {
+      return jsonResponse({ error: 'Paramètres manquants' }, 400)
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
+    const gotenbergUrl = Deno.env.get('GOTENBERG_URL')!
 
     // Verify caller's identity
     const userClient = createClient(supabaseUrl, anonKey, {
@@ -167,10 +241,7 @@ Deno.serve(async (req) => {
 
     const { data: { user }, error: userError } = await userClient.auth.getUser()
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Non autorise' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
+      return jsonResponse({ error: 'Non autorisé' }, 401)
     }
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
@@ -186,254 +257,228 @@ Deno.serve(async (req) => {
       .single()
 
     if (!profilOrg) {
-      return new Response(
-        JSON.stringify({ error: 'Acces refuse' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
+      return jsonResponse({ error: 'Accès refusé' }, 403)
     }
 
     const organisationId = profilOrg.organisation_id
 
-    // Verify participant belongs to this org and get their info
+    // ---------------------------------------------------------------------
+    // 1. Valider l'organisation
+    // ---------------------------------------------------------------------
+
+    const { data: org } = await adminClient
+      .from('organisations')
+      .select('nom, adresse, code_postal, ville, pays, modele_recu_pdf')
+      .eq('id', organisationId)
+      .single()
+
+    if (!org) {
+      return jsonResponse({ error: 'Organisation introuvable' }, 404)
+    }
+
+    const organisation = org as unknown as Organisation
+    const orgMissing = validateOrganisation(organisation)
+    if (orgMissing.length > 0) {
+      return jsonResponse(
+        {
+          error: `Paramètres de l'organisation incomplets : ${orgMissing.join(', ')}. Complétez-les dans Paramètres.`,
+          missing_fields: orgMissing,
+        },
+        422,
+      )
+    }
+
+    // ---------------------------------------------------------------------
+    // 2. Valider le participant
+    // ---------------------------------------------------------------------
+
     const { data: participant } = await adminClient
       .from('profils_participant')
-      .select('id, organisation_id, personnes(nom, prenom, email, civilite, nom2, prenom2)')
+      .select('id, organisation_id, personnes(nom, prenom, email, civilite, nom2, prenom2, adresse, code_postal, ville, pays)')
       .eq('id', profil_participant_id)
       .eq('organisation_id', organisationId)
       .single()
 
     if (!participant) {
-      return new Response(
-        JSON.stringify({ error: 'Participant non trouve' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      return jsonResponse({ error: 'Participant non trouvé' }, 404)
+    }
+
+    const personne = participant.personnes as unknown as Personne
+    const participantValidation = validateParticipant(personne)
+    if (participantValidation.blocking) {
+      return jsonResponse(
+        {
+          error: participantValidation.message ?? `Champs manquants pour le donateur : ${participantValidation.missing.join(', ')}`,
+          missing_fields: participantValidation.missing,
+        },
+        422,
       )
     }
 
-    // Fetch dons for this participant in the given year
+    // ---------------------------------------------------------------------
+    // 3. Dons de l'année
+    // ---------------------------------------------------------------------
+
     const { data: dons } = await adminClient
       .from('dons')
       .select('montant, date, mode_paiement')
       .eq('profil_participant_id', profil_participant_id)
-      .gte('date', `${annee}-01-01`)
-      .lte('date', `${annee}-12-31`)
+      .gte('date', `${anneeNum}-01-01`)
+      .lte('date', `${anneeNum}-12-31`)
       .order('date', { ascending: true })
 
     if (!dons || dons.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Aucun don pour cette annee' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
+      return jsonResponse({ error: 'Aucun don pour cette année' }, 404)
     }
 
     const totalMontant = dons.reduce((sum, d) => sum + Number(d.montant), 0)
 
-    // Fetch organisation info
-    const { data: org } = await adminClient
-      .from('organisations')
-      .select('nom')
-      .eq('id', organisationId)
-      .single()
+    // ---------------------------------------------------------------------
+    // 4. Type de Cerfa + template actif
+    // ---------------------------------------------------------------------
 
-    const orgNom = org?.nom ?? ''
-    const personne = participant.personnes as unknown as Personne
-    const donorName = buildDonorName(personne)
+    const typeCerfa = determineTypeCerfa(personne.civilite!)
 
-    // ---------------------------------------------------------------------------
-    // Generate PDF
-    // ---------------------------------------------------------------------------
+    const { data: template } = await adminClient
+      .from('templates_recu')
+      .select('id, html_template, css')
+      .eq('organisation_id', organisationId)
+      .eq('type_cerfa', typeCerfa)
+      .eq('is_active', true)
+      .eq('is_archived', false)
+      .maybeSingle()
 
-    const pdfDoc = await PDFDocument.create()
-    const page = pdfDoc.addPage([595.28, 841.89]) // A4 in points
-    const { width, height } = page.getSize()
-
-    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-    const fontReg = await pdfDoc.embedFont(StandardFonts.Helvetica)
-
-    const M = 50 // margin
-    const colRight = width / 2 + 10
-    const black = rgb(0, 0, 0)
-    const darkGray = rgb(0.25, 0.25, 0.25)
-    const lightGray = rgb(0.92, 0.92, 0.92)
-    const midGray = rgb(0.6, 0.6, 0.6)
-    const white = rgb(1, 1, 1)
-    const indigo = rgb(0.24, 0.32, 0.71)
-
-    let y = height - M
-
-    // --- Header bar ---
-    page.drawRectangle({ x: 0, y: height - 80, width, height: 80, color: indigo })
-    page.drawText('RECU FISCAL', { x: M, y: height - 40, size: 20, font: fontBold, color: white })
-    page.drawText('Article 200 du Code General des Impots', { x: M, y: height - 60, size: 9, font: fontReg, color: rgb(0.8, 0.85, 1) })
-    page.drawText(`Annee ${annee}`, {
-      x: width - M - fontBold.widthOfTextAtSize(`Annee ${annee}`, 14),
-      y: height - 48,
-      size: 14,
-      font: fontBold,
-      color: white,
-    })
-
-    y = height - 100
-
-    // --- Two-column info block ---
-    y -= 20
-    page.drawText('Association', { x: M, y, size: 8, font: fontReg, color: midGray })
-    page.drawText('Donateur', { x: colRight, y, size: 8, font: fontReg, color: midGray })
-
-    y -= 18
-    page.drawText(orgNom, { x: M, y, size: 12, font: fontBold, color: black })
-
-    const donorColWidth = width - M - colRight
-    const donorNameLines = wrapText(donorName, 7.2, donorColWidth)
-    let donorY = y
-    for (const line of donorNameLines) {
-      page.drawText(line, { x: colRight, y: donorY, size: 12, font: fontBold, color: black })
-      donorY -= 15
+    if (!template) {
+      return jsonResponse(
+        { error: `Aucun modèle de reçu actif configuré pour le type ${typeCerfa}. Contactez le support.` },
+        422,
+      )
     }
 
-    if (personne.email) {
-      page.drawText(personne.email, { x: colRight, y: donorY, size: 9, font: fontReg, color: midGray })
-      donorY -= 16
-    }
+    // ---------------------------------------------------------------------
+    // 5. Numéro d'ordre — conservé si régénération
+    // ---------------------------------------------------------------------
 
-    y = Math.min(y - 16, donorY) - 14
+    const { data: existingRecu } = await adminClient
+      .from('recus_fiscaux')
+      .select('numero_ordre')
+      .eq('profil_participant_id', profil_participant_id)
+      .eq('annee', anneeNum)
+      .maybeSingle()
 
-    // Separator
-    page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, thickness: 0.5, color: lightGray })
+    let numeroOrdre = existingRecu?.numero_ordre as string | null
 
-    y -= 24
-
-    // --- Certification paragraph ---
-    const certText =
-      `Nous soussignes, certifions que les versements effectues par ${donorName} ` +
-      `au cours de l'annee ${annee} ont ete regus par notre association. ` +
-      `Ces dons ouvrent droit a reduction d'impot au titre de l'article 200 du CGI.`
-
-    const certLines = wrapText(certText, 5.6, width - 2 * M)
-    for (const line of certLines) {
-      page.drawText(line, { x: M, y, size: 9.5, font: fontReg, color: darkGray })
-      y -= 15
-    }
-
-    y -= 20
-
-    // --- Donations table ---
-    const tableWidth = width - 2 * M
-    const colDate = M + 10
-    const colMode = M + 130
-    const colMontant = width - M - 10
-
-    // Table header
-    page.drawRectangle({ x: M, y: y - 22, width: tableWidth, height: 26, color: rgb(0.15, 0.18, 0.35) })
-    page.drawText('Date', { x: colDate, y: y - 14, size: 8.5, font: fontBold, color: white })
-    page.drawText('Mode de paiement', { x: colMode, y: y - 14, size: 8.5, font: fontBold, color: white })
-    page.drawText('Montant', { x: colMontant - fontBold.widthOfTextAtSize('Montant', 8.5), y: y - 14, size: 8.5, font: fontBold, color: white })
-    y -= 26
-
-    const modeLabels: Record<number, string> = {
-      1: 'Espèces',
-      2: 'Chèque',
-      3: 'Prélèvement - virement',
-      4: 'Autres',
-    }
-
-    for (let i = 0; i < dons.length; i++) {
-      const don = dons[i]
-      const rowColor = i % 2 === 0 ? white : lightGray
-      page.drawRectangle({ x: M, y: y - 20, width: tableWidth, height: 24, color: rowColor })
-
-      const dateStr = formatDate(don.date)
-      const modeStr = modeLabels[don.mode_paiement] ?? 'Autres'
-      const montantStr = formatMontant(Number(don.montant))
-
-      page.drawText(dateStr, { x: colDate, y: y - 12, size: 9, font: fontReg, color: black })
-      page.drawText(modeStr, { x: colMode, y: y - 12, size: 9, font: fontReg, color: black })
-      page.drawText(montantStr, {
-        x: colMontant - fontReg.widthOfTextAtSize(montantStr, 9),
-        y: y - 12,
-        size: 9,
-        font: fontReg,
-        color: black,
+    if (!numeroOrdre) {
+      const { data: numeroData, error: numeroError } = await adminClient.rpc('next_numero_recu', {
+        org_id: organisationId,
+        annee: anneeNum,
       })
-      y -= 24
+      if (numeroError || !numeroData) {
+        console.error('next_numero_recu error:', numeroError)
+        return jsonResponse({ error: "Erreur lors de l'attribution du numéro de reçu" }, 500)
+      }
+      numeroOrdre = numeroData as string
     }
 
-    // Total row
-    page.drawRectangle({ x: M, y: y - 22, width: tableWidth, height: 26, color: rgb(0.93, 0.94, 0.98) })
-    page.drawText('TOTAL', { x: colDate, y: y - 14, size: 9, font: fontBold, color: black })
-    const totalStr = formatMontant(totalMontant)
-    page.drawText(totalStr, {
-      x: colMontant - fontBold.widthOfTextAtSize(totalStr, 10),
-      y: y - 14,
-      size: 10,
-      font: fontBold,
-      color: indigo,
-    })
-    y -= 32
+    // ---------------------------------------------------------------------
+    // 6. Snapshots + placeholders
+    // ---------------------------------------------------------------------
 
-    // Amount in words
-    const wordsLine = `Soit : ${numberToWords(totalMontant)}`
-    page.drawText(wordsLine, { x: M, y, size: 9, font: fontReg, color: midGray })
+    const modele = organisation.modele_recu_pdf ?? {}
+    const tauxReduction = typeCerfa === '16216' ? 60 : modele.taux_reduction ?? 66
 
-    y -= 50
-
-    // --- Signature area ---
-    const todayStr = formatDate(new Date().toISOString().split('T')[0])
-    page.drawText(`Fait le ${todayStr}`, { x: M, y, size: 9, font: fontReg, color: black })
-    page.drawText('Signature et cachet :', {
-      x: width - M - 170,
-      y,
-      size: 9,
-      font: fontReg,
-      color: black,
-    })
-    page.drawRectangle({
-      x: width - M - 170,
-      y: y - 70,
-      width: 160,
-      height: 62,
-      borderColor: rgb(0.75, 0.75, 0.75),
-      borderWidth: 1,
-    })
-
-    // --- Footer ---
-    page.drawLine({ start: { x: M, y: 52 }, end: { x: width - M, y: 52 }, thickness: 0.5, color: lightGray })
-    const footerText =
-      'Ce recu fiscal est etabli conformement aux dispositions de l\'article 200 du Code General des Impots. ' +
-      'Il vous permet de beneficier d\'une reduction d\'impot egale a 66% des sommes versees, ' +
-      'dans la limite de 20% de votre revenu imposable.'
-    const footerLines = wrapText(footerText, 4.2, width - 2 * M)
-    let fy = 44
-    for (const line of footerLines) {
-      page.drawText(line, { x: M, y: fy, size: 6.5, font: fontReg, color: midGray })
-      fy -= 10
+    const snapshotDonateur = {
+      nom: personne.nom,
+      prenom: personne.prenom,
+      civilite: personne.civilite,
+      nom2: personne.nom2,
+      prenom2: personne.prenom2,
+      adresse: personne.adresse,
+      code_postal: personne.code_postal,
+      ville: personne.ville,
+      pays: personne.pays,
+      email: personne.email,
     }
 
-    const pdfBytes = await pdfDoc.save()
+    const snapshotOrganisation = {
+      nom: organisation.nom,
+      adresse: organisation.adresse,
+      code_postal: organisation.code_postal,
+      ville: organisation.ville,
+      pays: organisation.pays,
+      rna: modele.rna ?? null,
+      siren: modele.siren ?? null,
+      objet_social: modele.objet_social ?? null,
+      mention_legale: modele.mention_legale ?? null,
+      taux_reduction: tauxReduction,
+    }
 
-    // ---------------------------------------------------------------------------
-    // Upload to Storage
-    // ---------------------------------------------------------------------------
+    const placeholders: Record<string, string> = {
+      organisation_nom: organisation.nom ?? '',
+      organisation_adresse: organisation.adresse ?? '',
+      organisation_code_postal: organisation.code_postal ?? '',
+      organisation_ville: organisation.ville ?? '',
+      organisation_rna: modele.rna ?? '',
+      organisation_siren: modele.siren ?? '',
+      organisation_objet_social: modele.objet_social ?? '',
+      organisation_mention_legale: modele.mention_legale ?? '',
+      donateur_civilite: buildDonorCivilite(personne.civilite!),
+      donateur_nom_complet: buildDonorName(personne),
+      donateur_adresse: personne.adresse ?? '',
+      donateur_code_postal: personne.code_postal ?? '',
+      donateur_ville: personne.ville ?? '',
+      don_montant_chiffres: formatMontant(totalMontant),
+      don_montant_lettres: numberToWords(totalMontant),
+      don_annee: String(anneeNum),
+      recu_numero_ordre: numeroOrdre,
+      recu_date_generation: formatDate(new Date().toISOString().split('T')[0]),
+      type_reduction: `${tauxReduction}%`,
+    }
 
-    const storagePath = `${organisationId}/${annee}/${profil_participant_id}.pdf`
+    const bodyHtml = renderTemplate(template.html_template, placeholders)
+    const fullHtml = `<!doctype html><html><head><meta charset="utf-8"><style>${template.css ?? ''}</style></head><body>${bodyHtml}</body></html>`
+
+    // ---------------------------------------------------------------------
+    // 7. Conversion HTML -> PDF via Gotenberg
+    // ---------------------------------------------------------------------
+
+    const gotenbergForm = new FormData()
+    gotenbergForm.append('files', new Blob([fullHtml], { type: 'text/html' }), 'index.html')
+
+    const gotenbergRes = await fetch(`${gotenbergUrl}/forms/chromium/convert/html`, {
+      method: 'POST',
+      body: gotenbergForm,
+    })
+
+    if (!gotenbergRes.ok) {
+      const detail = await gotenbergRes.text()
+      console.error('Gotenberg error:', gotenbergRes.status, detail)
+      return jsonResponse({ error: 'Erreur lors de la génération du PDF' }, 500)
+    }
+
+    const pdfBuffer = new Uint8Array(await gotenbergRes.arrayBuffer())
+
+    // ---------------------------------------------------------------------
+    // 8. Upload Storage
+    // ---------------------------------------------------------------------
+
+    const storagePath = `${organisationId}/${anneeNum}/${numeroOrdre}.pdf`
 
     const { error: uploadError } = await adminClient.storage
       .from('recus-fiscaux')
-      .upload(storagePath, pdfBytes.buffer, {
+      .upload(storagePath, pdfBuffer, {
         contentType: 'application/pdf',
         upsert: true,
       })
 
     if (uploadError) {
       console.error('Storage upload error:', uploadError)
-      return new Response(
-        JSON.stringify({ error: 'Erreur upload PDF', detail: uploadError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
+      return jsonResponse({ error: 'Erreur upload PDF', detail: uploadError.message }, 500)
     }
 
-    // ---------------------------------------------------------------------------
-    // Upsert recus_fiscaux record
-    // ---------------------------------------------------------------------------
+    // ---------------------------------------------------------------------
+    // 9. Upsert recus_fiscaux
+    // ---------------------------------------------------------------------
 
     const { error: upsertError } = await adminClient
       .from('recus_fiscaux')
@@ -441,10 +486,15 @@ Deno.serve(async (req) => {
         {
           profil_participant_id,
           organisation_id: organisationId,
-          annee,
+          annee: anneeNum,
           montant_total: totalMontant,
           fichier_url: storagePath,
           date_generation: new Date().toISOString(),
+          numero_ordre: numeroOrdre,
+          type_cerfa: typeCerfa,
+          template_id: template.id,
+          snapshot_donateur: snapshotDonateur,
+          snapshot_organisation: snapshotOrganisation,
         },
         { onConflict: 'profil_participant_id,annee' },
       )
@@ -454,15 +504,9 @@ Deno.serve(async (req) => {
       // Non-blocking: PDF was uploaded, return success anyway
     }
 
-    return new Response(
-      JSON.stringify({ fichier_url: storagePath }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
+    return jsonResponse({ fichier_url: storagePath, numero_ordre: numeroOrdre, type_cerfa: typeCerfa })
   } catch (err) {
     console.error('generate-recu error:', err)
-    return new Response(
-      JSON.stringify({ error: 'Erreur serveur', detail: String(err) }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
+    return jsonResponse({ error: 'Erreur serveur', detail: String(err) }, 500)
   }
 })

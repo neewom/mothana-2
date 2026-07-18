@@ -56,7 +56,7 @@ export const CERFA_11580_HTML = `
 
   <section class="recu-section recu-donateur">
     <h2>Donateur</h2>
-    <p class="recu-donateur-nom">{{donateur_civilite}} {{donateur_nom_complet}}</p>
+    <p class="recu-donateur-nom">{{donateur_nom_complet}}</p>
     <p>{{donateur_adresse}}</p>
     <p>{{donateur_code_postal}} {{donateur_ville}}</p>
   </section>

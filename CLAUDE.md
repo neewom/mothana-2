@@ -148,11 +148,15 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Ordre d'implémentat
    - Rendu visuel vérifié via Playwright headless (screenshot des 2 templates avec données d'exemple) — pas de test de création d'organisation réelle en production pour éviter de polluer les données (à valider par l'utilisateur)
    - Bug bloquant trouvé par l'utilisateur en testant cette PR (génération de reçu Wat Strasbourg → erreur serveur), corrigé dans cette même PR plutôt qu'à part : `generate-recu` utilisait encore l'ancien `mode_paiement` texte alors qu'il est numérique depuis la PR #14 — `pdf-lib` recevait un nombre au lieu d'une chaîne et plantait. Corrigé, déployé en production, testé OK par l'utilisateur
 
-4. **Refonte Edge Function `generate-recu`** (brief §2) :
-   - Abandonner pdf-lib
-   - Intégrer Gotenberg (service HTML→PDF, à déployer sur Railway ou Render)
-   - Nouveau flux complet (brief §2.3)
-   - Règles de formatage du nom du donateur (brief §4)
+4. ✅ **Refonte Edge Function `generate-recu`** (brief §2) — codée sur `feat/cerfa-generate-recu-gotenberg`, testée bout-en-bout en production le 2026-07-18 :
+   - `pdf-lib` abandonné, remplacé par Gotenberg (déployé sur Railway, secret `GOTENBERG_URL` configuré) — conversion HTML→PDF via `POST /forms/chromium/convert/html`, un seul fichier `index.html` avec le CSS inliné en `<style>` (pas de fichiers séparés)
+   - Nouveau flux complet (brief §2.3) : validation organisation → validation participant → détermination type_cerfa → template actif → `next_numero_recu()` (conservé si régénération) → snapshots donateur/organisation → placeholders → PDF → Storage (`{org}/{année}/{numero_ordre}.pdf`) → upsert `recus_fiscaux`
+   - Validations `regles-recus-fiscaux.md` §2-3 implémentées côté serveur (source de vérité — l'étape 5 les rendra aussi visibles côté UI avant le clic) : organisation (adresse/CP/ville, RNA ou SIREN, objet social, mention légale) puis participant (nom/adresse/CP/ville/civilité, prénom selon civilité, blocage dur sur civilité Famille ou NULL). Réponses 422 avec message clair + `missing_fields`
+   - Règles de formatage du nom du donateur (brief §4) implémentées et vérifiées (`M. Jean DUPONT`, `M. et Mme Jean DUPONT`, raison sociale seule pour société/association) — testées unitairement avec `deno run`
+   - Taux de réduction : `taux_reduction` configurable de l'organisation (défaut 66%) pour le 11580, **60% fixe** pour le 16216 (régime IS entreprises, non configurable)
+   - Backfill `templates_recu_backfill_orgs_existantes.sql` : Wat Velouvanaram/Strasbourg/Choisy créées avant l'étape 3 n'avaient aucun template, généré depuis les mêmes constantes que `defaultCerfaTemplates.ts` (évite toute divergence)
+   - Bug trouvé et corrigé pendant le test réel : le template 11580 concaténait `{{donateur_civilite}}` et `{{donateur_nom_complet}}` (qui inclut déjà le titre de civilité) → "Monsieur M. Nicolas BOULOM" en double. Corrigé dans `defaultCerfaTemplates.ts` + migration `templates_recu_fix_donateur_civilite_duplication.sql` pour les templates déjà en base
+   - Testé bout-en-bout par l'utilisateur sur Wat Strasbourg : blocage organisation incomplète ✅, champ retiré de la liste une fois rempli ✅, blocage participant incomplet ✅, génération réelle avec PDF vérifié (rendu, montant en chiffres/lettres, numéro d'ordre conservé en régénération) ✅
 
 5. **Évolutions UI page Reçus fiscaux** (brief §6) :
    - Bannière de blocage si paramètres incomplets
@@ -160,6 +164,8 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Ordre d'implémentat
    - Colonnes N° reçu et Type dans la liste
    - Bouton Regénérer avec confirmation
    - ⚠️ Décision utilisateur (2026-07-18) : quand un contrôle invalidant affiche une erreur (bannière organisation ou icône participant), le CTA de génération de reçu correspondant doit être **désactivé**, pas seulement accompagné d'un message — l'utilisateur ne doit pas pouvoir cliquer dessus tant que le blocage n'est pas levé
+   - ⚠️ Décision utilisateur (2026-07-18) : en cas d'erreur de champs participant incomplets, afficher sous le message d'erreur un CTA qui ouvre directement la modale d'édition de ce participant (éviter l'aller-retour manuel vers la page Participants)
+   - ⚠️ Décision utilisateur (2026-07-18) : afficher un toaster de confirmation après une génération de reçu réussie (réutiliser le système de toasts déjà en place pour les mises à jour optimistes)
 
 6. **Gestion des templates** dans Paramètres (brief §7) :
    - Liste templates par type, éditeur Monaco, prévisualisation iframe
