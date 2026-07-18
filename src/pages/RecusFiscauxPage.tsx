@@ -461,15 +461,13 @@ export default function RecusFiscauxPage() {
                       {validationMessage && (
                         <div className="mt-1">
                           <p className="text-xs text-amber-700">{validationMessage}</p>
-                          {row.validation.missing.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => openEditParticipant(row)}
-                              className="mt-0.5 text-xs font-medium text-indigo-600 underline hover:no-underline"
-                            >
-                              Modifier le participant
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => openEditParticipant(row)}
+                            className="mt-0.5 text-xs font-medium text-indigo-600 underline hover:no-underline"
+                          >
+                            Modifier le participant
+                          </button>
                         </div>
                       )}
                       {genErr && (
