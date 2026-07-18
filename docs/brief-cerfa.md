@@ -135,13 +135,19 @@ $$ language plpgsql security definer;
 10. Uploader le PDF dans Supabase Storage (`recus-fiscaux/{org_id}/{annee}/{numero_ordre}.pdf`)
 11. Upsert dans `recus_fiscaux` avec tous les nouveaux champs
 
-### 2.4 Puppeteer dans Supabase Edge Function
-Puppeteer est trop lourd pour une Edge Function standard. Options :
-- **Option recommandée** : service externe [Gotenberg](https://gotenberg.dev) (open source, auto-hébergeable, API REST HTML→PDF)
-- Alternative : [htmlpdf.api](https://htmlpdf.api) (SaaS, simple mais payant)
-- Alternative : [Browserless](https://browserless.io) (Puppeteer managé)
+### 2.4 Gotenberg — déjà déployé et configuré ✅
 
-Gotenberg peut être déployé sur un petit VPS ou sur Railway/Render (~5$/mois).
+- **Service** : Gotenberg (image Docker `gotenberg/gotenberg`) déployé sur Railway
+- **Secret Supabase** : `GOTENBERG_URL` configuré via `supabase secrets set`
+- **Utilisation dans l'Edge Function** :
+```typescript
+const response = await fetch(`${Deno.env.get('GOTENBERG_URL')}/forms/chromium/convert/html`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'multipart/form-data' },
+  body: formData // FormData avec le fichier HTML
+})
+const pdfBuffer = await response.arrayBuffer()
+```
 
 ---
 
