@@ -23,3 +23,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Worktrees créés par les agents Claude Code (isolation "worktree")
+.claude/worktrees/
