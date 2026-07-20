@@ -37,6 +37,33 @@ function isTagMissing(key: string, html: string): boolean {
   return !html.includes(`{{${key}}}`)
 }
 
+// navigator.clipboard n'est disponible qu'en contexte sécurisé (HTTPS/localhost) —
+// indisponible sur l'URL réseau HTTP utilisée pour piloter l'instance de dev à
+// distance. Repli sur execCommand('copy'), qui fonctionne aussi en HTTP.
+function copyTextToClipboard(text: string) {
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).catch(() => legacyCopyToClipboard(text))
+  } else {
+    legacyCopyToClipboard(text)
+  }
+}
+
+function legacyCopyToClipboard(text: string) {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+  try {
+    document.execCommand('copy')
+  } catch {
+    // pas de solution de repli supplémentaire — l'utilisateur devra copier manuellement
+  }
+  document.body.removeChild(textarea)
+}
+
 const DEFAULT_HTML = `<div class="recu">
   <h1>{{organisation_nom}}</h1>
   <p>{{donateur_nom_complet}}</p>
@@ -65,6 +92,7 @@ export default function TemplateRecuEditorModal({
   const [fullScreen, setFullScreen] = useState(false)
   const [panelMode, setPanelMode] = useState<'both' | 'editor' | 'preview'>('both')
   const [placeholdersOpen, setPlaceholdersOpen] = useState(false)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const placeholdersRef = useRef<HTMLDivElement>(null)
 
@@ -112,6 +140,12 @@ export default function TemplateRecuEditorModal({
     editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS, () => {
       formRef.current?.requestSubmit()
     })
+  }
+
+  function copyPlaceholder(key: string) {
+    copyTextToClipboard(`{{${key}}}`)
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1500)
   }
 
   if (!open) return null
@@ -325,17 +359,18 @@ export default function TemplateRecuEditorModal({
                 <div className="flex flex-wrap gap-1.5">
                   {MANDATORY_TAGS.map((key) => {
                     const missing = isTagMissing(key, htmlTemplate)
+                    const copied = copiedKey === key
                     return (
                       <button
                         key={key}
                         type="button"
                         title={`Exemple : ${CERFA_PREVIEW_PLACEHOLDERS[key]}`}
-                        onClick={() => navigator.clipboard?.writeText(`{{${key}}}`)}
+                        onClick={() => copyPlaceholder(key)}
                         className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] ${
                           missing
                             ? 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200 hover:bg-red-100'
                             : 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100'
-                        }`}
+                        } ${copied ? 'ring-2 ring-offset-1 ring-indigo-500' : ''}`}
                       >
                         {missing ? '⚠️ ' : '✓ '}
                         {`{{${key}}}`}
@@ -346,19 +381,26 @@ export default function TemplateRecuEditorModal({
 
                 <p className="mb-1.5 mt-3 text-xs font-medium text-slate-500">Placeholders optionnels</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {OPTIONAL_TAGS.map((key) => (
-                    <button
-                      key={key}
-                      type="button"
-                      title={`Exemple : ${CERFA_PREVIEW_PLACEHOLDERS[key]}`}
-                      onClick={() => navigator.clipboard?.writeText(`{{${key}}}`)}
-                      className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 hover:bg-slate-200"
-                    >
-                      {`{{${key}}}`}
-                    </button>
-                  ))}
+                  {OPTIONAL_TAGS.map((key) => {
+                    const copied = copiedKey === key
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        title={`Exemple : ${CERFA_PREVIEW_PLACEHOLDERS[key]}`}
+                        onClick={() => copyPlaceholder(key)}
+                        className={`rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 hover:bg-slate-200 ${
+                          copied ? 'ring-2 ring-offset-1 ring-indigo-500' : ''
+                        }`}
+                      >
+                        {`{{${key}}}`}
+                      </button>
+                    )
+                  })}
                 </div>
-                <p className="mt-1 text-xs text-slate-400">Cliquer pour copier. Survoler pour voir un exemple de valeur.</p>
+                <p className={`mt-1 text-xs font-medium ${copiedKey ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  {copiedKey ? `✓ {{${copiedKey}}} copié dans le presse-papier` : 'Cliquer pour copier. Survoler pour voir un exemple de valeur.'}
+                </p>
               </div>
             )}
           </div>
