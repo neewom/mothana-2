@@ -7,6 +7,9 @@ interface ModalProps {
   children: ReactNode
   maxWidthClassName?: string
   labelledBy?: string
+  fullScreen?: boolean
+  /** Remplace le max-h-[90vh] par défaut — utile quand le contenu doit occuper toute la hauteur disponible plutôt que s'ajuster à son contenu. */
+  heightClassName?: string
 }
 
 export default function Modal({
@@ -15,6 +18,8 @@ export default function Modal({
   children,
   maxWidthClassName = 'max-w-md',
   labelledBy,
+  fullScreen = false,
+  heightClassName,
 }: ModalProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
@@ -24,7 +29,9 @@ export default function Modal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center overflow-y-auto ${fullScreen ? '' : 'p-4'}`}
+    >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
@@ -34,7 +41,11 @@ export default function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className={`relative z-10 flex max-h-[90vh] w-full ${maxWidthClassName} flex-col rounded-2xl bg-white shadow-xl`}
+        className={
+          fullScreen
+            ? 'relative z-10 flex h-screen w-screen flex-col bg-white shadow-xl'
+            : `relative z-10 flex w-full ${maxWidthClassName} flex-col rounded-2xl bg-white shadow-xl ${heightClassName ?? 'max-h-[90vh]'}`
+        }
       >
         <button
           ref={closeButtonRef}
