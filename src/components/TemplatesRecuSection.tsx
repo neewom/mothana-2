@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { getMissingMandatoryPlaceholders } from '../lib/cerfaPreview'
 import type { TemplateRecu } from '../types'
 import Modal from './Modal'
 import TemplateRecuPreviewModal from './TemplateRecuPreviewModal'
-import TemplateRecuEditorModal from './TemplateRecuEditorModal'
+import TemplateRecuEditorModal, { type TemplateRecuDraft } from './TemplateRecuEditorModal'
+import TemplateRecuImportPdfModal from './TemplateRecuImportPdfModal'
 
 interface TemplatesRecuSectionProps {
   organisationId: string
@@ -28,6 +30,8 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
 
   const [previewTemplate, setPreviewTemplate] = useState<TemplateRecu | null>(null)
   const [editorState, setEditorState] = useState<'new' | TemplateRecu | null>(null)
+  const [wizardDraft, setWizardDraft] = useState<TemplateRecuDraft | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
   const [archiveConfirm, setArchiveConfirm] = useState<TemplateRecu | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<TemplateRecu | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -62,8 +66,18 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
   // ---------------------------------------------------------------------------
 
   async function handleActivate(template: TemplateRecu) {
-    setActionLoading((prev) => ({ ...prev, [template.id]: true }))
     setActionError((prev) => ({ ...prev, [template.id]: '' }))
+
+    const missing = getMissingMandatoryPlaceholders(template.html_template)
+    if (missing.length > 0) {
+      setActionError((prev) => ({
+        ...prev,
+        [template.id]: `Impossible d'activer : placeholders obligatoires manquants : ${missing.join(', ')}. Modifiez le template avant de l'activer.`,
+      }))
+      return
+    }
+
+    setActionLoading((prev) => ({ ...prev, [template.id]: true }))
 
     const currentActive = templates.find(
       (t) => t.type_cerfa === template.type_cerfa && t.is_active && !t.is_archived && t.id !== template.id
@@ -186,12 +200,23 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
         <p className="text-sm text-slate-500">
           Un seul template actif par type à la fois. Le template actif est celui utilisé pour générer les reçus.
         </p>
-        <button
-          onClick={() => setEditorState('new')}
-          className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          Nouveau template
-        </button>
+        <div className="flex shrink-0 gap-2">
+          <button
+            onClick={() => setImportOpen(true)}
+            className="rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+          >
+            Importer un PDF
+          </button>
+          <button
+            onClick={() => {
+              setWizardDraft(null)
+              setEditorState('new')
+            }}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Nouveau template
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -299,13 +324,28 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
         />
       )}
 
+      {/* Import PDF — brouillon puis éditeur */}
+      <TemplateRecuImportPdfModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onDraftReady={(draft) => {
+          setImportOpen(false)
+          setWizardDraft(draft)
+          setEditorState('new')
+        }}
+      />
+
       {/* Nouveau template / édition */}
       <TemplateRecuEditorModal
         open={editorState !== null}
-        onClose={() => setEditorState(null)}
+        onClose={() => {
+          setEditorState(null)
+          setWizardDraft(null)
+        }}
         onSaved={fetchTemplates}
         organisationId={organisationId}
         template={editorState === 'new' || editorState === null ? undefined : editorState}
+        draft={editorState === 'new' ? (wizardDraft ?? undefined) : undefined}
       />
 
       {/* Confirmation archivage du template actif */}

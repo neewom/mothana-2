@@ -24,6 +24,27 @@ export const CERFA_PREVIEW_PLACEHOLDERS: Record<string, string> = {
   type_reduction: '66%',
 }
 
+// Placeholders obligatoires sur un reçu Cerfa légalement valide (voir
+// docs/regles-recus-fiscaux.md) — tous sauf donateur_civilite (redondant avec
+// donateur_nom_complet) et type_reduction (informatif, pas une obligation
+// légale d'impression). RNA/SIREN : un seul des deux suffit, même règle que
+// la validation organisation (cerfaValidation.ts).
+export const CERFA_MANDATORY_KEYS = [
+  'organisation_nom', 'organisation_adresse', 'organisation_code_postal', 'organisation_ville',
+  'organisation_objet_social', 'organisation_mention_legale',
+  'donateur_nom_complet', 'donateur_adresse', 'donateur_code_postal', 'donateur_ville',
+  'don_montant_chiffres', 'don_montant_lettres', 'don_annee',
+  'recu_numero_ordre', 'recu_date_generation',
+] as const
+
+export const CERFA_RNA_SIREN_GROUP = ['organisation_rna', 'organisation_siren'] as const
+
+export function getMissingMandatoryPlaceholders(html: string): string[] {
+  const missing: string[] = CERFA_MANDATORY_KEYS.filter((key) => !html.includes(`{{${key}}}`))
+  const hasRnaOrSiren = CERFA_RNA_SIREN_GROUP.some((key) => html.includes(`{{${key}}}`))
+  return hasRnaOrSiren ? missing : [...missing, 'organisation_rna ou organisation_siren']
+}
+
 export function renderCerfaPreviewHtml(html: string, css: string): string {
   let body = html
   for (const [key, value] of Object.entries(CERFA_PREVIEW_PLACEHOLDERS)) {
