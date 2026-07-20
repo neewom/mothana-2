@@ -204,9 +204,14 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Les 6 étapes sont e
 - Tableau de bord comptable (courbe mensuelle, répartition activité/paiement, N vs N-1)
 - Rapprochement chèques/virements
 
-**Priorité 3 — Wizard de template Cerfa**
-- Upload PDF modèle → analyse Claude Vision → génération template HTML
-- Prévisualisation iframe + chat ajustements (Claude Haiku) + éditeur Monaco
+### ✅ Priorité 3 : Wizard de template Cerfa — terminée (2026-07-20)
+
+- Upload PDF modèle → analyse Claude Vision (`generate-template-from-pdf`, modèle `claude-haiku-4-5` — coût/qualité jugés équivalents à Sonnet 5 sur cette tâche par l'utilisateur) → brouillon HTML/CSS via tool use forcé → toujours ouvert dans l'éditeur Monaco existant, jamais activé automatiquement
+- Placeholders obligatoires mis en avant dans l'éditeur (`src/lib/cerfaPreview.ts` : `CERFA_MANDATORY_KEYS`, `CERFA_RNA_SIREN_GROUP`, `getMissingMandatoryPlaceholders()`) — activation d'un template bloquée tant qu'ils ne sont pas tous présents
+- CTA "Placeholders" en popover (zone Annuler/Enregistrer), copie au clic (avec repli `execCommand('copy')` car `navigator.clipboard` est indisponible sur l'URL réseau HTTP utilisée pour piloter l'instance de dev à distance)
+- Confort d'édition ajouté au passage : plein écran (`Modal.tsx` — prop `fullScreen` générique + `heightClassName`), sélecteur Les deux/Éditeur/Aperçu, Ctrl/Cmd+S
+- Éditeur WYSIWYG (GrapesJS pressenti) volontairement écarté pour l'instant — à reconsidérer seulement si l'édition Monaco devient une vraie friction
+- Note pour une prochaine itération (pas encore planifiée) : assets par organisation (logo, tampon, signature) utilisables dans les templates, nom + titre du président éditables en placeholders
 
 **Priorité 4 — Envoi email des reçus**
 - PDF envoyé au participant après génération (Resend recommandé)
