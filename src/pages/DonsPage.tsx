@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Don, ProfilParticipant, Activite } from '../types'
 import DonModal from '../components/DonModal'
+import ParticipantAutocomplete from '../components/ParticipantAutocomplete'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import ImportWizard from '../components/import/ImportWizard'
 import { donsImportConfig } from '../lib/import/configs'
@@ -469,18 +470,12 @@ export default function DonsPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">Participant</label>
-            <select
+            <ParticipantAutocomplete
+              participants={participants}
               value={filterParticipant}
-              onChange={(e) => { setFilterParticipant(e.target.value); setCurrentPage(1) }}
-              className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">Tous les participants</option>
-              {participants.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.personnes.prenom ? `${p.personnes.prenom} ${p.personnes.nom}` : p.personnes.nom}
-                </option>
-              ))}
-            </select>
+              onChange={(id) => { setFilterParticipant(id); setCurrentPage(1) }}
+              placeholder="Tous les participants"
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">Activité</label>
