@@ -11,6 +11,7 @@ import DonsPage from './pages/DonsPage'
 import ParticipantsPage from './pages/ParticipantsPage'
 import ActivitesPage from './pages/ActivitesPage'
 import RecusFiscauxPage from './pages/RecusFiscauxPage'
+import ComptabilitePage from './pages/ComptabilitePage'
 import ParametresPage from './pages/ParametresPage'
 import SuperAdminLayout from './pages/SuperAdminLayout'
 import SuperAdminPage from './pages/SuperAdminPage'
@@ -32,6 +33,7 @@ function App() {
             <Route path="participants" element={<ParticipantsPage />} />
             <Route path="activites" element={<ActivitesPage />} />
             <Route path="recus" element={<RecusFiscauxPage />} />
+            <Route path="comptabilite" element={<ComptabilitePage />} />
             <Route path="parametres" element={<ParametresPage />} />
           </Route>
         </Route>
