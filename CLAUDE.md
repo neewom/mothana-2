@@ -200,9 +200,11 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Les 6 étapes sont e
 
 **Priorité 2 — Export comptable**
 - ✅ Export CSV dons (2026-07-22) — bouton "Exporter" sur `DonsPage`, exporte `filteredDons` (période/participant/activité/mode déjà filtrés à l'écran), délimiteur `;` + BOM UTF-8 pour Excel FR (`src/lib/csvExport.ts`, réutilisable pour les prochains exports). Au passage : filtre "Participant" remplacé par `ParticipantAutocomplete` (recherche nom/prénom, même composant que `DonModal`)
-- Export CSV reçus annuels (déclaration article 222 bis CGI)
-- Tableau de bord comptable (courbe mensuelle, répartition activité/paiement, N vs N-1)
-- Rapprochement chèques/virements
+- ⏸️ Export CSV reçus annuels (déclaration article 222 bis CGI) — mis de côté (2026-07-23) : ni l'utilisateur ni l'agent n'ont de visibilité sur le format/portail de déclaration réel attendu par l'administration fiscale
+- ✅ Tableau de bord comptable (2026-07-23) — nouvelle page `/admin/comptabilite` (`ComptabilitePage.tsx`) : courbe mensuelle N vs N-1, répartition par activité, répartition par mode de paiement, cartes de stats. Recharts (nouvelle dépendance), palette/formes conformes au skill `dataviz` (validée via `scripts/validate_palette.js`)
+- Rapprochement chèques/virements — jamais cadré, le moins défini des 4 items
+
+**Import des dons — rapport d'erreurs écarté (2026-07-23)** : discuté (export CSV des lignes en erreur de `ImportWizard.tsx`), mais décision finale de l'utilisateur de ne rien construire — les lignes incorrectes restent simplement ignorées lors de l'import
 
 ### ✅ Priorité 3 : Wizard de template Cerfa — terminée (2026-07-20)
 
