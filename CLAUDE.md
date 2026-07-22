@@ -199,7 +199,7 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Les 6 étapes sont e
 ### ⏳ Roadmap post-Cerfa
 
 **Priorité 2 — Export comptable**
-- Export CSV dons (période configurable)
+- ✅ Export CSV dons (2026-07-22) — bouton "Exporter" sur `DonsPage`, exporte `filteredDons` (période/participant/activité/mode déjà filtrés à l'écran), délimiteur `;` + BOM UTF-8 pour Excel FR (`src/lib/csvExport.ts`, réutilisable pour les prochains exports). Au passage : filtre "Participant" remplacé par `ParticipantAutocomplete` (recherche nom/prénom, même composant que `DonModal`)
 - Export CSV reçus annuels (déclaration article 222 bis CGI)
 - Tableau de bord comptable (courbe mensuelle, répartition activité/paiement, N vs N-1)
 - Rapprochement chèques/virements
