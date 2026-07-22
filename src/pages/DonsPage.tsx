@@ -7,6 +7,7 @@ import { fetchAllRows } from '../lib/fetchAllRows'
 import ImportWizard from '../components/import/ImportWizard'
 import { donsImportConfig } from '../lib/import/configs'
 import { MODE_PAIEMENT_LABELS, MODE_PAIEMENT_BADGE_CLASSES, MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
+import { downloadCsv } from '../lib/csvExport'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,6 +42,11 @@ function formatDate(iso: string): string {
     month: 'long',
     year: 'numeric',
   })
+}
+
+function formatDateShort(iso: string): string {
+  const [year, month, day] = iso.split('-')
+  return `${day}/${month}/${year}`
 }
 
 function participantName(don: Don): string {
@@ -378,6 +384,26 @@ export default function DonsPage() {
     setSelectedDon(null)
   }
 
+  function handleExport() {
+    const rows = filteredDons.map((don) => ({
+      Date: formatDateShort(don.date),
+      Participant: participantName(don),
+      'Activité': don.activites?.nom ?? '',
+      Montant: don.montant.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      'Mode de paiement': MODE_PAIEMENT_LABELS[don.mode_paiement],
+    }))
+
+    const rangeLabel = dateDebut && dateFin
+      ? `${dateDebut}_au_${dateFin}`
+      : dateDebut
+        ? `depuis_${dateDebut}`
+        : dateFin
+          ? `jusqu_au_${dateFin}`
+          : `complet_${today}`
+
+    downloadCsv(`dons_${rangeLabel}.csv`, rows)
+  }
+
   const SHORTCUTS: { key: Shortcut; label: string }[] = [
     { key: '30j', label: '30 jours' },
     { key: '90j', label: '90 jours' },
@@ -502,6 +528,16 @@ export default function DonsPage() {
           <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
             <h2 className="font-semibold text-slate-900">Liste des dons</h2>
             <div className="flex items-center gap-2">
+              <button
+                onClick={handleExport}
+                disabled={filteredDons.length === 0}
+                className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
+                </svg>
+                Exporter
+              </button>
               <button
                 onClick={() => setImportOpen(true)}
                 className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
