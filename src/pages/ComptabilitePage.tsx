@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
+import DeclarationCerfaCard from '../components/DeclarationCerfaCard'
 import type { Don, ModePaiement } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -80,6 +81,61 @@ function useDonsForDashboard(organisationId: string) {
 }
 
 // ---------------------------------------------------------------------------
+// useRecusForDeclaration — pour le récapitulatif article 222 bis CGI.
+// recus_fiscaux a une contrainte UNIQUE (profil_participant_id, annee) et
+// generate-recu fait un upsert dessus : une régénération met à jour la ligne
+// existante, jamais de doublon. COUNT(*) par année est donc fiable.
+// ---------------------------------------------------------------------------
+
+interface RecuDeclaratif {
+  id: string
+  annee: number
+  montant_total: number
+  type_cerfa: '11580' | '16216' | null
+}
+
+function useRecusForDeclaration(organisationId: string) {
+  const [recus, setRecus] = useState<RecuDeclaratif[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!organisationId) return
+    let cancelled = false
+
+    async function fetchAll() {
+      setLoading(true)
+      setError(null)
+
+      const { data, error: err } = await fetchAllRows<RecuDeclaratif>((from, to) =>
+        supabase
+          .from('recus_fiscaux')
+          .select('id, annee, montant_total, type_cerfa')
+          .eq('organisation_id', organisationId)
+          .order('id', { ascending: true })
+          .range(from, to) as unknown as PromiseLike<{ data: RecuDeclaratif[] | null; error: { message: string } | null }>
+      )
+
+      if (cancelled) return
+
+      if (err) {
+        setError(err)
+        setLoading(false)
+        return
+      }
+
+      setRecus(data)
+      setLoading(false)
+    }
+
+    fetchAll()
+    return () => { cancelled = true }
+  }, [organisationId])
+
+  return { recus, loading, error }
+}
+
+// ---------------------------------------------------------------------------
 // StatCard
 // ---------------------------------------------------------------------------
 
@@ -134,6 +190,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 export default function ComptabilitePage() {
   const organisationId = useOrganisationId()
   const { dons, loading, error } = useDonsForDashboard(organisationId)
+  const { recus, loading: recusLoading } = useRecusForDeclaration(organisationId)
 
   const availableYears = useMemo(() => {
     const years = new Set(dons.map((d) => Number(d.date.slice(0, 4))))
@@ -186,6 +243,19 @@ export default function ComptabilitePage() {
     const variationPct = totalN1 > 0 ? ((totalN - totalN1) / totalN1) * 100 : 0
     return { totalN, totalN1, variationPct }
   }, [monthlyData])
+
+  const declarationParAnnee = useMemo(() => {
+    const totals = new Map<number, { nbRecus: number; montant: number }>()
+    for (const r of recus) {
+      const entry = totals.get(r.annee) ?? { nbRecus: 0, montant: 0 }
+      entry.nbRecus += 1
+      entry.montant += r.montant_total
+      totals.set(r.annee, entry)
+    }
+    return Array.from(totals.entries())
+      .map(([annee, v]) => ({ annee, ...v }))
+      .sort((a, b) => b.annee - a.annee)
+  }, [recus])
 
   return (
     <div className="space-y-6">
@@ -317,6 +387,8 @@ export default function ComptabilitePage() {
               </ResponsiveContainer>
             </div>
           </div>
+
+          <DeclarationCerfaCard rows={declarationParAnnee} loading={recusLoading} />
         </>
       )}
     </div>
