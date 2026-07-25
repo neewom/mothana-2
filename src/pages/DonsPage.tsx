@@ -4,6 +4,7 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Don, ProfilParticipant, Activite } from '../types'
 import DonModal from '../components/DonModal'
 import ParticipantAutocomplete from '../components/ParticipantAutocomplete'
+import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import ImportWizard from '../components/import/ImportWizard'
 import { donsImportConfig } from '../lib/import/configs'
@@ -479,18 +480,12 @@ export default function DonsPage() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">Activité</label>
-            <select
+            <ActiviteAutocomplete
+              activites={activites}
               value={filterActivite}
-              onChange={(e) => { setFilterActivite(e.target.value); setCurrentPage(1) }}
-              className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">Toutes les activités</option>
-              {activites.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.nom}
-                </option>
-              ))}
-            </select>
+              onChange={(id) => { setFilterActivite(id); setCurrentPage(1) }}
+              placeholder="Toutes les activités"
+            />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">Mode de paiement</label>

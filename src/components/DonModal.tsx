@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { Don, ProfilParticipant, Activite, ModePaiement } from '../types'
 import ParticipantAutocomplete from './ParticipantAutocomplete'
+import ActiviteAutocomplete from './ActiviteAutocomplete'
 import ParticipantModal from './ParticipantModal'
 import Modal from './Modal'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
@@ -167,18 +168,12 @@ export default function DonModal({
             <label className="mb-1 block text-sm font-medium text-slate-700">
               Activité
             </label>
-            <select
+            <ActiviteAutocomplete
+              activites={activites}
               value={activiteId}
-              onChange={(e) => setActiviteId(e.target.value)}
-              className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">Aucune activité</option>
-              {activites.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.nom}
-                </option>
-              ))}
-            </select>
+              onChange={setActiviteId}
+              placeholder="Aucune activité"
+            />
           </div>
 
           {/* Montant */}
