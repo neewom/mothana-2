@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { ProfilParticipant, Don, Activite } from '../types'
@@ -171,7 +171,7 @@ function DetailPanel({
   const p = participant.personnes
 
   return (
-    <div className="flex h-full flex-col">
+    <>
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
         <h2 className="text-lg font-semibold text-slate-900">Détail du participant</h2>
@@ -185,6 +185,7 @@ function DetailPanel({
         </button>
       </div>
 
+      <div className="flex flex-1 flex-col overflow-hidden">
       {/* Body */}
       <div className="flex-1 overflow-y-auto space-y-5 px-6 py-5">
         {/* Identity */}
@@ -268,7 +269,7 @@ function DetailPanel({
       </div>
 
       {/* Actions */}
-      <div className="border-t border-slate-200 px-6 py-4">
+      <div className="shrink-0 border-t border-slate-200 px-6 py-4">
         <div className="flex gap-2">
           <button
             onClick={onEdit}
@@ -290,7 +291,8 @@ function DetailPanel({
           Supprimer le participant
         </button>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -341,6 +343,28 @@ export default function ParticipantsPage() {
   // Participant detail dons — fetch when a participant is selected
   const [participantDons, setParticipantDons] = useState<DonDetail[]>([])
   const [loadingDons, setLoadingDons] = useState(false)
+
+  // Desktop detail panel — cap its height to whatever space is actually available below
+  // it (header + page title + any banner all vary), so it never overflows past the
+  // viewport and requires scrolling the page to reach the footer actions.
+  const desktopPanelRef = useRef<HTMLDivElement>(null)
+  const [desktopPanelMaxHeight, setDesktopPanelMaxHeight] = useState<number | undefined>(undefined)
+
+  useLayoutEffect(() => {
+    if (!selectedParticipant) return
+
+    function recompute() {
+      const el = desktopPanelRef.current
+      if (!el) return
+      const top = el.getBoundingClientRect().top
+      if (top <= 0) return // hidden (mobile breakpoint) — nothing to measure
+      setDesktopPanelMaxHeight(Math.max(300, window.innerHeight - top - 24))
+    }
+
+    recompute()
+    window.addEventListener('resize', recompute)
+    return () => window.removeEventListener('resize', recompute)
+  }, [selectedParticipant])
 
   useEffect(() => {
     if (!selectedParticipant) {
@@ -649,7 +673,11 @@ export default function ParticipantsPage() {
 
         {/* Detail panel — desktop */}
         {selectedParticipant && (
-          <div className="hidden w-80 flex-shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-6 lg:flex lg:max-h-[calc(100vh-3rem)] lg:flex-col" style={{ minHeight: '400px' }}>
+          <div
+            ref={desktopPanelRef}
+            className="hidden w-80 flex-shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm md:sticky md:top-6 md:flex md:max-h-[calc(100vh-3rem)] md:flex-col"
+            style={{ minHeight: '400px', ...(desktopPanelMaxHeight ? { maxHeight: desktopPanelMaxHeight } : {}) }}
+          >
             {loadingDons ? (
               <div className="flex flex-1 items-center justify-center py-16">
                 <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
@@ -672,7 +700,7 @@ export default function ParticipantsPage() {
 
       {/* Mobile detail panel */}
       {selectedParticipant && (
-        <div className="fixed inset-0 z-30 lg:hidden">
+        <div className="fixed inset-0 z-30 md:hidden">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setSelectedParticipant(null)}
