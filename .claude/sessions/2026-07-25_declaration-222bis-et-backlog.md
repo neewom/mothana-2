@@ -59,6 +59,14 @@ Ordre de priorité validé par l'utilisateur avant de démarrer : (1) affichage 
 
 - **Item 5 — Réaffectation de don à un autre participant** : toujours pas cadré, nécessite une décision produit (bloquer totalement vs. avertir + régénération manuelle du reçu) avant tout code — seul item du backlog du 2026-07-25 non traité
 
+- **Item 5 — Réaffectation de don à un autre participant** — cadré puis codé, PR #34 mergée. Décision produit obtenue par questions successives (AskUserQuestion) : d'abord une approche à paliers (libre / avertissement / blocage selon `email_envoye_at`), puis l'utilisateur a simplifié en cours de cadrage vers un blocage total dès qu'un reçu fiscal a été émis pour l'année (peu importe s'il a été envoyé par email) — plus simple et plus sûr. Implémenté dans `DonModal.tsx` : champ participant déverrouillé en édition, check `recus_fiscaux` avant submit si le participant change, message d'erreur explicite. Validation client uniquement (pas d'Edge Function pour les dons)
+
+Les 5 items du backlog du 2026-07-25 sont maintenant tous terminés et mergés (PR #31, #32, #33, #34).
+
+### Reste à faire (prochaine session)
+
+- **TODO noté par l'utilisateur en fin de session, sans précision : "repenser au bypass"** — à clarifier en tout premier lieu au démarrage de la prochaine session, ne pas deviner. Deux pistes possibles selon le contexte de cette session (voir CLAUDE.md pour le détail) : le blocage de réaffectation de don (PR #34, pourrait nécessiter un bypass pour des cas légitimes) ou le bypass super-admin dans les policies RLS (`is_super_admin`, revu la veille dans la migration perf).
+
 ### Blockers
 
 - Aucun blocker technique actif.
