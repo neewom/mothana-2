@@ -1,10 +1,12 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Activite } from '../types'
 import Modal from '../components/Modal'
 import ImportWizard from '../components/import/ImportWizard'
 import { activitesImportConfig } from '../lib/import/configs'
+import { fetchAllRows } from '../lib/fetchAllRows'
+import { filterActivites } from '../lib/activiteSearch'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -154,21 +156,40 @@ export default function ActivitesPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [pageSize] = useState(50)
+  const [currentPage, setCurrentPage] = useState(1)
 
   async function fetchActivites() {
     setLoading(true)
-    const { data } = await supabase
-      .from('activites')
-      .select('*')
-      .eq('organisation_id', organisationId)
-      .order('created_at', { ascending: false })
-    setActivites((data as Activite[]) ?? [])
+    const { data } = await fetchAllRows<Activite>((from, to) =>
+      supabase
+        .from('activites')
+        .select('*')
+        .eq('organisation_id', organisationId)
+        .order('created_at', { ascending: false })
+        .range(from, to)
+    )
+    setActivites(data)
     setLoading(false)
   }
 
   useEffect(() => {
     if (organisationId) fetchActivites()
   }, [organisationId])
+
+  const filteredActivites = useMemo(
+    () => filterActivites(activites, search),
+    [activites, search]
+  )
+
+  const pageCount = Math.max(1, Math.ceil(filteredActivites.length / pageSize))
+  const safePage = Math.min(currentPage, pageCount)
+
+  const paginatedActivites = useMemo(() => {
+    const start = (safePage - 1) * pageSize
+    return filteredActivites.slice(start, start + pageSize)
+  }, [filteredActivites, safePage, pageSize])
 
   function openAdd() {
     setEditing(undefined)
@@ -223,53 +244,67 @@ export default function ActivitesPage() {
   return (
     <>
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Activités</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {activites.length} activité{activites.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setImportOpen(true)}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-            </svg>
-            Importer
-          </button>
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Ajouter
-          </button>
-        </div>
+      {/* Page title */}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Activités</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          {activites.length} activité{activites.length !== 1 ? 's' : ''}
+        </p>
       </div>
 
-      {/* List */}
+      {/* List card */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
+          {/* Search */}
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
+            placeholder="Rechercher par nom…"
+            className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <button
+              onClick={() => setImportOpen(true)}
+              className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              </svg>
+              Importer
+            </button>
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Ajouter
+            </button>
+          </div>
+        </div>
+
         {loading ? (
           <div className="flex items-center justify-center py-16 text-sm text-slate-400">
             Chargement…
           </div>
-        ) : activites.length === 0 ? (
+        ) : filteredActivites.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="mb-3 h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
             </svg>
-            <p className="text-sm font-medium text-slate-500">Aucune activité</p>
-            <p className="mt-1 text-xs text-slate-400">Créez votre première activité pour commencer.</p>
+            <p className="text-sm font-medium text-slate-500">
+              {activites.length === 0 ? 'Aucune activité' : 'Aucune activité trouvée'}
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              {activites.length === 0 ? 'Créez votre première activité pour commencer.' : 'Essayez une autre recherche.'}
+            </p>
           </div>
         ) : (
+          <>
           <ul className="divide-y divide-slate-100">
-            {activites.map((a) => (
+            {paginatedActivites.map((a) => (
               <li key={a.id} className="flex items-center justify-between px-6 py-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
@@ -308,6 +343,42 @@ export default function ActivitesPage() {
               </li>
             ))}
           </ul>
+
+          {pageCount > 1 && (
+            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+              <span className="text-sm text-slate-500">
+                {filteredActivites.length} activité{filteredActivites.length !== 1 ? 's' : ''}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ‹ Précédent
+                </button>
+                <span className="text-sm text-slate-500">Page {safePage} / {pageCount}</span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={safePage === pageCount}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Suivant ›
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(pageCount)}
+                  disabled={safePage === pageCount}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  »
+                </button>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>
