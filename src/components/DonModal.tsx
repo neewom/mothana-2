@@ -6,6 +6,7 @@ import ActiviteAutocomplete from './ActiviteAutocomplete'
 import ParticipantModal from './ParticipantModal'
 import Modal from './Modal'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
+import { participantFullName } from '../lib/participantSearch'
 
 interface DonModalProps {
   open: boolean
@@ -85,6 +86,40 @@ export default function DonModal({
       return
     }
 
+    const isReassignment = isEdit && don && profilParticipantId !== don.profil_participant_id
+
+    if (isReassignment && don) {
+      const annee = Number(date.slice(0, 4))
+      const { data: blockingRecus, error: checkErr } = await supabase
+        .from('recus_fiscaux')
+        .select('profil_participant_id')
+        .eq('organisation_id', organisationId)
+        .eq('annee', annee)
+        .in('profil_participant_id', [don.profil_participant_id, profilParticipantId])
+
+      if (checkErr) {
+        setError(checkErr.message)
+        return
+      }
+
+      if (blockingRecus && blockingRecus.length > 0) {
+        const blockedIds = new Set(blockingRecus.map((r) => r.profil_participant_id))
+        const names: string[] = []
+        if (blockedIds.has(don.profil_participant_id)) {
+          const source = allParticipants.find((p) => p.id === don.profil_participant_id)
+          names.push(source ? participantFullName(source) : 'le participant actuel')
+        }
+        if (blockedIds.has(profilParticipantId)) {
+          const dest = allParticipants.find((p) => p.id === profilParticipantId)
+          names.push(dest ? participantFullName(dest) : 'le nouveau participant')
+        }
+        setError(
+          `Impossible de réaffecter ce don : un reçu fiscal ${annee} a déjà été émis pour ${names.join(' et ')}. Réaffecter désynchroniserait le montant du reçu déjà émis.`
+        )
+        return
+      }
+    }
+
     setSaving(true)
 
     const payload = {
@@ -145,9 +180,13 @@ export default function DonModal({
               participants={allParticipants}
               value={profilParticipantId}
               onChange={setProfilParticipantId}
-              disabled={isEdit}
               placeholder="Rechercher par nom et prénom…"
             />
+            {isEdit && (
+              <p className="mt-1 text-xs text-slate-400">
+                Changer le participant réaffecte ce don — bloqué si un reçu fiscal a déjà été émis pour l'année concernée.
+              </p>
+            )}
 
             {!isEdit && (
               <button
