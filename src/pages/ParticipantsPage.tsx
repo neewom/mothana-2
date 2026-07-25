@@ -175,7 +175,7 @@ function DetailPanel({
   const p = participant.personnes
 
   return (
-    <div className="flex h-full flex-col">
+    <>
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
         <h2 className="text-lg font-semibold text-slate-900">Détail du participant</h2>
@@ -189,6 +189,7 @@ function DetailPanel({
         </button>
       </div>
 
+      <div className="flex flex-1 flex-col overflow-hidden">
       {/* Body */}
       <div className="flex-1 overflow-y-auto space-y-5 px-6 py-5">
         {/* Identity */}
@@ -282,7 +283,7 @@ function DetailPanel({
       </div>
 
       {/* Actions */}
-      <div className="border-t border-slate-200 px-6 py-4">
+      <div className="shrink-0 border-t border-slate-200 px-6 py-4">
         <div className="flex gap-2">
           <button
             onClick={onEdit}
@@ -304,7 +305,8 @@ function DetailPanel({
           Supprimer le participant
         </button>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -789,30 +791,28 @@ export default function ParticipantsPage() {
           heightClassName="max-h-[85vh]"
           labelledBy="all-dons-title"
         >
-          <div className="flex h-full flex-col">
-            <div className="border-b border-slate-200 px-6 py-4">
-              <h2 id="all-dons-title" className="text-lg font-semibold text-slate-900">
-                Historique des dons — {participantFullName(selectedParticipant)}
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">{participantDons.length} dons au total</p>
-            </div>
-            <div className="flex-1 overflow-y-auto px-6 py-5">
-              <div className="space-y-2">
-                {participantDons.map((don) => (
-                  <div key={don.id} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-slate-900">{formatEur(don.montant)}</span>
-                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_PAIEMENT_BADGE_CLASSES[don.mode_paiement]}`}>
-                        {MODE_PAIEMENT_LABELS[don.mode_paiement]}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-slate-500">{formatDate(don.date)}</p>
-                    {don.activites && (
-                      <p className="mt-0.5 text-xs text-slate-400">{don.activites.nom}</p>
-                    )}
+          <div className="border-b border-slate-200 px-6 py-4">
+            <h2 id="all-dons-title" className="text-lg font-semibold text-slate-900">
+              Historique des dons — {participantFullName(selectedParticipant)}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">{participantDons.length} dons au total</p>
+          </div>
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            <div className="space-y-2">
+              {participantDons.map((don) => (
+                <div key={don.id} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-900">{formatEur(don.montant)}</span>
+                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_PAIEMENT_BADGE_CLASSES[don.mode_paiement]}`}>
+                      {MODE_PAIEMENT_LABELS[don.mode_paiement]}
+                    </span>
                   </div>
-                ))}
-              </div>
+                  <p className="mt-0.5 text-xs text-slate-500">{formatDate(don.date)}</p>
+                  {don.activites && (
+                    <p className="mt-0.5 text-xs text-slate-400">{don.activites.nom}</p>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </Modal>
