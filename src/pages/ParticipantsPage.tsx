@@ -149,8 +149,6 @@ function useParticipants(organisationId: string): ParticipantsData {
 // DetailPanel
 // ---------------------------------------------------------------------------
 
-const DONS_PREVIEW_COUNT = 5
-
 interface DetailPanelProps {
   participant: ProfilParticipant
   totalDons: number
@@ -159,7 +157,6 @@ interface DetailPanelProps {
   onEdit: () => void
   onAddDon: () => void
   onDelete: () => void
-  onShowAllDons: () => void
 }
 
 function DetailPanel({
@@ -170,7 +167,6 @@ function DetailPanel({
   onEdit,
   onAddDon,
   onDelete,
-  onShowAllDons,
 }: DetailPanelProps) {
   const p = participant.personnes
 
@@ -252,32 +248,22 @@ function DetailPanel({
           {participantDons.length === 0 ? (
             <p className="text-sm text-slate-400">Aucun don</p>
           ) : (
-            <>
-              <div className="space-y-2">
-                {participantDons.slice(0, DONS_PREVIEW_COUNT).map((don) => (
-                  <div key={don.id} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-slate-900">{formatEur(don.montant)}</span>
-                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_PAIEMENT_BADGE_CLASSES[don.mode_paiement]}`}>
-                        {MODE_PAIEMENT_LABELS[don.mode_paiement]}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-slate-500">{formatDate(don.date)}</p>
-                    {don.activites && (
-                      <p className="mt-0.5 text-xs text-slate-400">{don.activites.nom}</p>
-                    )}
+            <div className="space-y-2">
+              {participantDons.map((don) => (
+                <div key={don.id} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-900">{formatEur(don.montant)}</span>
+                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_PAIEMENT_BADGE_CLASSES[don.mode_paiement]}`}>
+                      {MODE_PAIEMENT_LABELS[don.mode_paiement]}
+                    </span>
                   </div>
-                ))}
-              </div>
-              {participantDons.length > DONS_PREVIEW_COUNT && (
-                <button
-                  onClick={onShowAllDons}
-                  className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-                >
-                  Voir plus de détails ({participantDons.length} dons)
-                </button>
-              )}
-            </>
+                  <p className="mt-0.5 text-xs text-slate-500">{formatDate(don.date)}</p>
+                  {don.activites && (
+                    <p className="mt-0.5 text-xs text-slate-400">{don.activites.nom}</p>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
@@ -357,7 +343,6 @@ export default function ParticipantsPage() {
   // Participant detail dons — fetch when a participant is selected
   const [participantDons, setParticipantDons] = useState<DonDetail[]>([])
   const [loadingDons, setLoadingDons] = useState(false)
-  const [allDonsModalOpen, setAllDonsModalOpen] = useState(false)
 
   // Desktop detail panel — cap its height to whatever space is actually available below
   // it (header + page title + any banner all vary), so it never overflows past the
@@ -384,7 +369,6 @@ export default function ParticipantsPage() {
   useEffect(() => {
     if (!selectedParticipant) {
       setParticipantDons([])
-      setAllDonsModalOpen(false)
       return
     }
 
@@ -707,7 +691,6 @@ export default function ParticipantsPage() {
                 onEdit={() => openEdit(selectedParticipant)}
                 onAddDon={() => openAddDon(selectedParticipant.id)}
                 onDelete={() => openDelete(selectedParticipant)}
-                onShowAllDons={() => setAllDonsModalOpen(true)}
               />
             )}
           </div>
@@ -736,7 +719,6 @@ export default function ParticipantsPage() {
                 onEdit={() => openEdit(selectedParticipant)}
                 onAddDon={() => openAddDon(selectedParticipant.id)}
                 onDelete={() => openDelete(selectedParticipant)}
-                onShowAllDons={() => setAllDonsModalOpen(true)}
               />
             )}
           </div>
@@ -805,42 +787,6 @@ export default function ParticipantsPage() {
                 </button>
               </div>
             </div>
-        </Modal>
-      )}
-
-      {/* All dons modal */}
-      {allDonsModalOpen && selectedParticipant && (
-        <Modal
-          open
-          onClose={() => setAllDonsModalOpen(false)}
-          maxWidthClassName="max-w-lg"
-          heightClassName="max-h-[85vh]"
-          labelledBy="all-dons-title"
-        >
-          <div className="border-b border-slate-200 px-6 py-4">
-            <h2 id="all-dons-title" className="text-lg font-semibold text-slate-900">
-              Historique des dons — {participantFullName(selectedParticipant)}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">{participantDons.length} dons au total</p>
-          </div>
-          <div className="flex-1 overflow-y-auto px-6 py-5">
-            <div className="space-y-2">
-              {participantDons.map((don) => (
-                <div key={don.id} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-900">{formatEur(don.montant)}</span>
-                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_PAIEMENT_BADGE_CLASSES[don.mode_paiement]}`}>
-                      {MODE_PAIEMENT_LABELS[don.mode_paiement]}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-xs text-slate-500">{formatDate(don.date)}</p>
-                  {don.activites && (
-                    <p className="mt-0.5 text-xs text-slate-400">{don.activites.nom}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
         </Modal>
       )}
 
