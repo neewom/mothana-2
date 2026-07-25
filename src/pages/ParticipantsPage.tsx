@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { ProfilParticipant, Don, Activite } from '../types'
@@ -359,6 +359,28 @@ export default function ParticipantsPage() {
   const [loadingDons, setLoadingDons] = useState(false)
   const [allDonsModalOpen, setAllDonsModalOpen] = useState(false)
 
+  // Desktop detail panel — cap its height to whatever space is actually available below
+  // it (header + page title + any banner all vary), so it never overflows past the
+  // viewport and requires scrolling the page to reach the footer actions.
+  const desktopPanelRef = useRef<HTMLDivElement>(null)
+  const [desktopPanelMaxHeight, setDesktopPanelMaxHeight] = useState<number | undefined>(undefined)
+
+  useLayoutEffect(() => {
+    if (!selectedParticipant) return
+
+    function recompute() {
+      const el = desktopPanelRef.current
+      if (!el) return
+      const top = el.getBoundingClientRect().top
+      if (top <= 0) return // hidden (mobile breakpoint) — nothing to measure
+      setDesktopPanelMaxHeight(Math.max(300, window.innerHeight - top - 24))
+    }
+
+    recompute()
+    window.addEventListener('resize', recompute)
+    return () => window.removeEventListener('resize', recompute)
+  }, [selectedParticipant])
+
   useEffect(() => {
     if (!selectedParticipant) {
       setParticipantDons([])
@@ -667,7 +689,11 @@ export default function ParticipantsPage() {
 
         {/* Detail panel — desktop */}
         {selectedParticipant && (
-          <div className="hidden w-80 flex-shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-6 lg:flex lg:max-h-[calc(100vh-3rem)] lg:flex-col" style={{ minHeight: '400px' }}>
+          <div
+            ref={desktopPanelRef}
+            className="hidden w-80 flex-shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-6 lg:flex lg:max-h-[calc(100vh-3rem)] lg:flex-col"
+            style={{ minHeight: '400px', ...(desktopPanelMaxHeight ? { maxHeight: desktopPanelMaxHeight } : {}) }}
+          >
             {loadingDons ? (
               <div className="flex flex-1 items-center justify-center py-16">
                 <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
