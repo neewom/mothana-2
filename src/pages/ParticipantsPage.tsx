@@ -675,7 +675,7 @@ export default function ParticipantsPage() {
         {selectedParticipant && (
           <div
             ref={desktopPanelRef}
-            className="hidden w-80 flex-shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-6 lg:flex lg:max-h-[calc(100vh-3rem)] lg:flex-col"
+            className="hidden w-80 flex-shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm md:sticky md:top-6 md:flex md:max-h-[calc(100vh-3rem)] md:flex-col"
             style={{ minHeight: '400px', ...(desktopPanelMaxHeight ? { maxHeight: desktopPanelMaxHeight } : {}) }}
           >
             {loadingDons ? (
@@ -700,7 +700,7 @@ export default function ParticipantsPage() {
 
       {/* Mobile detail panel */}
       {selectedParticipant && (
-        <div className="fixed inset-0 z-30 lg:hidden">
+        <div className="fixed inset-0 z-30 md:hidden">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setSelectedParticipant(null)}
