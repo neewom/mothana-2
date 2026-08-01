@@ -22,6 +22,11 @@ export const CERFA_PREVIEW_PLACEHOLDERS: Record<string, string> = {
   recu_numero_ordre: '2026-042',
   recu_date_generation: '18/07/2026',
   type_reduction: '66%',
+  logo_url: 'https://placehold.co/200x80?text=Logo',
+  tampon_url: 'https://placehold.co/120x120?text=Cachet',
+  signature_url: 'https://placehold.co/200x80?text=Signature',
+  president_nom: 'Nicolas Boulom',
+  president_titre: 'Président',
 }
 
 // Placeholders obligatoires sur un reçu Cerfa légalement valide (voir

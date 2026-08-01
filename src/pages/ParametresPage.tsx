@@ -14,6 +14,11 @@ interface ModeleRecu {
   mention_legale: string
   numero_recu_depart: number
   taux_reduction: number
+  logo_url: string | null
+  tampon_url: string | null
+  signature_url: string | null
+  president_nom: string
+  president_titre: string
 }
 
 interface OrgSettings {
@@ -35,7 +40,21 @@ const DEFAULT_MODELE: ModeleRecu = {
   mention_legale: MENTION_LEGALE_DEFAUT,
   numero_recu_depart: 1,
   taux_reduction: 66,
+  logo_url: null,
+  tampon_url: null,
+  signature_url: null,
+  president_nom: '',
+  president_titre: '',
 }
+
+const ASSET_FIELDS = [
+  { key: 'logo_url', label: 'Logo' },
+  { key: 'tampon_url', label: 'Tampon / cachet' },
+  { key: 'signature_url', label: 'Signature' },
+] as const
+
+const MAX_ASSET_SIZE = 2 * 1024 * 1024
+const ALLOWED_ASSET_TYPES = ['image/png', 'image/jpeg']
 
 // ---------------------------------------------------------------------------
 // Section wrapper
@@ -91,6 +110,10 @@ export default function ParametresPage() {
   const [modeleSuccess, setModeleSuccess] = useState(false)
   const [modeleError, setModeleError] = useState<string | null>(null)
 
+  // Assets (logo / tampon / signature)
+  const [assetUploading, setAssetUploading] = useState<Record<string, boolean>>({})
+  const [assetError, setAssetError] = useState<Record<string, string | null>>({})
+
   // ---------------------------------------------------------------------------
   // Fetch
   // ---------------------------------------------------------------------------
@@ -131,6 +154,11 @@ export default function ParametresPage() {
         mention_legale: modeleRaw.mention_legale ?? MENTION_LEGALE_DEFAUT,
         numero_recu_depart: modeleRaw.numero_recu_depart ?? 1,
         taux_reduction: modeleRaw.taux_reduction ?? 66,
+        logo_url: modeleRaw.logo_url ?? null,
+        tampon_url: modeleRaw.tampon_url ?? null,
+        signature_url: modeleRaw.signature_url ?? null,
+        president_nom: modeleRaw.president_nom ?? '',
+        president_titre: modeleRaw.president_titre ?? '',
       })
       setLoading(false)
     }
@@ -231,6 +259,78 @@ export default function ParametresPage() {
       setTimeout(() => setModeleSuccess(false), 3000)
     }
     setModeleSaving(false)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Assets (logo / tampon / signature)
+  // ---------------------------------------------------------------------------
+
+  async function persistModele(nextModele: ModeleRecu) {
+    const { error } = await supabase
+      .from('organisations')
+      .update({ modele_recu_pdf: nextModele })
+      .eq('id', organisationId)
+    return error
+  }
+
+  async function handleAssetChange(key: 'logo_url' | 'tampon_url' | 'signature_url', file: File | null) {
+    if (!file) return
+
+    if (!ALLOWED_ASSET_TYPES.includes(file.type)) {
+      setAssetError((prev) => ({ ...prev, [key]: 'Format non supporté (PNG ou JPEG uniquement)' }))
+      return
+    }
+    if (file.size > MAX_ASSET_SIZE) {
+      setAssetError((prev) => ({ ...prev, [key]: 'Fichier trop volumineux (2 Mo max)' }))
+      return
+    }
+
+    setAssetError((prev) => ({ ...prev, [key]: null }))
+    setAssetUploading((prev) => ({ ...prev, [key]: true }))
+
+    const ext = file.type === 'image/png' ? 'png' : 'jpg'
+    const fileName = key.replace('_url', '')
+    const path = `${organisationId}/${fileName}.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('organisation-assets')
+      .upload(path, file, { upsert: true, contentType: file.type })
+
+    if (uploadError) {
+      setAssetError((prev) => ({ ...prev, [key]: uploadError.message }))
+      setAssetUploading((prev) => ({ ...prev, [key]: false }))
+      return
+    }
+
+    const { data: publicUrlData } = supabase.storage.from('organisation-assets').getPublicUrl(path)
+    // Cache-bust : même chemin réutilisé à chaque remplacement (upsert), sans
+    // paramètre unique l'ancienne image resterait affichée depuis le cache navigateur
+    const publicUrl = `${publicUrlData.publicUrl}?v=${file.lastModified}`
+
+    const nextModele = { ...modele, [key]: publicUrl }
+    const persistError = await persistModele(nextModele)
+
+    if (persistError) {
+      setAssetError((prev) => ({ ...prev, [key]: persistError.message }))
+    } else {
+      setModele(nextModele)
+    }
+    setAssetUploading((prev) => ({ ...prev, [key]: false }))
+  }
+
+  async function handleAssetRemove(key: 'logo_url' | 'tampon_url' | 'signature_url') {
+    setAssetError((prev) => ({ ...prev, [key]: null }))
+    setAssetUploading((prev) => ({ ...prev, [key]: true }))
+
+    const nextModele = { ...modele, [key]: null }
+    const persistError = await persistModele(nextModele)
+
+    if (persistError) {
+      setAssetError((prev) => ({ ...prev, [key]: persistError.message }))
+    } else {
+      setModele(nextModele)
+    }
+    setAssetUploading((prev) => ({ ...prev, [key]: false }))
   }
 
   // ---------------------------------------------------------------------------
@@ -454,6 +554,79 @@ export default function ParametresPage() {
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
             />
             <p className="mt-1 text-xs text-slate-400">Affichée sur le reçu pour justifier l'éligibilité au mécénat.</p>
+          </div>
+
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Nom du président</label>
+              <input
+                type="text"
+                value={modele.president_nom}
+                onChange={(e) => setModele((m) => ({ ...m, president_nom: e.target.value }))}
+                placeholder="Ex : Jean Dupont"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Titre</label>
+              <input
+                type="text"
+                value={modele.president_titre}
+                onChange={(e) => setModele((m) => ({ ...m, president_titre: e.target.value }))}
+                placeholder="Ex : Président"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <p className="-mt-2 text-xs text-slate-400">
+            Disponibles comme placeholders <code>{'{{president_nom}}'}</code> et <code>{'{{president_titre}}'}</code> dans vos templates.
+          </p>
+
+          <div>
+            <p className="mb-2 text-sm font-medium text-slate-700">Identité visuelle</p>
+            <p className="mb-3 text-xs text-slate-400">
+              Logo, tampon et signature — utilisables comme placeholders (<code>{'{{logo_url}}'}</code>, <code>{'{{tampon_url}}'}</code>, <code>{'{{signature_url}}'}</code>) dans vos templates. PNG ou JPEG, 2 Mo max. Enregistrés immédiatement à l'upload.
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {ASSET_FIELDS.map(({ key, label }) => (
+                <div key={key} className="rounded-lg border border-slate-200 p-3">
+                  <p className="mb-2 text-xs font-medium text-slate-600">{label}</p>
+                  <div className="mb-2 flex h-20 items-center justify-center overflow-hidden rounded-md bg-slate-50">
+                    {modele[key] ? (
+                      <img src={modele[key] ?? undefined} alt={label} className="max-h-full max-w-full object-contain" />
+                    ) : (
+                      <span className="text-xs text-slate-400">Aucun fichier</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                      {assetUploading[key] ? 'Envoi…' : 'Choisir un fichier'}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        className="hidden"
+                        disabled={assetUploading[key]}
+                        onChange={(e) => {
+                          handleAssetChange(key, e.target.files?.[0] ?? null)
+                          e.target.value = ''
+                        }}
+                      />
+                    </label>
+                    {modele[key] && (
+                      <button
+                        type="button"
+                        onClick={() => handleAssetRemove(key)}
+                        disabled={assetUploading[key]}
+                        className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-60"
+                      >
+                        Supprimer
+                      </button>
+                    )}
+                  </div>
+                  {assetError[key] && <p className="mt-1.5 text-xs text-red-600">{assetError[key]}</p>}
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="flex gap-3">

@@ -57,6 +57,32 @@ create policy "recus_storage_admin"
   );
 ```
 
+### 1.3bis Créer le bucket Storage des assets d'organisation
+
+Dans **Storage**, créer un bucket `organisation-assets` :
+- Public : **oui** (logo/tampon/signature finissent sur un PDF remis au donateur, pas de confidentialité à préserver)
+- Policy : écriture restreinte aux utilisateurs authentifiés de l'organisation
+
+SQL à exécuter dans **SQL Editor** (ou `supabase/migrations/organisation_assets_storage.sql`) :
+
+```sql
+insert into storage.buckets (id, name, public)
+values ('organisation-assets', 'organisation-assets', true);
+
+create policy "organisation_assets_write"
+  on storage.objects for all
+  using (
+    bucket_id = 'organisation-assets'
+    and (
+      (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
+      or (storage.foldername(name))[1] = (
+        select organisation_id::text from profils_organisation
+        where utilisateur_id = auth.uid() limit 1
+      )
+    )
+  );
+```
+
 ### 1.4 Créer les comptes utilisateurs
 
 **Compte admin de démo** :
