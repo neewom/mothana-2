@@ -7,6 +7,7 @@ import {
   CERFA_MANDATORY_KEYS,
   CERFA_RNA_SIREN_GROUP,
   getMissingMandatoryPlaceholders,
+  fetchOrganisationPreviewOverrides,
 } from '../lib/cerfaPreview'
 import { copyTextToClipboard } from '../lib/clipboard'
 import { fetchOrganisationAssets, buildAssetPlaceholders, assetPlaceholderKey } from '../lib/organisationAssets'
@@ -69,7 +70,7 @@ export default function TemplateRecuEditorModal({
   const [placeholdersOpen, setPlaceholdersOpen] = useState(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [assetTags, setAssetTags] = useState<string[]>([])
-  const [assetPlaceholders, setAssetPlaceholders] = useState<Record<string, string>>({})
+  const [dynamicPlaceholders, setDynamicPlaceholders] = useState<Record<string, string>>({})
   const formRef = useRef<HTMLFormElement>(null)
   const placeholdersRef = useRef<HTMLDivElement>(null)
 
@@ -114,21 +115,21 @@ export default function TemplateRecuEditorModal({
     fetchOrganisationAssets(organisationId)
       .then((assets) => {
         setAssetTags(assets.map((a) => assetPlaceholderKey(a.identifiant)))
-        setAssetPlaceholders(buildAssetPlaceholders(assets))
+        setDynamicPlaceholders((prev) => ({ ...prev, ...buildAssetPlaceholders(assets) }))
       })
-      .catch(() => {
-        setAssetTags([])
-        setAssetPlaceholders({})
-      })
+      .catch(() => setAssetTags([]))
+    fetchOrganisationPreviewOverrides(organisationId)
+      .then((overrides) => setDynamicPlaceholders((prev) => ({ ...prev, ...overrides })))
+      .catch(() => {})
   }, [open, organisationId])
 
   const previewValues = useMemo(
-    () => ({ ...CERFA_PREVIEW_PLACEHOLDERS, ...assetPlaceholders }),
-    [assetPlaceholders],
+    () => ({ ...CERFA_PREVIEW_PLACEHOLDERS, ...dynamicPlaceholders }),
+    [dynamicPlaceholders],
   )
   const previewHtml = useMemo(
-    () => renderCerfaPreviewHtml(htmlTemplate, css, assetPlaceholders),
-    [htmlTemplate, css, assetPlaceholders],
+    () => renderCerfaPreviewHtml(htmlTemplate, css, dynamicPlaceholders),
+    [htmlTemplate, css, dynamicPlaceholders],
   )
   const missingMandatory = useMemo(() => getMissingMandatoryPlaceholders(htmlTemplate), [htmlTemplate])
   const mandatoryPresentCount = MANDATORY_TAGS.length - missingMandatory.length

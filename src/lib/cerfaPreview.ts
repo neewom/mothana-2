@@ -2,6 +2,8 @@
 // reçus fiscaux (étape 6, brief-cerfa.md §7). Mêmes placeholders que
 // l'Edge Function generate-recu (brief §2.2), valeurs fictives cohérentes.
 
+import { supabase } from './supabaseClient'
+
 export const CERFA_PREVIEW_PLACEHOLDERS: Record<string, string> = {
   organisation_nom: 'Wat Velouvanaram',
   organisation_adresse: '5 All. Madame de Montespan',
@@ -57,4 +59,22 @@ export function renderCerfaPreviewHtml(
     body = body.split(`{{${key}}}`).join(value)
   }
   return `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${body}</body></html>`
+}
+
+// Placeholders qui reflètent de vraies données d'organisation plutôt que
+// l'exemple générique CERFA_PREVIEW_PLACEHOLDERS — pour l'instant seulement
+// président_nom/président_titre (les assets ont leur propre fetch dédié,
+// voir lib/organisationAssets.ts).
+export async function fetchOrganisationPreviewOverrides(organisationId: string): Promise<Record<string, string>> {
+  const { data } = await supabase
+    .from('organisations')
+    .select('modele_recu_pdf')
+    .eq('id', organisationId)
+    .single()
+
+  const modele = (data?.modele_recu_pdf ?? {}) as { president_nom?: string; president_titre?: string }
+  const overrides: Record<string, string> = {}
+  if (modele.president_nom) overrides.president_nom = modele.president_nom
+  if (modele.president_titre) overrides.president_titre = modele.president_titre
+  return overrides
 }
