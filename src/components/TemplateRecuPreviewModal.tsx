@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { renderCerfaPreviewHtml } from '../lib/cerfaPreview'
+import { fetchOrganisationAssets, buildAssetPlaceholders } from '../lib/organisationAssets'
 import Modal from './Modal'
 
 interface TemplateRecuPreviewModalProps {
@@ -7,6 +9,7 @@ interface TemplateRecuPreviewModalProps {
   nom: string
   htmlTemplate: string
   css: string
+  organisationId: string
 }
 
 export default function TemplateRecuPreviewModal({
@@ -15,7 +18,17 @@ export default function TemplateRecuPreviewModal({
   nom,
   htmlTemplate,
   css,
+  organisationId,
 }: TemplateRecuPreviewModalProps) {
+  const [assetPlaceholders, setAssetPlaceholders] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (!open) return
+    fetchOrganisationAssets(organisationId)
+      .then((assets) => setAssetPlaceholders(buildAssetPlaceholders(assets)))
+      .catch(() => setAssetPlaceholders({}))
+  }, [open, organisationId])
+
   if (!open) return null
 
   return (
@@ -29,7 +42,7 @@ export default function TemplateRecuPreviewModal({
       <div className="overflow-hidden p-6">
         <iframe
           title={`Aperçu du template ${nom}`}
-          srcDoc={renderCerfaPreviewHtml(htmlTemplate, css)}
+          srcDoc={renderCerfaPreviewHtml(htmlTemplate, css, assetPlaceholders)}
           className="h-[70vh] w-full rounded-lg border border-slate-200"
         />
       </div>

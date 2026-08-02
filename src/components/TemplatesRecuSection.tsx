@@ -321,6 +321,7 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
           nom={previewTemplate.nom}
           htmlTemplate={previewTemplate.html_template}
           css={previewTemplate.css ?? ''}
+          organisationId={organisationId}
         />
       )}
 

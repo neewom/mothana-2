@@ -36,11 +36,13 @@ interface ModeleRecu {
   mention_legale?: string
   numero_recu_depart?: number
   taux_reduction?: number
-  logo_url?: string
-  tampon_url?: string
-  signature_url?: string
   president_nom?: string
   president_titre?: string
+}
+
+interface OrganisationAsset {
+  identifiant: string
+  url: string
 }
 
 interface Organisation {
@@ -389,6 +391,19 @@ Deno.serve(async (req) => {
     // 6. Snapshots + placeholders
     // ---------------------------------------------------------------------
 
+    const { data: assetsData } = await adminClient
+      .from('organisation_assets')
+      .select('identifiant, url')
+      .eq('organisation_id', organisationId)
+
+    const assets = (assetsData ?? []) as OrganisationAsset[]
+    const assetPlaceholders: Record<string, string> = {}
+    const assetsSnapshot: Record<string, string> = {}
+    for (const asset of assets) {
+      assetPlaceholders[`asset_${asset.identifiant}`] = asset.url
+      assetsSnapshot[asset.identifiant] = asset.url
+    }
+
     const modele = organisation.modele_recu_pdf ?? {}
     const tauxReduction = typeCerfa === '16216' ? 60 : modele.taux_reduction ?? 66
 
@@ -416,11 +431,9 @@ Deno.serve(async (req) => {
       objet_social: modele.objet_social ?? null,
       mention_legale: modele.mention_legale ?? null,
       taux_reduction: tauxReduction,
-      logo_url: modele.logo_url ?? null,
-      tampon_url: modele.tampon_url ?? null,
-      signature_url: modele.signature_url ?? null,
       president_nom: modele.president_nom ?? null,
       president_titre: modele.president_titre ?? null,
+      assets: assetsSnapshot,
     }
 
     const placeholders: Record<string, string> = {
@@ -443,11 +456,9 @@ Deno.serve(async (req) => {
       recu_numero_ordre: numeroOrdre,
       recu_date_generation: formatDate(new Date().toISOString().split('T')[0]),
       type_reduction: `${tauxReduction}%`,
-      logo_url: modele.logo_url ?? '',
-      tampon_url: modele.tampon_url ?? '',
-      signature_url: modele.signature_url ?? '',
       president_nom: modele.president_nom ?? '',
       president_titre: modele.president_titre ?? '',
+      ...assetPlaceholders,
     }
 
     const bodyHtml = renderTemplate(template.html_template, placeholders)
