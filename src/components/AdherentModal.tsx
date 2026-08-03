@@ -4,6 +4,7 @@ import type { Adherent, Adhesion, CiviliteAdherent, ModePaiement } from '../type
 import { CIVILITE_ADHERENT_OPTIONS } from '../lib/civiliteAdherent'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { generateUUID } from '../lib/uuid'
+import { computeDateFin } from '../lib/adhesion'
 import Modal from './Modal'
 
 interface AdherentModalProps {
@@ -112,6 +113,7 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
 
     const adherentId = generateUUID()
     const adhesionId = generateUUID()
+    const dateFin = computeDateFin(dateDebut)
 
     const { error: adherentErr } = await supabase.from('adherents').insert({
       id: adherentId,
@@ -129,6 +131,7 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
       id: adhesionId,
       adherent_id: adherentId,
       date_debut: dateDebut,
+      date_fin: dateFin,
       montant_cotisation: montantCotisation ? Number(montantCotisation) : null,
       date_paiement_cotisation: datePaiementCotisation || null,
       mode_paiement: modePaiement || null,
@@ -160,7 +163,7 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
         id: adhesionId,
         adherent_id: adherentId,
         date_debut: dateDebut,
-        date_fin: null,
+        date_fin: dateFin,
         montant_cotisation: montantCotisation ? Number(montantCotisation) : null,
         date_paiement_cotisation: datePaiementCotisation || null,
         mode_paiement: modePaiement || null,

@@ -88,8 +88,11 @@ begin
   -- 2) insert adhesions — uniquement les lignes où le client a déterminé
   --    qu'un nouveau cycle est nécessaire (adhesion_id non nul). Jamais
   --    d'update : chaque ligne est un nouveau cycle historisé.
-  insert into adhesions (id, adherent_id, date_debut, montant_cotisation, date_paiement_cotisation, mode_paiement, renouvellement, droit_vote_ag, bulletin_signe)
-  select adhesion_id, adherent_id, date_debut, montant_cotisation, date_paiement_cotisation, mode_paiement,
+  --    date_fin = date_debut + 1 an (décision utilisateur 2026-08-04, cycle
+  --    glissant, même règle que AdherentModal.tsx/AdhesionModal.tsx via
+  --    lib/adhesion.ts computeDateFin).
+  insert into adhesions (id, adherent_id, date_debut, date_fin, montant_cotisation, date_paiement_cotisation, mode_paiement, renouvellement, droit_vote_ag, bulletin_signe)
+  select adhesion_id, adherent_id, date_debut, (date_debut + interval '1 year')::date, montant_cotisation, date_paiement_cotisation, mode_paiement,
          coalesce(renouvellement, false), coalesce(droit_vote_ag, true), coalesce(bulletin_signe, true)
   from _import_adherents
   where adhesion_id is not null and adherent_id is not null;

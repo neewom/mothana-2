@@ -4,6 +4,7 @@ import type { Adherent, Adhesion, ModePaiement } from '../types'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { generateUUID } from '../lib/uuid'
 import { adherentFullName } from '../lib/adherentSearch'
+import { computeDateFin } from '../lib/adhesion'
 import Modal from './Modal'
 
 interface AdhesionModalProps {
@@ -48,11 +49,13 @@ export default function AdhesionModal({ open, onClose, onSaved, adherent }: Adhe
     setSaving(true)
 
     const adhesionId = generateUUID()
+    const dateFin = computeDateFin(dateDebut)
 
     const { error: err } = await supabase.from('adhesions').insert({
       id: adhesionId,
       adherent_id: adherent.id,
       date_debut: dateDebut,
+      date_fin: dateFin,
       montant_cotisation: montantCotisation ? Number(montantCotisation) : null,
       date_paiement_cotisation: datePaiementCotisation || null,
       mode_paiement: modePaiement || null,
@@ -72,7 +75,7 @@ export default function AdhesionModal({ open, onClose, onSaved, adherent }: Adhe
       id: adhesionId,
       adherent_id: adherent.id,
       date_debut: dateDebut,
-      date_fin: null,
+      date_fin: dateFin,
       montant_cotisation: montantCotisation ? Number(montantCotisation) : null,
       date_paiement_cotisation: datePaiementCotisation || null,
       mode_paiement: modePaiement || null,
