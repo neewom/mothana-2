@@ -253,7 +253,7 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Les 6 étapes sont e
 
   **Séquencement de développement proposé :**
   1. ✅ Migrations SQL `adherents` + `adhesions` (RLS, contraintes, `id_externe`) — exécutées en prod le 2026-08-03
-  2. ⏳ Restructuration navigation (accueil → dashboard, regroupement section Dons, stub section Adhérents) — **prochaine étape, pas commencée**
+  2. ⏳ Restructuration navigation (accueil → dashboard, regroupement section Dons, stub section Adhérents) — **codée, PR #36 ouverte, en attente de test utilisateur** (pas d'identifiants admin côté agent pour tester la sidebar/dashboard connectés — seule la page d'accueil publique a été vérifiée via Playwright)
   3. Formulaire + page liste + filtre + modifier/archiver
   4. Import (généralisation du système existant)
   5. Gabarit carte adhérent (réutilisation Gotenberg/Monaco) + sélection multiple + impression planche A4
