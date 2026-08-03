@@ -119,11 +119,20 @@ export function parseModePaiementCell(raw: unknown): ParseOutcome<ModePaiement> 
   return { ok: false, error: `Mode de paiement non reconnu : "${raw}"` }
 }
 
-// Variante non-obligatoire : contrairement aux dons, la cotisation et son
-// mode de paiement sont optionnels pour une adhésion (cf. AdherentModal.tsx).
+// Cotisation d'adhésion : optionnelle (contrairement au montant d'un don) et
+// 0 est une valeur légitime (organisation qui ne fait pas payer de
+// cotisation) — ne réutilise donc pas parseMontantCell, dont la contrainte
+// stricte ">0" n'a de sens que pour un don.
 export function parseOptionalMontantCell(raw: unknown): ParseOutcome<number | null> {
   if (raw === null || raw === undefined || raw === '') return { ok: true, value: null }
-  return parseMontantCell(raw)
+  if (typeof raw === 'number') {
+    if (!isFinite(raw) || raw < 0) return { ok: false, error: 'Montant invalide (doit être ≥ 0)' }
+    return { ok: true, value: Math.round(raw * 100) / 100 }
+  }
+  const cleaned = String(raw).trim().replace(/[€\s]/g, '').replace(',', '.')
+  const value = parseFloat(cleaned)
+  if (!isFinite(value) || value < 0) return { ok: false, error: `Montant invalide : "${raw}"` }
+  return { ok: true, value: Math.round(value * 100) / 100 }
 }
 
 export function parseOptionalModePaiementCell(raw: unknown): ParseOutcome<ModePaiement | null> {
