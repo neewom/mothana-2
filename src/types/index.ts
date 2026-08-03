@@ -2,6 +2,44 @@ export type Civilite = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
 export type ModePaiement = 1 | 2 | 3 | 4
 
+// Enum dédié aux adhérents, distinct de Civilite (7 valeurs des participants) —
+// pas de personne morale/famille adhérente pour l'instant.
+export type CiviliteAdherent = 0 | 1 | 2
+
+export interface Adherent {
+  id: string
+  organisation_id: string
+  id_externe: string | null
+  civilite: CiviliteAdherent
+  nom: string
+  prenom: string | null
+  date_naissance: string | null
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
+  telephone: string | null
+  courriel: string | null
+  statut: 'actif' | 'archive'
+  statuts_acceptes: boolean
+  consent_rgpd: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface Adhesion {
+  id: string
+  adherent_id: string
+  date_debut: string
+  date_fin: string | null
+  montant_cotisation: number | null
+  date_paiement_cotisation: string | null
+  mode_paiement: ModePaiement | null
+  renouvellement: boolean
+  droit_vote_ag: boolean
+  bulletin_signe: boolean
+  created_at: string
+}
+
 export interface Personne {
   id: string
   nom: string
