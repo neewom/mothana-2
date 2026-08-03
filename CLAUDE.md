@@ -259,6 +259,13 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Les 6 étapes sont e
   5. Gabarit carte adhérent (réutilisation Gotenberg/Monaco) + sélection multiple + impression planche A4
   6. *(Prio basse, hors scope V1)* Mécanisme de sélection d'un adhérent à la saisie d'un don + gestion du doublonnement
 
+**Bugs trouvés en testant la PR #38, corrigés dans cette même PR :**
+- Cotisation d'import à `0` rejetée à tort (validation calquée sur celle des dons, où 0 n'a pas de sens) — corrigé, 0 est légitime pour une adhésion (organisation qui ne fait pas payer de cotisation)
+- Mode de paiement toujours validé même sans cotisation — corrigé via un nouveau hook générique `ImportConfig.postProcessRow`, ignore l'erreur sur `mode_paiement` quand `montant_cotisation` est nul/à 0
+- Mojibake UTF-8 relu en Windows-1252 sur les données source ("PHENG MÃ©lanie" au lieu de "Mélanie") — réparation automatique ajoutée dans `parseFile.ts`, générique à tous les imports (pas seulement adhérents)
+
+**Limitation découverte (non corrigée, décision utilisateur) :** les 4 fonctions RPC d'import (`import_upsert_participants`/`activites`/`dons`/`adherents`) échouent avec "Unauthorized: no organisation context" en mode super-admin "Consulter" — `current_user_organisation_id()` cherche une ligne `profils_organisation` pour l'utilisateur connecté, qu'un super-admin en consultation n'a pas. Pré-existante à ces 3 premières fonctions, jamais remarquée avant le test adhérents. Décision : se connecter en admin normal pour tester les imports plutôt que de modifier les fonctions (qui touchent des imports déjà en prod) — à reconsidérer seulement si le besoin d'importer "pour le compte d'une organisation" en tant que super-admin émerge un jour.
+
   **Point resté ouvert, non bloquant** : contrainte d'unicité `id_externe` par organisation, à trancher en même temps que celle déjà en attente sur les activités
 
   **✅ Étape 1 terminée (2026-08-03)** — migrations `adherents.sql`/`adhesions.sql` exécutées en prod via `supabase db query --linked` après vérification des 3 points en attente :
