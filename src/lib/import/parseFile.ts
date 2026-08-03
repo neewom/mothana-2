@@ -25,6 +25,36 @@ function headerLabel(raw: unknown, columnIndex0: number): string {
   return trimmed === '' ? `Colonne ${columnLetter(columnIndex0 + 1)}` : trimmed
 }
 
+// Réparation d'un mojibake fréquent sur les exports legacy français : le
+// fichier source était correctement encodé en UTF-8, mais a été relu (puis
+// re-sauvegardé) quelque part en amont en supposant Windows-1252/Latin-1 —
+// chaque octet UTF-8 devient alors un caractère Latin-1 séparé (ex : "é"
+// = 0xC3 0xA9 en UTF-8 → "Ã©" une fois relu en Windows-1252). La corruption
+// est déjà gravée dans le fichier, donc réversible à l'octet près.
+//
+// "Ã"/"Â" (U+00C3/U+00C2, décodage Latin-1 des octets de tête UTF-8 0xC3/0xC2
+// utilisés pour les lettres accentuées françaises) suivi d'un octet de
+// continuation (U+0080-U+00BF) est une signature fiable : ce motif
+// n'apparaît essentiellement jamais dans du texte français légitime. Le
+// round-trip est en plus validé strictement (fatal: true) : si les octets ne
+// forment pas un UTF-8 valide, on garde la valeur d'origine sans y toucher.
+const MOJIBAKE_MARKER = /[ÃÂ][-¿]/
+
+function repairMojibake(s: string): string {
+  if (!MOJIBAKE_MARKER.test(s)) return s
+  const codePoints = Array.from(s, (c) => c.codePointAt(0)!)
+  if (!codePoints.every((cp) => cp <= 0xff)) return s
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(codePoints))
+  } catch {
+    return s
+  }
+}
+
+function repairMojibakeValue(value: unknown): unknown {
+  return typeof value === 'string' ? repairMojibake(value) : value
+}
+
 export async function parseImportFile(file: File): Promise<ParsedFile> {
   const isCsv = file.name.toLowerCase().endsWith('.csv')
   return isCsv ? parseCsvFile(file) : parseXlsxFile(file)
@@ -35,8 +65,8 @@ async function parseCsvFile(file: File): Promise<ParsedFile> {
   const result = Papa.parse<string[]>(text, { skipEmptyLines: true })
   const [headerRow, ...dataRows] = result.data
   return {
-    headers: (headerRow ?? []).map((h, i) => headerLabel(h, i)),
-    rows: dataRows,
+    headers: (headerRow ?? []).map((h, i) => headerLabel(repairMojibakeValue(h), i)),
+    rows: dataRows.map((row) => row.map(repairMojibakeValue)),
   }
 }
 
@@ -46,14 +76,14 @@ async function parseCsvFile(file: File): Promise<ParsedFile> {
 // Sans normalisation, ces objets finissent stringifiés en "[object Object]".
 function normalizeCellValue(value: unknown): unknown {
   if (value && typeof value === 'object' && !(value instanceof Date)) {
-    if ('text' in value) return (value as { text: unknown }).text
+    if ('text' in value) return repairMojibakeValue((value as { text: unknown }).text)
     if ('richText' in value) {
       const parts = (value as { richText: { text: string }[] }).richText
-      return parts.map((p) => p.text).join('')
+      return repairMojibakeValue(parts.map((p) => p.text).join(''))
     }
-    if ('result' in value) return (value as { result: unknown }).result
+    if ('result' in value) return repairMojibakeValue((value as { result: unknown }).result)
   }
-  return value
+  return repairMojibakeValue(value)
 }
 
 async function parseXlsxFile(file: File): Promise<ParsedFile> {
