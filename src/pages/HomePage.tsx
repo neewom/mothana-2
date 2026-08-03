@@ -1,12 +1,12 @@
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, type FormEvent } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 function ShieldIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      className="h-10 w-10"
+      className="h-6 w-6"
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -21,34 +21,33 @@ function ShieldIcon() {
   )
 }
 
-function HeartIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="h-10 w-10"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.5}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
-      />
-    </svg>
-  )
-}
-
 export default function HomePage() {
-  const { auth } = useAuth()
+  const { auth, loginAdmin } = useAuth()
   const navigate = useNavigate()
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (auth.type === 'super_admin') navigate('/super-admin', { replace: true })
-    else if (auth.type === 'admin') navigate('/admin/dons', { replace: true })
+    else if (auth.type === 'admin') navigate('/admin', { replace: true })
     else if (auth.type === 'benevole') navigate('/benevole', { replace: true })
   }, [auth.type, navigate])
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+    const { error: loginError, authType } = await loginAdmin(email, password)
+    setLoading(false)
+    if (loginError) {
+      setError(loginError)
+    } else {
+      navigate(authType === 'super_admin' ? '/super-admin' : '/admin', { replace: true })
+    }
+  }
 
   if (auth.type === 'loading' || auth.type === 'super_admin' || auth.type === 'admin' || auth.type === 'benevole') {
     return (
@@ -60,47 +59,85 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 py-12">
-      {/* Header */}
-      <div className="mb-12 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-slate-900">Mothana</h1>
-        <p className="mt-2 text-slate-500">Gestion des dons et bénévoles</p>
-      </div>
+      <div className="w-full max-w-sm">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Mothana</h1>
+          <p className="mt-1 text-sm text-slate-500">Gestion des dons et bénévoles</p>
+        </div>
 
-      {/* Cards */}
-      <div className="flex w-full max-w-2xl flex-col gap-6 sm:flex-row">
-        {/* Admin card */}
-        <div className="flex flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition-shadow hover:shadow-md">
-          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-indigo-600 text-white">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white">
             <ShieldIcon />
           </div>
-          <h2 className="text-xl font-semibold text-slate-900">Espace Admin</h2>
-          <p className="mt-2 flex-1 text-sm text-slate-500">
-            Connexion avec votre adresse e-mail
-          </p>
-          <button
-            onClick={() => navigate('/login/admin')}
-            className="mt-6 w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          >
-            Se connecter
-          </button>
+          <h2 className="text-xl font-semibold text-slate-900">Connexion Admin</h2>
+          <p className="mt-1 text-sm text-slate-500">Accès au tableau de bord</p>
+
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700">
+                Adresse e-mail
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="admin@exemple.com"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+                Mot de passe
+              </label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-2 w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  Connexion…
+                </span>
+              ) : (
+                'Se connecter'
+              )}
+            </button>
+          </form>
         </div>
 
-        {/* Benevole card */}
-        <div className="flex flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition-shadow hover:shadow-md">
-          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-rose-500 text-white">
-            <HeartIcon />
-          </div>
-          <h2 className="text-xl font-semibold text-slate-900">Espace Bénévole</h2>
-          <p className="mt-2 flex-1 text-sm text-slate-500">
-            Accès avec votre code PIN
-          </p>
-          <button
-            onClick={() => navigate('/login/benevole')}
-            className="mt-6 w-full rounded-lg bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2"
-          >
-            Accéder
-          </button>
-        </div>
+        <p className="mt-6 text-center text-sm text-slate-500">
+          Vous êtes bénévole ?{' '}
+          <Link to="/login/benevole" className="font-medium text-indigo-600 hover:text-indigo-700">
+            Accéder avec votre code PIN
+          </Link>
+        </p>
       </div>
     </div>
   )

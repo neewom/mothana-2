@@ -3,14 +3,15 @@ import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 
 import HomePage from './pages/HomePage'
-import AdminLoginPage from './pages/AdminLoginPage'
 import BenevoleLoginPage from './pages/BenevoleLoginPage'
 import AdminLayout from './pages/AdminLayout'
 import BenevolePage from './pages/BenevolePage'
+import DashboardPage from './pages/DashboardPage'
 import DonsPage from './pages/DonsPage'
 import ParticipantsPage from './pages/ParticipantsPage'
 import ActivitesPage from './pages/ActivitesPage'
 import RecusFiscauxPage from './pages/RecusFiscauxPage'
+import AdherentsPage from './pages/AdherentsPage'
 import ComptabilitePage from './pages/ComptabilitePage'
 import ParametresPage from './pages/ParametresPage'
 import SuperAdminLayout from './pages/SuperAdminLayout'
@@ -23,16 +24,17 @@ function App() {
       <Routes>
         {/* Public */}
         <Route path="/" element={<HomePage />} />
-        <Route path="/login/admin" element={<AdminLoginPage />} />
         <Route path="/login/benevole" element={<BenevoleLoginPage />} />
 
         {/* Admin (protected) */}
         <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
           <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<DashboardPage />} />
             <Route path="dons" element={<DonsPage />} />
             <Route path="participants" element={<ParticipantsPage />} />
             <Route path="activites" element={<ActivitesPage />} />
             <Route path="recus" element={<RecusFiscauxPage />} />
+            <Route path="adherents" element={<AdherentsPage />} />
             <Route path="comptabilite" element={<ComptabilitePage />} />
             <Route path="parametres" element={<ParametresPage />} />
           </Route>
