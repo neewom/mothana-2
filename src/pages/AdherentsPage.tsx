@@ -72,6 +72,10 @@ export default function AdherentsPage() {
   const [archiving, setArchiving] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [printing, setPrinting] = useState(false)
+  const [printError, setPrintError] = useState<string | null>(null)
+
   // Debounce de la recherche pour éviter un appel serveur à chaque frappe
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -127,6 +131,12 @@ export default function AdherentsPage() {
   useEffect(() => {
     fetchAdherents()
   }, [fetchAdherents])
+
+  // La sélection multiple ne survit pas à un changement de page/filtre/recherche
+  // (les lignes affichées changent complètement, la garder n'aurait pas de sens).
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [search, statutFilter, pageSize, currentPage])
 
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -184,6 +194,65 @@ export default function AdherentsPage() {
     fetchAdherents()
   }
 
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) =>
+      prev.size === adherents.length ? new Set() : new Set(adherents.map((a) => a.id))
+    )
+  }
+
+  async function handlePrintCards() {
+    setPrinting(true)
+    setPrintError(null)
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      setPrintError('Session expirée')
+      setPrinting(false)
+      return
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+    const res = await fetch(`${supabaseUrl}/functions/v1/generate-cartes-adherents`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+      },
+      body: JSON.stringify({ adherent_ids: Array.from(selectedIds) }),
+    })
+
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}))
+      setPrintError(json.error ?? 'Erreur inconnue')
+      setPrinting(false)
+      return
+    }
+
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'cartes-adherents.pdf'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    setPrinting(false)
+    setSelectedIds(new Set())
+    showToast('Cartes générées')
+  }
+
   return (
     <>
       <div className="space-y-6">
@@ -236,6 +305,24 @@ export default function AdherentsPage() {
             </div>
           </div>
 
+          {selectedIds.size > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-100 bg-indigo-50 px-6 py-3">
+              <span className="text-sm font-medium text-indigo-700">
+                {selectedIds.size} adhérent{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
+              </span>
+              <div className="flex items-center gap-3">
+                {printError && <span className="text-sm text-red-600">{printError}</span>}
+                <button
+                  onClick={handlePrintCards}
+                  disabled={printing}
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+                >
+                  {printing ? 'Génération…' : 'Imprimer les cartes'}
+                </button>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
@@ -249,6 +336,15 @@ export default function AdherentsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    <th className="px-6 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size > 0 && selectedIds.size === adherents.length}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        aria-label="Tout sélectionner"
+                      />
+                    </th>
                     <th className="px-6 py-3">Civilité</th>
                     <th className="px-6 py-3">Nom</th>
                     <th className="px-6 py-3">Prénom</th>
@@ -262,6 +358,15 @@ export default function AdherentsPage() {
                     const cycle = statutCycleFor(latestAdhesions.get(a.id), todayIso)
                     return (
                       <tr key={a.id} className="hover:bg-slate-50">
+                        <td className="px-6 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(a.id)}
+                            onChange={() => toggleSelected(a.id)}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            aria-label={`Sélectionner ${adherentFullName(a)}`}
+                          />
+                        </td>
                         <td className="px-6 py-3 text-slate-500">{CIVILITE_ADHERENT_LABELS[a.civilite]}</td>
                         <td className="px-6 py-3 font-medium text-slate-900">{a.nom}</td>
                         <td className="px-6 py-3 text-slate-700">{a.prenom ?? '—'}</td>

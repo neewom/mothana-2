@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import TemplatesRecuSection from '../components/TemplatesRecuSection'
+import CarteAdherentSection from '../components/CarteAdherentSection'
 import { slugifyIdentifiant, type OrganisationAsset } from '../lib/organisationAssets'
 
 // ---------------------------------------------------------------------------
@@ -765,6 +766,14 @@ export default function ParametresPage() {
         description="Gérez les templates HTML utilisés pour générer les reçus 11580 (particuliers) et 16216 (entreprises)."
       >
         {organisationId && <TemplatesRecuSection organisationId={organisationId} />}
+      </Section>
+
+      {/* Section 5 — Gabarit carte adhérent */}
+      <Section
+        title="Carte adhérent"
+        description="Gérez le gabarit HTML utilisé pour imprimer les cartes adhérent (planche A4)."
+      >
+        {organisationId && <CarteAdherentSection organisationId={organisationId} />}
       </Section>
     </div>
   )
