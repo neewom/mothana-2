@@ -96,6 +96,103 @@ export async function fetchExistingActivites(organisationId: string): Promise<Ma
   return map
 }
 
+interface AdherentRow {
+  id: string
+  id_externe: string | null
+  civilite: number
+  nom: string
+  prenom: string | null
+  date_naissance: string | null
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
+  telephone: string | null
+  courriel: string | null
+}
+
+interface LatestAdhesionRow {
+  adherent_id: string
+  date_debut: string
+  montant_cotisation: number | null
+  date_paiement_cotisation: string | null
+  mode_paiement: number | null
+  droit_vote_ag: boolean
+  bulletin_signe: boolean
+}
+
+export interface ExistingAdherentRef extends ExistingRef {
+  /** Champs de la dernière adhésion (historisation) — null si l'adhérent n'en a encore aucune. */
+  latestAdhesion: Record<string, unknown> | null
+}
+
+export async function fetchExistingAdherents(organisationId: string): Promise<Map<string, ExistingAdherentRef>> {
+  const { data } = await fetchAllRows<AdherentRow>((from, to) =>
+    supabase
+      .from('adherents')
+      .select('id, id_externe, civilite, nom, prenom, date_naissance, adresse, code_postal, ville, telephone, courriel')
+      .eq('organisation_id', organisationId)
+      .not('id_externe', 'is', null)
+      .range(from, to) as unknown as PromiseLike<{ data: AdherentRow[] | null; error: { message: string } | null }>
+  )
+
+  const map = new Map<string, ExistingAdherentRef>()
+  const idExterneByAdherentId = new Map<string, string>()
+
+  for (const row of data) {
+    if (!row.id_externe) continue
+    map.set(row.id_externe, {
+      id: row.id,
+      values: {
+        civilite: row.civilite,
+        nom: row.nom,
+        prenom: row.prenom,
+        date_naissance: row.date_naissance,
+        adresse: row.adresse,
+        code_postal: row.code_postal,
+        ville: row.ville,
+        telephone: row.telephone,
+        courriel: row.courriel,
+      },
+      latestAdhesion: null,
+    })
+    idExterneByAdherentId.set(row.id, row.id_externe)
+  }
+
+  if (idExterneByAdherentId.size > 0) {
+    // Filtré par organisation via la jointure adherents!inner plutôt que par
+    // .in(adherent_id, [...]) — évite une clause IN potentiellement énorme
+    // sur les organisations à plusieurs milliers d'adhérents.
+    const { data: adhesionsData } = await fetchAllRows<LatestAdhesionRow>((from, to) =>
+      supabase
+        .from('adhesions')
+        .select('adherent_id, date_debut, montant_cotisation, date_paiement_cotisation, mode_paiement, droit_vote_ag, bulletin_signe, adherents!inner(organisation_id)')
+        .eq('adherents.organisation_id', organisationId)
+        .order('date_debut', { ascending: false })
+        .range(from, to) as unknown as PromiseLike<{ data: LatestAdhesionRow[] | null; error: { message: string } | null }>
+    )
+
+    const seen = new Set<string>()
+    for (const row of adhesionsData) {
+      if (seen.has(row.adherent_id)) continue
+      seen.add(row.adherent_id)
+      const idExterne = idExterneByAdherentId.get(row.adherent_id)
+      if (!idExterne) continue
+      const ref = map.get(idExterne)
+      if (!ref) continue
+      ref.latestAdhesion = {
+        date_debut: row.date_debut,
+        montant_cotisation: row.montant_cotisation,
+        date_paiement_cotisation: row.date_paiement_cotisation,
+        mode_paiement: row.mode_paiement,
+        droit_vote_ag: row.droit_vote_ag,
+        bulletin_signe: row.bulletin_signe,
+      }
+    }
+  }
+
+  return map
+}
+
 interface DonRow {
   id: string
   id_externe: string | null

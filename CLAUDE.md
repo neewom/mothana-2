@@ -255,9 +255,16 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Les 6 étapes sont e
   1. ✅ Migrations SQL `adherents` + `adhesions` (RLS, contraintes, `id_externe`) — exécutées en prod le 2026-08-03
   2. ✅ Restructuration navigation (accueil → dashboard, regroupement section Dons, stub section Adhérents) — PR #36 mergée le 2026-08-03
   3. ✅ Formulaire + page liste + filtre + modifier/archiver — PR #37 mergée le 2026-08-03. Pagination volontairement différente de Dons/Participants (`fetchAllRows` + `.slice()` client) : ici côté serveur via RPC `search_adherents` (`LIMIT`/`OFFSET`), pour ne pas reproduire la lenteur Wat Velouvanaram (PR #32) — décision confirmée avec l'utilisateur après une question sur la cohérence entre pages
-  4. ⏳ Import (généralisation du système existant) — **prochaine étape, pas commencée**
+  4. ⏳ Import — **codée, PR #38 ouverte, en attente de test utilisateur avec un vrai fichier**. Système d'import déjà générique, juste une config `adherentsImportConfig` de plus. Point résolu : la contrainte d'unicité `id_externe` par organisation, notée "ouverte" au cadrage, existait déjà (`import_id_externe_unique_constraints.sql` pour participants/activités, incluse dès l'étape 1 pour `adherents`). Décision clé : les champs de cycle (`adhesions`) ne passent jamais par l'écran de conflits du wizard, la décision "nouveau cycle ou non" est calculée côté client par comparaison au dernier cycle existant — `import_upsert_adherents.sql` vérifiée en prod avec 3 scénarios réels (nouvel adhérent, ré-import identique, renouvellement), données de test nettoyées
   5. Gabarit carte adhérent (réutilisation Gotenberg/Monaco) + sélection multiple + impression planche A4
   6. *(Prio basse, hors scope V1)* Mécanisme de sélection d'un adhérent à la saisie d'un don + gestion du doublonnement
+
+**Bugs trouvés en testant la PR #38, corrigés dans cette même PR :**
+- Cotisation d'import à `0` rejetée à tort (validation calquée sur celle des dons, où 0 n'a pas de sens) — corrigé, 0 est légitime pour une adhésion (organisation qui ne fait pas payer de cotisation)
+- Mode de paiement toujours validé même sans cotisation — corrigé via un nouveau hook générique `ImportConfig.postProcessRow`, ignore l'erreur sur `mode_paiement` quand `montant_cotisation` est nul/à 0
+- Mojibake UTF-8 relu en Windows-1252 sur les données source ("PHENG MÃ©lanie" au lieu de "Mélanie") — réparation automatique ajoutée dans `parseFile.ts`, générique à tous les imports (pas seulement adhérents)
+
+**Limitation découverte (non corrigée, décision utilisateur) :** les 4 fonctions RPC d'import (`import_upsert_participants`/`activites`/`dons`/`adherents`) échouent avec "Unauthorized: no organisation context" en mode super-admin "Consulter" — `current_user_organisation_id()` cherche une ligne `profils_organisation` pour l'utilisateur connecté, qu'un super-admin en consultation n'a pas. Pré-existante à ces 3 premières fonctions, jamais remarquée avant le test adhérents. Décision : se connecter en admin normal pour tester les imports plutôt que de modifier les fonctions (qui touchent des imports déjà en prod) — à reconsidérer seulement si le besoin d'importer "pour le compte d'une organisation" en tant que super-admin émerge un jour.
 
   **Point resté ouvert, non bloquant** : contrainte d'unicité `id_externe` par organisation, à trancher en même temps que celle déjà en attente sur les activités
 

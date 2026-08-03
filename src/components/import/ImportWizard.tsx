@@ -87,7 +87,8 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
   }
 
   function handleGoToPreview() {
-    setParsedRows(buildParsedRows(rawRows, mapping, config.fieldDefs))
+    const rows = buildParsedRows(rawRows, mapping, config.fieldDefs)
+    setParsedRows(config.postProcessRow ? rows.map(config.postProcessRow) : rows)
     setStep('preview')
   }
 
