@@ -1,17 +1,417 @@
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { useOrganisationId } from '../hooks/useOrganisationId'
+import type { Adherent, Adhesion } from '../types'
+import { CIVILITE_ADHERENT_LABELS } from '../lib/civiliteAdherent'
+import { adherentFullName } from '../lib/adherentSearch'
+import { useToast } from '../hooks/useToast'
+import Toast from '../components/Toast'
+import Modal from '../components/Modal'
+import AdherentModal from '../components/AdherentModal'
+import AdhesionModal from '../components/AdhesionModal'
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+type StatutFilter = 'actif' | 'archive' | 'all'
+type StatutCycle = 'actif' | 'expire' | 'aucune'
+
+function statutCycleFor(adhesion: Adhesion | undefined, today: string): StatutCycle {
+  if (!adhesion) return 'aucune'
+  if (!adhesion.date_fin || adhesion.date_fin >= today) return 'actif'
+  return 'expire'
+}
+
+const STATUT_CYCLE_LABELS: Record<StatutCycle, string> = {
+  actif: 'Actif',
+  expire: 'Expiré',
+  aucune: 'Aucune adhésion',
+}
+
+const STATUT_CYCLE_CLASSES: Record<StatutCycle, string> = {
+  actif: 'bg-emerald-50 text-emerald-700',
+  expire: 'bg-amber-50 text-amber-700',
+  aucune: 'bg-slate-100 text-slate-500',
+}
+
+interface SearchAdherentRow extends Adherent {
+  total_count: number
+}
+
+// ---------------------------------------------------------------------------
+// AdherentsPage
+// ---------------------------------------------------------------------------
+
 export default function AdherentsPage() {
+  const organisationId = useOrganisationId()
+  const { toast, showToast, dismissToast } = useToast()
+
+  const [adherents, setAdherents] = useState<Adherent[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [latestAdhesions, setLatestAdhesions] = useState<Map<string, Adhesion>>(new Map())
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [statutFilter, setStatutFilter] = useState<StatutFilter>('actif')
+  const [pageSize, setPageSize] = useState(50)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const [adherentModalOpen, setAdherentModalOpen] = useState(false)
+  const [editingAdherent, setEditingAdherent] = useState<Adherent | undefined>(undefined)
+  const [renewingAdherent, setRenewingAdherent] = useState<Adherent | undefined>(undefined)
+  const [archiveConfirm, setArchiveConfirm] = useState<Adherent | null>(null)
+  const [archiving, setArchiving] = useState(false)
+
+  // Debounce de la recherche pour éviter un appel serveur à chaque frappe
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setSearch(searchInput)
+      setCurrentPage(1)
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [searchInput])
+
+  const fetchAdherents = useCallback(async () => {
+    if (!organisationId) return
+    setLoading(true)
+    setError(null)
+
+    const { data, error: err } = await supabase.rpc('search_adherents', {
+      p_organisation_id: organisationId,
+      p_search: search || null,
+      p_statut: statutFilter === 'all' ? null : statutFilter,
+      p_limit: pageSize,
+      p_offset: (currentPage - 1) * pageSize,
+    })
+
+    if (err) {
+      setError(err.message)
+      setLoading(false)
+      return
+    }
+
+    const rows = (data ?? []) as SearchAdherentRow[]
+    setAdherents(rows)
+    setTotalCount(rows[0]?.total_count ?? 0)
+
+    const ids = rows.map((r) => r.id)
+    if (ids.length > 0) {
+      const { data: adhesionsData } = await supabase
+        .from('adhesions')
+        .select('*')
+        .in('adherent_id', ids)
+        .order('date_debut', { ascending: false })
+
+      const map = new Map<string, Adhesion>()
+      for (const adhesion of (adhesionsData ?? []) as Adhesion[]) {
+        if (!map.has(adhesion.adherent_id)) map.set(adhesion.adherent_id, adhesion)
+      }
+      setLatestAdhesions(map)
+    } else {
+      setLatestAdhesions(new Map())
+    }
+
+    setLoading(false)
+  }, [organisationId, search, statutFilter, pageSize, currentPage])
+
+  useEffect(() => {
+    fetchAdherents()
+  }, [fetchAdherents])
+
+  const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
+
+  function openAdd() {
+    setEditingAdherent(undefined)
+    setAdherentModalOpen(true)
+  }
+
+  function openEdit(a: Adherent) {
+    setEditingAdherent(a)
+    setAdherentModalOpen(true)
+  }
+
+  function handleAdherentSaved(saved: Adherent) {
+    const wasEdit = !!editingAdherent
+    showToast(`${adherentFullName(saved)} ${wasEdit ? 'modifié' : 'ajouté'}`)
+    fetchAdherents()
+  }
+
+  function handleAdhesionSaved() {
+    if (renewingAdherent) showToast(`Adhésion renouvelée pour ${adherentFullName(renewingAdherent)}`)
+    setRenewingAdherent(undefined)
+    fetchAdherents()
+  }
+
+  async function handleArchive() {
+    if (!archiveConfirm) return
+    setArchiving(true)
+
+    const { error: err } = await supabase
+      .from('adherents')
+      .update({ statut: 'archive' })
+      .eq('id', archiveConfirm.id)
+
+    setArchiving(false)
+
+    if (err) {
+      setError(err.message)
+      return
+    }
+
+    showToast(`${adherentFullName(archiveConfirm)} archivé`)
+    setArchiveConfirm(null)
+    fetchAdherents()
+  }
+
+  async function handleReactivate(a: Adherent) {
+    const { error: err } = await supabase.from('adherents').update({ statut: 'actif' }).eq('id', a.id)
+    if (err) {
+      setError(err.message)
+      return
+    }
+    showToast(`${adherentFullName(a)} réactivé`)
+    fetchAdherents()
+  }
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Adhérents</h1>
-        <p className="mt-1 text-sm text-slate-500">Gestion des adhérents de votre organisation.</p>
+    <>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Adhérents</h1>
+          <p className="mt-1 text-sm text-slate-500">Gestion des adhérents de votre organisation.</p>
+        </div>
+
+        {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">Erreur : {error}</div>}
+
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Rechercher par nom et prénom…"
+                className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <select
+                value={statutFilter}
+                onChange={(e) => { setStatutFilter(e.target.value as StatutFilter); setCurrentPage(1) }}
+                className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="actif">Actifs</option>
+                <option value="archive">Archivés</option>
+                <option value="all">Tous</option>
+              </select>
+            </div>
+            <button
+              onClick={openAdd}
+              className="flex flex-shrink-0 items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Ajouter
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+            </div>
+          ) : adherents.length === 0 ? (
+            <div className="flex items-center justify-center py-16">
+              <p className="text-slate-400">Aucun adhérent trouvé</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    <th className="px-6 py-3">Civilité</th>
+                    <th className="px-6 py-3">Nom</th>
+                    <th className="px-6 py-3">Prénom</th>
+                    <th className="px-6 py-3">Statut</th>
+                    <th className="px-6 py-3">Adhésion</th>
+                    <th className="px-6 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {adherents.map((a) => {
+                    const cycle = statutCycleFor(latestAdhesions.get(a.id), todayIso)
+                    return (
+                      <tr key={a.id} className="hover:bg-slate-50">
+                        <td className="px-6 py-3 text-slate-500">{CIVILITE_ADHERENT_LABELS[a.civilite]}</td>
+                        <td className="px-6 py-3 font-medium text-slate-900">{a.nom}</td>
+                        <td className="px-6 py-3 text-slate-700">{a.prenom ?? '—'}</td>
+                        <td className="px-6 py-3">
+                          <span
+                            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              a.statut === 'actif' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            {a.statut === 'actif' ? 'Actif' : 'Archivé'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3">
+                          <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUT_CYCLE_CLASSES[cycle]}`}>
+                            {STATUT_CYCLE_LABELS[cycle]}
+                          </span>
+                          {latestAdhesions.get(a.id)?.date_fin && (
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              jusqu'au {formatDate(latestAdhesions.get(a.id)!.date_fin!)}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-6 py-3">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => openEdit(a)}
+                              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                              Modifier
+                            </button>
+                            {a.statut === 'actif' && (
+                              <button
+                                onClick={() => setRenewingAdherent(a)}
+                                className="rounded-lg border border-indigo-200 px-2.5 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50"
+                              >
+                                Renouveler
+                              </button>
+                            )}
+                            {a.statut === 'actif' ? (
+                              <button
+                                onClick={() => setArchiveConfirm(a)}
+                                className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                              >
+                                Archiver
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleReactivate(a)}
+                                className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                              >
+                                Réactiver
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!loading && adherents.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-3">
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <span>Lignes par page</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
+                  className="select-field rounded-lg border border-slate-300 py-1 pl-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {[25, 50, 100, 250].map((size) => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
+                <span>
+                  {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} sur {totalCount}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  «
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ‹ Précédent
+                </button>
+                <span className="text-sm text-slate-500">Page {currentPage} / {pageCount}</span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={currentPage === pageCount}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Suivant ›
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(pageCount)}
+                  disabled={currentPage === pageCount}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  »
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white py-24 text-center">
-        <p className="text-sm font-medium text-slate-600">Module à venir</p>
-        <p className="mt-1 max-w-sm text-sm text-slate-400">
-          La gestion des adhérents (formulaire, liste, import, cartes) arrive dans une prochaine étape.
-        </p>
-      </div>
-    </div>
+      <AdherentModal
+        open={adherentModalOpen}
+        onClose={() => setAdherentModalOpen(false)}
+        onSaved={handleAdherentSaved}
+        adherent={editingAdherent}
+        organisationId={organisationId}
+      />
+
+      <AdhesionModal
+        open={!!renewingAdherent}
+        onClose={() => setRenewingAdherent(undefined)}
+        onSaved={handleAdhesionSaved}
+        adherent={renewingAdherent}
+      />
+
+      {archiveConfirm && (
+        <Modal open onClose={() => setArchiveConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="archive-adherent-title">
+          <div className="p-6">
+            <h2 id="archive-adherent-title" className="text-lg font-semibold text-slate-900">Archiver l'adhérent</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Êtes-vous sûr de vouloir archiver <span className="font-medium">« {adherentFullName(archiveConfirm)} »</span> ?
+              Il n'apparaîtra plus dans la liste des adhérents actifs, mais reste réactivable.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setArchiveConfirm(null)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleArchive}
+                disabled={archiving}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {archiving ? 'Archivage…' : 'Archiver'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
+    </>
   )
 }
