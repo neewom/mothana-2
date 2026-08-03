@@ -86,6 +86,10 @@ Claude Code tourne sur une machine dédiée où le projet est exposé sur le ré
 
 **`templates_recu`** : organisation_id, nom, type_cerfa ('11580'|'16216'), html_template, css, is_active, is_archived
 
+**`adherents`** *(module cadré le 2026-08-03, migration exécutée en prod le 2026-08-03 — voir backlog pour la suite)* : organisation_id, id_externe (UNIQUE(organisation_id, id_externe)), civilite (smallint réduit : 0=non défini, 1=Monsieur, 2=Madame — distinct de l'enum civilité participants), nom, prenom, date_naissance, adresse, code_postal, ville, telephone, courriel, statut (actif/archivé — soft delete), statuts_acceptes (boolean, default true), consent_rgpd (boolean, default false)
+
+**`adhesions`** *(idem, migration exécutée en prod le 2026-08-03)* : adherent_id, date_debut, date_fin, montant_cotisation (nullable), date_paiement_cotisation, mode_paiement (enum réutilisé de Mothana, CHECK [1,2,3,4]), renouvellement (boolean, calculé — true si l'adhérent a déjà une adhésion antérieure, pas saisi), droit_vote_ag (boolean, default true), bulletin_signe (boolean, default true)
+
 ---
 
 ## Conventions de code
@@ -220,7 +224,48 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Les 6 étapes sont e
 
 **Nouveau backlog (ajouté 2026-07-25, fin de session)**
 - **Repenser le bypass** — toujours non clarifié (reporté deux sessions de suite, la session du 2026-08-03 a été consacrée aux assets à la place). Noté par l'utilisateur sans plus de précision, à clarifier en tout premier lieu en début de prochaine session, ne pas deviner. Hypothèse la plus probable (contexte immédiat : PR #34 réaffectation de don venait d'être mergée) : le blocage total de réaffectation quand un reçu fiscal existe déjà pourrait avoir besoin d'un mécanisme de bypass pour des cas légitimes (ex. super-admin, ou admin qui a supprimé/regénérera le reçu manuellement) — mais pourrait aussi concerner le bypass super-admin RLS (`is_super_admin` dans les policies, cf. `super_admin_rls.sql`) revu la veille dans la migration perf RLS. Ne pas assumer avant confirmation de l'utilisateur
-- **Gestion des adhérents** — besoin remonté à l'utilisateur par un tiers, mentionné le 2026-08-03 pour être cadré, mais cadrage interrompu immédiatement (l'utilisateur a préféré recentrer la session sur la PR assets en cours) avant qu'aucune question n'ait de réponse. Rien n'est tranché : ni si un adhérent est un rôle sur `profils_participant` existant ou une population distincte, ni si l'adhésion implique une cotisation/reçu, ni si elle a un cycle de vie (durée/renouvellement). Repartir de zéro sur ce sujet, ne rien présumer des questions posées la première fois
+
+- **Module Adhérents — cadré le 2026-08-03, prêt pour développement.** Contexte : besoin remonté par un tiers à l'utilisateur, distinct des participants/donateurs (`profils_participant`). Un adhérent n'est **pas** un rôle sur un profil existant mais une population à part entière, sans lien direct en base pour l'instant. Cadrage complet réalisé en une session dédiée (aucune reprise du cadrage précédent, celui-ci était vide).
+
+  **Décisions structurantes actées :**
+  - **Refonte navigation** : l'accueil (aujourd'hui hub admin/bénévole) devient un vrai **dashboard organisation** post-connexion admin (stats dons/évènements récents, adhérents proches d'expiration, etc.), alimenté par les deux grandes sections. La mire de connexion devient la page d'accueil de l'app, avec lien vers l'espace bénévole
+  - **Regroupement** : dons, participants, évènements/activités, reçus fiscaux → section **"Dons"**. Nouvelle section **"Adhérents"** au même niveau, pas en sous-section
+  - **Historisation** : une adhésion = un cycle annuel dans une table `adhesions` séparée de `adherents` (même pattern qu'un don rattaché à un participant), pour permettre le suivi actif/expiré par année sans perdre l'historique
+  - **Civilité simplifiée** : enum dédié à 3 valeurs (0 non défini / 1 M. / 2 Mme), volontairement distinct de l'enum civilité à 7 valeurs des participants (pas de personne morale/famille adhérente pour l'instant)
+  - **Suppression** : soft delete (statut archivé) plutôt que hard delete, pour anticiper un futur lien avec les dons
+  - **Champs fournis par la base source existante**, arbitrés un par un entre `adherents` (propriétés stables de la personne) et `adhesions` (propriétés du cycle annuel) :
+    - `Statuts_Acceptés` → `adherents.statuts_acceptes` (accepté une fois, stable dans le temps)
+    - `Consent_RGPD` → `adherents.consent_rgpd` (concerne la personne, pas le cycle annuel)
+    - `Bulletin_signé` → `adhesions.bulletin_signe` (peut être redemandé à chaque renouvellement)
+    - `AG_Droit_vote` → `adhesions.droit_vote_ag` (conditionné à la cotisation de l'année en cours)
+    - `Cotisation_annuelle` → `adhesions.montant_cotisation` (nullable, l'association n'a pas de montant fixe actuellement)
+    - `Date_paie_cotisation` → `adhesions.date_paiement_cotisation`
+    - `Mode_paie_Cotis` → `adhesions.mode_paiement` (enum Mothana existant réutilisé)
+    - `Renouvellement` → `adhesions.renouvellement`, **calculé** (déduit d'une adhésion antérieure existante) plutôt que saisi, pour éviter une incohérence déclarative
+    - `Recu_délivré` → **écarté**, champ vide sur toutes les lignes de la base source, aucun usage identifiable, pas de génération de document de reçu de cotisation prévue pour l'instant (à reconsidérer si le besoin émerge, réutiliserait l'infra Gotenberg comme les Cerfa)
+  - **Lien avec les participants/donateurs** : aucun lien direct en base pour la V1. Un adhérent peut être donateur ou non et inversement. Mécanisme futur envisagé (**prio basse, non développé**) : à la saisie d'un don, recherche par nom/prénom d'abord côté participants, puis fallback sur la base adhérents si pas de match — risque de doublonnement entre les deux populations à traiter à ce moment-là, pas avant
+  - **Import** : réutilisation et généralisation du système d'import participants existant (mapping colonnes piloté par config plutôt que codé en dur). `id_externe` inclus dans l'import, avec la même question de contrainte d'unicité par organisation que celle déjà ouverte sur les activités
+  - **Carte d'adhérent** : gabarit HTML/CSS éditable réutilisant l'infra existante (Gotenberg + éditeur Monaco de la refonte Cerfa), format **planche A4** avec plusieurs cartes positionnées pour faciliter la découpe (pas une carte par page) — sélection multiple d'adhérents pour impression par lot
+
+  **Formulaire d'adhésion (champs V1)** : date d'adhésion, civilité, nom, prénom, date de naissance, adresse, code postal, ville, téléphone, courriel — plus les champs de cycle listés ci-dessus
+
+  **Page liste** : filtrage par nom+prénom ou prénom+nom, actions modifier/supprimer (archiver) avec alertes appropriées
+
+  **Séquencement de développement proposé :**
+  1. ✅ Migrations SQL `adherents` + `adhesions` (RLS, contraintes, `id_externe`) — exécutées en prod le 2026-08-03
+  2. ⏳ Restructuration navigation (accueil → dashboard, regroupement section Dons, stub section Adhérents) — **prochaine étape, pas commencée**
+  3. Formulaire + page liste + filtre + modifier/archiver
+  4. Import (généralisation du système existant)
+  5. Gabarit carte adhérent (réutilisation Gotenberg/Monaco) + sélection multiple + impression planche A4
+  6. *(Prio basse, hors scope V1)* Mécanisme de sélection d'un adhérent à la saisie d'un don + gestion du doublonnement
+
+  **Point resté ouvert, non bloquant** : contrainte d'unicité `id_externe` par organisation, à trancher en même temps que celle déjà en attente sur les activités
+
+  **✅ Étape 1 terminée (2026-08-03)** — migrations `adherents.sql`/`adhesions.sql` exécutées en prod via `supabase db query --linked` après vérification des 3 points en attente :
+  - `is_super_admin()` **n'existe pas** comme fonction dans ce projet (seule `current_effective_organisation_id()` existe, uuid sans argument) — les policies rédigées initialement avec `(select is_super_admin())` ont été corrigées avant exécution pour utiliser l'expression inline `((select auth.jwt()) -> 'app_metadata' ->> 'is_super_admin')::boolean = true`, le même pattern que `super_admin_rls.sql`/`rls_auth_initplan_perf.sql`
+  - `pg_trgm` : confirmé non installée ailleurs sur ce projet, schéma `extensions` existant — activée sans souci
+  - `mode_paiement` : confirmé `smallint` côté `dons`, contrainte `CHECK` à `[1,2,3,4]` (1=Espèces, 2=Chèque, 3=Prélèvement-virement, 4=Autres, cf. `src/lib/modePaiement.ts`) — la même contrainte CHECK a été ajoutée sur `adhesions.mode_paiement` (absente du brouillon initial) pour rester cohérente
+  - Aucune PR ouverte au démarrage de cette étape
 
 **Priorité 4 — Envoi email des reçus**
 - PDF envoyé au participant après génération (Resend recommandé)
