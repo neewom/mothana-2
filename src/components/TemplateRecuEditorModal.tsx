@@ -7,8 +7,10 @@ import {
   CERFA_MANDATORY_KEYS,
   CERFA_RNA_SIREN_GROUP,
   getMissingMandatoryPlaceholders,
+  fetchOrganisationPreviewOverrides,
 } from '../lib/cerfaPreview'
 import { copyTextToClipboard } from '../lib/clipboard'
+import { fetchOrganisationAssets, buildAssetPlaceholders, assetPlaceholderKey } from '../lib/organisationAssets'
 import type { TemplateRecu } from '../types'
 import Modal from './Modal'
 
@@ -67,6 +69,8 @@ export default function TemplateRecuEditorModal({
   const [panelMode, setPanelMode] = useState<'both' | 'editor' | 'preview'>('both')
   const [placeholdersOpen, setPlaceholdersOpen] = useState(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [assetTags, setAssetTags] = useState<string[]>([])
+  const [dynamicPlaceholders, setDynamicPlaceholders] = useState<Record<string, string>>({})
   const formRef = useRef<HTMLFormElement>(null)
   const placeholdersRef = useRef<HTMLDivElement>(null)
 
@@ -106,7 +110,27 @@ export default function TemplateRecuEditorModal({
     }
   }, [open, template, draft])
 
-  const previewHtml = useMemo(() => renderCerfaPreviewHtml(htmlTemplate, css), [htmlTemplate, css])
+  useEffect(() => {
+    if (!open) return
+    fetchOrganisationAssets(organisationId)
+      .then((assets) => {
+        setAssetTags(assets.map((a) => assetPlaceholderKey(a.identifiant)))
+        setDynamicPlaceholders((prev) => ({ ...prev, ...buildAssetPlaceholders(assets) }))
+      })
+      .catch(() => setAssetTags([]))
+    fetchOrganisationPreviewOverrides(organisationId)
+      .then((overrides) => setDynamicPlaceholders((prev) => ({ ...prev, ...overrides })))
+      .catch(() => {})
+  }, [open, organisationId])
+
+  const previewValues = useMemo(
+    () => ({ ...CERFA_PREVIEW_PLACEHOLDERS, ...dynamicPlaceholders }),
+    [dynamicPlaceholders],
+  )
+  const previewHtml = useMemo(
+    () => renderCerfaPreviewHtml(htmlTemplate, css, dynamicPlaceholders),
+    [htmlTemplate, css, dynamicPlaceholders],
+  )
   const missingMandatory = useMemo(() => getMissingMandatoryPlaceholders(htmlTemplate), [htmlTemplate])
   const mandatoryPresentCount = MANDATORY_TAGS.length - missingMandatory.length
 
@@ -338,7 +362,7 @@ export default function TemplateRecuEditorModal({
                       <button
                         key={key}
                         type="button"
-                        title={`Exemple : ${CERFA_PREVIEW_PLACEHOLDERS[key]}`}
+                        title={`Exemple : ${previewValues[key]}`}
                         onClick={() => copyPlaceholder(key)}
                         className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] ${
                           missing
@@ -355,13 +379,13 @@ export default function TemplateRecuEditorModal({
 
                 <p className="mb-1.5 mt-3 text-xs font-medium text-slate-500">Placeholders optionnels</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {OPTIONAL_TAGS.map((key) => {
+                  {[...OPTIONAL_TAGS, ...assetTags].map((key) => {
                     const copied = copiedKey === key
                     return (
                       <button
                         key={key}
                         type="button"
-                        title={`Exemple : ${CERFA_PREVIEW_PLACEHOLDERS[key]}`}
+                        title={`Exemple : ${previewValues[key]}`}
                         onClick={() => copyPlaceholder(key)}
                         className={`rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 hover:bg-slate-200 ${
                           copied ? 'ring-2 ring-offset-1 ring-indigo-500' : ''
@@ -372,6 +396,13 @@ export default function TemplateRecuEditorModal({
                     )
                   })}
                 </div>
+                {assetTags.length === 0 && (
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    Aucun asset configuré — ajoutez-en dans Paramètres › Identité visuelle pour obtenir des placeholders
+                    <code className="mx-1 rounded bg-slate-100 px-1">{'{{asset_...}}'}</code>
+                    ici.
+                  </p>
+                )}
                 <p className={`mt-1 text-xs font-medium ${copiedKey ? 'text-indigo-600' : 'text-slate-400'}`}>
                   {copiedKey ? `✓ {{${copiedKey}}} copié dans le presse-papier` : 'Cliquer pour copier. Survoler pour voir un exemple de valeur.'}
                 </p>
