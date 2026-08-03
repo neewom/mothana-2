@@ -11,6 +11,13 @@ export interface ImportConfig {
   fieldDefs: FieldDef[]
   rpcName: string
   prepareBatch: (rows: ParsedRow[], mapping: Record<string, number | null>, organisationId: string) => Promise<PreparedBatch>
+  /**
+   * Ajustement optionnel post-parsing, pour une dépendance entre deux
+   * colonnes que le parsing champ par champ ne peut pas exprimer (chaque
+   * FieldDef.parse ne voit que sa propre cellule). Appelé sur chaque ligne
+   * juste après buildParsedRows.
+   */
+  postProcessRow?: (row: ParsedRow) => ParsedRow
 }
 
 export const participantsImportConfig: ImportConfig = {
@@ -58,5 +65,15 @@ export const adherentsImportConfig: ImportConfig = {
   prepareBatch: async (rows, mapping, organisationId) => {
     const existing = await fetchExistingAdherents(organisationId)
     return buildAdherentsBatch(rows, mapping, existing)
+  },
+  // Sans cotisation (montant nul ou à 0), le mode de paiement n'a pas de
+  // sens — on ignore toute erreur de parsing dessus plutôt que de bloquer
+  // la ligne pour une colonne devenue non pertinente.
+  postProcessRow: (row) => {
+    if (row.values.montant_cotisation) return row
+    if (!('mode_paiement' in row.errors)) return row
+    const restErrors = { ...row.errors }
+    delete restErrors.mode_paiement
+    return { ...row, errors: restErrors, values: { ...row.values, mode_paiement: null } }
   },
 }
