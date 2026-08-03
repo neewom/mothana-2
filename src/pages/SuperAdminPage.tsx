@@ -425,7 +425,7 @@ export default function SuperAdminPage() {
 
   function handleConsulter(org: OrgRow) {
     setViewingOrg(org.id)
-    navigate('/admin/dons')
+    navigate('/admin')
   }
 
   // ---------------------------------------------------------------------------
