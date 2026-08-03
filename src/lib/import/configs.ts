@@ -1,7 +1,7 @@
 import type { FieldDef, ImportEntityKey, ParsedRow } from './types'
-import { participantsFieldDefs, activitesFieldDefs, donsFieldDefs } from './fieldDefs'
-import { fetchExistingParticipants, fetchExistingActivites, fetchExistingDons } from './prefetch'
-import { buildParticipantsBatch, buildActivitesBatch, buildDonsBatch, type BuildBatchResult } from './buildBatch'
+import { participantsFieldDefs, activitesFieldDefs, donsFieldDefs, adherentsFieldDefs } from './fieldDefs'
+import { fetchExistingParticipants, fetchExistingActivites, fetchExistingDons, fetchExistingAdherents } from './prefetch'
+import { buildParticipantsBatch, buildActivitesBatch, buildDonsBatch, buildAdherentsBatch, type BuildBatchResult } from './buildBatch'
 
 export type PreparedBatch = BuildBatchResult
 
@@ -47,5 +47,16 @@ export const donsImportConfig: ImportConfig = {
       fetchExistingActivites(organisationId),
     ])
     return buildDonsBatch(rows, mapping, existingDons, existingParticipants, existingActivites)
+  },
+}
+
+export const adherentsImportConfig: ImportConfig = {
+  entity: 'adherents',
+  title: 'Adhérents',
+  fieldDefs: adherentsFieldDefs,
+  rpcName: 'import_upsert_adherents',
+  prepareBatch: async (rows, mapping, organisationId) => {
+    const existing = await fetchExistingAdherents(organisationId)
+    return buildAdherentsBatch(rows, mapping, existing)
   },
 }

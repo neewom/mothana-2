@@ -1,4 +1,4 @@
-export type ImportEntityKey = 'participants' | 'activites' | 'dons'
+export type ImportEntityKey = 'participants' | 'activites' | 'dons' | 'adherents'
 
 export type ParseOutcome<T = unknown> = { ok: true; value: T } | { ok: false; error: string }
 

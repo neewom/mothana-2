@@ -1,7 +1,7 @@
 import { generateUUID } from '../uuid'
 import type { ConflictRow, ExcludedRow, FieldDef, ParsedRow } from './types'
-import type { ExistingRef } from './prefetch'
-import { participantsFieldDefs, activitesFieldDefs, donsFieldDefs } from './fieldDefs'
+import type { ExistingRef, ExistingAdherentRef } from './prefetch'
+import { participantsFieldDefs, activitesFieldDefs, donsFieldDefs, adherentsFieldDefs } from './fieldDefs'
 
 export interface BuildBatchResult {
   /** Nouvelles lignes, prêtes à envoyer telles quelles. */
@@ -207,4 +207,81 @@ export function buildDonsBatch(
   }
 
   return { inserts, conflicts, identicalCount, excluded, warnings }
+}
+
+// Champs stables (adherents) — seuls ceux-ci participent à la détection de
+// conflit classique (garder l'actuel / garder l'import). Les champs de cycle
+// (adhesions) ne sont jamais un conflit : les deux valeurs sont légitimes à
+// des dates différentes, voir ADHESION_CYCLE_KEYS ci-dessous.
+const ADHERENT_IDENTITY_KEYS = [
+  'civilite', 'nom', 'prenom', 'date_naissance',
+  'adresse', 'code_postal', 'ville', 'telephone', 'courriel',
+]
+const ADHERENT_IDENTITY_FIELD_DEFS: FieldDef[] = adherentsFieldDefs.filter((f) => ADHERENT_IDENTITY_KEYS.includes(f.key))
+
+const ADHESION_CYCLE_KEYS = [
+  'date_debut', 'montant_cotisation', 'date_paiement_cotisation',
+  'mode_paiement', 'droit_vote_ag', 'bulletin_signe',
+] as const
+
+function cycleFieldsEqual(latest: Record<string, unknown> | null, imported: Record<string, unknown>): boolean {
+  if (!latest) return false
+  return ADHESION_CYCLE_KEYS.every((key) => valuesEqual(latest[key], imported[key]))
+}
+
+export function buildAdherentsBatch(
+  rows: ParsedRow[],
+  mapping: Record<string, number | null>,
+  existing: Map<string, ExistingAdherentRef>
+): BuildBatchResult {
+  const mappedKeys = mappedKeySet(mapping)
+  const inserts: Record<string, unknown>[] = []
+  const conflicts: ConflictRow[] = []
+  const warnings: ExcludedRow[] = []
+  let identicalCount = 0
+
+  for (const row of rows) {
+    const idExterne = (row.values.id_externe as string | null) ?? null
+    const match = idExterne ? existing.get(idExterne) : undefined
+    const adherentId = match?.id ?? generateUUID()
+
+    const payloadBase: Record<string, unknown> = { adherent_id: adherentId, id_externe: idExterne }
+    for (const key of ADHERENT_IDENTITY_KEYS) {
+      payloadBase[key] = mappedKeys.has(key) ? (row.values[key] ?? null) : (match ? (match.values[key] ?? null) : null)
+    }
+
+    const importedCycle: Record<string, unknown> = {}
+    for (const key of ADHESION_CYCLE_KEYS) importedCycle[key] = row.values[key] ?? null
+
+    const isNewCycle = !match || !cycleFieldsEqual(match.latestAdhesion, importedCycle)
+    if (isNewCycle) {
+      payloadBase.adhesion_id = generateUUID()
+      payloadBase.renouvellement = !!match
+      Object.assign(payloadBase, importedCycle)
+    } else {
+      payloadBase.adhesion_id = null
+      payloadBase.renouvellement = false
+      payloadBase.date_debut = null
+      payloadBase.montant_cotisation = null
+      payloadBase.date_paiement_cotisation = null
+      payloadBase.mode_paiement = null
+      payloadBase.droit_vote_ag = null
+      payloadBase.bulletin_signe = null
+      warnings.push({ index: row.index, reason: 'Adhésion déjà à jour — aucun nouveau cycle créé' })
+    }
+
+    if (!match) {
+      inserts.push(payloadBase)
+      continue
+    }
+
+    const diffs = diffMappedFields(ADHERENT_IDENTITY_FIELD_DEFS, mappedKeys, match.values, row.values)
+    if (diffs.length === 0) {
+      identicalCount++
+    } else {
+      conflicts.push({ index: row.index, idExterne, payloadBase, diffs })
+    }
+  }
+
+  return { inserts, conflicts, identicalCount, excluded: [], warnings }
 }

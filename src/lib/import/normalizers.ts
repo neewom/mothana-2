@@ -1,4 +1,4 @@
-import type { Civilite, ModePaiement } from '../../types'
+import type { Civilite, CiviliteAdherent, ModePaiement } from '../../types'
 import type { ParseOutcome } from './types'
 
 const DIACRITICS_PATTERN = new RegExp(`[${String.fromCharCode(0x0300)}-${String.fromCharCode(0x036f)}]`, 'g')
@@ -117,4 +117,51 @@ export function parseModePaiementCell(raw: unknown): ParseOutcome<ModePaiement> 
   const key = stripAccents(s.toLowerCase())
   if (key in MODE_PAIEMENT_ALIASES) return { ok: true, value: MODE_PAIEMENT_ALIASES[key] }
   return { ok: false, error: `Mode de paiement non reconnu : "${raw}"` }
+}
+
+// Variante non-obligatoire : contrairement aux dons, la cotisation et son
+// mode de paiement sont optionnels pour une adhésion (cf. AdherentModal.tsx).
+export function parseOptionalMontantCell(raw: unknown): ParseOutcome<number | null> {
+  if (raw === null || raw === undefined || raw === '') return { ok: true, value: null }
+  return parseMontantCell(raw)
+}
+
+export function parseOptionalModePaiementCell(raw: unknown): ParseOutcome<ModePaiement | null> {
+  if (raw === null || raw === undefined || raw === '') return { ok: true, value: null }
+  return parseModePaiementCell(raw)
+}
+
+// Enum civilité réduit des adhérents (0/1/2), distinct de celui des
+// participants (7 valeurs) — cf. types.ts / civiliteAdherent.ts.
+const CIVILITE_ADHERENT_ALIASES: Record<string, CiviliteAdherent> = {
+  m: 1,
+  mr: 1,
+  monsieur: 1,
+  mme: 2,
+  madame: 2,
+}
+
+export function parseCiviliteAdherentCell(raw: unknown): ParseOutcome<CiviliteAdherent> {
+  if (raw === null || raw === undefined || raw === '') return { ok: true, value: 0 }
+  if (typeof raw === 'number' && (raw === 0 || raw === 1 || raw === 2)) return { ok: true, value: raw as CiviliteAdherent }
+  const s = String(raw).trim()
+  const numeric = Number(s)
+  if (!isNaN(numeric) && (numeric === 0 || numeric === 1 || numeric === 2)) return { ok: true, value: numeric as CiviliteAdherent }
+  const key = stripAccents(s.toLowerCase())
+  if (key in CIVILITE_ADHERENT_ALIASES) return { ok: true, value: CIVILITE_ADHERENT_ALIASES[key] }
+  return { ok: false, error: `Civilité non reconnue : "${s}"` }
+}
+
+const BOOLEAN_TRUE_ALIASES = new Set(['1', 'true', 'vrai', 'oui', 'yes', 'y', 'o', 'x'])
+const BOOLEAN_FALSE_ALIASES = new Set(['0', 'false', 'faux', 'non', 'no', 'n'])
+
+// Défaut à `true` si la cellule est vide — cohérent avec AdherentModal.tsx
+// (droit de vote AG / bulletin signé cochés par défaut à la création).
+export function parseBooleanCellDefaultTrue(raw: unknown): ParseOutcome<boolean> {
+  if (raw === null || raw === undefined || raw === '') return { ok: true, value: true }
+  if (typeof raw === 'boolean') return { ok: true, value: raw }
+  const key = stripAccents(String(raw).trim().toLowerCase())
+  if (BOOLEAN_TRUE_ALIASES.has(key)) return { ok: true, value: true }
+  if (BOOLEAN_FALSE_ALIASES.has(key)) return { ok: true, value: false }
+  return { ok: false, error: `Valeur booléenne non reconnue : "${raw}"` }
 }
