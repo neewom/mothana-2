@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 
 import HomePage from './pages/HomePage'
 import BenevoleLoginPage from './pages/BenevoleLoginPage'
+import DemandeAdhesionPage from './pages/DemandeAdhesionPage'
 import AdminLayout from './pages/AdminLayout'
 import BenevolePage from './pages/BenevolePage'
 import DashboardPage from './pages/DashboardPage'
@@ -12,6 +13,7 @@ import ParticipantsPage from './pages/ParticipantsPage'
 import ActivitesPage from './pages/ActivitesPage'
 import RecusFiscauxPage from './pages/RecusFiscauxPage'
 import AdherentsPage from './pages/AdherentsPage'
+import DemandesAdhesionPage from './pages/DemandesAdhesionPage'
 import ComptabilitePage from './pages/ComptabilitePage'
 import ParametresPage from './pages/ParametresPage'
 import SuperAdminLayout from './pages/SuperAdminLayout'
@@ -25,6 +27,7 @@ function App() {
         {/* Public */}
         <Route path="/" element={<HomePage />} />
         <Route path="/login/benevole" element={<BenevoleLoginPage />} />
+        <Route path="/adhesion/:slug" element={<DemandeAdhesionPage />} />
 
         {/* Admin (protected) */}
         <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
@@ -35,6 +38,7 @@ function App() {
             <Route path="activites" element={<ActivitesPage />} />
             <Route path="recus" element={<RecusFiscauxPage />} />
             <Route path="adherents" element={<AdherentsPage />} />
+            <Route path="adherents/demandes" element={<DemandesAdhesionPage />} />
             <Route path="comptabilite" element={<ComptabilitePage />} />
             <Route path="parametres" element={<ParametresPage />} />
           </Route>

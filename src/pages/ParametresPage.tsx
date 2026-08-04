@@ -4,6 +4,7 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import TemplatesRecuSection from '../components/TemplatesRecuSection'
 import CarteAdherentSection from '../components/CarteAdherentSection'
 import { slugifyIdentifiant, type OrganisationAsset } from '../lib/organisationAssets'
+import { copyTextToClipboard } from '../lib/clipboard'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,6 +29,8 @@ interface OrgSettings {
   ville: string | null
   pays: string | null
   modele_recu_pdf: ModeleRecu
+  slug: string
+  statuts_url: string | null
 }
 
 const MENTION_LEGALE_DEFAUT = "Organisme d'intérêt général éligible au mécénat – article 200 du CGI"
@@ -58,6 +61,31 @@ async function uploadAssetFile(organisationId: string, identifiant: string, file
 
   const { data } = supabase.storage.from('organisation-assets').getPublicUrl(path)
   return data.publicUrl
+}
+
+// Réutilise le bucket public organisation-assets (déjà scopé par organisation_id,
+// pas de confidentialité à préserver pour un document destiné à être consulté publiquement).
+async function uploadStatutsFile(organisationId: string, file: File): Promise<string | null> {
+  const path = `${organisationId}/statuts-${Date.now()}.pdf`
+
+  const { error: uploadError } = await supabase.storage
+    .from('organisation-assets')
+    .upload(path, file, { contentType: 'application/pdf' })
+
+  if (uploadError) return null
+
+  const { data } = supabase.storage.from('organisation-assets').getPublicUrl(path)
+  return data.publicUrl
+}
+
+// Slug URL (séparateur '-'), distinct de slugifyIdentifiant (séparateur '_', pour les placeholders {{asset_xxx}})
+function slugifyUrl(input: string): string {
+  return input
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 // ---------------------------------------------------------------------------
@@ -114,6 +142,16 @@ export default function ParametresPage() {
   const [modeleSuccess, setModeleSuccess] = useState(false)
   const [modeleError, setModeleError] = useState<string | null>(null)
 
+  // Adhésion en ligne (slug public + statuts PDF)
+  const [slug, setSlug] = useState('')
+  const [slugSaving, setSlugSaving] = useState(false)
+  const [slugSuccess, setSlugSuccess] = useState(false)
+  const [slugError, setSlugError] = useState<string | null>(null)
+  const [slugCopied, setSlugCopied] = useState(false)
+  const [statutsUrl, setStatutsUrl] = useState<string | null>(null)
+  const [statutsUploading, setStatutsUploading] = useState(false)
+  const [statutsError, setStatutsError] = useState<string | null>(null)
+
   // Assets (identité visuelle — logo, tampon, signature, etc., liste ouverte)
   const [assets, setAssets] = useState<OrganisationAsset[]>([])
   const [assetsLoading, setAssetsLoading] = useState(true)
@@ -134,7 +172,7 @@ export default function ParametresPage() {
 
       const { data, error } = await supabase
         .from('organisations')
-        .select('nom, code_pin_benevole, adresse, code_postal, ville, pays, modele_recu_pdf')
+        .select('nom, code_pin_benevole, adresse, code_postal, ville, pays, modele_recu_pdf, slug, statuts_url')
         .eq('id', organisationId)
         .single()
 
@@ -154,6 +192,8 @@ export default function ParametresPage() {
       setCodePostal(raw.code_postal ?? '')
       setVille(raw.ville ?? '')
       setPays(raw.pays ?? 'France')
+      setSlug(raw.slug)
+      setStatutsUrl(raw.statuts_url)
       setModele({
         rna: modeleRaw.rna ?? '',
         siren: modeleRaw.siren ?? '',
@@ -281,6 +321,77 @@ export default function ParametresPage() {
       setTimeout(() => setModeleSuccess(false), 3000)
     }
     setModeleSaving(false)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Adhésion en ligne (slug public + statuts PDF)
+  // ---------------------------------------------------------------------------
+
+  async function handleSaveSlug(e: FormEvent) {
+    e.preventDefault()
+    const normalized = slugifyUrl(slug)
+    if (!normalized) {
+      setSlugError('Slug invalide')
+      return
+    }
+
+    setSlugSaving(true)
+    setSlugError(null)
+    setSlugSuccess(false)
+
+    const { error } = await supabase
+      .from('organisations')
+      .update({ slug: normalized })
+      .eq('id', organisationId)
+
+    if (error) {
+      setSlugError(error.code === '23505' ? 'Ce slug est déjà utilisé par une autre organisation' : error.message)
+    } else {
+      setSlug(normalized)
+      setSlugSuccess(true)
+      setTimeout(() => setSlugSuccess(false), 3000)
+    }
+    setSlugSaving(false)
+  }
+
+  function handleCopySlugUrl() {
+    copyTextToClipboard(`${window.location.origin}/adhesion/${slug}`)
+    setSlugCopied(true)
+    setTimeout(() => setSlugCopied(false), 2000)
+  }
+
+  async function handleUploadStatuts(file: File | null) {
+    if (!file) return
+    if (file.type !== 'application/pdf') {
+      setStatutsError('Format non supporté (PDF uniquement)')
+      return
+    }
+    if (file.size > MAX_ASSET_SIZE) {
+      setStatutsError('Fichier trop volumineux (2 Mo max)')
+      return
+    }
+
+    setStatutsError(null)
+    setStatutsUploading(true)
+
+    const url = await uploadStatutsFile(organisationId, file)
+    if (!url) {
+      setStatutsError("Erreur lors de l'envoi du fichier")
+      setStatutsUploading(false)
+      return
+    }
+
+    const { error } = await supabase
+      .from('organisations')
+      .update({ statuts_url: url })
+      .eq('id', organisationId)
+
+    if (error) {
+      setStatutsError(error.message)
+    } else {
+      setStatutsUrl(url)
+    }
+    setStatutsUploading(false)
   }
 
   // ---------------------------------------------------------------------------
@@ -801,6 +912,90 @@ export default function ParametresPage() {
         description="Gérez le gabarit HTML utilisé pour imprimer les cartes adhérent (planche A4)."
       >
         {organisationId && <CarteAdherentSection organisationId={organisationId} />}
+      </Section>
+
+      {/* Section 7 — Adhésion en ligne */}
+      <Section
+        title="Adhésion en ligne"
+        description="Formulaire public permettant de soumettre une demande d'adhésion, à ratifier ensuite depuis l'espace Adhérents."
+      >
+        <form onSubmit={handleSaveSlug} className="max-w-lg space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Adresse du formulaire</label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-400">{window.location.origin}/adhesion/</span>
+              <input
+                type="text"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                placeholder="ex : mon-association"
+                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <p className="mt-1 text-xs text-slate-400">
+              Lettres minuscules, chiffres et tirets uniquement. Modifier ce slug change l'adresse du formulaire public.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={slugSaving || slug === settings?.slug}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {slugSaving ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+            <button
+              type="button"
+              onClick={handleCopySlugUrl}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {slugCopied ? 'Copié !' : "Copier l'adresse"}
+            </button>
+            {slugSuccess && (
+              <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Enregistré
+              </span>
+            )}
+            {slugError && <span className="text-sm text-red-600">{slugError}</span>}
+          </div>
+        </form>
+
+        <div className="mt-6 max-w-lg">
+          <p className="mb-2 text-sm font-medium text-slate-700">Statuts de l'association</p>
+          <p className="mb-3 text-xs text-slate-400">
+            PDF affiché et téléchargeable sur le formulaire public, pour que le demandeur puisse en prendre connaissance avant de signer.
+          </p>
+          <div className="flex items-center gap-3">
+            {statutsUrl && (
+              <a
+                href={statutsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Voir le PDF actuel
+              </a>
+            )}
+            <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+              {statutsUploading ? 'Envoi…' : statutsUrl ? 'Remplacer' : 'Choisir un fichier'}
+              <input
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                disabled={statutsUploading}
+                onChange={(e) => {
+                  handleUploadStatuts(e.target.files?.[0] ?? null)
+                  e.target.value = ''
+                }}
+              />
+            </label>
+          </div>
+          {statutsError && <p className="mt-1.5 text-xs text-red-600">{statutsError}</p>}
+        </div>
       </Section>
     </div>
   )

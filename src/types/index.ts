@@ -40,6 +40,28 @@ export interface Adhesion {
   created_at: string
 }
 
+export interface DemandeAdhesion {
+  id: string
+  organisation_id: string
+  civilite: CiviliteAdherent
+  nom: string
+  prenom: string | null
+  date_naissance: string | null
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
+  telephone: string | null
+  courriel: string | null
+  signature_data_url: string
+  accepte_statuts: boolean
+  consent_rgpd: boolean
+  statut: 'en_attente' | 'ratifiee' | 'refusee'
+  decided_at: string | null
+  decided_by: string | null
+  adherent_id: string | null
+  created_at: string
+}
+
 export interface Personne {
   id: string
   nom: string
