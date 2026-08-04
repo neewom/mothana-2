@@ -14,12 +14,19 @@ import type { TemplateCarteAdherent } from '../types'
 import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS } from '../lib/defaultCarteAdherentTemplate'
 import Modal from './Modal'
 
+export interface CarteAdherentDraft {
+  nom: string
+  html_template: string
+  css: string
+}
+
 interface CarteAdherentEditorModalProps {
   open: boolean
   onClose: () => void
   onSaved: () => void
   organisationId: string
   template?: TemplateCarteAdherent
+  draft?: CarteAdherentDraft
 }
 
 const MANDATORY_TAGS: string[] = [...CARTE_MANDATORY_KEYS]
@@ -35,6 +42,7 @@ export default function CarteAdherentEditorModal({
   onSaved,
   organisationId,
   template,
+  draft,
 }: CarteAdherentEditorModalProps) {
   const isEdit = !!template
 
@@ -69,6 +77,10 @@ export default function CarteAdherentEditorModal({
         setNom(template.nom)
         setHtmlTemplate(template.html_template)
         setCss(template.css ?? '')
+      } else if (draft) {
+        setNom(draft.nom)
+        setHtmlTemplate(draft.html_template)
+        setCss(draft.css)
       } else {
         setNom('')
         setHtmlTemplate(CARTE_ADHERENT_HTML)
@@ -80,7 +92,7 @@ export default function CarteAdherentEditorModal({
       setPanelMode('both')
       setPlaceholdersOpen(false)
     }
-  }, [open, template])
+  }, [open, template, draft])
 
   useEffect(() => {
     if (!open) return

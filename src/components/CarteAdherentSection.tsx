@@ -4,7 +4,8 @@ import { getMissingMandatoryCartePlaceholders } from '../lib/cartePreview'
 import type { TemplateCarteAdherent } from '../types'
 import Modal from './Modal'
 import CarteAdherentPreviewModal from './CarteAdherentPreviewModal'
-import CarteAdherentEditorModal from './CarteAdherentEditorModal'
+import CarteAdherentEditorModal, { type CarteAdherentDraft } from './CarteAdherentEditorModal'
+import CarteAdherentImportModal from './CarteAdherentImportModal'
 
 interface CarteAdherentSectionProps {
   organisationId: string
@@ -24,6 +25,8 @@ export default function CarteAdherentSection({ organisationId }: CarteAdherentSe
 
   const [previewTemplate, setPreviewTemplate] = useState<TemplateCarteAdherent | null>(null)
   const [editorState, setEditorState] = useState<'new' | TemplateCarteAdherent | null>(null)
+  const [wizardDraft, setWizardDraft] = useState<CarteAdherentDraft | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
   const [archiveConfirm, setArchiveConfirm] = useState<TemplateCarteAdherent | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<TemplateCarteAdherent | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -152,12 +155,23 @@ export default function CarteAdherentSection({ organisationId }: CarteAdherentSe
         <p className="text-sm text-slate-500">
           Un seul gabarit actif à la fois. Celui-ci est utilisé pour l'impression des cartes adhérent.
         </p>
-        <button
-          onClick={() => setEditorState('new')}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          Nouveau gabarit
-        </button>
+        <div className="flex shrink-0 gap-2">
+          <button
+            onClick={() => setImportOpen(true)}
+            className="rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+          >
+            Importer un modèle
+          </button>
+          <button
+            onClick={() => {
+              setWizardDraft(null)
+              setEditorState('new')
+            }}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Nouveau gabarit
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -257,13 +271,28 @@ export default function CarteAdherentSection({ organisationId }: CarteAdherentSe
         />
       )}
 
+      {/* Import — brouillon puis éditeur */}
+      <CarteAdherentImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onDraftReady={(draft) => {
+          setImportOpen(false)
+          setWizardDraft(draft)
+          setEditorState('new')
+        }}
+      />
+
       {/* Nouveau gabarit / édition */}
       <CarteAdherentEditorModal
         open={editorState !== null}
-        onClose={() => setEditorState(null)}
+        onClose={() => {
+          setEditorState(null)
+          setWizardDraft(null)
+        }}
         onSaved={fetchTemplates}
         organisationId={organisationId}
         template={editorState === 'new' || editorState === null ? undefined : editorState}
+        draft={editorState === 'new' ? (wizardDraft ?? undefined) : undefined}
       />
 
       {/* Confirmation archivage du gabarit actif */}
