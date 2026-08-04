@@ -11,6 +11,7 @@ import AdherentModal from '../components/AdherentModal'
 import AdhesionModal from '../components/AdhesionModal'
 import ImportWizard from '../components/import/ImportWizard'
 import { adherentsImportConfig } from '../lib/import/configs'
+import CartesAdherentPdfPreviewModal from '../components/CartesAdherentPdfPreviewModal'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -78,6 +79,7 @@ export default function AdherentsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [printing, setPrinting] = useState(false)
   const [printError, setPrintError] = useState<string | null>(null)
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string; count: number } | null>(null)
 
   // Debounce de la recherche pour éviter un appel serveur à chaque frappe
   useEffect(() => {
@@ -243,16 +245,9 @@ export default function AdherentsPage() {
 
     const blob = await res.blob()
     const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
 
     setPrinting(false)
-    showToast(ids.length > 1 ? 'Cartes générées' : 'Carte générée')
+    setPdfPreview({ url, filename, count: ids.length })
   }
 
   async function handlePrintCards() {
@@ -263,6 +258,11 @@ export default function AdherentsPage() {
   async function handlePrintSingleCard(a: Adherent) {
     const slug = adherentFullName(a).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()
     await printCards([a.id], `carte-${slug}.pdf`)
+  }
+
+  function closePdfPreview() {
+    if (pdfPreview) URL.revokeObjectURL(pdfPreview.url)
+    setPdfPreview(null)
   }
 
   return (
@@ -562,6 +562,16 @@ export default function AdherentsPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {pdfPreview && (
+        <CartesAdherentPdfPreviewModal
+          open
+          onClose={closePdfPreview}
+          pdfUrl={pdfPreview.url}
+          filename={pdfPreview.filename}
+          count={pdfPreview.count}
+        />
       )}
 
       {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
