@@ -131,15 +131,24 @@ export default function DashboardPage() {
       {demandesEnAttente > 0 && (
         <Link
           to="/admin/adherents/demandes"
-          className="flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-4 shadow-sm transition-colors hover:bg-indigo-100"
+          className="flex items-center gap-4 rounded-xl border-2 border-amber-300 bg-amber-50 px-6 py-5 shadow-sm transition-colors hover:bg-amber-100"
         >
-          <div>
-            <p className="text-sm font-semibold text-indigo-900">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-400 text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-8.25 3h.008v.008h-.008V12.75z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-base font-bold text-amber-900">
               {demandesEnAttente} demande{demandesEnAttente > 1 ? 's' : ''} d'adhésion en attente de ratification
             </p>
-            <p className="mt-0.5 text-xs text-indigo-600">Soumises via le formulaire public, à examiner par le conseil d'administration.</p>
+            <p className="mt-0.5 text-sm text-amber-700">
+              Soumises via le formulaire public, à examiner par le conseil d'administration.
+            </p>
           </div>
-          <span className="text-sm font-medium text-indigo-700">Examiner →</span>
+          <span className="shrink-0 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white">
+            Examiner →
+          </span>
         </Link>
       )}
 
