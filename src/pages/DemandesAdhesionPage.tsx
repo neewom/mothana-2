@@ -12,6 +12,10 @@ function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 function demandeFullName(d: DemandeAdhesion): string {
   return [d.prenom, d.nom].filter(Boolean).join(' ')
 }
@@ -36,7 +40,7 @@ export default function DemandesAdhesionPage() {
   const [ratifyingDemande, setRatifyingDemande] = useState<DemandeAdhesion | undefined>(undefined)
   const [refusingDemande, setRefusingDemande] = useState<DemandeAdhesion | null>(null)
   const [refusing, setRefusing] = useState(false)
-  const [signatureDemande, setSignatureDemande] = useState<DemandeAdhesion | null>(null)
+  const [detailDemande, setDetailDemande] = useState<DemandeAdhesion | null>(null)
 
   const fetchDemandes = useCallback(async () => {
     if (!organisationId) return
@@ -179,10 +183,10 @@ export default function DemandesAdhesionPage() {
                       <td className="px-6 py-3">
                         <div className="flex justify-end gap-2">
                           <button
-                            onClick={() => setSignatureDemande(d)}
+                            onClick={() => setDetailDemande(d)}
                             className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                           >
-                            Signature
+                            Détail
                           </button>
                           {tab === 'en_attente' && (
                             <>
@@ -259,17 +263,53 @@ export default function DemandesAdhesionPage() {
         </Modal>
       )}
 
-      {signatureDemande && (
-        <Modal open onClose={() => setSignatureDemande(null)} maxWidthClassName="max-w-lg" labelledBy="signature-demande-title">
-          <div className="p-6">
-            <h2 id="signature-demande-title" className="text-lg font-semibold text-slate-900">
-              Signature — {demandeFullName(signatureDemande)}
+      {detailDemande && (
+        <Modal open onClose={() => setDetailDemande(null)} maxWidthClassName="max-w-lg" labelledBy="detail-demande-title">
+          <div className="max-h-[85vh] overflow-y-auto p-6">
+            <h2 id="detail-demande-title" className="text-lg font-semibold text-slate-900">
+              {demandeFullName(detailDemande)}
             </h2>
-            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <img src={signatureDemande.signature_data_url} alt="Signature" className="w-full" />
+
+            <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Civilité</dt>
+                <dd className="mt-0.5 text-slate-700">{CIVILITE_ADHERENT_LABELS[detailDemande.civilite]}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Date de naissance</dt>
+                <dd className="mt-0.5 text-slate-700">{detailDemande.date_naissance ? formatDate(detailDemande.date_naissance) : '—'}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Adresse</dt>
+                <dd className="mt-0.5 text-slate-700">
+                  {detailDemande.adresse ?? '—'}
+                  {(detailDemande.code_postal || detailDemande.ville) && (
+                    <>
+                      <br />
+                      {detailDemande.code_postal} {detailDemande.ville}
+                    </>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Téléphone</dt>
+                <dd className="mt-0.5 text-slate-700">{detailDemande.telephone ?? '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Courriel</dt>
+                <dd className="mt-0.5 text-slate-700">{detailDemande.courriel ?? '—'}</dd>
+              </div>
+            </dl>
+
+            <div className="mt-5">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Signature</p>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <img src={detailDemande.signature_data_url} alt="Signature" className="w-full" />
+              </div>
             </div>
+
             <p className="mt-3 text-xs text-slate-400">
-              Signature dessinée le {formatDateTime(signatureDemande.created_at)}, statuts approuvés et consentement RGPD donné.
+              Demande soumise le {formatDateTime(detailDemande.created_at)}, statuts approuvés et consentement RGPD donné.
             </p>
           </div>
         </Modal>
