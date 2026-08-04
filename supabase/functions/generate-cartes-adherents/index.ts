@@ -21,6 +21,7 @@ interface Adherent {
   civilite: number
   nom: string
   prenom: string | null
+  id_externe: string | null
 }
 
 interface AdhesionRow {
@@ -187,7 +188,7 @@ Deno.serve(async (req) => {
 
     const { data: adherentsData } = await adminClient
       .from('adherents')
-      .select('id, civilite, nom, prenom')
+      .select('id, civilite, nom, prenom, id_externe')
       .eq('organisation_id', organisationId)
       .in('id', adherent_ids)
 
@@ -224,6 +225,7 @@ Deno.serve(async (req) => {
         organisation_nom: organisation.nom ?? '',
         adherent_civilite: CIVILITE_ADHERENT_LABELS[adherent.civilite] ?? '',
         adherent_nom_complet: nomComplet,
+        adherent_id_externe: adherent.id_externe ?? '',
         adhesion_date_debut: adhesion ? formatDate(adhesion.date_debut) : '',
         adhesion_date_fin: adhesion?.date_fin ? formatDate(adhesion.date_fin) : '',
         president_nom: modele.president_nom ?? '',
