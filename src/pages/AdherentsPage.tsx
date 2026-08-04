@@ -270,7 +270,9 @@ export default function AdherentsPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Adhérents</h1>
-          <p className="mt-1 text-sm text-slate-500">Gestion des adhérents de votre organisation.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Gestion des adhérents de votre organisation. Sélectionnez plusieurs adhérents (cases à cocher) pour imprimer leurs cartes en une seule fois.
+          </p>
         </div>
 
         {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">Erreur : {error}</div>}
