@@ -41,6 +41,9 @@ const STATUT_CYCLE_CLASSES: Record<StatutCycle, string> = {
   aucune: 'bg-slate-100 text-slate-500',
 }
 
+const PRINT_HELP_TEXT =
+  "Planche A4 — imprimez sans mise à l'échelle (100 %) pour respecter les dimensions réelles des cartes (85,6 × 54 mm), puis découpez au massicot ou aux ciseaux."
+
 interface SearchAdherentRow extends Adherent {
   total_count: number
 }
@@ -209,7 +212,7 @@ export default function AdherentsPage() {
     )
   }
 
-  async function handlePrintCards() {
+  async function printCards(ids: string[], filename: string) {
     setPrinting(true)
     setPrintError(null)
 
@@ -228,7 +231,7 @@ export default function AdherentsPage() {
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
       },
-      body: JSON.stringify({ adherent_ids: Array.from(selectedIds) }),
+      body: JSON.stringify({ adherent_ids: ids }),
     })
 
     if (!res.ok) {
@@ -242,15 +245,24 @@ export default function AdherentsPage() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'cartes-adherents.pdf'
+    link.download = filename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
     setPrinting(false)
+    showToast(ids.length > 1 ? 'Cartes générées' : 'Carte générée')
+  }
+
+  async function handlePrintCards() {
+    await printCards(Array.from(selectedIds), 'cartes-adherents.pdf')
     setSelectedIds(new Set())
-    showToast('Cartes générées')
+  }
+
+  async function handlePrintSingleCard(a: Adherent) {
+    const slug = adherentFullName(a).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()
+    await printCards([a.id], `carte-${slug}.pdf`)
   }
 
   return (
@@ -262,6 +274,7 @@ export default function AdherentsPage() {
         </div>
 
         {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">Erreur : {error}</div>}
+        {printError && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">Erreur d'impression : {printError}</div>}
 
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
@@ -306,20 +319,23 @@ export default function AdherentsPage() {
           </div>
 
           {selectedIds.size > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-100 bg-indigo-50 px-6 py-3">
-              <span className="text-sm font-medium text-indigo-700">
-                {selectedIds.size} adhérent{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
-              </span>
-              <div className="flex items-center gap-3">
-                {printError && <span className="text-sm text-red-600">{printError}</span>}
-                <button
-                  onClick={handlePrintCards}
-                  disabled={printing}
-                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-                >
-                  {printing ? 'Génération…' : 'Imprimer les cartes'}
-                </button>
+            <div className="border-b border-indigo-100 bg-indigo-50 px-6 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-sm font-medium text-indigo-700">
+                  {selectedIds.size} adhérent{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
+                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handlePrintCards}
+                    disabled={printing}
+                    title={PRINT_HELP_TEXT}
+                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+                  >
+                    {printing ? 'Génération…' : 'Imprimer les cartes'}
+                  </button>
+                </div>
               </div>
+              <p className="mt-1.5 text-xs text-indigo-600">{PRINT_HELP_TEXT}</p>
             </div>
           )}
 
@@ -396,6 +412,14 @@ export default function AdherentsPage() {
                               className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                             >
                               Modifier
+                            </button>
+                            <button
+                              onClick={() => handlePrintSingleCard(a)}
+                              disabled={printing}
+                              title={PRINT_HELP_TEXT}
+                              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                            >
+                              Carte
                             </button>
                             {a.statut === 'actif' && (
                               <button
