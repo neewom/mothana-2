@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { DEFAULT_CERFA_TEMPLATES } from '../lib/defaultCerfaTemplates'
+import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS, DEFAULT_CARTE_ADHERENT_NOM } from '../lib/defaultCarteAdherentTemplate'
 import Modal from '../components/Modal'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
@@ -106,6 +107,15 @@ function OrgModal({ open, onClose, onSaved, org }: OrgModalProps) {
           }))
         )
       if (templatesErr) { setError(templatesErr.message); setSaving(false); return }
+
+      const { error: carteErr } = await supabase.from('templates_carte_adherent').insert({
+        organisation_id: newOrg.id,
+        nom: DEFAULT_CARTE_ADHERENT_NOM,
+        html_template: CARTE_ADHERENT_HTML,
+        css: CARTE_ADHERENT_CSS,
+        is_active: true,
+      })
+      if (carteErr) { setError(carteErr.message); setSaving(false); return }
     }
 
     setSaving(false)

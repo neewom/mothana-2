@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import TemplatesRecuSection from '../components/TemplatesRecuSection'
+import CarteAdherentSection from '../components/CarteAdherentSection'
 import { slugifyIdentifiant, type OrganisationAsset } from '../lib/organisationAssets'
 
 // ---------------------------------------------------------------------------
@@ -608,110 +609,6 @@ export default function ParametresPage() {
 
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Nom du président</label>
-              <input
-                type="text"
-                value={modele.president_nom}
-                onChange={(e) => setModele((m) => ({ ...m, president_nom: e.target.value }))}
-                placeholder="Ex : Jean Dupont"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Titre</label>
-              <input
-                type="text"
-                value={modele.president_titre}
-                onChange={(e) => setModele((m) => ({ ...m, president_titre: e.target.value }))}
-                placeholder="Ex : Président"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-          <p className="-mt-2 text-xs text-slate-400">
-            Disponibles comme placeholders <code>{'{{president_nom}}'}</code> et <code>{'{{president_titre}}'}</code> dans vos templates.
-          </p>
-
-          <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">Identité visuelle</p>
-            <p className="mb-3 text-xs text-slate-400">
-              Logo, tampon, signature ou tout autre visuel — chaque asset ajouté devient utilisable comme placeholder{' '}
-              <code>{'{{asset_<identifiant>}}'}</code> dans vos templates. PNG ou JPEG, 2 Mo max. Enregistré immédiatement à l'upload.
-            </p>
-            {assetsLoading ? (
-              <p className="text-xs text-slate-400">Chargement…</p>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                {assets.map((asset) => (
-                  <div key={asset.id} className="rounded-lg border border-slate-200 p-3">
-                    <p className="mb-2 text-xs font-medium text-slate-600">{asset.libelle}</p>
-                    <div className="mb-2 flex h-20 items-center justify-center overflow-hidden rounded-md bg-slate-50">
-                      <img src={asset.url} alt={asset.libelle} className="max-h-full max-w-full object-contain" />
-                    </div>
-                    <p className="mb-2 truncate font-mono text-[11px] text-indigo-600">{`{{asset_${asset.identifiant}}}`}</p>
-                    <div className="flex items-center gap-2">
-                      <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
-                        {assetActionLoading[asset.id] ? 'Envoi…' : 'Remplacer'}
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg"
-                          className="hidden"
-                          disabled={assetActionLoading[asset.id]}
-                          onChange={(e) => {
-                            handleReplaceAsset(asset, e.target.files?.[0] ?? null)
-                            e.target.value = ''
-                          }}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteAsset(asset)}
-                        disabled={assetActionLoading[asset.id]}
-                        className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-60"
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                    {assetError[asset.id] && <p className="mt-1.5 text-xs text-red-600">{assetError[asset.id]}</p>}
-                  </div>
-                ))}
-
-                <div className="rounded-lg border border-dashed border-slate-300 p-3">
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Libellé</label>
-                  <input
-                    type="text"
-                    value={newAssetLibelle}
-                    onChange={(e) => setNewAssetLibelle(e.target.value)}
-                    placeholder="Ex : Logo, Tampon, Photo"
-                    className="mb-2 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <label
-                    className={`block rounded-lg border px-3 py-1.5 text-center text-xs font-medium ${
-                      newAssetLibelle.trim()
-                        ? 'cursor-pointer border-slate-300 text-slate-700 hover:bg-slate-50'
-                        : 'cursor-not-allowed border-slate-200 text-slate-300'
-                    }`}
-                  >
-                    {assetActionLoading.new ? 'Envoi…' : 'Choisir un fichier'}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg"
-                      className="hidden"
-                      disabled={!newAssetLibelle.trim() || assetActionLoading.new}
-                      onChange={(e) => {
-                        handleAddAsset(e.target.files?.[0] ?? null)
-                        e.target.value = ''
-                      }}
-                    />
-                  </label>
-                  {assetError.new && <p className="mt-1.5 text-xs text-red-600">{assetError.new}</p>}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-3">
-            <div className="flex-1">
               <label className="mb-1 block text-sm font-medium text-slate-700">Numéro du premier reçu</label>
               <input
                 type="number"
@@ -759,12 +656,151 @@ export default function ParametresPage() {
         </form>
       </Section>
 
-      {/* Section 4 — Modèles de reçus fiscaux */}
+      {/* Section 4 — Identité visuelle (commune reçus fiscaux + carte adhérent) */}
+      <Section
+        title="Identité visuelle"
+        description="Utilisée à la fois par les reçus fiscaux et par la carte adhérent — pas spécifique à l'un ou l'autre."
+      >
+        <form onSubmit={handleSaveModele} className="max-w-lg space-y-2">
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Nom du président</label>
+              <input
+                type="text"
+                value={modele.president_nom}
+                onChange={(e) => setModele((m) => ({ ...m, president_nom: e.target.value }))}
+                placeholder="Ex : Jean Dupont"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-sm font-medium text-slate-700">Titre</label>
+              <input
+                type="text"
+                value={modele.president_titre}
+                onChange={(e) => setModele((m) => ({ ...m, president_titre: e.target.value }))}
+                placeholder="Ex : Président"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-slate-400">
+            Disponibles comme placeholders <code>{'{{president_nom}}'}</code> et <code>{'{{president_titre}}'}</code> dans vos templates.
+          </p>
+
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="submit"
+              disabled={modeleSaving}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {modeleSaving ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+            {modeleSuccess && (
+              <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Enregistré
+              </span>
+            )}
+            {modeleError && <span className="text-sm text-red-600">{modeleError}</span>}
+          </div>
+        </form>
+
+        <div className="mt-6 max-w-lg">
+          <p className="mb-2 text-sm font-medium text-slate-700">Assets</p>
+          <p className="mb-3 text-xs text-slate-400">
+            Logo, tampon, signature ou tout autre visuel — chaque asset ajouté devient utilisable comme placeholder{' '}
+            <code>{'{{asset_<identifiant>}}'}</code> dans vos templates. PNG ou JPEG, 2 Mo max. Enregistré immédiatement à l'upload.
+          </p>
+          {assetsLoading ? (
+            <p className="text-xs text-slate-400">Chargement…</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {assets.map((asset) => (
+                <div key={asset.id} className="rounded-lg border border-slate-200 p-3">
+                  <p className="mb-2 text-xs font-medium text-slate-600">{asset.libelle}</p>
+                  <div className="mb-2 flex h-20 items-center justify-center overflow-hidden rounded-md bg-slate-50">
+                    <img src={asset.url} alt={asset.libelle} className="max-h-full max-w-full object-contain" />
+                  </div>
+                  <p className="mb-2 truncate font-mono text-[11px] text-indigo-600">{`{{asset_${asset.identifiant}}}`}</p>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                      {assetActionLoading[asset.id] ? 'Envoi…' : 'Remplacer'}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        className="hidden"
+                        disabled={assetActionLoading[asset.id]}
+                        onChange={(e) => {
+                          handleReplaceAsset(asset, e.target.files?.[0] ?? null)
+                          e.target.value = ''
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteAsset(asset)}
+                      disabled={assetActionLoading[asset.id]}
+                      className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-60"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                  {assetError[asset.id] && <p className="mt-1.5 text-xs text-red-600">{assetError[asset.id]}</p>}
+                </div>
+              ))}
+
+              <div className="rounded-lg border border-dashed border-slate-300 p-3">
+                <label className="mb-1 block text-xs font-medium text-slate-600">Libellé</label>
+                <input
+                  type="text"
+                  value={newAssetLibelle}
+                  onChange={(e) => setNewAssetLibelle(e.target.value)}
+                  placeholder="Ex : Logo, Tampon, Photo"
+                  className="mb-2 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <label
+                  className={`block rounded-lg border px-3 py-1.5 text-center text-xs font-medium ${
+                    newAssetLibelle.trim()
+                      ? 'cursor-pointer border-slate-300 text-slate-700 hover:bg-slate-50'
+                      : 'cursor-not-allowed border-slate-200 text-slate-300'
+                  }`}
+                >
+                  {assetActionLoading.new ? 'Envoi…' : 'Choisir un fichier'}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    className="hidden"
+                    disabled={!newAssetLibelle.trim() || assetActionLoading.new}
+                    onChange={(e) => {
+                      handleAddAsset(e.target.files?.[0] ?? null)
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+                {assetError.new && <p className="mt-1.5 text-xs text-red-600">{assetError.new}</p>}
+              </div>
+            </div>
+          )}
+        </div>
+      </Section>
+
+      {/* Section 5 — Modèles de reçus fiscaux */}
       <Section
         title="Modèles de reçus fiscaux"
         description="Gérez les templates HTML utilisés pour générer les reçus 11580 (particuliers) et 16216 (entreprises)."
       >
         {organisationId && <TemplatesRecuSection organisationId={organisationId} />}
+      </Section>
+
+      {/* Section 6 — Gabarit carte adhérent */}
+      <Section
+        title="Carte adhérent"
+        description="Gérez le gabarit HTML utilisé pour imprimer les cartes adhérent (planche A4)."
+      >
+        {organisationId && <CarteAdherentSection organisationId={organisationId} />}
       </Section>
     </div>
   )

@@ -11,6 +11,7 @@ import AdherentModal from '../components/AdherentModal'
 import AdhesionModal from '../components/AdhesionModal'
 import ImportWizard from '../components/import/ImportWizard'
 import { adherentsImportConfig } from '../lib/import/configs'
+import CartesAdherentPdfPreviewModal from '../components/CartesAdherentPdfPreviewModal'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,6 +41,9 @@ const STATUT_CYCLE_CLASSES: Record<StatutCycle, string> = {
   expire: 'bg-amber-50 text-amber-700',
   aucune: 'bg-slate-100 text-slate-500',
 }
+
+const PRINT_HELP_TEXT =
+  "Planche A4 — imprimez sans mise à l'échelle (100 %) pour respecter les dimensions réelles des cartes (85,6 × 54 mm), puis découpez au massicot ou aux ciseaux."
 
 interface SearchAdherentRow extends Adherent {
   total_count: number
@@ -71,6 +75,11 @@ export default function AdherentsPage() {
   const [archiveConfirm, setArchiveConfirm] = useState<Adherent | null>(null)
   const [archiving, setArchiving] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [printing, setPrinting] = useState(false)
+  const [printError, setPrintError] = useState<string | null>(null)
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string; count: number } | null>(null)
 
   // Debounce de la recherche pour éviter un appel serveur à chaque frappe
   useEffect(() => {
@@ -128,6 +137,12 @@ export default function AdherentsPage() {
     fetchAdherents()
   }, [fetchAdherents])
 
+  // La sélection multiple ne survit pas à un changement de page/filtre/recherche
+  // (les lignes affichées changent complètement, la garder n'aurait pas de sens).
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [search, statutFilter, pageSize, currentPage])
+
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
 
@@ -184,15 +199,84 @@ export default function AdherentsPage() {
     fetchAdherents()
   }
 
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) =>
+      prev.size === adherents.length ? new Set() : new Set(adherents.map((a) => a.id))
+    )
+  }
+
+  async function printCards(ids: string[], filename: string) {
+    setPrinting(true)
+    setPrintError(null)
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      setPrintError('Session expirée')
+      setPrinting(false)
+      return
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+    const res = await fetch(`${supabaseUrl}/functions/v1/generate-cartes-adherents`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+      },
+      body: JSON.stringify({ adherent_ids: ids }),
+    })
+
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}))
+      setPrintError(json.error ?? 'Erreur inconnue')
+      setPrinting(false)
+      return
+    }
+
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+
+    setPrinting(false)
+    setPdfPreview({ url, filename, count: ids.length })
+  }
+
+  async function handlePrintCards() {
+    await printCards(Array.from(selectedIds), 'cartes-adherents.pdf')
+    setSelectedIds(new Set())
+  }
+
+  async function handlePrintSingleCard(a: Adherent) {
+    const slug = adherentFullName(a).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()
+    await printCards([a.id], `carte-${slug}.pdf`)
+  }
+
+  function closePdfPreview() {
+    if (pdfPreview) URL.revokeObjectURL(pdfPreview.url)
+    setPdfPreview(null)
+  }
+
   return (
     <>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Adhérents</h1>
-          <p className="mt-1 text-sm text-slate-500">Gestion des adhérents de votre organisation.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Gestion des adhérents de votre organisation. Sélectionnez plusieurs adhérents (cases à cocher) pour imprimer leurs cartes en une seule fois.
+          </p>
         </div>
 
         {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">Erreur : {error}</div>}
+        {printError && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">Erreur d'impression : {printError}</div>}
 
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
@@ -236,6 +320,27 @@ export default function AdherentsPage() {
             </div>
           </div>
 
+          {selectedIds.size > 0 && (
+            <div className="border-b border-indigo-100 bg-indigo-50 px-6 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-sm font-medium text-indigo-700">
+                  {selectedIds.size} adhérent{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
+                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handlePrintCards}
+                    disabled={printing}
+                    title={PRINT_HELP_TEXT}
+                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+                  >
+                    {printing ? 'Génération…' : 'Imprimer les cartes'}
+                  </button>
+                </div>
+              </div>
+              <p className="mt-1.5 text-xs text-indigo-600">{PRINT_HELP_TEXT}</p>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
@@ -249,6 +354,15 @@ export default function AdherentsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    <th className="px-6 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size > 0 && selectedIds.size === adherents.length}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        aria-label="Tout sélectionner"
+                      />
+                    </th>
                     <th className="px-6 py-3">Civilité</th>
                     <th className="px-6 py-3">Nom</th>
                     <th className="px-6 py-3">Prénom</th>
@@ -262,6 +376,15 @@ export default function AdherentsPage() {
                     const cycle = statutCycleFor(latestAdhesions.get(a.id), todayIso)
                     return (
                       <tr key={a.id} className="hover:bg-slate-50">
+                        <td className="px-6 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(a.id)}
+                            onChange={() => toggleSelected(a.id)}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            aria-label={`Sélectionner ${adherentFullName(a)}`}
+                          />
+                        </td>
                         <td className="px-6 py-3 text-slate-500">{CIVILITE_ADHERENT_LABELS[a.civilite]}</td>
                         <td className="px-6 py-3 font-medium text-slate-900">{a.nom}</td>
                         <td className="px-6 py-3 text-slate-700">{a.prenom ?? '—'}</td>
@@ -291,6 +414,14 @@ export default function AdherentsPage() {
                               className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
                             >
                               Modifier
+                            </button>
+                            <button
+                              onClick={() => handlePrintSingleCard(a)}
+                              disabled={printing}
+                              title={PRINT_HELP_TEXT}
+                              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                            >
+                              Carte
                             </button>
                             {a.statut === 'actif' && (
                               <button
@@ -433,6 +564,16 @@ export default function AdherentsPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {pdfPreview && (
+        <CartesAdherentPdfPreviewModal
+          open
+          onClose={closePdfPreview}
+          pdfUrl={pdfPreview.url}
+          filename={pdfPreview.filename}
+          count={pdfPreview.count}
+        />
       )}
 
       {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}

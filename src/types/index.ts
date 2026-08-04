@@ -99,6 +99,18 @@ export interface TemplateRecu {
   updated_at: string
 }
 
+export interface TemplateCarteAdherent {
+  id: string
+  organisation_id: string
+  nom: string
+  html_template: string
+  css: string | null
+  is_active: boolean
+  is_archived: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Don {
   id: string
   profil_participant_id: string
