@@ -16,7 +16,7 @@ interface NavGroup {
   type: 'group'
   label: string
   icon: ReactElement
-  items: { label: string; to: string }[]
+  items: { label: string; to: string; end?: boolean }[]
 }
 
 type NavEntry = NavLinkItem | NavGroup
@@ -106,7 +106,15 @@ const NAV_ITEMS: NavEntry[] = [
       { label: 'Reçus fiscaux', to: '/admin/recus' },
     ],
   },
-  { type: 'link', label: 'Adhérents', to: '/admin/adherents', icon: <IdCardIcon /> },
+  {
+    type: 'group',
+    label: 'Adhérents',
+    icon: <IdCardIcon />,
+    items: [
+      { label: 'Adhérents', to: '/admin/adherents', end: true },
+      { label: "Demandes d'adhésion", to: '/admin/adherents/demandes' },
+    ],
+  },
   { type: 'link', label: 'Comptabilité', to: '/admin/comptabilite', icon: <ChartIcon /> },
   { type: 'link', label: 'Paramètres', to: '/admin/parametres', icon: <CogIcon /> },
 ]
@@ -146,6 +154,7 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
             <NavLink
               key={item.to}
               to={item.to}
+              end={item.end}
               onClick={onClose}
               className={({ isActive }) =>
                 `block rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${

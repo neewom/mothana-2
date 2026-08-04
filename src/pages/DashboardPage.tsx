@@ -52,6 +52,7 @@ export default function DashboardPage() {
   const [recentDons, setRecentDons] = useState<RecentDon[]>([])
   const [recentActivites, setRecentActivites] = useState<RecentActivite[]>([])
   const [adherentsExpiration, setAdherentsExpiration] = useState<AdherentProcheExpiration[]>([])
+  const [demandesEnAttente, setDemandesEnAttente] = useState(0)
 
   useEffect(() => {
     if (!organisationId) return
@@ -64,7 +65,7 @@ export default function DashboardPage() {
       const aujourdhui = now.toISOString().split('T')[0]
       const dans30Jours = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-      const [donsMoisRes, recentDonsRes, recentActivitesRes, adherentsExpirationRes] = await Promise.all([
+      const [donsMoisRes, recentDonsRes, recentActivitesRes, adherentsExpirationRes, demandesRes] = await Promise.all([
         supabase
           .from('dons')
           .select('montant')
@@ -91,6 +92,11 @@ export default function DashboardPage() {
           .lte('date_fin', dans30Jours)
           .order('date_fin', { ascending: true })
           .limit(5),
+        supabase
+          .from('demandes_adhesion')
+          .select('id', { count: 'exact', head: true })
+          .eq('organisation_id', organisationId)
+          .eq('statut', 'en_attente'),
       ])
 
       const donsMois = (donsMoisRes.data ?? []) as { montant: number }[]
@@ -99,6 +105,7 @@ export default function DashboardPage() {
       setRecentDons((recentDonsRes.data ?? []) as unknown as RecentDon[])
       setRecentActivites((recentActivitesRes.data ?? []) as RecentActivite[])
       setAdherentsExpiration((adherentsExpirationRes.data ?? []) as unknown as AdherentProcheExpiration[])
+      setDemandesEnAttente(demandesRes.count ?? 0)
 
       setLoading(false)
     }
@@ -120,6 +127,21 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold text-slate-900">Tableau de bord</h1>
         <p className="mt-1 text-sm text-slate-500">Vue d'ensemble de votre organisation.</p>
       </div>
+
+      {demandesEnAttente > 0 && (
+        <Link
+          to="/admin/adherents/demandes"
+          className="flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-4 shadow-sm transition-colors hover:bg-indigo-100"
+        >
+          <div>
+            <p className="text-sm font-semibold text-indigo-900">
+              {demandesEnAttente} demande{demandesEnAttente > 1 ? 's' : ''} d'adhésion en attente de ratification
+            </p>
+            <p className="mt-0.5 text-xs text-indigo-600">Soumises via le formulaire public, à examiner par le conseil d'administration.</p>
+          </div>
+          <span className="text-sm font-medium text-indigo-700">Examiner →</span>
+        </Link>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

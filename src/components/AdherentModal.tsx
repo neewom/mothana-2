@@ -7,19 +7,33 @@ import { generateUUID } from '../lib/uuid'
 import { computeDateFin } from '../lib/adhesion'
 import Modal from './Modal'
 
+interface IdentitePrefill {
+  civilite: CiviliteAdherent
+  nom: string
+  prenom: string | null
+  date_naissance: string | null
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
+  telephone: string | null
+  courriel: string | null
+}
+
 interface AdherentModalProps {
   open: boolean
   onClose: () => void
   onSaved: (adherent: Adherent, adhesion?: Adhesion) => void
   adherent?: Adherent
   organisationId: string
+  // Pré-remplit le formulaire de création à partir d'une demande d'adhésion en attente de ratification
+  prefill?: IdentitePrefill
 }
 
 function today(): string {
   return new Date().toISOString().split('T')[0]
 }
 
-export default function AdherentModal({ open, onClose, onSaved, adherent, organisationId }: AdherentModalProps) {
+export default function AdherentModal({ open, onClose, onSaved, adherent, organisationId, prefill }: AdherentModalProps) {
   const isEdit = !!adherent
 
   // Identité
@@ -57,15 +71,15 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
         setTelephone(adherent.telephone ?? '')
         setCourriel(adherent.courriel ?? '')
       } else {
-        setCivilite(0)
-        setNom('')
-        setPrenom('')
-        setDateNaissance('')
-        setAdresse('')
-        setCodePostal('')
-        setVille('')
-        setTelephone('')
-        setCourriel('')
+        setCivilite(prefill?.civilite ?? 0)
+        setNom(prefill?.nom ?? '')
+        setPrenom(prefill?.prenom ?? '')
+        setDateNaissance(prefill?.date_naissance ?? '')
+        setAdresse(prefill?.adresse ?? '')
+        setCodePostal(prefill?.code_postal ?? '')
+        setVille(prefill?.ville ?? '')
+        setTelephone(prefill?.telephone ?? '')
+        setCourriel(prefill?.courriel ?? '')
         setDateDebut(today())
         setMontantCotisation('')
         setModePaiement('')
@@ -75,7 +89,7 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
       }
       setError(null)
     }
-  }, [open, adherent])
+  }, [open, adherent, prefill])
 
   if (!open) return null
 
