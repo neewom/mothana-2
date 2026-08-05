@@ -7,6 +7,7 @@ import SignaturePad from '../components/SignaturePad'
 import ShadowHtmlBlock from '../components/ShadowHtmlBlock'
 import { substituteFormulaireAdhesionPlaceholders } from '../lib/formulaireAdhesionPreview'
 import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '../lib/textFormat'
+import { COUNTRIES } from '../lib/countries'
 
 interface OrganisationAssetPublic {
   identifiant: string
@@ -37,6 +38,7 @@ export default function DemandeAdhesionPage() {
   const [adresse, setAdresse] = useState('')
   const [codePostal, setCodePostal] = useState('')
   const [ville, setVille] = useState('')
+  const [pays, setPays] = useState('France')
   const [telephone, setTelephone] = useState('')
   const [courriel, setCourriel] = useState('')
   const [accepteStatuts, setAccepteStatuts] = useState(false)
@@ -49,7 +51,6 @@ export default function DemandeAdhesionPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const courrielInvalid = courriel.length > 0 && !isValidEmail(courriel)
-  const telephoneInvalid = telephone.length > 0 && telephone.length !== 10
 
   useEffect(() => {
     if (!slug) return
@@ -91,10 +92,6 @@ export default function DemandeAdhesionPage() {
       setSubmitError('Le code postal doit contenir 5 chiffres.')
       return
     }
-    if (telephone.trim() !== '' && telephone.length !== 10) {
-      setSubmitError('Le téléphone doit contenir 10 chiffres.')
-      return
-    }
     if (!organisation) return
 
     setSubmitting(true)
@@ -108,6 +105,7 @@ export default function DemandeAdhesionPage() {
       adresse: adresse || null,
       code_postal: codePostal || null,
       ville: ville || null,
+      pays: pays || null,
       telephone: telephone || null,
       courriel: courriel || null,
       signature_data_url: signature,
@@ -296,22 +294,30 @@ export default function DemandeAdhesionPage() {
           </div>
 
           <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Pays</label>
+            <select
+              value={pays}
+              onChange={(e) => setPays(e.target.value)}
+              className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Téléphone</label>
             <input
               type="tel"
               inputMode="numeric"
-              maxLength={10}
+              minLength={10}
+              maxLength={25}
               value={telephone}
               onChange={(e) => setTelephone(sanitizeDigits(e.target.value))}
               placeholder="0600000000"
-              aria-invalid={telephoneInvalid}
-              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                telephoneInvalid
-                  ? 'border-red-400 focus:ring-red-500'
-                  : 'border-slate-300 focus:ring-indigo-500'
-              }`}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            {telephoneInvalid && <p className="mt-1 text-xs text-red-600">Le téléphone doit contenir 10 chiffres.</p>}
           </div>
 
           <div>
