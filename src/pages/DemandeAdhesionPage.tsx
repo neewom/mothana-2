@@ -6,6 +6,7 @@ import { CIVILITE_ADHERENT_OPTIONS } from '../lib/civiliteAdherent'
 import SignaturePad from '../components/SignaturePad'
 import ShadowHtmlBlock from '../components/ShadowHtmlBlock'
 import { substituteFormulaireAdhesionPlaceholders } from '../lib/formulaireAdhesionPreview'
+import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '../lib/textFormat'
 
 interface OrganisationAssetPublic {
   identifiant: string
@@ -47,6 +48,8 @@ export default function DemandeAdhesionPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const courrielInvalid = courriel.length > 0 && !isValidEmail(courriel)
+  const telephoneInvalid = telephone.length > 0 && telephone.length !== 10
 
   useEffect(() => {
     if (!slug) return
@@ -78,6 +81,18 @@ export default function DemandeAdhesionPage() {
     }
     if (!signature) {
       setSubmitError('Merci de signer avant de valider la demande.')
+      return
+    }
+    if (courriel.trim() !== '' && !isValidEmail(courriel)) {
+      setSubmitError("Le format de l'adresse email est invalide.")
+      return
+    }
+    if (codePostal.length !== 5) {
+      setSubmitError('Le code postal doit contenir 5 chiffres.')
+      return
+    }
+    if (telephone.trim() !== '' && telephone.length !== 10) {
+      setSubmitError('Le téléphone doit contenir 10 chiffres.')
       return
     }
     if (!organisation) return
@@ -202,8 +217,8 @@ export default function DemandeAdhesionPage() {
               type="text"
               required
               value={nom}
-              onChange={(e) => setNom(e.target.value)}
-              placeholder="Dupont"
+              onChange={(e) => setNom(toUpperName(e.target.value))}
+              placeholder="DUPONT"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -216,7 +231,7 @@ export default function DemandeAdhesionPage() {
               type="text"
               required
               value={prenom}
-              onChange={(e) => setPrenom(e.target.value)}
+              onChange={(e) => setPrenom(toCapitalizedName(e.target.value))}
               placeholder="Jean"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
@@ -257,8 +272,10 @@ export default function DemandeAdhesionPage() {
               <input
                 type="text"
                 required
+                inputMode="numeric"
+                maxLength={5}
                 value={codePostal}
-                onChange={(e) => setCodePostal(e.target.value)}
+                onChange={(e) => setCodePostal(sanitizeDigits(e.target.value))}
                 placeholder="75000"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
@@ -281,12 +298,20 @@ export default function DemandeAdhesionPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Téléphone</label>
             <input
-              type="text"
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
               value={telephone}
-              onChange={(e) => setTelephone(e.target.value)}
-              placeholder="06 00 00 00 00"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onChange={(e) => setTelephone(sanitizeDigits(e.target.value))}
+              placeholder="0600000000"
+              aria-invalid={telephoneInvalid}
+              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                telephoneInvalid
+                  ? 'border-red-400 focus:ring-red-500'
+                  : 'border-slate-300 focus:ring-indigo-500'
+              }`}
             />
+            {telephoneInvalid && <p className="mt-1 text-xs text-red-600">Le téléphone doit contenir 10 chiffres.</p>}
           </div>
 
           <div>
@@ -296,8 +321,14 @@ export default function DemandeAdhesionPage() {
               value={courriel}
               onChange={(e) => setCourriel(e.target.value)}
               placeholder="jean.dupont@exemple.fr"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-invalid={courrielInvalid}
+              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                courrielInvalid
+                  ? 'border-red-400 focus:ring-red-500'
+                  : 'border-slate-300 focus:ring-indigo-500'
+              }`}
             />
+            {courrielInvalid && <p className="mt-1 text-xs text-red-600">Format d'email invalide.</p>}
           </div>
 
           <div className="border-t border-slate-200 pt-4">

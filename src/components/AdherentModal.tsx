@@ -5,6 +5,7 @@ import { CIVILITE_ADHERENT_OPTIONS } from '../lib/civiliteAdherent'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { generateUUID } from '../lib/uuid'
 import { computeDateFin } from '../lib/adhesion'
+import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '../lib/textFormat'
 import Modal from './Modal'
 
 interface IdentitePrefill {
@@ -62,8 +63,8 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
     if (open) {
       if (adherent) {
         setCivilite(adherent.civilite)
-        setNom(adherent.nom)
-        setPrenom(adherent.prenom ?? '')
+        setNom(toUpperName(adherent.nom))
+        setPrenom(toCapitalizedName(adherent.prenom ?? ''))
         setDateNaissance(adherent.date_naissance ?? '')
         setAdresse(adherent.adresse ?? '')
         setCodePostal(adherent.code_postal ?? '')
@@ -72,8 +73,8 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
         setCourriel(adherent.courriel ?? '')
       } else {
         setCivilite(prefill?.civilite ?? 0)
-        setNom(prefill?.nom ?? '')
-        setPrenom(prefill?.prenom ?? '')
+        setNom(toUpperName(prefill?.nom ?? ''))
+        setPrenom(toCapitalizedName(prefill?.prenom ?? ''))
         setDateNaissance(prefill?.date_naissance ?? '')
         setAdresse(prefill?.adresse ?? '')
         setCodePostal(prefill?.code_postal ?? '')
@@ -91,11 +92,28 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
     }
   }, [open, adherent, prefill])
 
+  const courrielInvalid = courriel.length > 0 && !isValidEmail(courriel)
+  const telephoneInvalid = telephone.length > 0 && telephone.length !== 10
+
   if (!open) return null
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+
+    if (courriel.trim() !== '' && !isValidEmail(courriel)) {
+      setError("Le format de l'adresse email est invalide.")
+      return
+    }
+    if (codePostal.length !== 5) {
+      setError('Le code postal doit contenir 5 chiffres.')
+      return
+    }
+    if (telephone.trim() !== '' && telephone.length !== 10) {
+      setError('Le téléphone doit contenir 10 chiffres.')
+      return
+    }
+
     setSaving(true)
 
     const identite = {
@@ -227,8 +245,8 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
               type="text"
               required
               value={nom}
-              onChange={(e) => setNom(e.target.value)}
-              placeholder="Dupont"
+              onChange={(e) => setNom(toUpperName(e.target.value))}
+              placeholder="DUPONT"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -241,7 +259,7 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
               type="text"
               required
               value={prenom}
-              onChange={(e) => setPrenom(e.target.value)}
+              onChange={(e) => setPrenom(toCapitalizedName(e.target.value))}
               placeholder="Jean"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
@@ -282,8 +300,10 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
               <input
                 type="text"
                 required
+                inputMode="numeric"
+                maxLength={5}
                 value={codePostal}
-                onChange={(e) => setCodePostal(e.target.value)}
+                onChange={(e) => setCodePostal(sanitizeDigits(e.target.value))}
                 placeholder="75000"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
@@ -306,12 +326,20 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Téléphone</label>
             <input
-              type="text"
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
               value={telephone}
-              onChange={(e) => setTelephone(e.target.value)}
-              placeholder="06 00 00 00 00"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onChange={(e) => setTelephone(sanitizeDigits(e.target.value))}
+              placeholder="0600000000"
+              aria-invalid={telephoneInvalid}
+              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                telephoneInvalid
+                  ? 'border-red-400 focus:ring-red-500'
+                  : 'border-slate-300 focus:ring-indigo-500'
+              }`}
             />
+            {telephoneInvalid && <p className="mt-1 text-xs text-red-600">Le téléphone doit contenir 10 chiffres.</p>}
           </div>
 
           <div>
@@ -321,8 +349,14 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
               value={courriel}
               onChange={(e) => setCourriel(e.target.value)}
               placeholder="jean.dupont@exemple.fr"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-invalid={courrielInvalid}
+              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                courrielInvalid
+                  ? 'border-red-400 focus:ring-red-500'
+                  : 'border-slate-300 focus:ring-indigo-500'
+              }`}
             />
+            {courrielInvalid && <p className="mt-1 text-xs text-red-600">Format d'email invalide.</p>}
           </div>
 
           {!isEdit && (
