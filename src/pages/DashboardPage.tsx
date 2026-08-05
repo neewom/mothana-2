@@ -162,7 +162,9 @@ export default function DashboardPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Adhérents proches d'expiration (30 jours)</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{adherentsExpiration.length}</p>
-          <p className="mt-1 text-xs text-slate-400">Module Adhérents en cours de déploiement</p>
+          <p className="mt-1 text-xs text-slate-400">
+            {adherentsExpiration.length === 0 ? 'Aucun renouvellement à prévoir' : 'À relancer pour renouvellement'}
+          </p>
         </div>
       </div>
 

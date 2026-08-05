@@ -254,14 +254,14 @@ export default function ActivitesPage() {
 
       {/* List card */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
           {/* Search */}
           <input
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
             placeholder="Rechercher par nom…"
-            className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full min-w-[12rem] max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
           <div className="flex flex-shrink-0 items-center gap-2">
             <button
@@ -305,7 +305,7 @@ export default function ActivitesPage() {
           <>
           <ul className="divide-y divide-slate-100">
             {paginatedActivites.map((a) => (
-              <li key={a.id} className="flex items-center justify-between px-6 py-4">
+              <li key={a.id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

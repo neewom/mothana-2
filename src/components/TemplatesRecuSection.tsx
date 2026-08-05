@@ -196,11 +196,11 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-500">
           Un seul template actif par type à la fois. Le template actif est celui utilisé pour générer les reçus.
         </p>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
           <button
             onClick={() => setImportOpen(true)}
             className="rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
@@ -257,7 +257,7 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
                           {errMsg && <p className="mt-1 text-xs text-red-600">{errMsg}</p>}
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             onClick={() => setPreviewTemplate(template)}

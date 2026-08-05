@@ -36,7 +36,7 @@ export default function TemplateRecuPreviewModal({
 
   return (
     <Modal open={open} onClose={onClose} maxWidthClassName="max-w-4xl" labelledBy="template-preview-title">
-      <div className="border-b border-slate-200 px-6 py-4">
+      <div className="border-b border-slate-200 px-6 py-4 pr-12">
         <h2 id="template-preview-title" className="text-lg font-semibold text-slate-900">
           Aperçu — {nom}
         </h2>
