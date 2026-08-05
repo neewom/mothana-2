@@ -39,6 +39,21 @@
 - Testé : typecheck/lint propres (seule erreur lint pré-existante sur le pattern `setState` dans `useEffect` à l'ouverture de modale, déjà présente sur les éditeurs Cerfa/carte, pas introduite ici) ; rendu par défaut vérifié via Playwright sur l'instance de dev (aucune régression visuelle, aucune erreur console) ; rendu personnalisé (logo Wat Velouvanaram + titre + pied de page, placeholders résolus) vérifié bout-en-bout en écrivant temporairement en base puis en nettoyant (organisation remise à `null`) — pas de test de l'éditeur Monaco lui-même côté agent (pas d'identifiants admin, comme d'habitude)
 - PR #42 (`feat/formulaire-adhesion-header-footer`) testée et mergée par l'utilisateur. `main` local mis à jour (fast-forward).
 
+### Reprise — formatage et validation des champs des formulaires adhérent
+
+- Besoin remonté par l'utilisateur (organisation) sur les formulaires d'ajout d'adhérent (`AdherentModal.tsx` admin + `DemandeAdhesionPage.tsx` public) : nom en MAJUSCULES à la saisie, prénom capitalisé, validation de format sur l'email et le téléphone.
+- Nouveau `src/lib/textFormat.ts` (utilitaire partagé, pas spécifique aux adhérents — réutilisable) : `toUpperName`, `toCapitalizedName` (gère espaces/tirets/apostrophes, ex. "jean-pierre" → "Jean-Pierre"), `isValidEmail`, `sanitizeDigits`.
+- Téléphone : `type="number"` explicitement écarté (proposé à l'utilisateur avec justification) — supprime les zéros non significatifs ("06..." devient "6"), spinner indésirable. Retenu : `type="tel"` + filtrage à la saisie aux chiffres uniquement + `maxLength`.
+- Itéré en plusieurs allers-retours avec l'utilisateur jusqu'à la version finale :
+  - Téléphone : strictement 10 chiffres (`maxLength={10}`), pas de format international/espaces
+  - Code postal : strictement 5 chiffres (`maxLength={5}`)
+  - Email : validation **en temps réel dès le premier caractère** (pas au blur) — message d'erreur affiché tant que le format n'est pas conforme, disparaît dès qu'il l'est. Même traitement appliqué au téléphone dans un tour suivant (dès la 1ère saisie, tant que ce n'est pas 10 chiffres)
+  - Email : contrôle renforcé sur l'extension (TLD) suite à une question de l'utilisateur (".fr" valide vs ".f" tronqué invalide) — regex resserrée à lettres uniquement, 2 caractères minimum, **sans** liste IANA complète des TLD existants (délibérément écarté : ~1500 entrées, évolue en continu, disproportionné à maintenir pour ce formulaire)
+- Formatage nom/prénom appliqué aussi au chargement (édition d'un adhérent existant, pré-remplissage lors de la ratification d'une demande), pas seulement à la frappe
+- Validation bloquante à la soumission pour les 3 champs (email/téléphone/code postal), en plus du feedback visuel en temps réel
+- Testé à chaque étape via Playwright sur le formulaire public (`/adhesion/wat-choisy`) : transformation majuscule/capitalisation avec accents, filtrage chiffres, plafonds stricts, apparition/disparition des messages d'erreur caractère par caractère, blocage de soumission — aucune erreur console à aucune étape. Formulaire admin non testable côté agent (pas d'identifiants), à valider manuellement comme d'habitude.
+- PR #43 (`feat/adherent-form-formatting-validation`) mergée par l'utilisateur. `main` local mis à jour (fast-forward).
+
 ## Reste à faire (prochaine session)
 
 - Incrémenter automatiquement `id_externe` à la création d'un adhérent via le formulaire (différé depuis la session du 2026-08-04, débloqué depuis que la carte adhérent est validée).
@@ -56,3 +71,5 @@
 - Bypass réaffectation de don : abandonné, plus d'actualité (confirmé par l'utilisateur).
 - Champs adhérent civilité/prénom/naissance/adresse/CP/ville rendus obligatoires côté formulaire uniquement (pas de migration DB, pas de changement sur l'import).
 - En-tête/pied de page du formulaire d'adhésion : 2 champs HTML + 1 CSS partagé (pas un CRUD de templates multiples comme les Cerfa, un seul formulaire public par organisation) ; rendu isolé en shadow DOM + sanitization DOMPurify car c'est la première fois qu'un contenu HTML admin est affiché en direct à des visiteurs anonymes (contrairement aux templates Cerfa/carte, jamais rendus tels quels dans un navigateur).
+- Téléphone formulaires adhérent : `type="tel"` + filtrage chiffres plutôt que `type="number"` (choix proposé et validé), strictement 10 chiffres. Code postal : strictement 5 chiffres.
+- Email formulaires adhérent : validation en temps réel dès le premier caractère (pas au blur), même traitement étendu au téléphone. TLD validé par regex (lettres, 2+ caractères) plutôt que par liste IANA complète, jugée disproportionnée à maintenir.
