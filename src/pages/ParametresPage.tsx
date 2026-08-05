@@ -5,6 +5,7 @@ import TemplatesRecuSection from '../components/TemplatesRecuSection'
 import CarteAdherentSection from '../components/CarteAdherentSection'
 import { slugifyIdentifiant, type OrganisationAsset } from '../lib/organisationAssets'
 import { copyTextToClipboard } from '../lib/clipboard'
+import FormulaireAdhesionEditorModal from '../components/FormulaireAdhesionEditorModal'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,6 +32,9 @@ interface OrgSettings {
   modele_recu_pdf: ModeleRecu
   slug: string
   statuts_url: string | null
+  formulaire_adhesion_header_html: string | null
+  formulaire_adhesion_footer_html: string | null
+  formulaire_adhesion_css: string | null
 }
 
 const MENTION_LEGALE_DEFAUT = "Organisme d'intérêt général éligible au mécénat – article 200 du CGI"
@@ -151,6 +155,10 @@ export default function ParametresPage() {
   const [statutsUrl, setStatutsUrl] = useState<string | null>(null)
   const [statutsUploading, setStatutsUploading] = useState(false)
   const [statutsError, setStatutsError] = useState<string | null>(null)
+  const [formulaireHeaderHtml, setFormulaireHeaderHtml] = useState<string | null>(null)
+  const [formulaireFooterHtml, setFormulaireFooterHtml] = useState<string | null>(null)
+  const [formulaireCss, setFormulaireCss] = useState<string | null>(null)
+  const [formulaireEditorOpen, setFormulaireEditorOpen] = useState(false)
 
   // Assets (identité visuelle — logo, tampon, signature, etc., liste ouverte)
   const [assets, setAssets] = useState<OrganisationAsset[]>([])
@@ -172,7 +180,9 @@ export default function ParametresPage() {
 
       const { data, error } = await supabase
         .from('organisations')
-        .select('nom, code_pin_benevole, adresse, code_postal, ville, pays, modele_recu_pdf, slug, statuts_url')
+        .select(
+          'nom, code_pin_benevole, adresse, code_postal, ville, pays, modele_recu_pdf, slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css',
+        )
         .eq('id', organisationId)
         .single()
 
@@ -194,6 +204,9 @@ export default function ParametresPage() {
       setPays(raw.pays ?? 'France')
       setSlug(raw.slug)
       setStatutsUrl(raw.statuts_url)
+      setFormulaireHeaderHtml(raw.formulaire_adhesion_header_html)
+      setFormulaireFooterHtml(raw.formulaire_adhesion_footer_html)
+      setFormulaireCss(raw.formulaire_adhesion_css)
       setModele({
         rna: modeleRaw.rna ?? '',
         siren: modeleRaw.siren ?? '',
@@ -996,7 +1009,49 @@ export default function ParametresPage() {
           </div>
           {statutsError && <p className="mt-1.5 text-xs text-red-600">{statutsError}</p>}
         </div>
+
+        <div className="mt-6 max-w-lg">
+          <p className="mb-2 text-sm font-medium text-slate-700">En-tête et pied de page</p>
+          <p className="mb-3 text-xs text-slate-400">
+            Le formulaire central reste inchangé. Personnalisez l'en-tête et le pied de page avec vos assets (logo, bannière…) via l'éditeur.
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setFormulaireEditorOpen(true)}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {formulaireHeaderHtml || formulaireFooterHtml ? 'Modifier' : 'Personnaliser'}
+            </button>
+            {(formulaireHeaderHtml || formulaireFooterHtml) && (
+              <span className="text-xs text-emerald-600">Personnalisé</span>
+            )}
+          </div>
+        </div>
       </Section>
+
+      {organisationId && (
+        <FormulaireAdhesionEditorModal
+          open={formulaireEditorOpen}
+          onClose={() => setFormulaireEditorOpen(false)}
+          onSaved={async () => {
+            const { data } = await supabase
+              .from('organisations')
+              .select('formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css')
+              .eq('id', organisationId)
+              .single()
+            if (data) {
+              setFormulaireHeaderHtml(data.formulaire_adhesion_header_html)
+              setFormulaireFooterHtml(data.formulaire_adhesion_footer_html)
+              setFormulaireCss(data.formulaire_adhesion_css)
+            }
+          }}
+          organisationId={organisationId}
+          headerHtml={formulaireHeaderHtml}
+          footerHtml={formulaireFooterHtml}
+          css={formulaireCss}
+        />
+      )}
     </div>
   )
 }
