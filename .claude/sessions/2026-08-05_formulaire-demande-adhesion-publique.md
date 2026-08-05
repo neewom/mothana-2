@@ -54,6 +54,15 @@
 - Testé à chaque étape via Playwright sur le formulaire public (`/adhesion/wat-choisy`) : transformation majuscule/capitalisation avec accents, filtrage chiffres, plafonds stricts, apparition/disparition des messages d'erreur caractère par caractère, blocage de soumission — aucune erreur console à aucune étape. Formulaire admin non testable côté agent (pas d'identifiants), à valider manuellement comme d'habitude.
 - PR #43 (`feat/adherent-form-formatting-validation`) mergée par l'utilisateur. `main` local mis à jour (fast-forward).
 
+### Reprise — pays, téléphone assoupli, détection de doublons à la ratification
+
+- Nouvelle demande de l'organisation sur les mêmes formulaires adhérent (admin + public) : trois changements distincts.
+- **Téléphone** : retour en arrière partiel sur le strict 10 chiffres de la session précédente — finalement `minLength=10`/`maxLength=25` (attributs HTML natifs) et abandon de la validation live/submit custom, on garde uniquement le filtrage à la saisie aux chiffres.
+- **Pays** : nouveau select après Ville, défaut "France", `src/lib/countries.ts` (liste écrite à la main, pas de lib externe). Migration `adherents_demandes_adhesion_pays.sql` (colonne `pays` sur `adherents` et `demandes_adhesion`, défaut `'France'`) exécutée en prod après confirmation explicite.
+- **Détection de doublons** : demandée d'abord au clic sur "Ratifier" (recherche adhérents existants par email/téléphone/nom+prénom, `src/lib/adherentDuplicateCheck.ts`, alertes en bannière ambre dans `AdherentModal`), puis étendue suite à un retour utilisateur ("avant le clic sur ratifier") — calcul batché pour toutes les demandes dès le chargement de la page (`Promise.all` dans `fetchDemandes`), ligne de tableau teintée ambre + badge "Doublon possible" (tooltip détaillé), et dans le détail d'une demande : bannière récapitulative + champs nom/prénom, téléphone, courriel individuellement surlignés avec le nom de l'adhérent en conflit. Une demande déjà ratifiée est exclue de ses propres résultats (`excludeAdherentId`), sinon elle se signale doublon d'elle-même.
+- Logique de matching (email/téléphone/nom+prénom, insensible à la casse, échappement des valeurs pour le filtre PostgREST `.or()`) vérifiée directement en base via `supabase db query` (adhérent de test créé, requête équivalente validée, nettoyé) — écran de ratification lui-même non testable côté agent (pas d'identifiants admin, comme d'habitude).
+- PR #44 (`feat/adherent-form-pays-tel-duplicates`) mergée par l'utilisateur. `main` local mis à jour (fast-forward).
+
 ## Reste à faire (prochaine session)
 
 - Incrémenter automatiquement `id_externe` à la création d'un adhérent via le formulaire (différé depuis la session du 2026-08-04, débloqué depuis que la carte adhérent est validée).
@@ -71,5 +80,7 @@
 - Bypass réaffectation de don : abandonné, plus d'actualité (confirmé par l'utilisateur).
 - Champs adhérent civilité/prénom/naissance/adresse/CP/ville rendus obligatoires côté formulaire uniquement (pas de migration DB, pas de changement sur l'import).
 - En-tête/pied de page du formulaire d'adhésion : 2 champs HTML + 1 CSS partagé (pas un CRUD de templates multiples comme les Cerfa, un seul formulaire public par organisation) ; rendu isolé en shadow DOM + sanitization DOMPurify car c'est la première fois qu'un contenu HTML admin est affiché en direct à des visiteurs anonymes (contrairement aux templates Cerfa/carte, jamais rendus tels quels dans un navigateur).
+- Téléphone formulaires adhérent : revenu sur le strict 10 chiffres (session précédente) à min/max 10-25 caractères et filtrage chiffres seul, sans validation live — décision explicite de l'utilisateur, pas une régression.
+- Doublons adhérents : détection dès le chargement de la liste des demandes (pas seulement au clic Ratifier), avec colorimétrie ambre en liste et surlignage champ par champ dans le détail — retour utilisateur après la première implémentation (clic-only jugé insuffisant).
 - Téléphone formulaires adhérent : `type="tel"` + filtrage chiffres plutôt que `type="number"` (choix proposé et validé), strictement 10 chiffres. Code postal : strictement 5 chiffres.
 - Email formulaires adhérent : validation en temps réel dès le premier caractère (pas au blur), même traitement étendu au téléphone. TLD validé par regex (lettres, 2+ caractères) plutôt que par liste IANA complète, jugée disproportionnée à maintenir.
