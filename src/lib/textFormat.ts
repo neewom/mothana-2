@@ -14,6 +14,6 @@ export function isValidEmail(value: string): boolean {
   return EMAIL_REGEX.test(value)
 }
 
-export function sanitizePhoneInput(value: string): string {
-  return value.replace(/[^\d\s+()-]/g, '')
+export function sanitizeDigits(value: string): string {
+  return value.replace(/\D/g, '')
 }

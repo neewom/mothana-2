@@ -5,7 +5,7 @@ import { CIVILITE_ADHERENT_OPTIONS } from '../lib/civiliteAdherent'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { generateUUID } from '../lib/uuid'
 import { computeDateFin } from '../lib/adhesion'
-import { toUpperName, toCapitalizedName, isValidEmail, sanitizePhoneInput } from '../lib/textFormat'
+import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '../lib/textFormat'
 import Modal from './Modal'
 
 interface IdentitePrefill {
@@ -105,6 +105,14 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
     if (courriel.trim() !== '' && !isValidEmail(courriel)) {
       setCourrielTouched(true)
       setError("Le format de l'adresse email est invalide.")
+      return
+    }
+    if (codePostal.length !== 5) {
+      setError('Le code postal doit contenir 5 chiffres.')
+      return
+    }
+    if (telephone.trim() !== '' && telephone.length !== 10) {
+      setError('Le téléphone doit contenir 10 chiffres.')
       return
     }
 
@@ -294,8 +302,10 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
               <input
                 type="text"
                 required
+                inputMode="numeric"
+                maxLength={5}
                 value={codePostal}
-                onChange={(e) => setCodePostal(e.target.value)}
+                onChange={(e) => setCodePostal(sanitizeDigits(e.target.value))}
                 placeholder="75000"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
@@ -320,10 +330,10 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
             <input
               type="tel"
               inputMode="numeric"
-              maxLength={20}
+              maxLength={10}
               value={telephone}
-              onChange={(e) => setTelephone(sanitizePhoneInput(e.target.value))}
-              placeholder="06 00 00 00 00"
+              onChange={(e) => setTelephone(sanitizeDigits(e.target.value))}
+              placeholder="0600000000"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
