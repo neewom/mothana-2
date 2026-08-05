@@ -6,6 +6,7 @@ import { CIVILITE_ADHERENT_OPTIONS } from '../lib/civiliteAdherent'
 import SignaturePad from '../components/SignaturePad'
 import ShadowHtmlBlock from '../components/ShadowHtmlBlock'
 import { substituteFormulaireAdhesionPlaceholders } from '../lib/formulaireAdhesionPreview'
+import { toUpperName, toCapitalizedName, isValidEmail, sanitizePhoneInput } from '../lib/textFormat'
 
 interface OrganisationAssetPublic {
   identifiant: string
@@ -47,6 +48,9 @@ export default function DemandeAdhesionPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [courrielTouched, setCourrielTouched] = useState(false)
+
+  const courrielInvalid = courrielTouched && courriel.trim() !== '' && !isValidEmail(courriel)
 
   useEffect(() => {
     if (!slug) return
@@ -78,6 +82,11 @@ export default function DemandeAdhesionPage() {
     }
     if (!signature) {
       setSubmitError('Merci de signer avant de valider la demande.')
+      return
+    }
+    if (courriel.trim() !== '' && !isValidEmail(courriel)) {
+      setCourrielTouched(true)
+      setSubmitError("Le format de l'adresse email est invalide.")
       return
     }
     if (!organisation) return
@@ -202,8 +211,8 @@ export default function DemandeAdhesionPage() {
               type="text"
               required
               value={nom}
-              onChange={(e) => setNom(e.target.value)}
-              placeholder="Dupont"
+              onChange={(e) => setNom(toUpperName(e.target.value))}
+              placeholder="DUPONT"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -216,7 +225,7 @@ export default function DemandeAdhesionPage() {
               type="text"
               required
               value={prenom}
-              onChange={(e) => setPrenom(e.target.value)}
+              onChange={(e) => setPrenom(toCapitalizedName(e.target.value))}
               placeholder="Jean"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
@@ -281,9 +290,11 @@ export default function DemandeAdhesionPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Téléphone</label>
             <input
-              type="text"
+              type="tel"
+              inputMode="numeric"
+              maxLength={20}
               value={telephone}
-              onChange={(e) => setTelephone(e.target.value)}
+              onChange={(e) => setTelephone(sanitizePhoneInput(e.target.value))}
               placeholder="06 00 00 00 00"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
@@ -295,9 +306,16 @@ export default function DemandeAdhesionPage() {
               type="email"
               value={courriel}
               onChange={(e) => setCourriel(e.target.value)}
+              onBlur={() => setCourrielTouched(true)}
               placeholder="jean.dupont@exemple.fr"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-invalid={courrielInvalid}
+              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                courrielInvalid
+                  ? 'border-red-400 focus:ring-red-500'
+                  : 'border-slate-300 focus:ring-indigo-500'
+              }`}
             />
+            {courrielInvalid && <p className="mt-1 text-xs text-red-600">Format d'email invalide.</p>}
           </div>
 
           <div className="border-t border-slate-200 pt-4">
