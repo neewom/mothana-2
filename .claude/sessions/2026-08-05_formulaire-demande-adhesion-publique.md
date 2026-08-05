@@ -24,6 +24,21 @@
 - Testé via Playwright sur le formulaire public (soumission bloquée tant que les champs ne sont pas remplis, aucune ligne insérée en base). Formulaire admin non testable côté agent (pas d'identifiants), validé manuellement par l'utilisateur.
 - PR #41 ouverte, testée et mergée. `main` local mis à jour (fast-forward).
 
+### Reprise — personnalisation en-tête/pied de page du formulaire public
+
+- Besoin remonté par l'utilisateur : pouvoir décorer le formulaire public de demande d'adhésion avec les assets de l'organisation. Cadré par échange avant codage : le formulaire central (champs à remplir) reste inchangé, seuls un en-tête et un pied de page deviennent personnalisables via un éditeur.
+- Décisions actées en discussion : réutilisation de l'infra Monaco existante (Cerfa/carte adhérent) et des placeholders `{{asset_<identifiant>}}`, mais **pas** de CRUD de templates multiples comme les Cerfa (un seul formulaire public par organisation, contrairement aux 2 types Cerfa) — juste 2 champs HTML (en-tête, pied de page) + 1 CSS partagé, stockés directement sur `organisations`.
+- Point de sécurité identifié et traité avant codage (pas après coup) : contrairement aux templates Cerfa/carte (jamais rendus tels quels dans un navigateur, seulement via Gotenberg côté serveur), ce HTML admin est affiché en direct à des visiteurs anonymes sur une page publique → sanitization DOMPurify + isolation **shadow DOM** (`ShadowHtmlBlock.tsx`, nouveau composant) pour éviter tout XSS et toute fuite de CSS dans les deux sens (pas d'iframe, plus simple à intégrer dans le flux React existant).
+- Implémenté :
+  - Migration `formulaire_adhesion_header_footer.sql` (exécutée en prod) : colonnes `formulaire_adhesion_header_html`/`footer_html`/`css` sur `organisations` (NULL = par défaut), `get_organisation_public()` étendue (drop + recreate, changement de type de retour) pour exposer ces champs + la liste des assets de l'organisation en jsonb (bypass RLS nécessaire pour un visiteur anonyme)
+  - `src/lib/formulaireAdhesionPreview.ts` : constantes par défaut — l'en-tête par défaut reproduit exactement l'ancien en-tête codé en dur (titre "Demande d'adhésion" + `{{organisation_nom}}`), conformément à la demande explicite de l'utilisateur que l'éditeur parte de l'existant avant personnalisation
+  - `FormulaireAdhesionEditorModal.tsx` : éditeur Monaco 3 onglets (En-tête/Pied de page/CSS) + aperçu iframe live + popover placeholders (assets + `organisation_nom`), même squelette que `TemplateRecuEditorModal.tsx`
+  - Section "En-tête et pied de page" ajoutée dans `ParametresPage.tsx` (sous "Adhésion en ligne", à côté du slug et des statuts)
+  - `DemandeAdhesionPage.tsx` : rendu conditionnel — HTML custom via `ShadowHtmlBlock` si personnalisé, sinon bloc par défaut inchangé (aucune régression si l'organisation n'a rien personnalisé)
+  - Nouvelle dépendance `dompurify` (types bundlés, pas de `@types/` séparé nécessaire)
+- Testé : typecheck/lint propres (seule erreur lint pré-existante sur le pattern `setState` dans `useEffect` à l'ouverture de modale, déjà présente sur les éditeurs Cerfa/carte, pas introduite ici) ; rendu par défaut vérifié via Playwright sur l'instance de dev (aucune régression visuelle, aucune erreur console) ; rendu personnalisé (logo Wat Velouvanaram + titre + pied de page, placeholders résolus) vérifié bout-en-bout en écrivant temporairement en base puis en nettoyant (organisation remise à `null`) — pas de test de l'éditeur Monaco lui-même côté agent (pas d'identifiants admin, comme d'habitude)
+- PR #42 (`feat/formulaire-adhesion-header-footer`) testée et mergée par l'utilisateur. `main` local mis à jour (fast-forward).
+
 ## Reste à faire (prochaine session)
 
 - Incrémenter automatiquement `id_externe` à la création d'un adhérent via le formulaire (différé depuis la session du 2026-08-04, débloqué depuis que la carte adhérent est validée).
@@ -40,3 +55,4 @@
 - Bannière dashboard : couleur ambre/warning retenue après retour utilisateur (plus visible que l'indigo initial).
 - Bypass réaffectation de don : abandonné, plus d'actualité (confirmé par l'utilisateur).
 - Champs adhérent civilité/prénom/naissance/adresse/CP/ville rendus obligatoires côté formulaire uniquement (pas de migration DB, pas de changement sur l'import).
+- En-tête/pied de page du formulaire d'adhésion : 2 champs HTML + 1 CSS partagé (pas un CRUD de templates multiples comme les Cerfa, un seul formulaire public par organisation) ; rendu isolé en shadow DOM + sanitization DOMPurify car c'est la première fois qu'un contenu HTML admin est affiché en direct à des visiteurs anonymes (contrairement aux templates Cerfa/carte, jamais rendus tels quels dans un navigateur).
