@@ -4,11 +4,22 @@ import { supabase } from '../lib/supabaseClient'
 import type { CiviliteAdherent } from '../types'
 import { CIVILITE_ADHERENT_OPTIONS } from '../lib/civiliteAdherent'
 import SignaturePad from '../components/SignaturePad'
+import ShadowHtmlBlock from '../components/ShadowHtmlBlock'
+import { substituteFormulaireAdhesionPlaceholders } from '../lib/formulaireAdhesionPreview'
+
+interface OrganisationAssetPublic {
+  identifiant: string
+  url: string
+}
 
 interface OrganisationPublic {
   id: string
   nom: string
   statuts_url: string | null
+  formulaire_adhesion_header_html: string | null
+  formulaire_adhesion_footer_html: string | null
+  formulaire_adhesion_css: string | null
+  assets: OrganisationAssetPublic[] | null
 }
 
 export default function DemandeAdhesionPage() {
@@ -132,13 +143,26 @@ export default function DemandeAdhesionPage() {
     )
   }
 
+  const placeholderValues: Record<string, string> = { organisation_nom: organisation.nom }
+  for (const asset of organisation.assets ?? []) {
+    placeholderValues[`asset_${asset.identifiant}`] = asset.url
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-10">
       <div className="mx-auto max-w-xl">
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-slate-900">Demande d'adhésion</h1>
-          <p className="mt-1 text-sm text-slate-500">{organisation.nom}</p>
-        </div>
+        {organisation.formulaire_adhesion_header_html ? (
+          <ShadowHtmlBlock
+            className="mb-6"
+            html={substituteFormulaireAdhesionPlaceholders(organisation.formulaire_adhesion_header_html, placeholderValues)}
+            css={organisation.formulaire_adhesion_css ?? ''}
+          />
+        ) : (
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold text-slate-900">Demande d'adhésion</h1>
+            <p className="mt-1 text-sm text-slate-500">{organisation.nom}</p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           {submitError && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{submitError}</div>}
@@ -333,6 +357,14 @@ export default function DemandeAdhesionPage() {
             {submitting ? 'Envoi…' : 'Envoyer ma demande'}
           </button>
         </form>
+
+        {organisation.formulaire_adhesion_footer_html && (
+          <ShadowHtmlBlock
+            className="mt-6"
+            html={substituteFormulaireAdhesionPlaceholders(organisation.formulaire_adhesion_footer_html, placeholderValues)}
+            css={organisation.formulaire_adhesion_css ?? ''}
+          />
+        )}
       </div>
     </div>
   )
