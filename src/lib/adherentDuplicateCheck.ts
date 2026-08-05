@@ -1,6 +1,10 @@
 import { supabase } from './supabaseClient'
 import type { Adherent } from '../types'
 
+export const RAISON_EMAIL = 'email identique'
+export const RAISON_TELEPHONE = 'téléphone identique'
+export const RAISON_NOM_PRENOM = 'nom et prénom identiques'
+
 export interface DuplicateMatch {
   adherent: Adherent
   raisons: string[]
@@ -19,10 +23,12 @@ function escapeOrValue(value: string): string {
 }
 
 // Recherche des adhérents déjà existants (même organisation) partageant l'email, le téléphone,
-// ou le couple nom+prénom avec une demande d'adhésion en attente de ratification.
+// ou le couple nom+prénom avec une demande d'adhésion. `excludeAdherentId` évite qu'une demande
+// déjà ratifiée ne remonte l'adhérent qu'elle a elle-même créé comme un doublon d'elle-même.
 export async function findAdherentDuplicates(
   organisationId: string,
   demande: DemandeIdentite,
+  excludeAdherentId?: string | null,
 ): Promise<DuplicateMatch[]> {
   const orParts: string[] = []
   if (demande.courriel) orParts.push(`courriel.ilike.${escapeOrValue(demande.courriel)}`)
@@ -33,28 +39,32 @@ export async function findAdherentDuplicates(
 
   if (orParts.length === 0) return []
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('adherents')
     .select('*')
     .eq('organisation_id', organisationId)
     .or(orParts.join(','))
+
+  if (excludeAdherentId) query = query.neq('id', excludeAdherentId)
+
+  const { data, error } = await query
 
   if (error || !data) return []
 
   return (data as Adherent[]).map((existing) => {
     const raisons: string[] = []
     if (demande.courriel && existing.courriel && existing.courriel.toLowerCase() === demande.courriel.toLowerCase()) {
-      raisons.push('email identique')
+      raisons.push(RAISON_EMAIL)
     }
     if (demande.telephone && existing.telephone && existing.telephone === demande.telephone) {
-      raisons.push('téléphone identique')
+      raisons.push(RAISON_TELEPHONE)
     }
     if (
       demande.nom && demande.prenom && existing.prenom &&
       existing.nom.toLowerCase() === demande.nom.toLowerCase() &&
       existing.prenom.toLowerCase() === demande.prenom.toLowerCase()
     ) {
-      raisons.push('nom et prénom identiques')
+      raisons.push(RAISON_NOM_PRENOM)
     }
     return { adherent: existing, raisons }
   })

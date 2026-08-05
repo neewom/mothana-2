@@ -4,7 +4,13 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Adherent, DemandeAdhesion } from '../types'
 import { CIVILITE_ADHERENT_LABELS } from '../lib/civiliteAdherent'
 import { useToast } from '../hooks/useToast'
-import { findAdherentDuplicates, type DuplicateMatch } from '../lib/adherentDuplicateCheck'
+import {
+  findAdherentDuplicates,
+  RAISON_EMAIL,
+  RAISON_TELEPHONE,
+  RAISON_NOM_PRENOM,
+  type DuplicateMatch,
+} from '../lib/adherentDuplicateCheck'
 import Toast from '../components/Toast'
 import Modal from '../components/Modal'
 import AdherentModal from '../components/AdherentModal'
@@ -19,6 +25,10 @@ function formatDate(iso: string): string {
 
 function demandeFullName(d: DemandeAdhesion): string {
   return [d.prenom, d.nom].filter(Boolean).join(' ')
+}
+
+function adherentFullName(a: Adherent): string {
+  return [a.prenom, a.nom].filter(Boolean).join(' ')
 }
 
 type Tab = 'en_attente' | 'ratifiee' | 'refusee'
@@ -42,8 +52,10 @@ export default function DemandesAdhesionPage() {
   const [refusingDemande, setRefusingDemande] = useState<DemandeAdhesion | null>(null)
   const [refusing, setRefusing] = useState(false)
   const [detailDemande, setDetailDemande] = useState<DemandeAdhesion | null>(null)
-  const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([])
-  const [duplicatesLoading, setDuplicatesLoading] = useState(false)
+  // Doublons potentiels par demande, calculés dès le chargement de la liste (pas seulement au clic
+  // sur "Ratifier") pour permettre une colorimétrie différente dans le tableau et le détail.
+  const [duplicatesMap, setDuplicatesMap] = useState<Record<string, DuplicateMatch[]>>({})
+  const [duplicatesMapLoading, setDuplicatesMapLoading] = useState(false)
 
   const fetchDemandes = useCallback(async () => {
     if (!organisationId) return
@@ -63,28 +75,28 @@ export default function DemandesAdhesionPage() {
       return
     }
 
-    setDemandes((data ?? []) as DemandeAdhesion[])
+    const list = (data ?? []) as DemandeAdhesion[]
+    setDemandes(list)
     setLoading(false)
+
+    setDuplicatesMapLoading(true)
+    const entries = await Promise.all(
+      list.map(async (d) => {
+        const matches = await findAdherentDuplicates(
+          organisationId,
+          { nom: d.nom, prenom: d.prenom, courriel: d.courriel, telephone: d.telephone },
+          d.adherent_id,
+        )
+        return [d.id, matches] as const
+      }),
+    )
+    setDuplicatesMap(Object.fromEntries(entries))
+    setDuplicatesMapLoading(false)
   }, [organisationId, tab])
 
   useEffect(() => {
     fetchDemandes()
   }, [fetchDemandes])
-
-  async function handleRatifyClick(d: DemandeAdhesion) {
-    setRatifyingDemande(d)
-    setDuplicates([])
-    if (!organisationId) return
-    setDuplicatesLoading(true)
-    const results = await findAdherentDuplicates(organisationId, {
-      nom: d.nom,
-      prenom: d.prenom,
-      courriel: d.courriel,
-      telephone: d.telephone,
-    })
-    setDuplicates(results)
-    setDuplicatesLoading(false)
-  }
 
   async function handleRatified(adherent: Adherent) {
     if (!ratifyingDemande) return
@@ -186,46 +198,61 @@ export default function DemandesAdhesionPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {demandes.map((d) => (
-                    <tr key={d.id} className="hover:bg-slate-50">
-                      <td className="px-6 py-3 text-slate-500">{CIVILITE_ADHERENT_LABELS[d.civilite]}</td>
-                      <td className="px-6 py-3 font-medium text-slate-900">{d.nom}</td>
-                      <td className="px-6 py-3 text-slate-700">{d.prenom ?? '—'}</td>
-                      <td className="px-6 py-3 text-slate-500">
-                        {d.courriel ?? '—'}
-                        {d.telephone && <p className="text-xs text-slate-400">{d.telephone}</p>}
-                      </td>
-                      <td className="px-6 py-3 text-slate-500">
-                        {formatDateTime(tab === 'en_attente' ? d.created_at : (d.decided_at ?? d.created_at))}
-                      </td>
-                      <td className="px-6 py-3">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => setDetailDemande(d)}
-                            className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                          >
-                            Détail
-                          </button>
-                          {tab === 'en_attente' && (
-                            <>
-                              <button
-                                onClick={() => handleRatifyClick(d)}
-                                className="rounded-lg border border-emerald-200 px-2.5 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50"
+                  {demandes.map((d) => {
+                    const hasDuplicate = (duplicatesMap[d.id]?.length ?? 0) > 0
+                    return (
+                      <tr key={d.id} className={hasDuplicate ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-slate-50'}>
+                        <td className="px-6 py-3 text-slate-500">{CIVILITE_ADHERENT_LABELS[d.civilite]}</td>
+                        <td className="px-6 py-3 font-medium text-slate-900">
+                          <div className="flex items-center gap-2">
+                            {d.nom}
+                            {hasDuplicate && (
+                              <span
+                                title={duplicatesMap[d.id].map((m) => `${adherentFullName(m.adherent)} (${m.raisons.join(', ')})`).join(' · ')}
+                                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
                               >
-                                Ratifier
-                              </button>
-                              <button
-                                onClick={() => setRefusingDemande(d)}
-                                className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
-                              >
-                                Refuser
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                                ⚠️ Doublon possible
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-3 text-slate-700">{d.prenom ?? '—'}</td>
+                        <td className="px-6 py-3 text-slate-500">
+                          {d.courriel ?? '—'}
+                          {d.telephone && <p className="text-xs text-slate-400">{d.telephone}</p>}
+                        </td>
+                        <td className="px-6 py-3 text-slate-500">
+                          {formatDateTime(tab === 'en_attente' ? d.created_at : (d.decided_at ?? d.created_at))}
+                        </td>
+                        <td className="px-6 py-3">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => setDetailDemande(d)}
+                              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                              Détail
+                            </button>
+                            {tab === 'en_attente' && (
+                              <>
+                                <button
+                                  onClick={() => setRatifyingDemande(d)}
+                                  className="rounded-lg border border-emerald-200 px-2.5 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50"
+                                >
+                                  Ratifier
+                                </button>
+                                <button
+                                  onClick={() => setRefusingDemande(d)}
+                                  className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                                >
+                                  Refuser
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -236,10 +263,7 @@ export default function DemandesAdhesionPage() {
       {ratifyingDemande && organisationId && (
         <AdherentModal
           open
-          onClose={() => {
-            setRatifyingDemande(undefined)
-            setDuplicates([])
-          }}
+          onClose={() => setRatifyingDemande(undefined)}
           onSaved={handleRatified}
           organisationId={organisationId}
           prefill={{
@@ -254,8 +278,8 @@ export default function DemandesAdhesionPage() {
             telephone: ratifyingDemande.telephone,
             courriel: ratifyingDemande.courriel,
           }}
-          duplicateWarnings={duplicates}
-          duplicateWarningsLoading={duplicatesLoading}
+          duplicateWarnings={duplicatesMap[ratifyingDemande.id] ?? []}
+          duplicateWarningsLoading={duplicatesMapLoading && !(ratifyingDemande.id in duplicatesMap)}
         />
       )}
 
@@ -287,14 +311,46 @@ export default function DemandesAdhesionPage() {
         </Modal>
       )}
 
-      {detailDemande && (
+      {detailDemande && (() => {
+        const detailDuplicates = duplicatesMap[detailDemande.id] ?? []
+        const nomPrenomConflicts = detailDuplicates.filter((m) => m.raisons.includes(RAISON_NOM_PRENOM))
+        const telephoneConflicts = detailDuplicates.filter((m) => m.raisons.includes(RAISON_TELEPHONE))
+        const courrielConflicts = detailDuplicates.filter((m) => m.raisons.includes(RAISON_EMAIL))
+        const conflictLabel = (matches: DuplicateMatch[]) => matches.map((m) => adherentFullName(m.adherent)).join(', ')
+
+        return (
         <Modal open onClose={() => setDetailDemande(null)} maxWidthClassName="max-w-lg" labelledBy="detail-demande-title">
           <div className="max-h-[85vh] overflow-y-auto p-6">
             <h2 id="detail-demande-title" className="text-lg font-semibold text-slate-900">
               {demandeFullName(detailDemande)}
             </h2>
 
+            {detailDuplicates.length > 0 && (
+              <div className="mt-3 rounded-lg border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p className="font-semibold">⚠️ Adhérent(s) potentiellement déjà existant(s)</p>
+                <ul className="mt-1.5 list-disc space-y-1 pl-4">
+                  {detailDuplicates.map((m) => (
+                    <li key={m.adherent.id}>
+                      <span className="font-medium">{adherentFullName(m.adherent)}</span> — {m.raisons.join(', ')}
+                      {m.adherent.statut === 'archive' && ' (archivé)'}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              <div className="col-span-2">
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Nom et prénom</dt>
+                <dd
+                  className={`mt-0.5 ${nomPrenomConflicts.length > 0 ? 'rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-amber-900' : 'text-slate-700'}`}
+                >
+                  {demandeFullName(detailDemande)}
+                </dd>
+                {nomPrenomConflicts.length > 0 && (
+                  <p className="mt-1 text-xs text-amber-700">⚠️ Déjà utilisé par {conflictLabel(nomPrenomConflicts)}</p>
+                )}
+              </div>
               <div>
                 <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Civilité</dt>
                 <dd className="mt-0.5 text-slate-700">{CIVILITE_ADHERENT_LABELS[detailDemande.civilite]}</dd>
@@ -323,11 +379,25 @@ export default function DemandesAdhesionPage() {
               </div>
               <div>
                 <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Téléphone</dt>
-                <dd className="mt-0.5 text-slate-700">{detailDemande.telephone ?? '—'}</dd>
+                <dd
+                  className={`mt-0.5 ${telephoneConflicts.length > 0 ? 'rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-amber-900' : 'text-slate-700'}`}
+                >
+                  {detailDemande.telephone ?? '—'}
+                </dd>
+                {telephoneConflicts.length > 0 && (
+                  <p className="mt-1 text-xs text-amber-700">⚠️ Déjà utilisé par {conflictLabel(telephoneConflicts)}</p>
+                )}
               </div>
               <div>
                 <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Courriel</dt>
-                <dd className="mt-0.5 text-slate-700">{detailDemande.courriel ?? '—'}</dd>
+                <dd
+                  className={`mt-0.5 ${courrielConflicts.length > 0 ? 'rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-amber-900' : 'text-slate-700'}`}
+                >
+                  {detailDemande.courriel ?? '—'}
+                </dd>
+                {courrielConflicts.length > 0 && (
+                  <p className="mt-1 text-xs text-amber-700">⚠️ Déjà utilisé par {conflictLabel(courrielConflicts)}</p>
+                )}
               </div>
             </dl>
 
@@ -343,7 +413,8 @@ export default function DemandesAdhesionPage() {
             </p>
           </div>
         </Modal>
-      )}
+        )
+      })()}
 
       {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
     </>
