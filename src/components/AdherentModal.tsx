@@ -93,6 +93,7 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
   }, [open, adherent, prefill])
 
   const courrielInvalid = courriel.length > 0 && !isValidEmail(courriel)
+  const telephoneInvalid = telephone.length > 0 && telephone.length !== 10
 
   if (!open) return null
 
@@ -331,8 +332,14 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
               value={telephone}
               onChange={(e) => setTelephone(sanitizeDigits(e.target.value))}
               placeholder="0600000000"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-invalid={telephoneInvalid}
+              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                telephoneInvalid
+                  ? 'border-red-400 focus:ring-red-500'
+                  : 'border-slate-300 focus:ring-indigo-500'
+              }`}
             />
+            {telephoneInvalid && <p className="mt-1 text-xs text-red-600">Le téléphone doit contenir 10 chiffres.</p>}
           </div>
 
           <div>
