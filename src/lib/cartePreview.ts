@@ -5,11 +5,17 @@
 
 export const CARTE_PREVIEW_PLACEHOLDERS: Record<string, string> = {
   organisation_nom: 'Wat Velouvanaram',
+  organisation_adresse: '5 All. Madame de Montespan',
+  organisation_code_postal: '77600',
+  organisation_ville: 'Bussy-Saint-Georges',
   adherent_civilite: 'Monsieur',
   adherent_nom_complet: 'Jean DUPONT',
   // Optionnel — uniquement renseigné pour les adhérents importés (legacy) ou,
   // à terme, incrémenté automatiquement à la création (cf. backlog CLAUDE.md).
   adherent_id_externe: 'ADH-0042',
+  adherent_adresse: '12 rue des Lilas',
+  adherent_code_postal: '75011',
+  adherent_ville: 'Paris',
   adhesion_date_debut: '15/01/2026',
   adhesion_date_fin: '15/01/2027',
   president_nom: 'Nicolas Boulom',

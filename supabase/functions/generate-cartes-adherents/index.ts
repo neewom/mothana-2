@@ -22,6 +22,9 @@ interface Adherent {
   nom: string
   prenom: string | null
   id_externe: string | null
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
 }
 
 interface AdhesionRow {
@@ -37,6 +40,9 @@ interface ModeleRecu {
 
 interface Organisation {
   nom: string
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
   modele_recu_pdf: ModeleRecu | null
 }
 
@@ -160,7 +166,7 @@ Deno.serve(async (req) => {
 
     const { data: org } = await adminClient
       .from('organisations')
-      .select('nom, modele_recu_pdf')
+      .select('nom, adresse, code_postal, ville, modele_recu_pdf')
       .eq('id', organisationId)
       .single()
 
@@ -188,7 +194,7 @@ Deno.serve(async (req) => {
 
     const { data: adherentsData } = await adminClient
       .from('adherents')
-      .select('id, civilite, nom, prenom, id_externe')
+      .select('id, civilite, nom, prenom, id_externe, adresse, code_postal, ville')
       .eq('organisation_id', organisationId)
       .in('id', adherent_ids)
 
@@ -223,9 +229,15 @@ Deno.serve(async (req) => {
 
       const placeholders: Record<string, string> = {
         organisation_nom: organisation.nom ?? '',
+        organisation_adresse: organisation.adresse ?? '',
+        organisation_code_postal: organisation.code_postal ?? '',
+        organisation_ville: organisation.ville ?? '',
         adherent_civilite: CIVILITE_ADHERENT_LABELS[adherent.civilite] ?? '',
         adherent_nom_complet: nomComplet,
         adherent_id_externe: adherent.id_externe ?? '',
+        adherent_adresse: adherent.adresse ?? '',
+        adherent_code_postal: adherent.code_postal ?? '',
+        adherent_ville: adherent.ville ?? '',
         adhesion_date_debut: adhesion ? formatDate(adhesion.date_debut) : '',
         adhesion_date_fin: adhesion?.date_fin ? formatDate(adhesion.date_fin) : '',
         president_nom: modele.president_nom ?? '',
