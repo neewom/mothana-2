@@ -68,7 +68,7 @@ export function renderCerfaPreviewHtml(
 export async function fetchOrganisationPreviewOverrides(organisationId: string): Promise<Record<string, string>> {
   const { data } = await supabase
     .from('organisations')
-    .select('modele_recu_pdf')
+    .select('adresse, code_postal, ville, modele_recu_pdf')
     .eq('id', organisationId)
     .single()
 
@@ -76,5 +76,8 @@ export async function fetchOrganisationPreviewOverrides(organisationId: string):
   const overrides: Record<string, string> = {}
   if (modele.president_nom) overrides.president_nom = modele.president_nom
   if (modele.president_titre) overrides.president_titre = modele.president_titre
+  if (data?.adresse) overrides.organisation_adresse = data.adresse
+  if (data?.code_postal) overrides.organisation_code_postal = data.code_postal
+  if (data?.ville) overrides.organisation_ville = data.ville
   return overrides
 }
