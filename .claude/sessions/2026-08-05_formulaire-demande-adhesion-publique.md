@@ -63,11 +63,31 @@
 - Logique de matching (email/téléphone/nom+prénom, insensible à la casse, échappement des valeurs pour le filtre PostgREST `.or()`) vérifiée directement en base via `supabase db query` (adhérent de test créé, requête équivalente validée, nettoyé) — écran de ratification lui-même non testable côté agent (pas d'identifiants admin, comme d'habitude).
 - PR #44 (`feat/adherent-form-pays-tel-duplicates`) mergée par l'utilisateur. `main` local mis à jour (fast-forward).
 
+### Reprise — audit UI complet + correction de données mojibake
+
+- **Audit UI de toutes les pages** demandé par l'utilisateur. Périmètre clarifié avant de commencer : la majorité de l'app est derrière une auth admin, jamais accessible côté agent jusqu'ici — l'utilisateur a fourni des identifiants admin de test (`testadmin@velouvanaram.fr`) pour permettre un audit complet plutôt que de se limiter aux 3 pages publiques. Délégué à un subagent en arrière-plan (12 pages, desktop 1280px + mobile 390px, lecture seule sur des données réelles de production) pour protéger le contexte principal des nombreux screenshots.
+- **0 erreur console** sur l'ensemble du parcours. Rapport structuré par page avec sévérité (majeur/modéré/mineur). Deux patterns récurrents identifiés comme causes racines de la majorité des problèmes : lignes flex sans `flex-wrap` (recherche+boutons) et tableaux `overflow-x-auto` sans affordance de scroll visible.
+- **PR #45 mergée** — corrections apportées :
+  - Participants/Activités : header recherche+boutons ne wrappait pas sur mobile (champ écrasé à ~90px) → `flex-wrap` ajouté
+  - Activités : titre long + actions se chevauchaient visuellement quand le titre wrappait → actions passées sous le titre sur mobile (`flex-col sm:flex-row`)
+  - Paramètres (Modèles de reçus + Carte adhérent) : boutons poussés hors écran sur mobile sans indice de scroll → `flex-wrap` sur les deux composants (`TemplatesRecuSection.tsx`, `CarteAdherentSection.tsx`, même pattern dupliqué)
+  - Nouveau composant partagé `ScrollShadowX.tsx` (dégradés CSS purs, sans JS) : affordance de scroll horizontal ajoutée à Reçus fiscaux (qui n'avait même pas de wrapper `overflow-x-auto` — bug plus grave que les deux autres), Adhérents, Demandes d'adhésion
+  - Dashboard : texte placeholder "Module Adhérents en cours de déploiement" oublié alors que le module est en prod depuis le 2026-08-04 — remplacé par un message dynamique reflétant l'état réel
+  - Reçus fiscaux : boutons Générer/Générer tous désactivés utilisaient `disabled:opacity-60` sur fond indigo plein (toujours lisible comme actif) → gris clairement désactivé
+  - Modales d'aperçu template (reçu + carte) : titre long chevauchait le bouton fermer sur mobile → padding ajouté
+  - **Non traité dans cette PR** (hors scope code) : un nom de participant affiché en mojibake sur Dons (`KHAMD�NG SITTHIRATH`) — signalé comme problème de données, pas de rendu
+- **Correction du mojibake** : recherche élargie a trouvé **35 fiches participants** (`personnes.prenom`, jamais `nom` ni `adresse`) avec un caractère `�` (U+FFFD, remplacement irrécupérable — distinct du cas "PHENG MÃ©lanie" de la session du 2026-08-04 qui était une simple erreur d'interprétation d'encodage réversible). Aucun cas côté `adherents`.
+  - Utilisateur explicitement mis en garde avant d'agir : un remplacement automatique en masse aurait été risqué (le cas "H�L�NE" → HÉLÈNE prouve que le caractère perdu n'est pas toujours le même accent — ici É puis È dans le même nom).
+  - Liste complète des 35 cas présentée avec hypothèse par cas avant toute correction. Utilisateur a validé un traitement en bloc ("go") après revue de la liste plutôt qu'un échange un par un.
+  - Correction appliquée directement en base via `supabase db query` (35 UPDATE en une seule requête, VALUES + join sur id) — 9 cas prénoms français quasi certains (René, Stéphanie, Hélène, Cédric, Véronique, Étienne, Rémy, Géraldine, Kévin) + ~26 noms d'origine lao où l'hypothèse "é" était étayée par la récurrence du motif "Kéo" dans plusieurs prénoms de la même liste (Chomkéo, Kéomanivanh, Kéonasack, Konekéo, Ketkéo, Kéovithoun — élément de nom lao très courant). Vérifié après coup : 0 caractère `�` restant.
+- **Discussion connexe sur le réimport adhérents** (pas de code produit, clarification fonctionnelle) : confirmé que `import_upsert_adherents.sql` écrase tous les champs d'identité (nom/prénom/adresse/CP/ville/tél/courriel/civilité) pour toute ligne matchée par `id_externe`, jamais les champs du cycle d'adhésion. Recommandation donnée : ne jamais vider les tables avant un réimport complet — `adhesions.adherent_id` a `ON DELETE CASCADE` (perte de tout l'historique de cotisations) et `demandes_adhesion.adherent_id` a `ON DELETE SET NULL` (perte de traçabilité) ; au 2026-08-05 il existe déjà 1 adhérent sans `id_externe` (créé manuellement/ratifié) qui serait détruit sans possibilité de restauration. L'écran de conflits de l'import (déjà existant) est le bon mécanisme pour gérer un réimport complet en toute sécurité.
+
 ## Reste à faire (prochaine session)
 
 - Incrémenter automatiquement `id_externe` à la création d'un adhérent via le formulaire (différé depuis la session du 2026-08-04, débloqué depuis que la carte adhérent est validée).
 - Rapprochement chèques/virements (roadmap comptable) — toujours non cadré.
 - *(Prio basse, non demandé explicitement)* Le formulaire public de demande d'adhésion n'a pas d'email de confirmation envoyé au demandeur ni de notification aux admins à la soumission — non cadré avec l'utilisateur, à voir si le besoin émerge à l'usage réel.
+- Si l'organisation fournit un fichier adhérents corrigé (encodage/emails) pour réimport : privilégier l'import par-dessus (upsert + écran de conflits), jamais un vidage préalable des tables — cf. section Réalisé pour le raisonnement complet.
 
 ## Blockers
 
