@@ -15,6 +15,7 @@ import {
 import Modal from '../components/Modal'
 import ParticipantModal from '../components/ParticipantModal'
 import Toast from '../components/Toast'
+import ScrollShadowX from '../components/ScrollShadowX'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -339,7 +340,7 @@ export default function RecusFiscauxPage() {
               onClick={generateAll}
               disabled={generateAllLoading || orgMissing.length > 0}
               title={orgMissing.length > 0 ? "Complétez les paramètres de l'organisation pour générer des reçus" : undefined}
-              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:hover:bg-slate-300"
             >
               {generateAllLoading ? (
                 <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -390,6 +391,7 @@ export default function RecusFiscauxPage() {
             <p className="mt-1 text-xs text-slate-400">Sélectionnez une autre année ou ajoutez des dons.</p>
           </div>
         ) : (
+          <ScrollShadowX>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left">
@@ -508,7 +510,7 @@ export default function RecusFiscauxPage() {
                           onClick={() => handleGenerateClick(row)}
                           disabled={isGenLoading || generateAllLoading || isBlocked}
                           title={isBlocked ? (orgMissing.length > 0 ? "Complétez les paramètres de l'organisation" : validationMessage ?? undefined) : undefined}
-                          className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+                          className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:hover:bg-slate-300"
                         >
                           {isGenLoading ? (
                             <svg className="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -529,6 +531,7 @@ export default function RecusFiscauxPage() {
               })}
             </tbody>
           </table>
+          </ScrollShadowX>
         )}
 
         {/* Pagination */}

@@ -12,6 +12,7 @@ import AdhesionModal from '../components/AdhesionModal'
 import ImportWizard from '../components/import/ImportWizard'
 import { adherentsImportConfig } from '../lib/import/configs'
 import CartesAdherentPdfPreviewModal from '../components/CartesAdherentPdfPreviewModal'
+import ScrollShadowX from '../components/ScrollShadowX'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -350,7 +351,7 @@ export default function AdherentsPage() {
               <p className="text-slate-400">Aucun adhérent trouvé</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <ScrollShadowX>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -453,7 +454,7 @@ export default function AdherentsPage() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </ScrollShadowX>
           )}
 
           {!loading && adherents.length > 0 && (

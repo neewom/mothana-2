@@ -14,6 +14,7 @@ import {
 import Toast from '../components/Toast'
 import Modal from '../components/Modal'
 import AdherentModal from '../components/AdherentModal'
+import ScrollShadowX from '../components/ScrollShadowX'
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -185,7 +186,7 @@ export default function DemandesAdhesionPage() {
               <p className="text-slate-400">Aucune demande</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <ScrollShadowX>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -255,7 +256,7 @@ export default function DemandesAdhesionPage() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </ScrollShadowX>
           )}
         </div>
       </div>

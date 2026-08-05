@@ -521,14 +521,14 @@ export default function ParticipantsPage() {
       <div className={`flex gap-6 ${selectedParticipant ? 'items-start' : ''}`}>
         {/* Table card */}
         <div className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
             {/* Search */}
             <input
               type="text"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
               placeholder="Rechercher par nom et prénom…"
-              className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full min-w-[12rem] max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <div className="flex flex-shrink-0 items-center gap-2">
               <button

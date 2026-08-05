@@ -37,7 +37,7 @@ export default function CarteAdherentPreviewModal({
 
   return (
     <Modal open={open} onClose={onClose} maxWidthClassName="max-w-2xl" labelledBy="carte-preview-title">
-      <div className="border-b border-slate-200 px-6 py-4">
+      <div className="border-b border-slate-200 px-6 py-4 pr-12">
         <h2 id="carte-preview-title" className="text-lg font-semibold text-slate-900">
           Aperçu — {nom}
         </h2>
