@@ -58,7 +58,6 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [courrielTouched, setCourrielTouched] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -90,11 +89,10 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
         setBulletinSigne(true)
       }
       setError(null)
-      setCourrielTouched(false)
     }
   }, [open, adherent, prefill])
 
-  const courrielInvalid = courrielTouched && courriel.trim() !== '' && !isValidEmail(courriel)
+  const courrielInvalid = courriel.length > 0 && !isValidEmail(courriel)
 
   if (!open) return null
 
@@ -103,7 +101,6 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
     setError(null)
 
     if (courriel.trim() !== '' && !isValidEmail(courriel)) {
-      setCourrielTouched(true)
       setError("Le format de l'adresse email est invalide.")
       return
     }
@@ -344,7 +341,6 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
               type="email"
               value={courriel}
               onChange={(e) => setCourriel(e.target.value)}
-              onBlur={() => setCourrielTouched(true)}
               placeholder="jean.dupont@exemple.fr"
               aria-invalid={courrielInvalid}
               className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${

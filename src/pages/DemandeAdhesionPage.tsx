@@ -48,9 +48,7 @@ export default function DemandeAdhesionPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
-  const [courrielTouched, setCourrielTouched] = useState(false)
-
-  const courrielInvalid = courrielTouched && courriel.trim() !== '' && !isValidEmail(courriel)
+  const courrielInvalid = courriel.length > 0 && !isValidEmail(courriel)
 
   useEffect(() => {
     if (!slug) return
@@ -85,7 +83,6 @@ export default function DemandeAdhesionPage() {
       return
     }
     if (courriel.trim() !== '' && !isValidEmail(courriel)) {
-      setCourrielTouched(true)
       setSubmitError("Le format de l'adresse email est invalide.")
       return
     }
@@ -316,7 +313,6 @@ export default function DemandeAdhesionPage() {
               type="email"
               value={courriel}
               onChange={(e) => setCourriel(e.target.value)}
-              onBlur={() => setCourrielTouched(true)}
               placeholder="jean.dupont@exemple.fr"
               aria-invalid={courrielInvalid}
               className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
