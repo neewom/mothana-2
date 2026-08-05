@@ -6,6 +6,8 @@ import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { generateUUID } from '../lib/uuid'
 import { computeDateFin } from '../lib/adhesion'
 import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '../lib/textFormat'
+import { COUNTRIES } from '../lib/countries'
+import type { DuplicateMatch } from '../lib/adherentDuplicateCheck'
 import Modal from './Modal'
 
 interface IdentitePrefill {
@@ -16,6 +18,7 @@ interface IdentitePrefill {
   adresse: string | null
   code_postal: string | null
   ville: string | null
+  pays: string | null
   telephone: string | null
   courriel: string | null
 }
@@ -28,13 +31,25 @@ interface AdherentModalProps {
   organisationId: string
   // Pré-remplit le formulaire de création à partir d'une demande d'adhésion en attente de ratification
   prefill?: IdentitePrefill
+  // Doublons potentiels détectés côté DemandesAdhesionPage lors de l'ouverture pour ratification
+  duplicateWarnings?: DuplicateMatch[]
+  duplicateWarningsLoading?: boolean
 }
 
 function today(): string {
   return new Date().toISOString().split('T')[0]
 }
 
-export default function AdherentModal({ open, onClose, onSaved, adherent, organisationId, prefill }: AdherentModalProps) {
+export default function AdherentModal({
+  open,
+  onClose,
+  onSaved,
+  adherent,
+  organisationId,
+  prefill,
+  duplicateWarnings,
+  duplicateWarningsLoading,
+}: AdherentModalProps) {
   const isEdit = !!adherent
 
   // Identité
@@ -45,6 +60,7 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
   const [adresse, setAdresse] = useState('')
   const [codePostal, setCodePostal] = useState('')
   const [ville, setVille] = useState('')
+  const [pays, setPays] = useState('France')
   const [telephone, setTelephone] = useState('')
   const [courriel, setCourriel] = useState('')
 
@@ -69,6 +85,7 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
         setAdresse(adherent.adresse ?? '')
         setCodePostal(adherent.code_postal ?? '')
         setVille(adherent.ville ?? '')
+        setPays(adherent.pays ?? 'France')
         setTelephone(adherent.telephone ?? '')
         setCourriel(adherent.courriel ?? '')
       } else {
@@ -79,6 +96,7 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
         setAdresse(prefill?.adresse ?? '')
         setCodePostal(prefill?.code_postal ?? '')
         setVille(prefill?.ville ?? '')
+        setPays(prefill?.pays ?? 'France')
         setTelephone(prefill?.telephone ?? '')
         setCourriel(prefill?.courriel ?? '')
         setDateDebut(today())
@@ -93,7 +111,6 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
   }, [open, adherent, prefill])
 
   const courrielInvalid = courriel.length > 0 && !isValidEmail(courriel)
-  const telephoneInvalid = telephone.length > 0 && telephone.length !== 10
 
   if (!open) return null
 
@@ -109,10 +126,6 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
       setError('Le code postal doit contenir 5 chiffres.')
       return
     }
-    if (telephone.trim() !== '' && telephone.length !== 10) {
-      setError('Le téléphone doit contenir 10 chiffres.')
-      return
-    }
 
     setSaving(true)
 
@@ -124,6 +137,7 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
       adresse: adresse || null,
       code_postal: codePostal || null,
       ville: ville || null,
+      pays: pays || null,
       telephone: telephone || null,
       courriel: courriel || null,
     }
@@ -219,6 +233,28 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <div className="space-y-4 overflow-y-auto p-6">
           {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+
+          {prefill && duplicateWarningsLoading && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+              Recherche de doublons en cours…
+            </div>
+          )}
+
+          {prefill && !duplicateWarningsLoading && duplicateWarnings && duplicateWarnings.length > 0 && (
+            <div className="rounded-lg border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="font-semibold">⚠️ Adhérent(s) potentiellement déjà existant(s)</p>
+              <ul className="mt-1.5 list-disc space-y-1 pl-4">
+                {duplicateWarnings.map(({ adherent: existing, raisons }) => (
+                  <li key={existing.id}>
+                    <span className="font-medium">{[existing.prenom, existing.nom].filter(Boolean).join(' ')}</span>
+                    {' '}— {raisons.join(', ')}
+                    {existing.statut === 'archive' && ' (archivé)'}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
@@ -324,22 +360,30 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
           </div>
 
           <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Pays</label>
+            <select
+              value={pays}
+              onChange={(e) => setPays(e.target.value)}
+              className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Téléphone</label>
             <input
               type="tel"
               inputMode="numeric"
-              maxLength={10}
+              minLength={10}
+              maxLength={25}
               value={telephone}
               onChange={(e) => setTelephone(sanitizeDigits(e.target.value))}
               placeholder="0600000000"
-              aria-invalid={telephoneInvalid}
-              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                telephoneInvalid
-                  ? 'border-red-400 focus:ring-red-500'
-                  : 'border-slate-300 focus:ring-indigo-500'
-              }`}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            {telephoneInvalid && <p className="mt-1 text-xs text-red-600">Le téléphone doit contenir 10 chiffres.</p>}
           </div>
 
           <div>

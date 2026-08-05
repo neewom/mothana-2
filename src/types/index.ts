@@ -17,6 +17,7 @@ export interface Adherent {
   adresse: string | null
   code_postal: string | null
   ville: string | null
+  pays: string | null
   telephone: string | null
   courriel: string | null
   statut: 'actif' | 'archive'
@@ -50,6 +51,7 @@ export interface DemandeAdhesion {
   adresse: string | null
   code_postal: string | null
   ville: string | null
+  pays: string | null
   telephone: string | null
   courriel: string | null
   signature_data_url: string

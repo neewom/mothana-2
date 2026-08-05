@@ -4,6 +4,7 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Adherent, DemandeAdhesion } from '../types'
 import { CIVILITE_ADHERENT_LABELS } from '../lib/civiliteAdherent'
 import { useToast } from '../hooks/useToast'
+import { findAdherentDuplicates, type DuplicateMatch } from '../lib/adherentDuplicateCheck'
 import Toast from '../components/Toast'
 import Modal from '../components/Modal'
 import AdherentModal from '../components/AdherentModal'
@@ -41,6 +42,8 @@ export default function DemandesAdhesionPage() {
   const [refusingDemande, setRefusingDemande] = useState<DemandeAdhesion | null>(null)
   const [refusing, setRefusing] = useState(false)
   const [detailDemande, setDetailDemande] = useState<DemandeAdhesion | null>(null)
+  const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([])
+  const [duplicatesLoading, setDuplicatesLoading] = useState(false)
 
   const fetchDemandes = useCallback(async () => {
     if (!organisationId) return
@@ -67,6 +70,21 @@ export default function DemandesAdhesionPage() {
   useEffect(() => {
     fetchDemandes()
   }, [fetchDemandes])
+
+  async function handleRatifyClick(d: DemandeAdhesion) {
+    setRatifyingDemande(d)
+    setDuplicates([])
+    if (!organisationId) return
+    setDuplicatesLoading(true)
+    const results = await findAdherentDuplicates(organisationId, {
+      nom: d.nom,
+      prenom: d.prenom,
+      courriel: d.courriel,
+      telephone: d.telephone,
+    })
+    setDuplicates(results)
+    setDuplicatesLoading(false)
+  }
 
   async function handleRatified(adherent: Adherent) {
     if (!ratifyingDemande) return
@@ -191,7 +209,7 @@ export default function DemandesAdhesionPage() {
                           {tab === 'en_attente' && (
                             <>
                               <button
-                                onClick={() => setRatifyingDemande(d)}
+                                onClick={() => handleRatifyClick(d)}
                                 className="rounded-lg border border-emerald-200 px-2.5 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50"
                               >
                                 Ratifier
@@ -218,7 +236,10 @@ export default function DemandesAdhesionPage() {
       {ratifyingDemande && organisationId && (
         <AdherentModal
           open
-          onClose={() => setRatifyingDemande(undefined)}
+          onClose={() => {
+            setRatifyingDemande(undefined)
+            setDuplicates([])
+          }}
           onSaved={handleRatified}
           organisationId={organisationId}
           prefill={{
@@ -229,9 +250,12 @@ export default function DemandesAdhesionPage() {
             adresse: ratifyingDemande.adresse,
             code_postal: ratifyingDemande.code_postal,
             ville: ratifyingDemande.ville,
+            pays: ratifyingDemande.pays,
             telephone: ratifyingDemande.telephone,
             courriel: ratifyingDemande.courriel,
           }}
+          duplicateWarnings={duplicates}
+          duplicateWarningsLoading={duplicatesLoading}
         />
       )}
 
@@ -287,6 +311,12 @@ export default function DemandesAdhesionPage() {
                     <>
                       <br />
                       {detailDemande.code_postal} {detailDemande.ville}
+                    </>
+                  )}
+                  {detailDemande.pays && detailDemande.pays !== 'France' && (
+                    <>
+                      <br />
+                      {detailDemande.pays}
                     </>
                   )}
                 </dd>
