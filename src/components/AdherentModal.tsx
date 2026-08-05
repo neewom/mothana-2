@@ -203,13 +203,16 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
           {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Civilité</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Civilité <span className="text-red-500">*</span>
+            </label>
             <select
-              value={civilite}
-              onChange={(e) => setCivilite(Number(e.target.value) as CiviliteAdherent)}
+              required
+              value={civilite === 0 ? '' : civilite}
+              onChange={(e) => setCivilite(e.target.value ? (Number(e.target.value) as CiviliteAdherent) : 0)}
               className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value={0}>Non renseigné</option>
+              <option value="" disabled>Sélectionner…</option>
               {CIVILITE_ADHERENT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
@@ -231,9 +234,12 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Prénom</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Prénom <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
+              required
               value={prenom}
               onChange={(e) => setPrenom(e.target.value)}
               placeholder="Jean"
@@ -242,9 +248,12 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Date de naissance</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Date de naissance <span className="text-red-500">*</span>
+            </label>
             <input
               type="date"
+              required
               value={dateNaissance}
               onChange={(e) => setDateNaissance(e.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -252,9 +261,12 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Adresse</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              Adresse <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
+              required
               value={adresse}
               onChange={(e) => setAdresse(e.target.value)}
               placeholder="12 rue des Lilas"
@@ -264,9 +276,12 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Code postal</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Code postal <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
+                required
                 value={codePostal}
                 onChange={(e) => setCodePostal(e.target.value)}
                 placeholder="75000"
@@ -274,9 +289,12 @@ export default function AdherentModal({ open, onClose, onSaved, adherent, organi
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Ville</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Ville <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
+                required
                 value={ville}
                 onChange={(e) => setVille(e.target.value)}
                 placeholder="Paris"
