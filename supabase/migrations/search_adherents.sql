@@ -11,6 +11,11 @@
 -- l'expression exacte couverte par l'index (pas besoin d'un second index pour
 -- l'ordre inverse).
 --
+-- Recherche par email ajoutée en OR de la recherche nom/prénom (sous-chaîne
+-- simple sur la chaîne complète, pas de tokenisation : un email n'a pas
+-- d'ordre de mots à gérer). Pas d'index dédié : volume adhérents trop faible
+-- pour justifier un second index trigram.
+--
 -- security invoker (par défaut) : la RLS de la table `adherents` s'applique
 -- normalement à l'appelant, le filtre p_organisation_id est redondant mais
 -- volontaire (même convention que le reste de l'app qui filtre toujours
@@ -61,6 +66,7 @@ as $$
           where tok <> ''
         )
       )
+      or a.courriel ilike '%' || trim(p_search) || '%'
     )
   order by a.nom asc, a.prenom asc
   limit p_limit offset p_offset;
