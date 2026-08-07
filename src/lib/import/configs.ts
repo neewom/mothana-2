@@ -63,8 +63,8 @@ export const adherentsImportConfig: ImportConfig = {
   fieldDefs: adherentsFieldDefs,
   rpcName: 'import_upsert_adherents',
   prepareBatch: async (rows, mapping, organisationId) => {
-    const existing = await fetchExistingAdherents(organisationId)
-    return buildAdherentsBatch(rows, mapping, existing)
+    const { byIdExterne, all } = await fetchExistingAdherents(organisationId)
+    return buildAdherentsBatch(rows, mapping, byIdExterne, all)
   },
   // Sans cotisation (montant nul ou à 0), le mode de paiement n'a pas de
   // sens — on ignore toute erreur de parsing dessus plutôt que de bloquer

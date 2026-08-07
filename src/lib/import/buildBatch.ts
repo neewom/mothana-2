@@ -229,20 +229,121 @@ function cycleFieldsEqual(latest: Record<string, unknown> | null, imported: Reco
   return ADHESION_CYCLE_KEYS.every((key) => valuesEqual(latest[key], imported[key]))
 }
 
+function normalize(value: unknown): string {
+  return String(value ?? '').trim().toLowerCase()
+}
+
+function sameNormalized(a: unknown, b: unknown): boolean {
+  return normalize(a) === normalize(b)
+}
+
+// Index de recherche de doublon (nom+prénom / email / téléphone), même
+// sémantique que src/lib/adherentDuplicateCheck.ts (réutilisée à la
+// ratification des demandes d'adhésion) : n'importe lequel des 3 signaux
+// suffit à remonter un candidat, avec sa raison pour l'affichage.
+interface AdherentDuplicateIndex {
+  byNamePrenom: Map<string, ExistingAdherentRef[]>
+  byEmail: Map<string, ExistingAdherentRef[]>
+  byTelephone: Map<string, ExistingAdherentRef[]>
+}
+
+function pushIndexed<K>(map: Map<K, ExistingAdherentRef[]>, key: K, ref: ExistingAdherentRef) {
+  const list = map.get(key)
+  if (list) list.push(ref)
+  else map.set(key, [ref])
+}
+
+function buildAdherentDuplicateIndex(all: ExistingAdherentRef[]): AdherentDuplicateIndex {
+  const byNamePrenom = new Map<string, ExistingAdherentRef[]>()
+  const byEmail = new Map<string, ExistingAdherentRef[]>()
+  const byTelephone = new Map<string, ExistingAdherentRef[]>()
+  for (const ref of all) {
+    const nom = normalize(ref.values.nom)
+    const prenom = normalize(ref.values.prenom)
+    if (nom && prenom) pushIndexed(byNamePrenom, `${nom}|${prenom}`, ref)
+    const email = normalize(ref.values.courriel)
+    if (email) pushIndexed(byEmail, email, ref)
+    const telephone = normalize(ref.values.telephone)
+    if (telephone) pushIndexed(byTelephone, telephone, ref)
+  }
+  return { byNamePrenom, byEmail, byTelephone }
+}
+
+function findAdherentDuplicate(
+  index: AdherentDuplicateIndex,
+  values: Record<string, unknown>
+): { ref: ExistingAdherentRef; raisons: string[] } | undefined {
+  const found = new Map<string, { ref: ExistingAdherentRef; raisons: string[] }>()
+
+  function record(ref: ExistingAdherentRef, raison: string) {
+    const entry = found.get(ref.id) ?? { ref, raisons: [] }
+    entry.raisons.push(raison)
+    found.set(ref.id, entry)
+  }
+
+  const nom = normalize(values.nom)
+  const prenom = normalize(values.prenom)
+  if (nom && prenom) {
+    for (const ref of index.byNamePrenom.get(`${nom}|${prenom}`) ?? []) record(ref, 'nom et prénom identiques')
+  }
+  const email = normalize(values.courriel)
+  if (email) {
+    for (const ref of index.byEmail.get(email) ?? []) record(ref, 'email identique')
+  }
+  const telephone = normalize(values.telephone)
+  if (telephone) {
+    for (const ref of index.byTelephone.get(telephone) ?? []) record(ref, 'téléphone identique')
+  }
+
+  return found.values().next().value
+}
+
 export function buildAdherentsBatch(
   rows: ParsedRow[],
   mapping: Record<string, number | null>,
-  existing: Map<string, ExistingAdherentRef>
+  existingByIdExterne: Map<string, ExistingAdherentRef>,
+  existingAll: ExistingAdherentRef[]
 ): BuildBatchResult {
   const mappedKeys = mappedKeySet(mapping)
   const inserts: Record<string, unknown>[] = []
   const conflicts: ConflictRow[] = []
   const warnings: ExcludedRow[] = []
   let identicalCount = 0
+  const duplicateIndex = buildAdherentDuplicateIndex(existingAll)
 
   for (const row of rows) {
     const idExterne = (row.values.id_externe as string | null) ?? null
-    const match = idExterne ? existing.get(idExterne) : undefined
+    const idExterneMatch = idExterne ? existingByIdExterne.get(idExterne) : undefined
+
+    let match: ExistingAdherentRef | undefined = idExterneMatch
+    let sensitive: ConflictRow['sensitive']
+
+    if (idExterneMatch) {
+      // Même id_externe, mais nom ET prénom différents : probable collision
+      // entre deux personnes plutôt qu'une simple correction de données.
+      const nomDiffers = !sameNormalized(row.values.nom, idExterneMatch.values.nom)
+      const prenomDiffers = !sameNormalized(row.values.prenom, idExterneMatch.values.prenom)
+      if (nomDiffers && prenomDiffers) {
+        const importedName = [row.values.prenom, row.values.nom].filter(Boolean).join(' ') || '—'
+        const existingName = [idExterneMatch.values.prenom, idExterneMatch.values.nom].filter(Boolean).join(' ') || '—'
+        sensitive = {
+          kind: 'collision',
+          reason: `id_externe "${idExterne}" déjà utilisé par ${existingName}, mais cette ligne importée concerne apparemment ${importedName} — collision possible entre deux personnes différentes.`,
+        }
+      }
+    } else {
+      // Pas de match par id_externe : cherche un doublon probable (même
+      // personne saisie à la main puis réimportée sous un autre numéro).
+      const dup = findAdherentDuplicate(duplicateIndex, row.values)
+      if (dup) {
+        match = dup.ref
+        sensitive = {
+          kind: 'duplicate',
+          reason: `Un adhérent existant (id_externe ${dup.ref.idExterne ?? '—'}) partage : ${dup.raisons.join(', ')} — probable doublon de la même personne plutôt qu'une nouvelle fiche.`,
+        }
+      }
+    }
+
     const adherentId = match?.id ?? generateUUID()
 
     const payloadBase: Record<string, unknown> = { adherent_id: adherentId, id_externe: idExterne }
@@ -267,7 +368,7 @@ export function buildAdherentsBatch(
       payloadBase.mode_paiement = null
       payloadBase.droit_vote_ag = null
       payloadBase.bulletin_signe = null
-      warnings.push({ index: row.index, reason: 'Adhésion déjà à jour — aucun nouveau cycle créé' })
+      if (!sensitive) warnings.push({ index: row.index, reason: 'Adhésion déjà à jour — aucun nouveau cycle créé' })
     }
 
     if (!match) {
@@ -276,11 +377,36 @@ export function buildAdherentsBatch(
     }
 
     const diffs = diffMappedFields(ADHERENT_IDENTITY_FIELD_DEFS, mappedKeys, match.values, row.values)
-    if (diffs.length === 0) {
+
+    if (diffs.length === 0 && !sensitive) {
       identicalCount++
-    } else {
-      conflicts.push({ index: row.index, idExterne, payloadBase, diffs })
+      continue
     }
+
+    let createNewPayload: Record<string, unknown> | undefined
+    if (sensitive) {
+      // Payload alternatif prêt à insérer comme adhérent distinct, si l'admin
+      // choisit "Créer un nouvel adhérent" plutôt que de fusionner avec `match`.
+      // Cycle toujours traité comme un premier cycle (jamais un renouvellement),
+      // vu que `match` n'a en réalité aucun lien avec cette ligne importée.
+      const altId = generateUUID()
+      const alt: Record<string, unknown> = {
+        adherent_id: altId,
+        // collision : l'id_externe importé est déjà pris par `match`, un
+        // nouveau sera généré (next_adherent_id_externe) au moment du choix.
+        // duplicate : rien ne le retient, l'id_externe importé est libre.
+        id_externe: sensitive.kind === 'collision' ? null : idExterne,
+      }
+      for (const key of ADHERENT_IDENTITY_KEYS) {
+        alt[key] = mappedKeys.has(key) ? (row.values[key] ?? null) : null
+      }
+      alt.adhesion_id = generateUUID()
+      alt.renouvellement = false
+      Object.assign(alt, importedCycle)
+      createNewPayload = alt
+    }
+
+    conflicts.push({ index: row.index, idExterne, payloadBase, diffs, sensitive, createNewPayload })
   }
 
   return { inserts, conflicts, identicalCount, excluded: [], warnings }

@@ -1,11 +1,15 @@
 import { useState, useEffect, useMemo, Fragment, type ChangeEvent } from 'react'
 import Modal from '../Modal'
+import { supabase } from '../../lib/supabaseClient'
 import type { ImportConfig, PreparedBatch } from '../../lib/import/configs'
 import { parseImportFile } from '../../lib/import/parseFile'
 import { guessMapping, buildParsedRows } from '../../lib/import/mapping'
 import { runImport, type ImportSummary } from '../../lib/import/runImport'
 import { defaultResolutions, applyResolutions, type Resolution, type ResolutionMap } from '../../lib/import/conflicts'
-import type { ParsedRow } from '../../lib/import/types'
+import type { ConflictRow, ParsedRow } from '../../lib/import/types'
+
+/** Action sur une ligne "sensible" (collision d'id_externe ou doublon probable) — remplace le picker champ par champ tant qu'elle n'est pas résolue. */
+type RowAction = 'ignore' | 'create-new' | 'confirm-merge'
 
 type Step = 'upload' | 'map' | 'preview' | 'conflicts' | 'confirm' | 'running' | 'done'
 
@@ -27,6 +31,9 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
   const [ignoreErrors, setIgnoreErrors] = useState(true)
   const [batchResult, setBatchResult] = useState<PreparedBatch | null>(null)
   const [resolutions, setResolutions] = useState<ResolutionMap>({})
+  const [rowActions, setRowActions] = useState<Record<number, RowAction>>({})
+  const [generatedIdExterne, setGeneratedIdExterne] = useState<Record<number, string>>({})
+  const [resolvingIndex, setResolvingIndex] = useState<number | null>(null)
   const [finalPayloadRows, setFinalPayloadRows] = useState<Record<string, unknown>[]>([])
   const [preparing, setPreparing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +51,9 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
       setIgnoreErrors(true)
       setBatchResult(null)
       setResolutions({})
+      setRowActions({})
+      setGeneratedIdExterne({})
+      setResolvingIndex(null)
       setFinalPayloadRows([])
       setPreparing(false)
       setError(null)
@@ -60,7 +70,14 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
     .every((f) => mapping[f.key] !== null && mapping[f.key] !== undefined)
 
   const allConflictsResolved = batchResult
-    ? batchResult.conflicts.every((c) => c.diffs.every((d) => resolutions[c.index]?.[d.key] !== undefined))
+    ? batchResult.conflicts.every((c) => {
+        if (!c.sensitive) return c.diffs.every((d) => resolutions[c.index]?.[d.key] !== undefined)
+        const action = rowActions[c.index]
+        if (!action) return false
+        if (action === 'create-new' && c.sensitive.kind === 'collision') return generatedIdExterne[c.index] !== undefined
+        if (action === 'confirm-merge') return c.diffs.every((d) => resolutions[c.index]?.[d.key] !== undefined)
+        return true
+      })
     : true
 
   if (!open) return null
@@ -120,7 +137,15 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
 
   function applyBulkResolution(resolution: Resolution) {
     if (!batchResult) return
-    setResolutions(defaultResolutions(batchResult.conflicts, resolution))
+    // Les lignes sensibles ne suivent jamais une résolution groupée : elles
+    // exigent une décision explicite (Ignorer / Créer nouveau / Confirmer).
+    const nonSensitive = batchResult.conflicts.filter((c) => !c.sensitive)
+    const sensitiveIndices = new Set(batchResult.conflicts.filter((c) => c.sensitive).map((c) => c.index))
+    setResolutions((prev) => {
+      const preserved: ResolutionMap = {}
+      for (const idx of sensitiveIndices) if (prev[idx]) preserved[idx] = prev[idx]
+      return { ...preserved, ...defaultResolutions(nonSensitive, resolution) }
+    })
   }
 
   function applyRowResolution(rowIndex: number, fieldKeys: string[], resolution: Resolution) {
@@ -131,9 +156,38 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
     })
   }
 
+  async function handleSensitiveAction(c: ConflictRow, action: RowAction) {
+    if (action === 'create-new' && c.sensitive?.kind === 'collision') {
+      setResolvingIndex(c.index)
+      setError(null)
+      const { data, error: err } = await supabase.rpc('next_adherent_id_externe', { p_organisation_id: organisationId })
+      setResolvingIndex(null)
+      if (err) {
+        setError(err.message)
+        return
+      }
+      setGeneratedIdExterne((prev) => ({ ...prev, [c.index]: data as string }))
+    }
+    setRowActions((prev) => ({ ...prev, [c.index]: action }))
+  }
+
   function handleGoToConfirmFromConflicts() {
     if (!batchResult) return
-    setFinalPayloadRows([...batchResult.inserts, ...applyResolutions(batchResult.conflicts, resolutions)])
+    const nonSensitive = batchResult.conflicts.filter((c) => !c.sensitive)
+    const sensitiveRows: Record<string, unknown>[] = []
+    for (const c of batchResult.conflicts) {
+      if (!c.sensitive) continue
+      const action = rowActions[c.index]
+      if (action === 'ignore' || !action) continue
+      if (action === 'create-new') {
+        const payload = { ...c.createNewPayload }
+        if (c.sensitive.kind === 'collision') payload.id_externe = generatedIdExterne[c.index] ?? null
+        sensitiveRows.push(payload)
+        continue
+      }
+      sensitiveRows.push(...applyResolutions([c], resolutions))
+    }
+    setFinalPayloadRows([...batchResult.inserts, ...applyResolutions(nonSensitive, resolutions), ...sensitiveRows])
     setStep('confirm')
   }
 
@@ -253,10 +307,13 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
 
         {step === 'conflicts' && batchResult && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className={`grid gap-4 ${batchResult.conflicts.some((c) => c.sensitive) ? 'grid-cols-4' : 'grid-cols-3'}`}>
               <StatTile label="Nouveaux" value={batchResult.inserts.length} />
               <StatTile label="Identiques (ignorés)" value={batchResult.identicalCount} />
-              <StatTile label="Avec différences" value={batchResult.conflicts.length} tone="warn" />
+              <StatTile label="Avec différences" value={batchResult.conflicts.filter((c) => !c.sensitive).length} tone="warn" />
+              {batchResult.conflicts.some((c) => c.sensitive) && (
+                <StatTile label="Sensibles — à examiner" value={batchResult.conflicts.filter((c) => c.sensitive).length} tone="danger" />
+              )}
             </div>
 
             <div className="flex items-center justify-between">
@@ -283,8 +340,105 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
 
             <div className="max-h-96 space-y-2 overflow-y-auto">
               {batchResult.conflicts.map((c) => {
-                const unresolvedCount = c.diffs.filter((d) => resolutions[c.index]?.[d.key] === undefined).length
                 const name = [c.payloadBase.prenom, c.payloadBase.nom].filter(Boolean).join(' ')
+
+                if (c.sensitive) {
+                  const action = rowActions[c.index]
+                  const resolved =
+                    action === 'ignore' ||
+                    (action === 'create-new' && (c.sensitive.kind !== 'collision' || generatedIdExterne[c.index] !== undefined)) ||
+                    (action === 'confirm-merge' && c.diffs.every((d) => resolutions[c.index]?.[d.key] !== undefined))
+                  return (
+                    <details key={c.index} open className="group rounded-lg border-2 border-red-300 bg-red-50/60">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-xs font-medium text-red-900 [&::-webkit-details-marker]:hidden">
+                        <span>
+                          ⚠️ Ligne {c.index + 2}
+                          {name && ` — ${name}`}
+                          {c.idExterne ? ` — id_externe : ${c.idExterne}` : ''}
+                        </span>
+                        <span className={resolved ? 'text-emerald-600' : 'text-red-700'}>
+                          {resolved ? 'Résolu' : 'Décision requise'}
+                        </span>
+                      </summary>
+                      <div className="space-y-3 border-t border-red-200 p-3 text-sm">
+                        <p className="text-red-800">{c.sensitive.reason}</p>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSensitiveAction(c, 'ignore')}
+                            className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${action === 'ignore' ? 'border-slate-500 bg-slate-600 text-white' : 'border-slate-300 text-slate-600 hover:bg-slate-50'}`}
+                          >
+                            Ignorer cette ligne
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSensitiveAction(c, 'create-new')}
+                            disabled={resolvingIndex === c.index}
+                            className={`rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-60 ${action === 'create-new' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300 text-slate-600 hover:bg-slate-50'}`}
+                          >
+                            {resolvingIndex === c.index ? 'Génération…' : 'Créer un nouvel adhérent'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSensitiveAction(c, 'confirm-merge')}
+                            className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${action === 'confirm-merge' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300 text-slate-600 hover:bg-slate-50'}`}
+                          >
+                            Confirmer que c'est la même personne
+                          </button>
+                        </div>
+                        {action === 'create-new' && c.sensitive.kind === 'collision' && generatedIdExterne[c.index] && (
+                          <p className="text-xs text-slate-600">Nouvel id_externe attribué : {generatedIdExterne[c.index]}</p>
+                        )}
+                        {action === 'confirm-merge' && (
+                          <div className="grid grid-cols-[minmax(8rem,auto)_1fr_1fr] items-center gap-x-3 gap-y-2 rounded-lg border border-slate-200 bg-white p-3">
+                            <div />
+                            <button
+                              type="button"
+                              onClick={() => applyRowResolution(c.index, c.diffs.map((d) => d.key), 'current')}
+                              className="text-left text-xs font-medium text-slate-500 underline decoration-dotted hover:text-slate-700"
+                            >
+                              Garder l'actuel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applyRowResolution(c.index, c.diffs.map((d) => d.key), 'imported')}
+                              className="text-left text-xs font-medium text-slate-500 underline decoration-dotted hover:text-slate-700"
+                            >
+                              Garder l'import
+                            </button>
+                            {c.diffs.map((d) => (
+                              <Fragment key={d.key}>
+                                <span className="font-medium text-slate-700">{d.label}</span>
+                                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5">
+                                  <input
+                                    type="radio"
+                                    className="cursor-pointer"
+                                    name={`resolve-${c.index}-${d.key}`}
+                                    checked={resolutions[c.index]?.[d.key] === 'current'}
+                                    onChange={() => setResolutionForField(c.index, d.key, 'current')}
+                                  />
+                                  <span className="text-slate-600">{d.format(d.current)}</span>
+                                </label>
+                                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5">
+                                  <input
+                                    type="radio"
+                                    className="cursor-pointer"
+                                    name={`resolve-${c.index}-${d.key}`}
+                                    checked={resolutions[c.index]?.[d.key] === 'imported'}
+                                    onChange={() => setResolutionForField(c.index, d.key, 'imported')}
+                                  />
+                                  <span className="text-slate-600">{d.format(d.imported)}</span>
+                                </label>
+                              </Fragment>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </details>
+                  )
+                }
+
+                const unresolvedCount = c.diffs.filter((d) => resolutions[c.index]?.[d.key] === undefined).length
                 return (
                   <details key={c.index} className="group rounded-lg border border-amber-200 bg-amber-50/50">
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-xs font-medium text-slate-600 transition-colors hover:bg-amber-100/60 [&::-webkit-details-marker]:hidden">
@@ -358,12 +512,16 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
           </div>
         )}
 
-        {step === 'confirm' && batchResult && (
+        {step === 'confirm' && batchResult && (() => {
+          const sensitiveIgnored = batchResult.conflicts.filter((c) => c.sensitive && rowActions[c.index] === 'ignore').length
+          const sensitiveCreateNew = batchResult.conflicts.filter((c) => c.sensitive && rowActions[c.index] === 'create-new').length
+          return (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <StatTile label="Nouveaux" value={batchResult.inserts.length} />
-              <StatTile label="Mis à jour" value={batchResult.conflicts.length} />
+            <div className={`grid gap-4 ${sensitiveIgnored > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+              <StatTile label="Nouveaux" value={batchResult.inserts.length + sensitiveCreateNew} />
+              <StatTile label="Mis à jour" value={batchResult.conflicts.length - sensitiveIgnored - sensitiveCreateNew} />
               <StatTile label="Identiques (ignorés)" value={batchResult.identicalCount} />
+              {sensitiveIgnored > 0 && <StatTile label="Lignes sensibles ignorées" value={sensitiveIgnored} tone="danger" />}
             </div>
             <p className="text-sm text-slate-600">
               {finalPayloadRows.length} ligne{finalPayloadRows.length !== 1 ? 's' : ''} prête{finalPayloadRows.length !== 1 ? 's' : ''} à être envoyée{finalPayloadRows.length !== 1 ? 's' : ''}.
@@ -391,7 +549,8 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
               </div>
             )}
           </div>
-        )}
+          )
+        })()}
 
         {step === 'running' && (
           <div className="space-y-3">
@@ -510,11 +669,17 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
   )
 }
 
-function StatTile({ label, value, tone = 'default' }: { label: string; value: number; tone?: 'default' | 'warn' }) {
+function StatTile({ label, value, tone = 'default' }: { label: string; value: number; tone?: 'default' | 'warn' | 'danger' }) {
+  const toneClasses =
+    tone === 'danger'
+      ? { border: 'border-red-300 bg-red-50', text: 'text-red-700' }
+      : tone === 'warn'
+        ? { border: 'border-amber-200 bg-amber-50', text: 'text-amber-700' }
+        : { border: 'border-slate-200 bg-slate-50', text: 'text-slate-900' }
   return (
-    <div className={`rounded-lg border px-4 py-3 ${tone === 'warn' ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
+    <div className={`rounded-lg border px-4 py-3 ${toneClasses.border}`}>
       <p className="text-xs text-slate-500">{label}</p>
-      <p className={`text-lg font-semibold ${tone === 'warn' ? 'text-amber-700' : 'text-slate-900'}`}>{value}</p>
+      <p className={`text-lg font-semibold ${toneClasses.text}`}>{value}</p>
     </div>
   )
 }

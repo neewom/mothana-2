@@ -157,6 +157,16 @@ export default function AdherentModal({
       return
     }
 
+    const { data: idExterne, error: idExterneErr } = await supabase.rpc('next_adherent_id_externe', {
+      p_organisation_id: organisationId,
+    })
+
+    if (idExterneErr) {
+      setError(idExterneErr.message)
+      setSaving(false)
+      return
+    }
+
     const adherentId = generateUUID()
     const adhesionId = generateUUID()
     const dateFin = computeDateFin(dateDebut)
@@ -164,6 +174,7 @@ export default function AdherentModal({
     const { error: adherentErr } = await supabase.from('adherents').insert({
       id: adherentId,
       organisation_id: organisationId,
+      id_externe: idExterne,
       ...identite,
     })
 
@@ -197,7 +208,7 @@ export default function AdherentModal({
       {
         id: adherentId,
         organisation_id: organisationId,
-        id_externe: null,
+        id_externe: idExterne,
         statut: 'actif',
         statuts_acceptes: true,
         consent_rgpd: false,
