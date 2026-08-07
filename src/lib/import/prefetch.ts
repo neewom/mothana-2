@@ -121,27 +121,40 @@ interface LatestAdhesionRow {
 }
 
 export interface ExistingAdherentRef extends ExistingRef {
+  idExterne: string | null
   /** Champs de la dernière adhésion (historisation) — null si l'adhérent n'en a encore aucune. */
   latestAdhesion: Record<string, unknown> | null
 }
 
-export async function fetchExistingAdherents(organisationId: string): Promise<Map<string, ExistingAdherentRef>> {
+export interface ExistingAdherents {
+  /** Pour le matching par id_externe (comportement historique). */
+  byIdExterne: Map<string, ExistingAdherentRef>
+  /**
+   * Tous les adhérents de l'organisation, y compris sans id_externe — pour la
+   * détection de doublon par nom/prénom/email/téléphone (cf. buildAdherentsBatch),
+   * nécessaire quand une même personne est saisie à la main puis réimportée
+   * sous un id_externe différent.
+   */
+  all: ExistingAdherentRef[]
+}
+
+export async function fetchExistingAdherents(organisationId: string): Promise<ExistingAdherents> {
   const { data } = await fetchAllRows<AdherentRow>((from, to) =>
     supabase
       .from('adherents')
       .select('id, id_externe, civilite, nom, prenom, date_naissance, adresse, code_postal, ville, telephone, courriel')
       .eq('organisation_id', organisationId)
-      .not('id_externe', 'is', null)
       .range(from, to) as unknown as PromiseLike<{ data: AdherentRow[] | null; error: { message: string } | null }>
   )
 
-  const map = new Map<string, ExistingAdherentRef>()
-  const idExterneByAdherentId = new Map<string, string>()
+  const byIdExterne = new Map<string, ExistingAdherentRef>()
+  const all: ExistingAdherentRef[] = []
+  const refById = new Map<string, ExistingAdherentRef>()
 
   for (const row of data) {
-    if (!row.id_externe) continue
-    map.set(row.id_externe, {
+    const ref: ExistingAdherentRef = {
       id: row.id,
+      idExterne: row.id_externe,
       values: {
         civilite: row.civilite,
         nom: row.nom,
@@ -154,11 +167,13 @@ export async function fetchExistingAdherents(organisationId: string): Promise<Ma
         courriel: row.courriel,
       },
       latestAdhesion: null,
-    })
-    idExterneByAdherentId.set(row.id, row.id_externe)
+    }
+    all.push(ref)
+    refById.set(row.id, ref)
+    if (row.id_externe) byIdExterne.set(row.id_externe, ref)
   }
 
-  if (idExterneByAdherentId.size > 0) {
+  if (all.length > 0) {
     // Filtré par organisation via la jointure adherents!inner plutôt que par
     // .in(adherent_id, [...]) — évite une clause IN potentiellement énorme
     // sur les organisations à plusieurs milliers d'adhérents.
@@ -175,9 +190,7 @@ export async function fetchExistingAdherents(organisationId: string): Promise<Ma
     for (const row of adhesionsData) {
       if (seen.has(row.adherent_id)) continue
       seen.add(row.adherent_id)
-      const idExterne = idExterneByAdherentId.get(row.adherent_id)
-      if (!idExterne) continue
-      const ref = map.get(idExterne)
+      const ref = refById.get(row.adherent_id)
       if (!ref) continue
       ref.latestAdhesion = {
         date_debut: row.date_debut,
@@ -190,7 +203,7 @@ export async function fetchExistingAdherents(organisationId: string): Promise<Ma
     }
   }
 
-  return map
+  return { byIdExterne, all }
 }
 
 interface DonRow {
