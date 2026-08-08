@@ -613,7 +613,11 @@ export default function SuperAdminPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {orgs.map((org) => (
-                <tr key={org.id} className="hover:bg-slate-50">
+                <tr
+                  key={org.id}
+                  onClick={() => { setEditing(org); setModalOpen(true) }}
+                  className="cursor-pointer hover:bg-slate-50"
+                >
                   <td className="px-6 py-4">
                     <div className="font-medium text-slate-900">{org.nom}</div>
                     <div className="text-xs text-slate-400 font-mono">PIN : {org.code_pin_benevole ?? '—'}</div>
@@ -622,7 +626,7 @@ export default function SuperAdminPage() {
                   <td className="px-6 py-4 text-right text-slate-700">{org.nb_dons}</td>
                   <td className="px-6 py-4 text-right font-medium text-slate-900">{formatMontant(org.total_dons)}</td>
                   <td className="px-6 py-4 text-slate-500">{formatDate(org.created_at)}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => handleConsulter(org)}

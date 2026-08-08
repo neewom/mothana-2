@@ -395,8 +395,8 @@ export default function AdherentsPage() {
                   {adherents.map((a) => {
                     const cycle = statutCycleFor(latestAdhesions.get(a.id), todayIso)
                     return (
-                      <tr key={a.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-3">
+                      <tr key={a.id} onClick={() => openEdit(a)} className="cursor-pointer hover:bg-slate-50">
+                        <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(a.id)}
@@ -427,7 +427,7 @@ export default function AdherentsPage() {
                             </p>
                           )}
                         </td>
-                        <td className="px-6 py-3">
+                        <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-2">
                             <button
                               onClick={() => openEdit(a)}
