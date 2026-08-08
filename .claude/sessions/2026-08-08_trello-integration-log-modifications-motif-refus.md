@@ -80,3 +80,31 @@
 - Reclassement de la liste Todo par priorité/complexité à chaque cadrage — jugement au cas par cas, pas un tri mécanique.
 - Étiquette Trello "cadré" comme signal fiable, en plus de la description.
 - Cadrage groupé de tous les sujets avant codage, à la demande explicite de l'utilisateur pour cette session de revue de backlog.
+
+---
+
+## Complément de session — Démarrage du codage (fin de journée)
+
+### Réalisé
+
+- **Nouvelle règle de process actée** : toujours demander confirmation explicite avant de démarrer le dev d'une carte, même déjà cadrée — ne pas enchaîner automatiquement après le merge d'une PR précédente. Ajoutée en mémoire persistante (`feedback_confirm_before_dev.md`), remplace le biais "auto mode" par défaut pour ce projet/utilisateur.
+- **PR #50 mergée** — "Avoir les cta ratifier et refuser dans la modale de détails de demande d'adhésion" : boutons Ratifier/Refuser ajoutés en pied de la modale Détail (`DemandesAdhesionPage.tsx`), visibles seulement si `statut === 'en_attente'`, déclenchent les mêmes handlers que le tableau.
+- **PR #51 mergée** — "Rendre les lignes cliquables (adhérents, demandes d'adhésion, organisations)" : cadrée initialement sur `AdherentsPage` seul (clic ligne → modale Modifier, `stopPropagation` sur case à cocher + boutons), puis étendue en cours de session à la demande de l'utilisateur — d'abord à `DemandesAdhesionPage` (clic → modale Détail), puis généralisée à tous les tableaux de l'app après une question ouverte de l'utilisateur ("tu pourrais même mettre la même feature sur tous les tableaux"). Inventaire fait de tous les `<table>` du projet : `ParticipantsPage`/`DonsPage` l'avaient déjà, `SuperAdminPage` ajouté (clic → modale Modifier l'organisation, même pattern), 3 tableaux volontairement exclus après confirmation utilisateur car pas de fit naturel avec le pattern "ligne → modale unique de consultation/édition" : `RecusFiscauxPage` (action de ligne déjà "Générer/Regénérer", pas une consultation), `ImportWizard` (tableau transitoire de prévisualisation), `DeclarationCerfaCard` (synthèse agrégée, pas des lignes-entités).
+- Routine Trello appliquée aux deux PR mergées : cartes déplacées vers Done, liste Todo revérifiée à chaque fois.
+
+### Reste à faire (prochaine session)
+
+- **1 nouvelle carte Trello découverte**, non cadrée : *Vérifier l'ui de l'espace super admin* — pas de description, à creuser avec l'utilisateur avant de cadrer (contenu inconnu pour l'instant, ne pas deviner).
+- Reprendre l'ordre Trello établi en fin de session précédente à partir de : **Validation date de naissance adhérent** (déjà cadrée — périmètre : `AdherentModal` création+modification, formulaire public de demande d'adhésion, wizard d'import adhérents) → message succès formulaire → débordement impression cartes → réorganisation Paramètres → vérification nom/prénom bénévole → double opt-in email → mailing Brevo. OCR scan toujours en attente.
+- Rappel : bien redemander confirmation avant de démarrer chacun de ces sujets (nouvelle règle de process ci-dessus).
+- 5 fiches adhérents avec date de naissance suspecte (année 2026) toujours à faire valider par l'utilisateur.
+- Rapprochement chèques/virements (roadmap comptable) — toujours non cadré.
+
+### Blockers
+
+- Aucun blocker technique actif.
+
+### Décisions (complément 2)
+
+- Confirmation explicite requise avant chaque démarrage de dev, même pour une carte déjà cadrée — nouvelle règle de process, pas ponctuelle.
+- Le pattern "ligne de tableau cliquable → modale de consultation/édition" est désormais généralisé à tous les tableaux qui s'y prêtent (`ParticipantsPage`, `DonsPage`, `AdherentsPage`, `DemandesAdhesionPage`, `SuperAdminPage`) ; à appliquer par défaut à tout nouveau tableau de ce type créé à l'avenir, sauf si l'action principale de la ligne n'est pas une consultation/édition (ex. génération de document).

@@ -273,6 +273,12 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Les 6 étapes sont e
 
 **Intégration Trello (2026-08-07/08)** : board "Mothana" (boîte à idées de l'utilisateur) connecté en lecture/écriture via API REST directe (credentials `.env`, voir mémoire persistante). Routine actée : check de la liste "Todo" en début de session et à chaque PR mergée signalée (cartes traitées déplacées vers "Done" automatiquement), et mise à jour de la carte (titre/description) dès qu'un sujet est cadré.
 
+**Marathon de cadrage Trello (2026-08-08) — 10 sujets cadrés, codage démarré le même jour :**
+- ✅ **CTA Ratifier/Refuser dans la modale de détail de demande d'adhésion** — PR #50 mergée. Boutons ajoutés en pied de la modale Détail (`DemandesAdhesionPage.tsx`), visibles seulement si `statut === 'en_attente'`, déclenchent les mêmes handlers que le tableau.
+- ✅ **Lignes de tableau cliquables** — PR #51 mergée. Cadrée initialement sur `AdherentsPage` seul, étendue en session à la demande de l'utilisateur à tous les tableaux du projet qui s'y prêtent : `AdherentsPage` (→ modale Modifier), `DemandesAdhesionPage` (→ modale Détail), `SuperAdminPage` (→ modale Modifier l'organisation) — `ParticipantsPage`/`DonsPage` l'avaient déjà. `stopPropagation` sur les cellules interactives (case à cocher, boutons). Volontairement exclus (pas de fit naturel avec le pattern "ligne → modale unique de consultation") : `RecusFiscauxPage` (action de ligne déjà "Générer/Regénérer"), `ImportWizard` (tableau transitoire), `DeclarationCerfaCard` (synthèse agrégée). **Convention actée pour la suite** : appliquer ce pattern par défaut à tout nouveau tableau de ce type.
+- Reste à cadrer/coder dans l'ordre Trello : validation date de naissance adhérent (déjà cadrée — `AdherentModal` + formulaire public + wizard import) → message succès formulaire → débordement impression cartes → réorganisation Paramètres → vérification nom/prénom bénévole → double opt-in email → mailing Brevo. OCR scan en attente. Nouvelle carte non cadrée découverte le 08-08 : *Vérifier l'ui de l'espace super admin*.
+- **Nouvelle règle de process actée** : toujours demander confirmation explicite avant de démarrer le dev d'une carte, même déjà cadrée — ne pas enchaîner automatiquement après le merge d'une PR précédente.
+
 **Bugs trouvés en testant la PR #38, corrigés dans cette même PR :**
 - Cotisation d'import à `0` rejetée à tort (validation calquée sur celle des dons, où 0 n'a pas de sens) — corrigé, 0 est légitime pour une adhésion (organisation qui ne fait pas payer de cotisation)
 - Mode de paiement toujours validé même sans cotisation — corrigé via un nouveau hook générique `ImportConfig.postProcessRow`, ignore l'erreur sur `mode_paiement` quand `montant_cotisation` est nul/à 0
@@ -309,3 +315,4 @@ Voir `docs/brief-cerfa.md` pour le brief technique complet. Les 6 étapes sont e
 6. **Ne jamais sauter d'étape** sans validation explicite
 7. **Demander confirmation** en cas de doute fonctionnel ou technique
 8. **Traiter un seul sujet à la fois** — si l'utilisateur amène plusieurs sujets dans une même demande, les traiter un par un (cadrage → implémentation → validation) plutôt qu'en parallèle, sauf s'ils sont intimement liés et que l'utilisateur a explicitement demandé de les traiter ensemble
+9. **Demander confirmation explicite avant de démarrer le dev** d'une carte ou d'un sujet, même déjà cadré — ne pas enchaîner automatiquement après le merge d'une PR précédente
