@@ -108,3 +108,33 @@
 
 - Confirmation explicite requise avant chaque démarrage de dev, même pour une carte déjà cadrée — nouvelle règle de process, pas ponctuelle.
 - Le pattern "ligne de tableau cliquable → modale de consultation/édition" est désormais généralisé à tous les tableaux qui s'y prêtent (`ParticipantsPage`, `DonsPage`, `AdherentsPage`, `DemandesAdhesionPage`, `SuperAdminPage`) ; à appliquer par défaut à tout nouveau tableau de ce type créé à l'avenir, sauf si l'action principale de la ligne n'est pas une consultation/édition (ex. génération de document).
+
+---
+
+## Complément de session — Cadrage revue UI admin + Validation date de naissance (PR #52 mergée)
+
+### Réalisé
+
+- **Cadrage de la carte "Vérifier l'ui de l'espace super admin"** (sans description à l'origine — creusée avec l'utilisateur, pas devinée) : signalement d'origine = sur mobile, le tableau des organisations de `SuperAdminPage.tsx` déborde en largeur et casse toute la page, encore pire modale ouverte. Cause racine confirmée par lecture de code : `<table>` sans wrapper `overflow-x-auto`, contrairement à `ParticipantsPage`/`DonsPage` qui l'ont déjà — même défaut trouvé par ricochet dans `AdherentsPage.tsx`. Périmètre étendu à la demande de l'utilisateur : super admin **+** tout le panel admin org (accessible via "Consulter" avec les identifiants super admin) plutôt que le seul espace super admin. Carte renommée, étiquette "cadré" posée, repositionnée dans Todo juste après "débordement impression cartes" (complexité moyenne/élevée — audit multi-pages — mais pas sensible/urgent). Identifiants super admin **pas encore fournis** par l'utilisateur ("ce sera pour plus tard") — dev non démarré.
+
+- **PR #52 mergée** — "Validation date de naissance adhérent (année ≤ N-1)" : nouveau helper `src/lib/dateNaissance.ts`, appliqué à `AdherentModal` (création + modification, validation live comme email/téléphone), au formulaire public `DemandeAdhesionPage`, et au wizard d'import adhérents (nouveau normalizer `parseBirthDateCell` dans `normalizers.ts`/`fieldDefs.ts`). Testé via Playwright sur l'instance dev existante (formulaire public `/adhesion/wat-strasbourg`) — `AdherentModal` non testable en direct côté agent (pas d'identifiants admin), logique/rendu identiques au formulaire public déjà validé.
+
+- **Bug trouvé en testant la PR, corrigé dans la même PR** (fausse alerte initiale — cache navigateur — puis vrai retour sur mobile) : l'attribut `max` posé sur le `<input type="date">` empêchait carrément la sélection d'une année invalide dans le sélecteur natif mobile (pas d'explication, juste inatteignable), au lieu de laisser choisir librement puis afficher l'erreur. Retiré des deux formulaires (`AdherentModal`, `DemandeAdhesionPage`) — la validation JS live déjà en place (dérivée `dateNaissanceInvalid`, même pattern que email/téléphone) suffit et reste seule responsable du blocage. Nouvelle règle de méthode actée en mémoire persistante (`feedback_avoid_native_blocking_constraints.md`) : éviter les contraintes HTML natives (`max`/`min`...) qui rendent des valeurs inatteignables dans un picker, préférer une validation JS après coup.
+
+- Routine Trello appliquée : carte déplacée vers Done après confirmation du merge par l'utilisateur, `main` synchronisé (`git checkout main && git pull`), liste Todo revérifiée (rien de nouveau).
+
+### Reste à faire (prochaine session)
+
+- Reprendre l'ordre Trello à partir de : **message de succès personnalisable du formulaire de demande d'adhésion** → débordement impression cartes → revue UI responsive admin (bloquée sur l'attente des identifiants super admin) → réorganisation Paramètres → vérification nom/prénom bénévole → double opt-in email → mailing Brevo. OCR scan toujours en attente.
+- Identifiants super admin à ajouter dans `.env` par l'utilisateur quand il voudra attaquer la revue UI admin.
+- 5 fiches adhérents avec date de naissance suspecte (année 2026) toujours à faire valider par l'utilisateur (liste dans la carte, déjà déplacée en Done).
+- Rapprochement chèques/virements (roadmap comptable) — toujours non cadré.
+
+### Blockers
+
+- Aucun blocker technique actif. Revue UI admin en attente des identifiants super admin (non bloquant pour le reste du backlog).
+
+### Décisions (complément 3)
+
+- Périmètre de la revue UI admin étendu à tout le panel admin org (pas seulement l'espace super admin), à la demande explicite de l'utilisateur.
+- Ne plus utiliser de contrainte HTML native bloquante (`max`/`min` sur un input) pour appliquer une règle de validation quand elle peut rendre des valeurs inatteignables dans un picker mobile — toujours passer par une validation JS live + message d'erreur, cohérent avec le pattern déjà en place pour email/téléphone.
