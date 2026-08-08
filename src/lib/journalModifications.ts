@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
-import type { JournalModification } from '../types'
+import type { CiviliteAdherent, JournalModification } from '../types'
+import { CIVILITE_ADHERENT_LABELS } from './civiliteAdherent'
 
 export type TableCibleJournal = 'adherents' | 'demandes_adhesion'
 export type ActionJournal = 'creation' | 'modification' | 'archivage' | 'reactivation' | 'ratification' | 'refus'
@@ -44,6 +45,54 @@ export function describeJournalEntry(entry: JournalModification): string {
   const nom = entry.details?.nom
   const prenom = entry.details?.prenom
   return [prenom, nom].filter(Boolean).join(' ') || '—'
+}
+
+// Diff des champs adhérent — comparé au moment de la modification dans AdherentModal,
+// où l'objet avant (`adherent`) et après (`identite`) sont tous les deux déjà en mémoire.
+export const ADHERENT_FIELD_LABELS: Record<string, string> = {
+  civilite: 'Civilité',
+  nom: 'Nom',
+  prenom: 'Prénom',
+  date_naissance: 'Date de naissance',
+  adresse: 'Adresse',
+  code_postal: 'Code postal',
+  ville: 'Ville',
+  pays: 'Pays',
+  telephone: 'Téléphone',
+  courriel: 'Courriel',
+}
+
+export type ChampsModifies = Record<string, { avant: unknown; apres: unknown }>
+
+export function computeAdherentDiff(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+): ChampsModifies | undefined {
+  const diff: ChampsModifies = {}
+  for (const key of Object.keys(ADHERENT_FIELD_LABELS)) {
+    const avant = before[key] ?? null
+    const apres = after[key] ?? null
+    if (avant !== apres) {
+      diff[key] = { avant, apres }
+    }
+  }
+  return Object.keys(diff).length > 0 ? diff : undefined
+}
+
+function formatDiffValue(field: string, value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—'
+  if (field === 'civilite') return CIVILITE_ADHERENT_LABELS[value as CiviliteAdherent] ?? String(value)
+  if (field === 'date_naissance' && typeof value === 'string') {
+    return new Date(value).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
+  return String(value)
+}
+
+export function formatDiffLines(champsModifies: ChampsModifies): string[] {
+  return Object.entries(champsModifies).map(([field, { avant, apres }]) => {
+    const label = ADHERENT_FIELD_LABELS[field] ?? field
+    return `${label} : ${formatDiffValue(field, avant)} → ${formatDiffValue(field, apres)}`
+  })
 }
 
 export async function fetchJournalModifications(

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { JournalModification } from '../types'
-import { fetchJournalModifications, describeJournalEntry, TABLE_CIBLE_LABELS, ACTION_LABELS, type TableCibleJournal, type ActionJournal } from '../lib/journalModifications'
+import { fetchJournalModifications } from '../lib/journalModifications'
 import Modal from './Modal'
+import JournalActionLabel from './JournalActionLabel'
 
 interface HistoriqueModificationsModalProps {
   open: boolean
@@ -77,11 +78,7 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
               <li key={entry.id} className="py-3 text-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <span className="font-medium text-slate-900">
-                      {ACTION_LABELS[entry.action as ActionJournal] ?? entry.action}
-                    </span>
-                    <span className="text-slate-400"> · {TABLE_CIBLE_LABELS[entry.table_cible as TableCibleJournal] ?? entry.table_cible}</span>
-                    <span className="text-slate-500"> — {describeJournalEntry(entry)}</span>
+                    <JournalActionLabel entry={entry} />
                   </div>
                   <span className="shrink-0 text-xs text-slate-400">{formatDateTime(entry.created_at)}</span>
                 </div>

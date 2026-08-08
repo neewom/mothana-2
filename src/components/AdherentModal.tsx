@@ -8,7 +8,7 @@ import { computeDateFin } from '../lib/adhesion'
 import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '../lib/textFormat'
 import { COUNTRIES } from '../lib/countries'
 import type { DuplicateMatch } from '../lib/adherentDuplicateCheck'
-import { logModification } from '../lib/journalModifications'
+import { logModification, computeAdherentDiff } from '../lib/journalModifications'
 import Modal from './Modal'
 
 interface IdentitePrefill {
@@ -155,12 +155,13 @@ export default function AdherentModal({
       setSaving(false)
       onSaved({ ...adherent, ...identite })
       onClose()
+      const champsModifies = computeAdherentDiff(adherent as unknown as Record<string, unknown>, identite)
       await logModification({
         organisationId,
         tableCible: 'adherents',
         ligneId: adherent.id,
         action: 'modification',
-        details: { nom, prenom },
+        details: { nom, prenom, champs_modifies: champsModifies },
       })
       return
     }
