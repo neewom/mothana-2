@@ -360,7 +360,7 @@ export default function DemandesAdhesionPage() {
 
         return (
         <Modal open onClose={() => setDetailDemande(null)} maxWidthClassName="max-w-lg" labelledBy="detail-demande-title">
-          <div className="max-h-[85vh] overflow-y-auto p-6">
+          <div className="overflow-y-auto p-6">
             <h2 id="detail-demande-title" className="text-lg font-semibold text-slate-900">
               {demandeFullName(detailDemande)}
             </h2>
@@ -461,6 +461,23 @@ export default function DemandesAdhesionPage() {
               Demande soumise le {formatDateTime(detailDemande.created_at)}, statuts approuvés et consentement RGPD donné.
             </p>
           </div>
+
+          {detailDemande.statut === 'en_attente' && (
+            <div className="flex shrink-0 justify-end gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)]">
+              <button
+                onClick={() => { const d = detailDemande; setDetailDemande(null); setRefusingDemande(d) }}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Refuser
+              </button>
+              <button
+                onClick={() => { const d = detailDemande; setDetailDemande(null); setRatifyingDemande(d) }}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+              >
+                Ratifier
+              </button>
+            </div>
+          )}
         </Modal>
         )
       })()}
