@@ -80,7 +80,7 @@ const GRID_CSS = `
 @page { size: A4; margin: 10mm; }
 * { box-sizing: border-box; }
 body { margin: 0; }
-.page { display: grid; grid-template-columns: repeat(2, 85.6mm); grid-auto-rows: 54mm; gap: 4mm; justify-content: center; align-content: start; page-break-after: always; }
+.page { display: grid; grid-template-columns: repeat(2, 85.6mm); grid-auto-rows: 54mm; row-gap: 1.4mm; column-gap: 4mm; justify-content: center; align-content: start; page-break-after: always; }
 .page:last-child { page-break-after: auto; }
 `
 
