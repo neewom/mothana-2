@@ -10,6 +10,7 @@ Ce fichier est lu automatiquement par Claude Code à chaque session. Il contient
 - Chercher automatiquement le fichier de la dernière session dans `.claude/sessions/`
 - Identifier où on s'est arrêté et les blockers en cours
 - Résumer en 3 lignes avant de commencer
+- Vérifier la liste "Todo" du board Trello "Mothana" (voir mémoire persistante pour les identifiants/credentials) — l'utilisateur y note à la volée ses demandes d'évolution. En cas de nouveauté (carte non présente dans le backlog de ce fichier), proposer de la cadrer pour l'inscrire dans "État d'avancement" / backlog ci-dessous
 - Ce réflexe est aussi noté dans la mémoire persistante (MEMORY.md) pour qu'il s'applique même si ce fichier n'est pas relu
 
 ### En fin de session

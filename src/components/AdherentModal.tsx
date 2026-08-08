@@ -8,6 +8,8 @@ import { computeDateFin } from '../lib/adhesion'
 import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '../lib/textFormat'
 import { COUNTRIES } from '../lib/countries'
 import type { DuplicateMatch } from '../lib/adherentDuplicateCheck'
+import { logModification, computeAdherentDiff } from '../lib/journalModifications'
+import AdherentHistoriqueSection from './AdherentHistoriqueSection'
 import Modal from './Modal'
 
 interface IdentitePrefill {
@@ -154,6 +156,14 @@ export default function AdherentModal({
       setSaving(false)
       onSaved({ ...adherent, ...identite })
       onClose()
+      const champsModifies = computeAdherentDiff(adherent as unknown as Record<string, unknown>, identite)
+      await logModification({
+        organisationId,
+        tableCible: 'adherents',
+        ligneId: adherent.id,
+        action: 'modification',
+        details: { nom, prenom, champs_modifies: champsModifies },
+      })
       return
     }
 
@@ -204,6 +214,13 @@ export default function AdherentModal({
     }
 
     setSaving(false)
+    await logModification({
+      organisationId,
+      tableCible: 'adherents',
+      ligneId: adherentId,
+      action: 'creation',
+      details: { nom, prenom },
+    })
     onSaved(
       {
         id: adherentId,
@@ -492,6 +509,12 @@ export default function AdherentModal({
                 </label>
               </div>
             </>
+          )}
+
+          {isEdit && adherent && (
+            <div className="border-t border-slate-200 pt-4">
+              <AdherentHistoriqueSection organisationId={organisationId} adherentId={adherent.id} />
+            </div>
           )}
         </div>
 

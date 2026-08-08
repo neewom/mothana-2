@@ -13,6 +13,7 @@ import ImportWizard from '../components/import/ImportWizard'
 import { adherentsImportConfig } from '../lib/import/configs'
 import CartesAdherentPdfPreviewModal from '../components/CartesAdherentPdfPreviewModal'
 import ScrollShadowX from '../components/ScrollShadowX'
+import { logModification } from '../lib/journalModifications'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -186,6 +187,15 @@ export default function AdherentsPage() {
     }
 
     showToast(`${adherentFullName(archiveConfirm)} archivé`)
+    if (organisationId) {
+      await logModification({
+        organisationId,
+        tableCible: 'adherents',
+        ligneId: archiveConfirm.id,
+        action: 'archivage',
+        details: { nom: archiveConfirm.nom, prenom: archiveConfirm.prenom },
+      })
+    }
     setArchiveConfirm(null)
     fetchAdherents()
   }
@@ -197,6 +207,15 @@ export default function AdherentsPage() {
       return
     }
     showToast(`${adherentFullName(a)} réactivé`)
+    if (organisationId) {
+      await logModification({
+        organisationId,
+        tableCible: 'adherents',
+        ligneId: a.id,
+        action: 'reactivation',
+        details: { nom: a.nom, prenom: a.prenom },
+      })
+    }
     fetchAdherents()
   }
 
