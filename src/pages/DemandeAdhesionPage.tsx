@@ -248,7 +248,6 @@ export default function DemandeAdhesionPage() {
             <input
               type="date"
               required
-              max={maxDateNaissance()}
               value={dateNaissance}
               onChange={(e) => setDateNaissance(e.target.value)}
               aria-invalid={dateNaissanceInvalid}
