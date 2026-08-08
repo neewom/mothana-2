@@ -37,3 +37,46 @@
 - Token Trello régénéré en écriture, collé directement en conversation (contexte : utilisateur sur smartphone, pas d'accès facile au `.env`) — compromis explicitement accepté par l'utilisateur pour ce cas précis, pas une pratique par défaut.
 - Un sujet à la fois par défaut, sauf lien étroit + demande explicite de traitement conjoint.
 - Alimenter systématiquement la carte Trello (titre + description) au moment du cadrage d'un sujet, pas seulement au merge.
+
+---
+
+## Complément de session — Marathon de cadrage Trello (fin de journée)
+
+### Réalisé
+
+- **Nouvelles règles de routine actées** (CLAUDE.md + mémoire persistante) :
+  - Reclasser la liste "Todo" par priorité/complexité à chaque cadrage (heuristique utilisateur : peu complexe remonte, complexe redescend, sauf sensible/prioritaire qui remonte quand même — jugement de l'agent, pas un tri mécanique).
+  - Étiquette Trello verte "cadré" (créée par l'utilisateur) comme signal fiable de cadrage, en plus de la description — ne pas se fier qu'au texte.
+  - Convention "Action admin" dans le titre d'une carte = tâche pour l'utilisateur lui-même, à ignorer (une étiquette bleue du même nom existe aussi, gérée par l'utilisateur, ne pas l'appliquer soi-même).
+  - Nuance sur "un sujet à la fois" : pour une revue de backlog avec plusieurs petites cartes, le **cadrage** de tous les sujets peut se faire d'affilée avant de passer au codage — l'utilisateur a explicitement stoppé un début de codage pour repasser en mode "cadrage groupé d'abord".
+
+- **Cadrage complet de 10 sujets Trello** (étiquette "cadré" posée sur chacun, description détaillée) :
+  1. CTA Ratifier/Refuser dans la modale de détail de demande d'adhésion
+  2. Ligne cliquable dans la liste des adhérents (ouvre la modale d'édition, qui sert déjà de vue détail)
+  3. Validation date de naissance adhérent (année ≥ N-1) — **pivoté** depuis "18 ans minimum" après vérification légale (loi n°2017-86 : un mineur a le droit d'adhérer à une association, sauf exclusion par les statuts — pas de règle de majorité générale). 5 fiches existantes avec date de naissance en 2026 repérées (dont une créée le jour même, test) et listées pour revue manuelle par l'utilisateur, hors scope de cette carte.
+  4. Message de succès personnalisable du formulaire de demande d'adhésion (texte simple, nouveau champ `organisations.formulaire_adhesion_message_succes`)
+  5. Débordement d'impression des cartes adhérent — **cause exacte identifiée** : grille 2×5 (5×54mm + 4×4mm de gap = 286mm) dépasse la hauteur utile A4 (277mm) de 9mm. Fix : `row-gap` réduit à 1.4mm, `column-gap` conservé à 4mm.
+  6. Réorganisation page Paramètres — **révisé en cours de cadrage** : d'abord accordion sur une page unique, puis scindé en 4 sous-pages réellement routées avec menu déroulant sidebar (même pattern que Dons/Adhérents dans `AdminLayout.tsx`), après demande explicite de l'utilisateur. Fusionné avec une carte doublon ("regroupement par thème") repérée en cours de route et archivée. Bug de débordement mobile diagnostiqué (probable `flex gap-3` sans `min-w-0`, à corriger en alignant sur le pattern `grid grid-cols-2 gap-3` déjà utilisé dans `AdherentModal.tsx`).
+  7. Vérification carte adhérent par nom/prénom (espace bénévole) — **scindé** du scan/OCR. Pivoté en cours de cadrage : d'abord envisagé comme page publique, finalement réutilise l'authentification bénévole PIN existante (scope organisation automatique via RLS), résultat minimal (nom/prénom/statut/date fin, pas la fiche complète).
+  8. Vérification d'email par double opt-in avant ratification — le sujet le plus lourd avec Brevo : aucune infra d'envoi d'email n'existe encore dans le projet. Brique Resend à poser en générique (réutilisable pour la Priorité 4 roadmap, envoi des reçus fiscaux). Avertissement seulement en cas de non-vérification, pas de blocage dur.
+  9. Campagnes de mailing Brevo aux adhérents — architecture à prévoir **par organisation** (pas une clé API globale comme Resend), chaque organisation ayant potentiellement un fournisseur différent. Composition du message directement dans Mothana.
+  10. Vérification carte adhérent par scan/photo (OCR) — **non cadré, mis en attente explicitement**. Discussion technique résumée dans la carte : Claude Vision écarté (coût à l'échelle de 300+ scans), OCR cloud dédié (Google Cloud Vision/Textract, ~1.5$/1000 images) privilégié sur OCR client-side (Tesseract.js, gratuit mais moins fiable sur photo prise à la volée) — pas de zonage pixel-exact nécessaire, extraction texte brut + recherche floue déjà existante.
+
+- **Reclassement complet de la liste Todo** par priorité/complexité une fois tous les sujets cadrés.
+
+### Reste à faire (prochaine session)
+
+- Attaquer le codage des sujets cadrés, dans l'ordre Trello établi (ou un autre ordre si l'utilisateur préfère) : CTA ratifier/refuser → ligne cliquable adhérents → validation date naissance → message succès formulaire → débordement impression cartes → réorganisation Paramètres → vérification nom/prénom bénévole → double opt-in email → mailing Brevo. OCR scan reste en attente.
+- 5 fiches adhérents avec date de naissance suspecte (année 2026) à faire valider par l'utilisateur (liste dans la carte "Validation date de naissance").
+- Prérequis externes à anticiper : compte Resend (vérification email), compte(s) Brevo par organisation (mailing) — comme pour Trello, l'utilisateur devra créer les comptes/clés API, l'agent guidera la génération.
+- Rapprochement chèques/virements (roadmap comptable) — toujours non cadré, mentionné mais jamais repris depuis plusieurs sessions.
+
+### Blockers
+
+- Aucun blocker technique actif.
+
+### Décisions (complément)
+
+- Reclassement de la liste Todo par priorité/complexité à chaque cadrage — jugement au cas par cas, pas un tri mécanique.
+- Étiquette Trello "cadré" comme signal fiable, en plus de la description.
+- Cadrage groupé de tous les sujets avant codage, à la demande explicite de l'utilisateur pour cette session de revue de backlog.
