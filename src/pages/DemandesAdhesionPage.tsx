@@ -15,6 +15,7 @@ import Toast from '../components/Toast'
 import Modal from '../components/Modal'
 import AdherentModal from '../components/AdherentModal'
 import ScrollShadowX from '../components/ScrollShadowX'
+import { logModification } from '../lib/journalModifications'
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -52,6 +53,7 @@ export default function DemandesAdhesionPage() {
   const [ratifyingDemande, setRatifyingDemande] = useState<DemandeAdhesion | undefined>(undefined)
   const [refusingDemande, setRefusingDemande] = useState<DemandeAdhesion | null>(null)
   const [refusing, setRefusing] = useState(false)
+  const [motifRefus, setMotifRefus] = useState('')
   const [detailDemande, setDetailDemande] = useState<DemandeAdhesion | null>(null)
   // Doublons potentiels par demande, calculés dès le chargement de la liste (pas seulement au clic
   // sur "Ratifier") pour permettre une colorimétrie différente dans le tableau et le détail.
@@ -119,6 +121,15 @@ export default function DemandesAdhesionPage() {
     }
 
     showToast(`${demandeFullName(ratifyingDemande)} ratifié et ajouté aux adhérents`)
+    if (organisationId) {
+      await logModification({
+        organisationId,
+        tableCible: 'demandes_adhesion',
+        ligneId: ratifyingDemande.id,
+        action: 'ratification',
+        details: { nom: ratifyingDemande.nom, prenom: ratifyingDemande.prenom, adherent_id: adherent.id },
+      })
+    }
     fetchDemandes()
   }
 
@@ -133,6 +144,7 @@ export default function DemandesAdhesionPage() {
         statut: 'refusee',
         decided_at: new Date().toISOString(),
         decided_by: user?.id ?? null,
+        motif_refus: motifRefus.trim() || null,
       })
       .eq('id', refusingDemande.id)
 
@@ -144,7 +156,17 @@ export default function DemandesAdhesionPage() {
     }
 
     showToast(`Demande de ${demandeFullName(refusingDemande)} refusée`)
+    if (organisationId) {
+      await logModification({
+        organisationId,
+        tableCible: 'demandes_adhesion',
+        ligneId: refusingDemande.id,
+        action: 'refus',
+        details: { nom: refusingDemande.nom, prenom: refusingDemande.prenom, motif_refus: motifRefus.trim() || null },
+      })
+    }
     setRefusingDemande(null)
+    setMotifRefus('')
     fetchDemandes()
   }
 
@@ -285,7 +307,12 @@ export default function DemandesAdhesionPage() {
       )}
 
       {refusingDemande && (
-        <Modal open onClose={() => setRefusingDemande(null)} maxWidthClassName="max-w-sm" labelledBy="refuse-demande-title">
+        <Modal
+          open
+          onClose={() => { setRefusingDemande(null); setMotifRefus('') }}
+          maxWidthClassName="max-w-sm"
+          labelledBy="refuse-demande-title"
+        >
           <div className="p-6">
             <h2 id="refuse-demande-title" className="text-lg font-semibold text-slate-900">Refuser la demande</h2>
             <p className="mt-2 text-sm text-slate-600">
@@ -293,9 +320,21 @@ export default function DemandesAdhesionPage() {
               <span className="font-medium">« {demandeFullName(refusingDemande)} »</span> ? Elle restera visible dans
               l'onglet Refusées.
             </p>
+            <div className="mt-4">
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Motif du refus <span className="font-normal text-slate-400">(interne, non transmis au demandeur)</span>
+              </label>
+              <textarea
+                value={motifRefus}
+                onChange={(e) => setMotifRefus(e.target.value)}
+                rows={3}
+                placeholder="Optionnel"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
             <div className="mt-5 flex justify-end gap-3">
               <button
-                onClick={() => setRefusingDemande(null)}
+                onClick={() => { setRefusingDemande(null); setMotifRefus('') }}
                 className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 Annuler
@@ -408,6 +447,15 @@ export default function DemandesAdhesionPage() {
                 <img src={detailDemande.signature_data_url} alt="Signature" className="w-full" />
               </div>
             </div>
+
+            {detailDemande.statut === 'refusee' && detailDemande.motif_refus && (
+              <div className="mt-5">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Motif du refus</p>
+                <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                  {detailDemande.motif_refus}
+                </p>
+              </div>
+            )}
 
             <p className="mt-3 text-xs text-slate-400">
               Demande soumise le {formatDateTime(detailDemande.created_at)}, statuts approuvés et consentement RGPD donné.

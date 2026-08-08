@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import TemplatesRecuSection from '../components/TemplatesRecuSection'
 import CarteAdherentSection from '../components/CarteAdherentSection'
+import HistoriqueModificationsSection from '../components/HistoriqueModificationsSection'
 import { slugifyIdentifiant, type OrganisationAsset } from '../lib/organisationAssets'
 import { copyTextToClipboard } from '../lib/clipboard'
 import FormulaireAdhesionEditorModal from '../components/FormulaireAdhesionEditorModal'
@@ -1028,6 +1029,14 @@ export default function ParametresPage() {
             )}
           </div>
         </div>
+      </Section>
+
+      {/* Section 8 — Historique des modifications */}
+      <Section
+        title="Historique des modifications"
+        description="Journal des actions effectuées sur les adhérents et les demandes d'adhésion (création, modification, archivage, ratification, refus)."
+      >
+        {organisationId && <HistoriqueModificationsSection organisationId={organisationId} />}
       </Section>
 
       {organisationId && (

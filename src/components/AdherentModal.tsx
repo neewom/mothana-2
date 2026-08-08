@@ -8,6 +8,7 @@ import { computeDateFin } from '../lib/adhesion'
 import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '../lib/textFormat'
 import { COUNTRIES } from '../lib/countries'
 import type { DuplicateMatch } from '../lib/adherentDuplicateCheck'
+import { logModification } from '../lib/journalModifications'
 import Modal from './Modal'
 
 interface IdentitePrefill {
@@ -154,6 +155,13 @@ export default function AdherentModal({
       setSaving(false)
       onSaved({ ...adherent, ...identite })
       onClose()
+      await logModification({
+        organisationId,
+        tableCible: 'adherents',
+        ligneId: adherent.id,
+        action: 'modification',
+        details: { nom, prenom },
+      })
       return
     }
 
@@ -204,6 +212,13 @@ export default function AdherentModal({
     }
 
     setSaving(false)
+    await logModification({
+      organisationId,
+      tableCible: 'adherents',
+      ligneId: adherentId,
+      action: 'creation',
+      details: { nom, prenom },
+    })
     onSaved(
       {
         id: adherentId,

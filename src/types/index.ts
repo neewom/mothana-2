@@ -61,6 +61,18 @@ export interface DemandeAdhesion {
   decided_at: string | null
   decided_by: string | null
   adherent_id: string | null
+  motif_refus: string | null
+  created_at: string
+}
+
+export interface JournalModification {
+  id: string
+  table_cible: string
+  ligne_id: string
+  action: string
+  details: Record<string, unknown> | null
+  auteur_id: string | null
+  auteur_nom: string | null
   created_at: string
 }
 
