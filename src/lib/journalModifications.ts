@@ -114,3 +114,23 @@ export async function fetchJournalModifications(
     totalCount: rows[0]?.total_count ?? 0,
   }
 }
+
+// Historique d'une ligne précise (ex : un adhérent) — affiché dans sa modale de détail,
+// pas de pagination nécessaire pour ce volume (une seule ligne source).
+export async function fetchJournalModificationsForLigne(
+  organisationId: string,
+  tableCible: TableCibleJournal,
+  ligneId: string,
+): Promise<JournalModification[]> {
+  const { data, error } = await supabase.rpc('list_journal_modifications', {
+    p_organisation_id: organisationId,
+    p_limit: 50,
+    p_offset: 0,
+    p_table_cible: tableCible,
+    p_ligne_id: ligneId,
+  })
+
+  if (error) throw error
+
+  return (data ?? []) as JournalModification[]
+}

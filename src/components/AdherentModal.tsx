@@ -9,6 +9,7 @@ import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '..
 import { COUNTRIES } from '../lib/countries'
 import type { DuplicateMatch } from '../lib/adherentDuplicateCheck'
 import { logModification, computeAdherentDiff } from '../lib/journalModifications'
+import AdherentHistoriqueSection from './AdherentHistoriqueSection'
 import Modal from './Modal'
 
 interface IdentitePrefill {
@@ -508,6 +509,12 @@ export default function AdherentModal({
                 </label>
               </div>
             </>
+          )}
+
+          {isEdit && adherent && (
+            <div className="border-t border-slate-200 pt-4">
+              <AdherentHistoriqueSection organisationId={organisationId} adherentId={adherent.id} />
+            </div>
           )}
         </div>
 
