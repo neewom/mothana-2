@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { JournalModification } from '../types'
 import { fetchJournalModifications } from '../lib/journalModifications'
+import { getErrorMessage } from '../lib/errors'
 import HistoriqueModificationsModal from './HistoriqueModificationsModal'
 import JournalActionLabel from './JournalActionLabel'
 
@@ -29,7 +30,7 @@ export default function HistoriqueModificationsSection({ organisationId }: Histo
       setEntries(fetched)
       setTotalCount(count)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(getErrorMessage(err))
     } finally {
       setLoading(false)
     }

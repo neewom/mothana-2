@@ -3,8 +3,15 @@
 -- list_journal_modifications, pour afficher l'historique d'un adhérent
 -- précis dans la modale de détail (AdherentModal), en plus de la vue
 -- globale par organisation déjà utilisée dans Paramètres.
--- CREATE OR REPLACE avec nouveaux paramètres en fin de liste, tous avec
--- valeur par défaut : compatible avec les appels existants sans filtre.
+-- ATTENTION : CREATE OR REPLACE ne suffit pas ici. L'identité d'une fonction
+-- Postgres est déterminée par la liste complète des types de paramètres —
+-- ajouter des paramètres (même avec DEFAULT) en fait une signature différente,
+-- donc CREATE OR REPLACE crée une DEUXIÈME surcharge au lieu de remplacer
+-- l'ancienne. Résultat en prod : l'appel à 3 arguments devenait ambigu entre
+-- les deux surcharges ("is not unique"), cassant la section Historique
+-- (Paramètres) déjà en prod. Il faut donc DROP explicitement l'ancienne
+-- signature avant de recréer la fonction.
+DROP FUNCTION IF EXISTS list_journal_modifications(uuid, int, int);
 
 CREATE OR REPLACE FUNCTION list_journal_modifications(
   p_organisation_id uuid,

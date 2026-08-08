@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { JournalModification } from '../types'
 import { fetchJournalModificationsForLigne } from '../lib/journalModifications'
+import { getErrorMessage } from '../lib/errors'
 import JournalActionLabel from './JournalActionLabel'
 
 interface AdherentHistoriqueSectionProps {
@@ -24,7 +25,7 @@ export default function AdherentHistoriqueSection({ organisationId, adherentId }
       const fetched = await fetchJournalModificationsForLigne(organisationId, 'adherents', adherentId)
       setEntries(fetched)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(getErrorMessage(err))
     } finally {
       setLoading(false)
     }
