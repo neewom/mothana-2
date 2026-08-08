@@ -11,7 +11,7 @@ Ce fichier est lu automatiquement par Claude Code à chaque session. Il contient
 - Identifier où on s'est arrêté et les blockers en cours
 - Résumer en 3 lignes avant de commencer
 - Vérifier la liste "Todo" du board Trello "Mothana" (voir mémoire persistante pour les identifiants/credentials) — l'utilisateur y note à la volée ses demandes d'évolution. En cas de nouveauté (carte non présente dans le backlog de ce fichier), proposer de la cadrer pour l'inscrire dans "État d'avancement" / backlog ci-dessous
-- Quand un sujet est cadré (que la carte Trello associée soit une nouveauté détectée ou un sujet déjà connu qu'on approfondit), alimenter la carte Trello correspondante avec le détail du cadrage (description) et réécrire le titre si le libellé d'origine est devenu imprécis une fois le sujet creusé
+- Quand un sujet est cadré (que la carte Trello associée soit une nouveauté détectée ou un sujet déjà connu qu'on approfondit), alimenter la carte Trello correspondante avec le détail du cadrage (description), réécrire le titre si le libellé d'origine est devenu imprécis une fois le sujet creusé, et appliquer l'étiquette verte "cadré" (signal fiable, ne pas se fier uniquement à la présence d'une description)
 - À ce même moment, reclasser les cartes de "Todo" par priorité/complexité (jugement de l'agent) : un sujet peu complexe peut remonter en haut de la liste, un sujet complexe redescend en général plus bas — sauf s'il est aussi sensible ou prioritaire, auquel cas il remonte malgré sa complexité
 - Ce réflexe est aussi noté dans la mémoire persistante (MEMORY.md) pour qu'il s'applique même si ce fichier n'est pas relu
 
