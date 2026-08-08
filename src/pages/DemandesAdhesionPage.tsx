@@ -224,7 +224,11 @@ export default function DemandesAdhesionPage() {
                   {demandes.map((d) => {
                     const hasDuplicate = (duplicatesMap[d.id]?.length ?? 0) > 0
                     return (
-                      <tr key={d.id} className={hasDuplicate ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-slate-50'}>
+                      <tr
+                        key={d.id}
+                        onClick={() => setDetailDemande(d)}
+                        className={`cursor-pointer ${hasDuplicate ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-slate-50'}`}
+                      >
                         <td className="px-6 py-3 text-slate-500">{CIVILITE_ADHERENT_LABELS[d.civilite]}</td>
                         <td className="px-6 py-3 font-medium text-slate-900">
                           <div className="flex items-center gap-2">
@@ -247,7 +251,7 @@ export default function DemandesAdhesionPage() {
                         <td className="px-6 py-3 text-slate-500">
                           {formatDateTime(tab === 'en_attente' ? d.created_at : (d.decided_at ?? d.created_at))}
                         </td>
-                        <td className="px-6 py-3">
+                        <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-2">
                             <button
                               onClick={() => setDetailDemande(d)}
