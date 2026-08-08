@@ -1,5 +1,6 @@
 import type { Civilite, CiviliteAdherent, ModePaiement } from '../../types'
 import type { ParseOutcome } from './types'
+import { isAnneeNaissanceValide, maxAnneeNaissance } from '../dateNaissance'
 
 const DIACRITICS_PATTERN = new RegExp(`[${String.fromCharCode(0x0300)}-${String.fromCharCode(0x036f)}]`, 'g')
 
@@ -41,6 +42,17 @@ export function parseRequiredDateCell(raw: unknown): ParseOutcome<string> {
   if (!r.ok) return r
   if (r.value) return { ok: true, value: r.value }
   return { ok: false, error: 'Champ obligatoire manquant' }
+}
+
+// Date de naissance : même parsing qu'une date classique, avec le garde-fou
+// anti-erreur de saisie en plus (cf. lib/dateNaissance.ts).
+export function parseBirthDateCell(raw: unknown): ParseOutcome<string | null> {
+  const r = parseDateCell(raw)
+  if (!r.ok || r.value === null) return r
+  if (!isAnneeNaissanceValide(r.value)) {
+    return { ok: false, error: `Année de naissance invalide : "${r.value.slice(0, 4)}" (doit être ${maxAnneeNaissance()} ou antérieure)` }
+  }
+  return r
 }
 
 export function parseMontantCell(raw: unknown): ParseOutcome<number> {
