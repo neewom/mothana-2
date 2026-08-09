@@ -22,6 +22,7 @@ interface OrganisationPublic {
   formulaire_adhesion_header_html: string | null
   formulaire_adhesion_footer_html: string | null
   formulaire_adhesion_css: string | null
+  formulaire_adhesion_message_succes: string | null
   assets: OrganisationAssetPublic[] | null
 }
 
@@ -153,9 +154,9 @@ export default function DemandeAdhesionPage() {
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
         <div className="max-w-md rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-900">Demande envoyée</h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Votre demande d'adhésion à {organisation.nom} a bien été enregistrée. Elle sera examinée par le conseil
-            d'administration.
+          <p className="mt-2 whitespace-pre-line text-sm text-slate-500">
+            {organisation.formulaire_adhesion_message_succes ||
+              `Votre demande d'adhésion à ${organisation.nom} a bien été enregistrée. Elle sera examinée par le conseil d'administration.`}
           </p>
         </div>
       </div>

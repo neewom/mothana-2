@@ -36,6 +36,7 @@ interface OrgSettings {
   formulaire_adhesion_header_html: string | null
   formulaire_adhesion_footer_html: string | null
   formulaire_adhesion_css: string | null
+  formulaire_adhesion_message_succes: string | null
 }
 
 const MENTION_LEGALE_DEFAUT = "Organisme d'intérêt général éligible au mécénat – article 200 du CGI"
@@ -160,6 +161,11 @@ export default function ParametresPage() {
   const [formulaireFooterHtml, setFormulaireFooterHtml] = useState<string | null>(null)
   const [formulaireCss, setFormulaireCss] = useState<string | null>(null)
   const [formulaireEditorOpen, setFormulaireEditorOpen] = useState(false)
+  const [messageSucces, setMessageSucces] = useState('')
+  const [messageSuccesInitial, setMessageSuccesInitial] = useState('')
+  const [messageSuccesSaving, setMessageSuccesSaving] = useState(false)
+  const [messageSuccesSuccess, setMessageSuccesSuccess] = useState(false)
+  const [messageSuccesError, setMessageSuccesError] = useState<string | null>(null)
 
   // Assets (identité visuelle — logo, tampon, signature, etc., liste ouverte)
   const [assets, setAssets] = useState<OrganisationAsset[]>([])
@@ -182,7 +188,7 @@ export default function ParametresPage() {
       const { data, error } = await supabase
         .from('organisations')
         .select(
-          'nom, code_pin_benevole, adresse, code_postal, ville, pays, modele_recu_pdf, slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css',
+          'nom, code_pin_benevole, adresse, code_postal, ville, pays, modele_recu_pdf, slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css, formulaire_adhesion_message_succes',
         )
         .eq('id', organisationId)
         .single()
@@ -208,6 +214,8 @@ export default function ParametresPage() {
       setFormulaireHeaderHtml(raw.formulaire_adhesion_header_html)
       setFormulaireFooterHtml(raw.formulaire_adhesion_footer_html)
       setFormulaireCss(raw.formulaire_adhesion_css)
+      setMessageSucces(raw.formulaire_adhesion_message_succes ?? '')
+      setMessageSuccesInitial(raw.formulaire_adhesion_message_succes ?? '')
       setModele({
         rna: modeleRaw.rna ?? '',
         siren: modeleRaw.siren ?? '',
@@ -406,6 +414,29 @@ export default function ParametresPage() {
       setStatutsUrl(url)
     }
     setStatutsUploading(false)
+  }
+
+  async function handleSaveMessageSucces(e: FormEvent) {
+    e.preventDefault()
+    setMessageSuccesSaving(true)
+    setMessageSuccesError(null)
+    setMessageSuccesSuccess(false)
+
+    const trimmed = messageSucces.trim()
+    const { error } = await supabase
+      .from('organisations')
+      .update({ formulaire_adhesion_message_succes: trimmed || null })
+      .eq('id', organisationId)
+
+    if (error) {
+      setMessageSuccesError(error.message)
+    } else {
+      setMessageSucces(trimmed)
+      setMessageSuccesInitial(trimmed)
+      setMessageSuccesSuccess(true)
+      setTimeout(() => setMessageSuccesSuccess(false), 3000)
+    }
+    setMessageSuccesSaving(false)
   }
 
   // ---------------------------------------------------------------------------
@@ -1029,6 +1060,38 @@ export default function ParametresPage() {
             )}
           </div>
         </div>
+
+        <form onSubmit={handleSaveMessageSucces} className="mt-6 max-w-lg">
+          <p className="mb-2 text-sm font-medium text-slate-700">Message de succès</p>
+          <p className="mb-3 text-xs text-slate-400">
+            Affiché au demandeur une fois le formulaire envoyé. Laissez vide pour garder le message par défaut.
+          </p>
+          <textarea
+            value={messageSucces}
+            onChange={(e) => setMessageSucces(e.target.value)}
+            placeholder="Votre demande d'adhésion a bien été enregistrée. Elle sera examinée par le conseil d'administration."
+            rows={3}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <div className="mt-3 flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={messageSuccesSaving || messageSucces.trim() === messageSuccesInitial}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {messageSuccesSaving ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+            {messageSuccesSuccess && (
+              <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Enregistré
+              </span>
+            )}
+            {messageSuccesError && <span className="text-sm text-red-600">{messageSuccesError}</span>}
+          </div>
+        </form>
       </Section>
 
       {/* Section 8 — Historique des modifications */}
