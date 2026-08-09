@@ -75,23 +75,15 @@ Claude Code tourne sur une machine dédiée où le projet est exposé sur le ré
 
 ---
 
-## Schéma de données — champs clés
+## Schéma de données
 
-**`organisations`** : nom, code_pin_benevole, modele_recu_pdf (JSONB), adresse, code_postal, ville, pays (colonnes directes ajoutées en priorité 1 Cerfa)
+Référence complète et à jour (toutes les tables, colonnes, contraintes) : `docs/schema-mothana.sql`. Points non évidents à la simple lecture des colonnes :
 
-**`personnes`** : nom, prenom, nom2, prenom2, civilite (smallint : 1=Monsieur 2=Madame 3=Mademoiselle 4=Foyer 5=Société 6=Association 7=Famille — 0/255→NULL), adresse, code_postal, ville, pays, telephone, email
-
-**`profils_participant`** : personne_id, organisation_id, id_externe (IDFideles)
-
-**`activites`** : organisation_id, nom, id_externe, date_debut, date_fin
-
-**`recus_fiscaux`** : profil_participant_id, organisation_id, annee, montant_total, fichier_url, numero_ordre, type_cerfa, template_id, snapshot_donateur, snapshot_organisation, email_envoye_at
-
-**`templates_recu`** : organisation_id, nom, type_cerfa ('11580'|'16216'), html_template, css, is_active, is_archived
-
-**`adherents`** *(module cadré le 2026-08-03, migration exécutée en prod le 2026-08-03 — voir backlog pour la suite)* : organisation_id, id_externe (UNIQUE(organisation_id, id_externe)), civilite (smallint réduit : 0=non défini, 1=Monsieur, 2=Madame — distinct de l'enum civilité participants), nom, prenom, date_naissance, adresse, code_postal, ville, telephone, courriel, statut (actif/archivé — soft delete), statuts_acceptes (boolean, default true), consent_rgpd (boolean, default false)
-
-**`adhesions`** *(idem, migration exécutée en prod le 2026-08-03)* : adherent_id, date_debut, date_fin, montant_cotisation (nullable), date_paiement_cotisation, mode_paiement (enum réutilisé de Mothana, CHECK [1,2,3,4]), renouvellement (boolean, calculé — true si l'adhérent a déjà une adhésion antérieure, pas saisi), droit_vote_ag (boolean, default true), bulletin_signe (boolean, default true)
+- `personnes.civilite` (smallint) : 1=Monsieur 2=Madame 3=Mademoiselle 4=Foyer 5=Société 6=Association 7=Famille — 0/255→NULL
+- `adherents.civilite` (smallint réduit, enum **distinct** de celui de `personnes`) : 0=non défini, 1=Monsieur, 2=Madame — pas de personne morale/famille adhérente pour l'instant
+- `profils_participant.id_externe` = IDFideles (import legacy, seulement rempli pour les participants importés) — ne pas l'utiliser comme numéro de donateur générique
+- `adhesions.mode_paiement` réutilise l'enum `dons.mode_paiement` (CHECK `[1,2,3,4]` : Espèces/Chèque/Prélèvement-virement/Autres)
+- `adhesions.renouvellement` et `date_fin` : calculés côté application (`lib/adhesion.ts`), jamais saisis manuellement
 
 ---
 
@@ -149,7 +141,7 @@ Historique complet des sujets terminés (détail des décisions techniques, bugs
 
 Chaque carte listée ci-dessous est déjà **cadrée** : sa description Trello contient le détail complet des décisions (périmètre retenu/écarté), vérifiée/mise à jour à chaque session. Confirmation explicite à redemander avant de démarrer le dev de l'une d'entre elles, même déjà cadrée.
 
-1. **Environnement staging Supabase** — cadré le 2026-08-09, dev non démarré. [Trello](https://trello.com/c/MnIE0A6X). Design en bref : second projet Supabase permanent (données fake, pas de PII), `.env` local pointe staging / Vercel reste sur prod, déploiements ciblés via `--project-ref`. Workflow par sujet : dump de staging avant migration → migration testée sur staging → PR mergée = migration rejouée sur prod + dump supprimé (bases alignées) ; PR rejetée = dump restauré sur staging. Pas de synchro périodique.
+1. **Environnement staging Supabase** — cadré le 2026-08-09, dev non démarré. [Trello](https://trello.com/c/MnIE0A6X)
 2. **Revue UI responsive admin** (super admin + panel org, desktop/mobile) — cadré le 2026-08-08, bloqué sur les identifiants super admin (potentiellement débloqué via l'environnement staging ci-dessus). Cause connue : tableaux sans wrapper `overflow-x-auto` (`SuperAdminPage.tsx`, `AdherentsPage.tsx`). [Trello](https://trello.com/c/IeMDIOCx)
 3. **Réorganisation Paramètres** en sous-pages routées (même pattern que Dons/Adhérents) — cadré le 2026-08-08. [Trello](https://trello.com/c/p3FrYi70)
 4. **Vérification carte adhérent par nom/prénom** (espace bénévole) — cadré le 2026-08-08. [Trello](https://trello.com/c/HbOvv6Kx)
