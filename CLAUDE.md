@@ -139,12 +139,12 @@ Historique complet des sujets terminés (détail des décisions techniques, bugs
 
 Le board Trello est la source de vérité unique du backlog (hors cartes "Action admin", gérées par l'utilisateur lui-même). Chaque carte cadrée a sa description Trello à jour avec le détail complet des décisions — vérifiée à chaque session, pas dupliquée ici. Confirmation explicite à redemander avant de démarrer le dev de l'une d'entre elles, même déjà cadrée.
 
-1. **Repenser le bypass** — pas encore clarifié avec l'utilisateur, à traiter en premier, ne pas deviner l'intention. [Trello](https://trello.com/c/duCJex1s)
-2. **Environnement staging Supabase** — cadré le 2026-08-09, dev non démarré. [Trello](https://trello.com/c/MnIE0A6X)
-3. **Revue UI responsive admin** (super admin + panel org, desktop/mobile) — cadré le 2026-08-08, bloqué sur les identifiants super admin (potentiellement débloqué via l'environnement staging ci-dessus). [Trello](https://trello.com/c/IeMDIOCx)
-4. **Réorganisation Paramètres** en sous-pages routées (même pattern que Dons/Adhérents) — cadré le 2026-08-08. [Trello](https://trello.com/c/p3FrYi70)
-5. **Rapprochement chèques/virements** — pas cadré. [Trello](https://trello.com/c/DwPzxngO)
-6. **Vérification carte adhérent par nom/prénom** (espace bénévole) — cadré le 2026-08-08. [Trello](https://trello.com/c/HbOvv6Kx)
+1. **Environnement staging Supabase** — cadré le 2026-08-09, dev non démarré. [Trello](https://trello.com/c/MnIE0A6X)
+2. **Revue UI responsive admin** (super admin + panel org, desktop/mobile) — cadré le 2026-08-08, bloqué sur les identifiants super admin (potentiellement débloqué via l'environnement staging ci-dessus). [Trello](https://trello.com/c/IeMDIOCx)
+3. **Réorganisation Paramètres** en sous-pages routées (même pattern que Dons/Adhérents) — cadré le 2026-08-08. [Trello](https://trello.com/c/p3FrYi70)
+4. **Rapprochement chèques/virements** — pas cadré. [Trello](https://trello.com/c/DwPzxngO)
+5. **Vérification carte adhérent par nom/prénom** (espace bénévole) — cadré le 2026-08-08. [Trello](https://trello.com/c/HbOvv6Kx)
+6. **Pièces jointes sur un don** (justificatifs) — cadré le 2026-08-09 : table `dons_fichiers`, bucket Storage privé + URL signée, images/PDF 10 Mo max, upload côté admin (`DonModal`) et bénévole (`BenevolePage`). [Trello](https://trello.com/c/G1MFP7Ao)
 7. **Double opt-in email** avant ratification d'une demande d'adhésion — cadré le 2026-08-08, nécessite un compte Resend (action utilisateur, prérequis externe). [Trello](https://trello.com/c/0gt0LIVU)
 8. **Mailing Brevo** aux adhérents — cadré le 2026-08-08, nécessite un compte Brevo (action utilisateur, prérequis externe). [Trello](https://trello.com/c/bAaUGHj7)
 9. **Priorité 4 — Envoi email des reçus fiscaux** — pas cadré, même dépendance Resend que le double opt-in ci-dessus. [Trello](https://trello.com/c/Do9GVjOt)
