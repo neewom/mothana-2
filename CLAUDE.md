@@ -126,7 +126,7 @@ Historique complet des sujets terminés (détail des décisions techniques, bugs
 - **Priorité 3 — Wizard de template Cerfa** (terminée 2026-07-20) : upload PDF → Claude Vision → brouillon HTML/CSS dans l'éditeur Monaco. Assets par organisation (liste ouverte) + placeholders président (PR #35)
 - **Priorité 2 — Export comptable** (partiel) : export CSV dons, tableau de bord `/admin/comptabilite`, récapitulatif déclaratif article 222 bis CGI. Reste : rapprochement chèques/virements (jamais cadré)
 - Backlog 2026-07-25 (5 items, PR #31→#34) : affichage dons participant, perf Wat Velouvanaram (RLS `auth_rls_initplan`), recherche + pagination activités, réaffectation de don (blocage si reçu déjà émis)
-- **Module Adhérents V1** (terminé 2026-08-04, PR #36→#39) : navigation (dashboard + section Adhérents), formulaire/liste/import, gabarit carte adhérent + planche A4. Item 6 (sélection d'un adhérent à la saisie d'un don) explicitement hors scope, reste en backlog prio basse
+- **Module Adhérents V1** (terminé 2026-08-04, PR #36→#39) : navigation (dashboard + section Adhérents), formulaire/liste/import, gabarit carte adhérent + planche A4. Item 6 (sélection d'un adhérent à la saisie d'un don) explicitement hors scope, backlog actif ci-dessous
 - Recherche adhérents par email + `id_externe` auto-incrémenté (PR #47/#48)
 - Log des modifications (`journal_modifications`) + motif de refus demande d'adhésion (PR #49)
 - Marathon Trello 2026-08-08 : CTA ratifier/refuser (PR #50), lignes de tableau cliquables — **convention actée pour tout nouveau tableau du même type** (PR #51), validation date de naissance adhérent (PR #52), débordement impression cartes adhérent (PR #53), message de succès formulaire d'adhésion (PR #54)
@@ -135,25 +135,25 @@ Historique complet des sujets terminés (détail des décisions techniques, bugs
 
 **Limitation connue (non bloquante, décision utilisateur)** : les 4 fonctions RPC d'import échouent en mode super-admin "Consulter" (pas de `profils_organisation` dans ce contexte) — se connecter en admin normal pour tester les imports. Détail : `docs/journal-avancement.md`.
 
-**Point resté ouvert, non bloquant** : contrainte d'unicité `id_externe` par organisation sur les activités — à trancher si le besoin se présente (déjà réglée pour adhérents/participants).
-
 ### ⏳ Backlog actif — ordre Trello (board "Mothana", voir mémoire persistante)
 
-Chaque carte listée ci-dessous est déjà **cadrée** : sa description Trello contient le détail complet des décisions (périmètre retenu/écarté), vérifiée/mise à jour à chaque session. Confirmation explicite à redemander avant de démarrer le dev de l'une d'entre elles, même déjà cadrée.
+Le board Trello est la source de vérité unique du backlog (hors cartes "Action admin", gérées par l'utilisateur lui-même). Chaque carte cadrée a sa description Trello à jour avec le détail complet des décisions — vérifiée à chaque session, pas dupliquée ici. Confirmation explicite à redemander avant de démarrer le dev de l'une d'entre elles, même déjà cadrée.
 
-1. **Environnement staging Supabase** — cadré le 2026-08-09, dev non démarré. [Trello](https://trello.com/c/MnIE0A6X)
-2. **Revue UI responsive admin** (super admin + panel org, desktop/mobile) — cadré le 2026-08-08, bloqué sur les identifiants super admin (potentiellement débloqué via l'environnement staging ci-dessus). Cause connue : tableaux sans wrapper `overflow-x-auto` (`SuperAdminPage.tsx`, `AdherentsPage.tsx`). [Trello](https://trello.com/c/IeMDIOCx)
-3. **Réorganisation Paramètres** en sous-pages routées (même pattern que Dons/Adhérents) — cadré le 2026-08-08. [Trello](https://trello.com/c/p3FrYi70)
-4. **Vérification carte adhérent par nom/prénom** (espace bénévole) — cadré le 2026-08-08. [Trello](https://trello.com/c/HbOvv6Kx)
-5. **Double opt-in email** avant ratification d'une demande d'adhésion — cadré le 2026-08-08, nécessite un compte Resend (action utilisateur, prérequis externe). [Trello](https://trello.com/c/0gt0LIVU)
-6. **Mailing Brevo** aux adhérents — cadré le 2026-08-08, nécessite un compte Brevo (action utilisateur, prérequis externe). [Trello](https://trello.com/c/bAaUGHj7)
-7. **OCR scan de carte adhérent** — pas encore cadré, discussion préliminaire seulement. [Trello](https://trello.com/c/zVBOjAWk)
-
-### Sujets ouverts hors board Trello
-
-- **Repenser le bypass** — non clarifié depuis 2026-07-25 (reporté plusieurs sessions), sans carte Trello dédiée. Noté par l'utilisateur sans plus de précision : à clarifier en tout premier lieu au prochain moment disponible, **ne pas deviner l'intention**. Hypothèse la plus probable (contexte d'origine : PR #34 réaffectation de don venait d'être mergée) : mécanisme de bypass pour le blocage total de réaffectation quand un reçu fiscal existe déjà — mais pourrait aussi concerner le bypass super-admin RLS (`is_super_admin` dans les policies). Ne pas assumer avant confirmation.
-- **Priorité 4 — Envoi email des reçus** : PDF envoyé au participant après génération (Resend recommandé — même brique que le double opt-in ci-dessus si les deux sont faits ensemble), suivi `email_envoye_at` dans `recus_fiscaux`
-- **Priorité 5 — Roadmap lointaine** : export FEC / intégrations comptables, brique événements/coupons (Pagode Coupon), gestion abonnements/plans
+1. **Repenser le bypass** — pas encore clarifié avec l'utilisateur, à traiter en premier, ne pas deviner l'intention. [Trello](https://trello.com/c/duCJex1s)
+2. **Environnement staging Supabase** — cadré le 2026-08-09, dev non démarré. [Trello](https://trello.com/c/MnIE0A6X)
+3. **Revue UI responsive admin** (super admin + panel org, desktop/mobile) — cadré le 2026-08-08, bloqué sur les identifiants super admin (potentiellement débloqué via l'environnement staging ci-dessus). [Trello](https://trello.com/c/IeMDIOCx)
+4. **Réorganisation Paramètres** en sous-pages routées (même pattern que Dons/Adhérents) — cadré le 2026-08-08. [Trello](https://trello.com/c/p3FrYi70)
+5. **Rapprochement chèques/virements** — pas cadré. [Trello](https://trello.com/c/DwPzxngO)
+6. **Vérification carte adhérent par nom/prénom** (espace bénévole) — cadré le 2026-08-08. [Trello](https://trello.com/c/HbOvv6Kx)
+7. **Double opt-in email** avant ratification d'une demande d'adhésion — cadré le 2026-08-08, nécessite un compte Resend (action utilisateur, prérequis externe). [Trello](https://trello.com/c/0gt0LIVU)
+8. **Mailing Brevo** aux adhérents — cadré le 2026-08-08, nécessite un compte Brevo (action utilisateur, prérequis externe). [Trello](https://trello.com/c/bAaUGHj7)
+9. **Priorité 4 — Envoi email des reçus fiscaux** — pas cadré, même dépendance Resend que le double opt-in ci-dessus. [Trello](https://trello.com/c/Do9GVjOt)
+10. **OCR scan de carte adhérent** — pas encore cadré, discussion préliminaire seulement. [Trello](https://trello.com/c/zVBOjAWk)
+11. **Sélection d'un adhérent à la saisie d'un don + doublonnement** — prio basse, hors scope V1 du module Adhérents, pas cadré. [Trello](https://trello.com/c/RtRY8ltX)
+12. **Priorité 5 — Export FEC / intégrations comptables** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/W3GCYUOt)
+13. **Priorité 5 — Brique événements/coupons** (Pagode Coupon) — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/C9A5B9jr)
+14. **Priorité 5 — Gestion abonnements/plans** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/cfKF8BNw)
+15. **Contrainte d'unicité `id_externe` par organisation sur les activités** — point non bloquant, pas cadré. [Trello](https://trello.com/c/WkPAb7K7)
 
 ---
 
