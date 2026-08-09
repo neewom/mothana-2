@@ -108,10 +108,10 @@ Référence complète et à jour (toutes les tables, colonnes, contraintes) : `d
 
 ## Git — workflow
 
-- Ne jamais merger une PR sans demander l'autorisation explicite à l'utilisateur, même si le code a déjà été testé/validé manuellement
+Règles génériques (ne jamais merger sans confirmation, vérifier les PR ouvertes avant de démarrer, corriger un blocage trouvé en testant dans la même PR, ouvrir une PR dès qu'un dev est jugé terminé) : voir `~/.claude/CLAUDE.md`, valables sur tous les projets.
+
+Spécifique à Mothana :
 - Quand l'utilisateur informe qu'une PR est mergée, `checkout main` puis `pull` pour mettre la branche locale à jour avant de démarrer les développements suivants. Vérifier aussi à ce moment-là la liste "Todo" du board Trello "Mothana" (voir mémoire persistante) : identifier les cartes traitées par cette PR, les déplacer soi-même vers "Done" (le token a les droits d'écriture depuis le 2026-08-08), et signaler à l'utilisateur les cartes déplacées + toute nouvelle carte apparue depuis le dernier check, pour discuter d'éventuels nouveaux sujets
-- Avant de démarrer un nouveau développement, toujours vérifier s'il y a des PR ouvertes (`gh pr list`). S'il y en a, et sauf si le nouveau développement est directement lié à cette PR en cours (modification, correction, suite directe), informer l'utilisateur et demander confirmation avant de continuer
-- Si un problème bloquant est identifié en testant une PR ouverte — même dans des fichiers sans rapport direct avec cette PR — corriger le problème dans **cette même PR** plutôt que d'en ouvrir une séparée. La résolution des blocages rencontrés pendant le test fait partie de la validation de la PR
 
 ---
 
@@ -166,5 +166,6 @@ Le board Trello est la source de vérité unique du backlog (hors cartes "Action
 5. **Sauvegarder un résumé de session** dans `.claude/sessions/` en fin de session
 6. **Ne jamais sauter d'étape** sans validation explicite
 7. **Demander confirmation** en cas de doute fonctionnel ou technique
-8. **Traiter un seul sujet à la fois** — si l'utilisateur amène plusieurs sujets dans une même demande, les traiter un par un (cadrage → implémentation → validation) plutôt qu'en parallèle, sauf s'ils sont intimement liés et que l'utilisateur a explicitement demandé de les traiter ensemble
-9. **Demander confirmation explicite avant de démarrer le dev** d'une carte ou d'un sujet, même déjà cadré — ne pas enchaîner automatiquement après le merge d'une PR précédente
+8. **Demander confirmation explicite avant de démarrer le dev** d'une carte ou d'un sujet, même déjà cadré — ne pas enchaîner automatiquement après le merge d'une PR précédente (règle renforcée par rapport au défaut global, sur ce projet on redemande systématiquement, pas seulement en cas de doute sur la fraîcheur de l'accord)
+
+Règles génériques valables sur tous les projets ("un sujet à la fois", ne pas présumer qu'un accord ancien tient toujours, continuité entre sessions) : voir `~/.claude/CLAUDE.md`.
