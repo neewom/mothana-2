@@ -158,8 +158,8 @@ export default function FormulaireAdhesionEditorModal({
       fullScreen={fullScreen}
       heightClassName="h-[85vh] min-h-[560px]"
     >
-      <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
-        <div>
+      <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 pr-14 sm:flex-row sm:items-start sm:justify-between sm:pr-10">
+        <div className="min-w-0">
           <h2 id="formulaire-adhesion-editor-title" className="text-lg font-semibold text-slate-900">
             En-tête et pied de page du formulaire d'adhésion
           </h2>
@@ -167,7 +167,7 @@ export default function FormulaireAdhesionEditorModal({
             Le formulaire central (champs à remplir) n'est pas modifiable ici, seuls l'en-tête et le pied de page le sont.
           </p>
         </div>
-        <div className="mr-10 flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-xs font-medium">
             <button
               type="button"
@@ -265,8 +265,8 @@ export default function FormulaireAdhesionEditorModal({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-between gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)]">
-          <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-col gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)] sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
             <div ref={placeholdersRef} className="relative">
               <button
                 type="button"

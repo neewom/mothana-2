@@ -515,9 +515,9 @@ export default function DonsPage() {
       <div className={`flex gap-6 ${selectedDon ? 'items-start' : ''}`}>
         {/* Table card */}
         <div className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-semibold text-slate-900">Liste des dons</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleExport}
                 disabled={filteredDons.length === 0}

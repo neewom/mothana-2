@@ -188,8 +188,8 @@ export default function TemplateRecuEditorModal({
       fullScreen={fullScreen}
       heightClassName="h-[85vh] min-h-[560px]"
     >
-      <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
-        <div>
+      <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 pr-14 sm:flex-row sm:items-start sm:justify-between sm:pr-10">
+        <div className="min-w-0">
           <h2 id="template-editor-title" className="text-lg font-semibold text-slate-900">
             {isEdit ? `Modifier — ${template.nom}` : 'Nouveau template de reçu'}
           </h2>
@@ -201,7 +201,7 @@ export default function TemplateRecuEditorModal({
               : 'Créé désactivé — activez-le depuis la liste une fois vérifié.'}
           </p>
         </div>
-        <div className="mr-10 flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-xs font-medium">
             <button
               type="button"

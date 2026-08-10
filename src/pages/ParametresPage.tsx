@@ -957,14 +957,14 @@ export default function ParametresPage() {
         <form onSubmit={handleSaveSlug} className="max-w-lg space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Adresse du formulaire</label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-400">{window.location.origin}/adhesion/</span>
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+              <span className="break-all text-sm text-slate-400">{window.location.origin}/adhesion/</span>
               <input
                 type="text"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
                 placeholder="ex : mon-association"
-                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:flex-1"
               />
             </div>
             <p className="mt-1 text-xs text-slate-400">
