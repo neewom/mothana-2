@@ -10,6 +10,7 @@ import {
 } from '../lib/formulaireAdhesionPreview'
 import { copyTextToClipboard } from '../lib/clipboard'
 import { fetchOrganisationAssets, buildAssetPlaceholders, assetPlaceholderKey } from '../lib/organisationAssets'
+import { fetchOrganisationPreviewOverrides } from '../lib/cerfaPreview'
 import Modal from './Modal'
 
 interface FormulaireAdhesionEditorModalProps {
@@ -46,7 +47,7 @@ export default function FormulaireAdhesionEditorModal({
   const [placeholdersOpen, setPlaceholdersOpen] = useState(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [assetTags, setAssetTags] = useState<string[]>([])
-  const [assetPlaceholders, setAssetPlaceholders] = useState<Record<string, string>>({})
+  const [dynamicPlaceholders, setDynamicPlaceholders] = useState<Record<string, string>>({})
   const formRef = useRef<HTMLFormElement>(null)
   const placeholdersRef = useRef<HTMLDivElement>(null)
 
@@ -78,18 +79,21 @@ export default function FormulaireAdhesionEditorModal({
     fetchOrganisationAssets(organisationId)
       .then((assets) => {
         setAssetTags(assets.map((a) => assetPlaceholderKey(a.identifiant)))
-        setAssetPlaceholders(buildAssetPlaceholders(assets))
+        setDynamicPlaceholders((prev) => ({ ...prev, ...buildAssetPlaceholders(assets) }))
       })
       .catch(() => setAssetTags([]))
+    fetchOrganisationPreviewOverrides(organisationId)
+      .then((overrides) => setDynamicPlaceholders((prev) => ({ ...prev, ...overrides })))
+      .catch(() => {})
   }, [open, organisationId])
 
   const previewValues = useMemo(
-    () => ({ ...FORMULAIRE_ADHESION_PREVIEW_PLACEHOLDERS, ...assetPlaceholders }),
-    [assetPlaceholders],
+    () => ({ ...FORMULAIRE_ADHESION_PREVIEW_PLACEHOLDERS, ...dynamicPlaceholders }),
+    [dynamicPlaceholders],
   )
   const previewHtml = useMemo(
-    () => renderFormulaireAdhesionPreviewHtml(header, footer, styles, assetPlaceholders),
-    [header, footer, styles, assetPlaceholders],
+    () => renderFormulaireAdhesionPreviewHtml(header, footer, styles, dynamicPlaceholders),
+    [header, footer, styles, dynamicPlaceholders],
   )
 
   function handleReset() {

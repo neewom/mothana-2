@@ -322,6 +322,7 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
           htmlTemplate={previewTemplate.html_template}
           css={previewTemplate.css ?? ''}
           organisationId={organisationId}
+          typeCerfa={previewTemplate.type_cerfa}
         />
       )}
 
