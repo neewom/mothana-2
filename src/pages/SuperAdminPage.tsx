@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { DEFAULT_CERFA_TEMPLATES } from '../lib/defaultCerfaTemplates'
 import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS, DEFAULT_CARTE_ADHERENT_NOM } from '../lib/defaultCarteAdherentTemplate'
+import { slugifyUrl } from '../lib/organisationAssets'
 import Modal from '../components/Modal'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
@@ -87,12 +88,19 @@ function OrgModal({ open, onClose, onSaved, org }: OrgModalProps) {
         .eq('id', org.id)
       if (err) { setError(err.message); setSaving(false); return }
     } else {
+      const slug = slugifyUrl(nom)
+      if (!slug) { setError('Nom invalide pour générer un identifiant'); setSaving(false); return }
+
       const { data: newOrg, error: err } = await supabase
         .from('organisations')
-        .insert({ nom, code_pin_benevole: generatePin() })
+        .insert({ nom, code_pin_benevole: generatePin(), slug })
         .select('id')
         .single()
-      if (err) { setError(err.message); setSaving(false); return }
+      if (err) {
+        setError(err.code === '23505' ? 'Une organisation avec un nom équivalent existe déjà' : err.message)
+        setSaving(false)
+        return
+      }
 
       const { error: templatesErr } = await supabase
         .from('templates_recu')

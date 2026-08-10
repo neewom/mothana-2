@@ -4,7 +4,7 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import TemplatesRecuSection from '../components/TemplatesRecuSection'
 import CarteAdherentSection from '../components/CarteAdherentSection'
 import HistoriqueModificationsSection from '../components/HistoriqueModificationsSection'
-import { slugifyIdentifiant, type OrganisationAsset } from '../lib/organisationAssets'
+import { slugifyIdentifiant, slugifyUrl, type OrganisationAsset } from '../lib/organisationAssets'
 import { copyTextToClipboard } from '../lib/clipboard'
 import FormulaireAdhesionEditorModal from '../components/FormulaireAdhesionEditorModal'
 
@@ -82,16 +82,6 @@ async function uploadStatutsFile(organisationId: string, file: File): Promise<st
 
   const { data } = supabase.storage.from('organisation-assets').getPublicUrl(path)
   return data.publicUrl
-}
-
-// Slug URL (séparateur '-'), distinct de slugifyIdentifiant (séparateur '_', pour les placeholders {{asset_xxx}})
-function slugifyUrl(input: string): string {
-  return input
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
 }
 
 // ---------------------------------------------------------------------------
