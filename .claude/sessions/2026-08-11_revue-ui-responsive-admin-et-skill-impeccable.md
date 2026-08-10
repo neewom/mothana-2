@@ -24,10 +24,20 @@
     6. Accessibilité non encore vérifiée (contraste, annonce d'erreurs aux lecteurs d'écran, clavier dans les autocomplete).
     7. Cohérence d'usage de `Toast.tsx` vs bannières d'erreur ad hoc.
 
+## Suite de session (même jour, 2026-08-11) — init impeccable + plan de travail
+
+- **Redémarrage effectué**, skill impeccable chargé.
+- **`/impeccable init` exécuté** : exploration du projet (docs/cadrage-mothana.md, package.json) + interview ciblée (3 questions) → `PRODUCT.md` créé à la racine du repo. Faits confirmés : positionnement (reçus Cerfa auto pour dons hors-ligne, vs HelloAsso — reprend la veille concurrentielle déjà en mémoire), pas d'exigence d'accessibilité formelle (RGAA/WCAG) imposée, dashboard admin (`/admin`, `/super-admin`) reste à l'identité visuelle Mothana unifiée — seules les pages publiques (formulaire d'adhésion, bientôt connexion) restent personnalisables par organisation. Mode `live` (édition interactive dans le navigateur) volontairement pas configuré à ce stade (touche à la CSP, à valider séparément le jour où on veut s'en servir).
+- **Résumé des possibilités du skill donné à l'utilisateur**, mappé sur le backlog Mothana : `document` (capture DESIGN.md), `audit`/`critique` (répondent directement à l'objectif de comparaison avec l'audit manuel PR #57), `extract` (pile sur l'axe 1 — factoriser le header dupliqué), `adapt`, `polish`, `live`, hooks.
+- **Plan de travail en 7 étapes structuré et écrit dans la carte Trello** (https://trello.com/c/0cgE88pI) : document → extract (header) → audit → critique → comparaison à la PR #57 → tri des résultats. Configuration du mode `live` explicitement différée (hors périmètre de cette carte).
+- **Découpage PR clarifié et confirmé par l'utilisateur** : 2 PR distinctes plutôt qu'une seule ou une par étape — 1 PR pour le refactor structurel (extraction du composant header, étape 2), 1 PR pour les correctifs de polish trouvés par audit/critique (étape 6, même logique de bundling que la PR #57). `document`/`audit`/`critique` ne produisent pas de code en eux-mêmes, pas de PR pour ces étapes.
+- Question posée et tranchée en aparté : DESIGN.md peut-il venir d'une inspiration externe plutôt que du code existant ? Réponse donnée (scan mode = extraction pure du code actuel ; une inspiration externe passerait par le flux `new-work`/redesign, hors périmètre actuel) — sujet mis de côté par l'utilisateur pour plus tard, pas cadré.
+- `PRODUCT.md` créé mais **pas encore commité** en fin de session (à faire à la reprise, ou committé directement avant de clore si le workflow docs-directes-sur-main s'applique).
+
 ## Reste à faire (prochaine session)
 
-- Redémarrer la session Claude Code pour charger le skill impeccable, puis `/impeccable init`.
-- Reprendre le board Trello à partir de la carte impeccable (priorité 1) — confirmation explicite à redemander avant de démarrer, comme toujours.
+- Committer `PRODUCT.md` (non fait en fin de session).
+- Démarrer l'étape 1 du plan (`/impeccable document`, génère DESIGN.md) — confirmation explicite à redemander avant de démarrer, comme toujours.
 - Suite de l'ordre Trello habituel si le sujet impeccable est reporté : Tooltip stylisé sur les placeholders → Réorganisation Paramètres → Mire de connexion personnalisée → Rapprochement chèques/virements (toujours pas cadré) → etc.
 - Vérifier si l'ancienne clé Anthropic (rotation du 2026-08-10) a bien été désactivée par l'utilisateur — reporté depuis la session précédente.
 - Railway : passer en plan Hobby (action admin, à faire par l'utilisateur) — reporté.
