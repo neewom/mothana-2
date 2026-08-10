@@ -20,6 +20,16 @@ export function slugifyIdentifiant(input: string): string {
     .replace(/^_+|_+$/g, '')
 }
 
+// Slug URL (séparateur '-'), distinct de slugifyIdentifiant (séparateur '_', pour les placeholders {{asset_xxx}})
+export function slugifyUrl(input: string): string {
+  return input
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 export async function fetchOrganisationAssets(organisationId: string): Promise<OrganisationAsset[]> {
   const { data, error } = await supabase
     .from('organisation_assets')
