@@ -63,21 +63,42 @@ export function renderCerfaPreviewHtml(
 
 // Placeholders qui reflètent de vraies données d'organisation plutôt que
 // l'exemple générique CERFA_PREVIEW_PLACEHOLDERS (les assets ont leur propre
-// fetch dédié, voir lib/organisationAssets.ts).
-export async function fetchOrganisationPreviewOverrides(organisationId: string): Promise<Record<string, string>> {
+// fetch dédié, voir lib/organisationAssets.ts). `typeCerfa`, quand fourni,
+// permet de calculer `type_reduction` avec la même règle que l'Edge Function
+// generate-recu (60% fixe pour les entreprises, taux configuré sinon).
+export async function fetchOrganisationPreviewOverrides(
+  organisationId: string,
+  typeCerfa?: '11580' | '16216',
+): Promise<Record<string, string>> {
   const { data } = await supabase
     .from('organisations')
     .select('nom, adresse, code_postal, ville, modele_recu_pdf')
     .eq('id', organisationId)
     .single()
 
-  const modele = (data?.modele_recu_pdf ?? {}) as { president_nom?: string; president_titre?: string }
+  const modele = (data?.modele_recu_pdf ?? {}) as {
+    rna?: string
+    siren?: string
+    objet_social?: string
+    mention_legale?: string
+    taux_reduction?: number
+    president_nom?: string
+    president_titre?: string
+  }
   const overrides: Record<string, string> = {}
   if (modele.president_nom) overrides.president_nom = modele.president_nom
   if (modele.president_titre) overrides.president_titre = modele.president_titre
+  if (modele.rna) overrides.organisation_rna = modele.rna
+  if (modele.siren) overrides.organisation_siren = modele.siren
+  if (modele.objet_social) overrides.organisation_objet_social = modele.objet_social
+  if (modele.mention_legale) overrides.organisation_mention_legale = modele.mention_legale
   if (data?.nom) overrides.organisation_nom = data.nom
   if (data?.adresse) overrides.organisation_adresse = data.adresse
   if (data?.code_postal) overrides.organisation_code_postal = data.code_postal
   if (data?.ville) overrides.organisation_ville = data.ville
+  if (typeCerfa) {
+    const tauxReduction = typeCerfa === '16216' ? 60 : modele.taux_reduction ?? 66
+    overrides.type_reduction = `${tauxReduction}%`
+  }
   return overrides
 }

@@ -10,6 +10,7 @@ interface TemplateRecuPreviewModalProps {
   htmlTemplate: string
   css: string
   organisationId: string
+  typeCerfa: '11580' | '16216'
 }
 
 export default function TemplateRecuPreviewModal({
@@ -19,6 +20,7 @@ export default function TemplateRecuPreviewModal({
   htmlTemplate,
   css,
   organisationId,
+  typeCerfa,
 }: TemplateRecuPreviewModalProps) {
   const [dynamicPlaceholders, setDynamicPlaceholders] = useState<Record<string, string>>({})
 
@@ -27,10 +29,10 @@ export default function TemplateRecuPreviewModal({
     fetchOrganisationAssets(organisationId)
       .then((assets) => setDynamicPlaceholders((prev) => ({ ...prev, ...buildAssetPlaceholders(assets) })))
       .catch(() => {})
-    fetchOrganisationPreviewOverrides(organisationId)
+    fetchOrganisationPreviewOverrides(organisationId, typeCerfa)
       .then((overrides) => setDynamicPlaceholders((prev) => ({ ...prev, ...overrides })))
       .catch(() => {})
-  }, [open, organisationId])
+  }, [open, organisationId, typeCerfa])
 
   if (!open) return null
 
