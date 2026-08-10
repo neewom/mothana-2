@@ -7,6 +7,7 @@ import { DEFAULT_CERFA_TEMPLATES } from '../lib/defaultCerfaTemplates'
 import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS, DEFAULT_CARTE_ADHERENT_NOM } from '../lib/defaultCarteAdherentTemplate'
 import { slugifyUrl } from '../lib/organisationAssets'
 import Modal from '../components/Modal'
+import ScrollShadowX from '../components/ScrollShadowX'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -608,6 +609,7 @@ export default function SuperAdminPage() {
             <p className="mt-1 text-xs text-slate-400">Créez la première organisation pour commencer.</p>
           </div>
         ) : (
+          <ScrollShadowX>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left">
@@ -666,6 +668,7 @@ export default function SuperAdminPage() {
               ))}
             </tbody>
           </table>
+          </ScrollShadowX>
         )}
       </div>
     </div>
