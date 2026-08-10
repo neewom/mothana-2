@@ -118,10 +118,10 @@ export default function TemplateRecuEditorModal({
         setDynamicPlaceholders((prev) => ({ ...prev, ...buildAssetPlaceholders(assets) }))
       })
       .catch(() => setAssetTags([]))
-    fetchOrganisationPreviewOverrides(organisationId)
+    fetchOrganisationPreviewOverrides(organisationId, typeCerfa)
       .then((overrides) => setDynamicPlaceholders((prev) => ({ ...prev, ...overrides })))
       .catch(() => {})
-  }, [open, organisationId])
+  }, [open, organisationId, typeCerfa])
 
   const previewValues = useMemo(
     () => ({ ...CERFA_PREVIEW_PLACEHOLDERS, ...dynamicPlaceholders }),
