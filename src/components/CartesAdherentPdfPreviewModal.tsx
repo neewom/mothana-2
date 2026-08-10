@@ -34,11 +34,11 @@ export default function CartesAdherentPdfPreviewModal({
       labelledBy="cartes-pdf-preview-title"
       heightClassName="h-[85vh] min-h-[560px]"
     >
-      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+      <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 pr-14 sm:flex-row sm:items-center sm:justify-between sm:pr-10">
         <h2 id="cartes-pdf-preview-title" className="text-lg font-semibold text-slate-900">
           Aperçu — {count} carte{count > 1 ? 's' : ''}
         </h2>
-        <div className="mr-10 flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
             type="button"
             onClick={onClose}
