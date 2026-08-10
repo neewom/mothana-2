@@ -62,13 +62,12 @@ export function renderCerfaPreviewHtml(
 }
 
 // Placeholders qui reflètent de vraies données d'organisation plutôt que
-// l'exemple générique CERFA_PREVIEW_PLACEHOLDERS — pour l'instant seulement
-// président_nom/président_titre (les assets ont leur propre fetch dédié,
-// voir lib/organisationAssets.ts).
+// l'exemple générique CERFA_PREVIEW_PLACEHOLDERS (les assets ont leur propre
+// fetch dédié, voir lib/organisationAssets.ts).
 export async function fetchOrganisationPreviewOverrides(organisationId: string): Promise<Record<string, string>> {
   const { data } = await supabase
     .from('organisations')
-    .select('adresse, code_postal, ville, modele_recu_pdf')
+    .select('nom, adresse, code_postal, ville, modele_recu_pdf')
     .eq('id', organisationId)
     .single()
 
@@ -76,6 +75,7 @@ export async function fetchOrganisationPreviewOverrides(organisationId: string):
   const overrides: Record<string, string> = {}
   if (modele.president_nom) overrides.president_nom = modele.president_nom
   if (modele.president_titre) overrides.president_titre = modele.president_titre
+  if (data?.nom) overrides.organisation_nom = data.nom
   if (data?.adresse) overrides.organisation_adresse = data.adresse
   if (data?.code_postal) overrides.organisation_code_postal = data.code_postal
   if (data?.ville) overrides.organisation_ville = data.ville
