@@ -265,8 +265,8 @@ export default function FormulaireAdhesionEditorModal({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-between gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)]">
-          <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-col gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)] sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
             <div ref={placeholdersRef} className="relative">
               <button
                 type="button"
