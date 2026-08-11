@@ -13,6 +13,7 @@ import { fetchOrganisationAssets, buildAssetPlaceholders, assetPlaceholderKey } 
 import type { TemplateCarteAdherent } from '../types'
 import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS } from '../lib/defaultCarteAdherentTemplate'
 import Modal from './Modal'
+import SectionHeader from './SectionHeader'
 
 export interface CarteAdherentDraft {
   nom: string
@@ -171,52 +172,52 @@ export default function CarteAdherentEditorModal({
       fullScreen={fullScreen}
       heightClassName="h-[85vh] min-h-[560px]"
     >
-      <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 pr-14 sm:flex-row sm:items-start sm:justify-between sm:pr-10">
-        <div className="min-w-0">
-          <h2 id="carte-editor-title" className="text-lg font-semibold text-slate-900">
-            {isEdit ? `Modifier — ${template.nom}` : 'Nouveau gabarit de carte'}
-          </h2>
-          <p className="mt-0.5 text-xs text-slate-400">
-            {isEdit
-              ? template.is_active
-                ? 'Ce gabarit est actif : les modifications seront utilisées dès la prochaine impression de cartes.'
-                : 'Les modifications seront utilisées dès que ce gabarit sera activé.'
-              : 'Créé désactivé — activez-le depuis la liste une fois vérifié.'}
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-xs font-medium">
+      <SectionHeader
+        titleId="carte-editor-title"
+        reserveCloseButton
+        title={isEdit ? `Modifier — ${template.nom}` : 'Nouveau gabarit de carte'}
+        description={
+          isEdit
+            ? template.is_active
+              ? 'Ce gabarit est actif : les modifications seront utilisées dès la prochaine impression de cartes.'
+              : 'Les modifications seront utilisées dès que ce gabarit sera activé.'
+            : 'Créé désactivé — activez-le depuis la liste une fois vérifié.'
+        }
+        actions={
+          <>
+            <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => setPanelMode('both')}
+                className={`rounded-md px-2 py-1 ${panelMode === 'both' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              >
+                Les deux
+              </button>
+              <button
+                type="button"
+                onClick={() => setPanelMode('editor')}
+                className={`rounded-md px-2 py-1 ${panelMode === 'editor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              >
+                Éditeur
+              </button>
+              <button
+                type="button"
+                onClick={() => setPanelMode('preview')}
+                className={`rounded-md px-2 py-1 ${panelMode === 'preview' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              >
+                Aperçu
+              </button>
+            </div>
             <button
               type="button"
-              onClick={() => setPanelMode('both')}
-              className={`rounded-md px-2 py-1 ${panelMode === 'both' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              onClick={() => setFullScreen((f) => !f)}
+              className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-400 hover:bg-slate-100 hover:text-slate-600"
             >
-              Les deux
+              {fullScreen ? 'Réduire' : 'Plein écran'}
             </button>
-            <button
-              type="button"
-              onClick={() => setPanelMode('editor')}
-              className={`rounded-md px-2 py-1 ${panelMode === 'editor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-            >
-              Éditeur
-            </button>
-            <button
-              type="button"
-              onClick={() => setPanelMode('preview')}
-              className={`rounded-md px-2 py-1 ${panelMode === 'preview' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-            >
-              Aperçu
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setFullScreen((f) => !f)}
-            className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-          >
-            {fullScreen ? 'Réduire' : 'Plein écran'}
-          </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <form ref={formRef} onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <div className="flex flex-1 flex-col overflow-y-auto p-6">

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Don, ProfilParticipant, Activite } from '../types'
 import DonModal from '../components/DonModal'
+import SectionHeader from '../components/SectionHeader'
 import ParticipantAutocomplete from '../components/ParticipantAutocomplete'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
 import { fetchAllRows } from '../lib/fetchAllRows'
@@ -515,39 +516,41 @@ export default function DonsPage() {
       <div className={`flex gap-6 ${selectedDon ? 'items-start' : ''}`}>
         {/* Table card */}
         <div className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="font-semibold text-slate-900">Liste des dons</h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={handleExport}
-                disabled={filteredDons.length === 0}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
-                </svg>
-                Exporter
-              </button>
-              <button
-                onClick={() => setImportOpen(true)}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                </svg>
-                Importer
-              </button>
-              <button
-                onClick={openAdd}
-                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Ajouter
-              </button>
-            </div>
-          </div>
+          <SectionHeader
+            title="Liste des dons"
+            actions={
+              <>
+                <button
+                  onClick={handleExport}
+                  disabled={filteredDons.length === 0}
+                  className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
+                  </svg>
+                  Exporter
+                </button>
+                <button
+                  onClick={() => setImportOpen(true)}
+                  className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  Importer
+                </button>
+                <button
+                  onClick={openAdd}
+                  className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Ajouter
+                </button>
+              </>
+            }
+          />
 
           {loading ? (
             <div className="flex items-center justify-center py-16">
