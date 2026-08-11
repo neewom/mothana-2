@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-11T06:18:08Z",
+  "title": "Design System: Mothana",
+  "extensions": {
+    "colorMeta": {
+      "indigo-primary": { "role": "primary", "displayName": "Indigo Dynamique", "canonical": "#4f46e5", "tonalRamp": ["#1e1b4b", "#312e81", "#3730a3", "#4338ca", "#4f46e5", "#6366f1", "#a5b4fc", "#e0e7ff"] },
+      "slate-ink": { "role": "neutral", "displayName": "Slate Ink", "canonical": "#0f172a", "tonalRamp": ["#020617", "#0f172a", "#1e293b", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1"] },
+      "slate-canvas": { "role": "neutral", "displayName": "Slate Canvas", "canonical": "#f8fafc", "tonalRamp": ["#e2e8f0", "#eef2f6", "#f1f5f9", "#f5f8fa", "#f8fafc", "#fafbfc", "#fcfdfe", "#ffffff"] },
+      "red-action": { "role": "danger", "displayName": "Erreur / Danger", "canonical": "#dc2626", "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#fca5a5", "#fef2f2"] },
+      "amber-text": { "role": "warning", "displayName": "Action requise", "canonical": "#b45309", "tonalRamp": ["#451a03", "#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fcd34d", "#fffbeb"] },
+      "emerald-text": { "role": "success", "displayName": "Actif / Succès", "canonical": "#059669", "tonalRamp": ["#022c22", "#064e3b", "#065f46", "#047857", "#059669", "#10b981", "#6ee7b7", "#ecfdf5"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Titre de page (h1) en tête de chaque écran admin." },
+      "headline": { "displayName": "Headline", "purpose": "Titre de modale, titre de section repliable." },
+      "body": { "displayName": "Body", "purpose": "Texte courant, libellés de formulaire, contenu de bouton." },
+      "label": { "displayName": "Label", "purpose": "Badges de statut, texte de tableau dense." }
+    },
+    "shadows": [
+      { "name": "surface-rest", "value": "0 1px 2px rgba(15, 23, 42, 0.05)", "purpose": "Cartes et panneaux au repos — garde-fou visuel, pas un effet de profondeur (shadow-sm)." },
+      { "name": "notification-float", "value": "0 10px 15px rgba(15, 23, 42, 0.1)", "purpose": "Toast de confirmation flottant en bas d'écran (shadow-lg)." },
+      { "name": "modal-overlay", "value": "0 20px 25px rgba(15, 23, 42, 0.1)", "purpose": "Modales — niveau le plus fort, réservé à ce qui superpose réellement le reste de l'écran (shadow-xl)." }
+    ],
+    "motion": [
+      { "name": "toast-transition", "value": "all 300ms ease", "purpose": "Entrée/sortie du toast (translate-y + opacity)." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "390px" },
+      { "name": "tablet", "value": "768px" },
+      { "name": "desktop", "value": "1440px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Bouton primaire",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Action principale d'un écran ou d'une modale (valider, créer, enregistrer).",
+      "html": "<button class=\"ds-btn-primary\">Enregistrer</button>",
+      "css": ".ds-btn-primary { background: #4f46e5; color: #ffffff; padding: 8px 16px; font-size: 0.875rem; font-weight: 500; border: none; border-radius: 8px; cursor: pointer; transition: background-color 0.15s ease; } .ds-btn-primary:hover { background: #4338ca; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #6366f1; } .ds-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }"
+    },
+    {
+      "name": "Bouton secondaire",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Action secondaire (annuler, filtrer, exporter) — même forme que le primaire, couleur neutre.",
+      "html": "<button class=\"ds-btn-secondary\">Annuler</button>",
+      "css": ".ds-btn-secondary { background: #ffffff; color: #334155; padding: 8px 16px; font-size: 0.875rem; font-weight: 500; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: background-color 0.15s ease; } .ds-btn-secondary:hover { background: #f8fafc; } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #6366f1; }"
+    },
+    {
+      "name": "Champ de saisie",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Champ de formulaire standard (texte, recherche, sélection).",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Rechercher par nom, prénom ou email…\" />",
+      "css": ".ds-input { width: 100%; background: #ffffff; color: #334155; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-size: 0.875rem; } .ds-input::placeholder { color: #94a3b8; } .ds-input:focus { outline: none; box-shadow: 0 0 0 2px #6366f1; border-color: transparent; }"
+    },
+    {
+      "name": "Carte / panneau",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Conteneur de contenu principal (tableau, section de formulaire) — surface plate au repos.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\">Adhérents</div><div class=\"ds-card-body\">Contenu de la carte</div></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); } .ds-card-header { padding: 16px 24px; border-bottom: 1px solid #e2e8f0; font-size: 1.25rem; font-weight: 600; color: #0f172a; } .ds-card-body { padding: 20px 24px; font-size: 0.875rem; color: #475569; }"
+    },
+    {
+      "name": "Badge de statut actif",
+      "kind": "chip",
+      "refersTo": "badge-success",
+      "description": "Pastille de statut positif (adhérent actif, template actif).",
+      "html": "<span class=\"ds-badge ds-badge-success\">Actif</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; border-radius: 9999px; padding: 2px 8px; font-size: 0.75rem; font-weight: 500; } .ds-badge-success { background: #ecfdf5; color: #047857; }"
+    },
+    {
+      "name": "Badge de statut inactif",
+      "kind": "chip",
+      "refersTo": "badge-warning",
+      "description": "Pastille de statut à surveiller (adhérent inactif, template désactivé).",
+      "html": "<span class=\"ds-badge ds-badge-warning\">Inactif</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; border-radius: 9999px; padding: 2px 8px; font-size: 0.75rem; font-weight: 500; } .ds-badge-warning { background: #fef3c7; color: #b45309; }"
+    },
+    {
+      "name": "Bandeau d'action requise",
+      "kind": "custom",
+      "refersTo": "alert-banner",
+      "description": "Bandeau ambre signalant une action requise ou un avertissement bloquant (jamais l'indigo de marque pour ce rôle).",
+      "html": "<div class=\"ds-alert-amber\"><strong>⚠️ Action requise.</strong> Un ou plusieurs doublons potentiels ont été détectés.</div>",
+      "css": ".ds-alert-amber { display: flex; align-items: center; gap: 8px; border-radius: 8px; border: 1px solid #fde68a; background: #fffbeb; padding: 12px 16px; font-size: 0.875rem; color: #92400e; }"
+    },
+    {
+      "name": "Item de navigation (sidebar)",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Lien de la sidebar admin sombre — actif = fond indigo plein, seul usage de l'accent en fond plein.",
+      "html": "<a class=\"ds-nav-item ds-nav-item-active\" href=\"#\">Adhérents</a>",
+      "css": ".ds-nav-item { display: block; padding: 8px 12px; border-radius: 8px; font-size: 0.875rem; font-weight: 500; color: #cbd5e1; text-decoration: none; transition: background-color 0.15s ease, color 0.15s ease; } .ds-nav-item:hover { background: #1e293b; color: #ffffff; } .ds-nav-item-active { background: #4f46e5; color: #ffffff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Le Registre Associatif",
+    "overview": "Mothana s'adresse à des admins d'association, des bénévoles sur le terrain et des super-admins qui gèrent plusieurs organisations — pas à des visiteurs à séduire. L'interface se pense comme un registre : dense, fiable, lisible d'un coup d'œil, où chaque écran privilégie la tâche à accomplir (saisir un don, retrouver un adhérent, générer un reçu fiscal) sur toute forme de démonstration visuelle. La rigueur vient du sujet lui-même — reçus Cerfa, données personnelles, argent — pas d'une esthétique institutionnelle froide : l'indigo dynamique et les surfaces blanches largement aérées gardent l'outil accueillant pour un public de bénévoles associatifs pas toujours technophile.\n\nLe système est aujourd'hui une implémentation Tailwind cohérente mais non factorée : les mêmes motifs (bouton primaire, carte, header de page) sont recopiés composant par composant plutôt qu'extraits en primitives partagées — c'est la dette identifiée à l'issue de la revue UI responsive (PR #57, pattern de header dupliqué cassé sur mobile dans 5 fichiers). Ce DESIGN.md documente le système tel qu'il existe dans le code pour servir de référence commune ; l'extraction en composants réutilisables est un chantier séparé, pas encore fait.",
+    "keyCharacteristics": [
+      "Surfaces plates au repos (bordure fine + shadow-sm), aucune décoration gratuite.",
+      "Un seul accent (indigo) tenu strictement au registre actionnable : boutons primaires, liens, focus. Le reste de l'UI est neutre (slate + blanc).",
+      "Sidebar admin sombre (slate-900) contrastant avec un contenu clair — repère spatial constant entre navigation et contenu.",
+      "Formes douces et mesurées (rounded-lg/rounded-xl), jamais anguleuses ni exagérément arrondies.",
+      "Densité d'information élevée assumée (tableaux, listes, formulaires multi-champs) : la hiérarchie vient de la typographie et de l'espacement, pas de l'ornementation."
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "L'indigo n'apparaît que sur des éléments actionnables ou leur état actif (bouton, lien, focus, item de nav sélectionné). Aucun usage décoratif ou illustratif.", "section": "colors" },
+      { "name": "The PIN Exception Rule", "body": "Le champ de saisie du code PIN bénévole est la seule dérogation volontaire à l'échelle : text-3xl font-bold tracking-[0.5em] pour maximiser la lisibilité d'un code court sur un écran tactile en conditions de terrain.", "section": "typography" },
+      { "name": "The Structural Shadow Rule", "body": "Le niveau d'ombre encode la position dans la pile d'affichage (surface plate < notification flottante < superposition modale), pas une intention décorative. Ne jamais monter une carte de contenu à shadow-lg/shadow-xl sans qu'elle superpose réellement autre chose.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do réserver l'indigo aux éléments actionnables (bouton, lien, focus, item de nav actif) — c'est la seule couleur qui doit attirer l'œil vers une action.",
+      "Do utiliser le bandeau ambre (amber-50/amber-200) pour toute alerte qui appelle une action de l'utilisateur, jamais l'indigo standard de la marque pour ce rôle.",
+      "Do afficher les erreurs de champ (email, téléphone) dès le premier caractère non conforme, tant qu'il reste non conforme — pas seulement au blur.",
+      "Do utiliser type=\"tel\" avec filtrage des chiffres pour tout champ téléphone — jamais type=\"number\" (perd les zéros initiaux).",
+      "Do faire croître le radius avec la taille du conteneur (rounded-lg interactif dense → rounded-2xl modale) plutôt que d'appliquer un radius uniforme.",
+      "Do garder le contenu sur fond clair même quand la sidebar de navigation est sombre — le contraste sidebar/contenu est un repère spatial, pas une invitation à assombrir le reste de l'UI."
+    ],
+    "donts": [
+      "Don't dupliquer le pattern de header de page (titre + actions) fichier par fichier — c'est la dette à l'origine de 5 des 6 bugs mobile corrigés en PR #57 ; à factoriser en composant partagé plutôt qu'à recopier une nouvelle fois.",
+      "Don't utiliser title HTML natif pour une infobulle sur un placeholder — utiliser le composant Tooltip.tsx existant.",
+      "Don't monter une carte de contenu à shadow-lg/shadow-xl sans qu'elle superpose réellement un autre élément (voir The Structural Shadow Rule).",
+      "Don't utiliser de contrainte HTML native bloquante (min/max sur un input date) qui peut rendre une valeur inatteignable sur certains pickers mobiles — préférer une validation JS après coup."
+    ]
+  }
+}
