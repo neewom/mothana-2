@@ -366,7 +366,7 @@ export default function RecusFiscauxPage() {
             <span className="font-medium">Complétez les paramètres de votre organisation</span> pour pouvoir générer des reçus fiscaux
             {' '}— champs manquants : {orgMissing.join(', ')}.
           </p>
-          <Link to="/admin/parametres" className="mt-1 inline-block font-medium underline hover:no-underline">
+          <Link to="/admin/parametres/fiscal" className="mt-1 inline-block font-medium underline hover:no-underline">
             Aller aux paramètres
           </Link>
         </div>

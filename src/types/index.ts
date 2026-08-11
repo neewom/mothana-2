@@ -147,6 +147,20 @@ export interface TemplateCarteAdherent {
   updated_at: string
 }
 
+// Colonne organisations.modele_recu_pdf (JSONB) — édité pour partie sur la sous-page
+// Paramètres > Organisation (president_nom/titre) et pour partie sur Paramètres > Fiscal
+// (le reste) : toujours relire/réécrire l'objet complet pour ne pas écraser l'autre moitié.
+export interface ModeleRecu {
+  rna: string
+  siren: string
+  objet_social: string
+  mention_legale: string
+  numero_recu_depart: number
+  taux_reduction: number
+  president_nom: string
+  president_titre: string
+}
+
 export interface Don {
   id: string
   profil_participant_id: string
