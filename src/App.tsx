@@ -15,7 +15,10 @@ import RecusFiscauxPage from './pages/RecusFiscauxPage'
 import AdherentsPage from './pages/AdherentsPage'
 import DemandesAdhesionPage from './pages/DemandesAdhesionPage'
 import ComptabilitePage from './pages/ComptabilitePage'
-import ParametresPage from './pages/ParametresPage'
+import ParametresOrganisationPage from './pages/ParametresOrganisationPage'
+import ParametresFiscalPage from './pages/ParametresFiscalPage'
+import ParametresAdherentsPage from './pages/ParametresAdherentsPage'
+import ParametresSuiviPage from './pages/ParametresSuiviPage'
 import SuperAdminLayout from './pages/SuperAdminLayout'
 import SuperAdminPage from './pages/SuperAdminPage'
 
@@ -40,7 +43,10 @@ function App() {
             <Route path="adherents" element={<AdherentsPage />} />
             <Route path="adherents/demandes" element={<DemandesAdhesionPage />} />
             <Route path="comptabilite" element={<ComptabilitePage />} />
-            <Route path="parametres" element={<ParametresPage />} />
+            <Route path="parametres" element={<ParametresOrganisationPage />} />
+            <Route path="parametres/fiscal" element={<ParametresFiscalPage />} />
+            <Route path="parametres/adherents" element={<ParametresAdherentsPage />} />
+            <Route path="parametres/suivi" element={<ParametresSuiviPage />} />
           </Route>
         </Route>
 
