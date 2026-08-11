@@ -122,9 +122,9 @@ const NAV_ITEMS: NavEntry[] = [
     icon: <CogIcon />,
     items: [
       { label: 'Organisation', to: '/admin/parametres', end: true },
-      { label: 'Fiscal', to: '/admin/parametres/fiscal' },
+      { label: 'Fiscalité', to: '/admin/parametres/fiscal' },
       { label: 'Adhérents', to: '/admin/parametres/adherents' },
-      { label: 'Suivi', to: '/admin/parametres/suivi' },
+      { label: 'Historique', to: '/admin/parametres/suivi' },
     ],
   },
 ]

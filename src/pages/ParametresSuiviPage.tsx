@@ -9,7 +9,7 @@ export default function ParametresSuiviPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Paramètres — Suivi</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Paramètres — Historique</h1>
         <p className="mt-1 text-sm text-slate-600">Journal des actions effectuées sur les adhérents et les demandes d'adhésion.</p>
       </div>
 
