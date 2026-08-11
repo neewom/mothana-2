@@ -48,16 +48,16 @@ export default function AdherentHistoriqueSection({ organisationId, adherentId }
             <div className="h-5 w-5 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
           </div>
         ) : entries.length === 0 ? (
-          <p className="py-2 text-sm text-slate-400">Aucun historique pour l'instant.</p>
+          <p className="py-2 text-sm text-slate-500">Aucun historique pour l'instant.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {entries.map((entry) => (
               <li key={entry.id} className="py-2 text-sm">
                 <div className="flex items-center justify-between gap-3">
                   <JournalActionLabel entry={entry} showTable={false} showName={false} />
-                  <span className="shrink-0 text-xs text-slate-400">{formatDateTime(entry.created_at)}</span>
+                  <span className="shrink-0 text-xs text-slate-500">{formatDateTime(entry.created_at)}</span>
                 </div>
-                <p className="mt-0.5 text-xs text-slate-400">Par {entry.auteur_nom ?? '—'}</p>
+                <p className="mt-0.5 text-xs text-slate-500">Par {entry.auteur_nom ?? '—'}</p>
               </li>
             ))}
           </ul>

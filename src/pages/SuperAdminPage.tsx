@@ -157,7 +157,7 @@ function OrgModal({ open, onClose, onSaved, org }: OrgModalProps) {
             />
           </div>
           {!isEdit && (
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Un code PIN bénévole aléatoire sera généré automatiquement. Il pourra être modifié depuis les paramètres de l'organisation.
             </p>
           )}
@@ -309,9 +309,9 @@ function AdminsModal({ open, org, onClose }: AdminsModalProps) {
 
           {/* Admin list */}
           {loading ? (
-            <div className="py-8 text-center text-sm text-slate-400">Chargement…</div>
+            <div className="py-8 text-center text-sm text-slate-500">Chargement…</div>
           ) : admins.length === 0 ? (
-            <div className="py-8 text-center text-sm text-slate-400">Aucun compte admin pour cette organisation.</div>
+            <div className="py-8 text-center text-sm text-slate-500">Aucun compte admin pour cette organisation.</div>
           ) : (
             <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
               {admins.map((admin) => (
@@ -558,7 +558,7 @@ export default function SuperAdminPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Tableau de bord</h1>
-          <p className="mt-1 text-sm text-slate-500">Vue globale de toutes les organisations</p>
+          <p className="mt-1 text-sm text-slate-600">Vue globale de toutes les organisations</p>
         </div>
         <button
           onClick={() => { setEditing(undefined); setModalOpen(true) }}
@@ -582,7 +582,7 @@ export default function SuperAdminPage() {
             <div key={label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-medium text-slate-500">{label}</p>
               <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
-              <p className="mt-0.5 text-xs text-slate-400">{sub}</p>
+              <p className="mt-0.5 text-xs text-slate-500">{sub}</p>
             </div>
           ))}
         </div>
@@ -600,13 +600,13 @@ export default function SuperAdminPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-sm text-slate-400">
+          <div className="flex items-center justify-center py-16 text-sm text-slate-500">
             Chargement…
           </div>
         ) : orgs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm font-medium text-slate-500">Aucune organisation</p>
-            <p className="mt-1 text-xs text-slate-400">Créez la première organisation pour commencer.</p>
+            <p className="mt-1 text-xs text-slate-500">Créez la première organisation pour commencer.</p>
           </div>
         ) : (
           <ScrollShadowX>
@@ -630,7 +630,7 @@ export default function SuperAdminPage() {
                 >
                   <td className="px-6 py-4">
                     <div className="font-medium text-slate-900">{org.nom}</div>
-                    <div className="text-xs text-slate-400 font-mono">PIN : {org.code_pin_benevole ?? '—'}</div>
+                    <div className="text-xs text-slate-500 font-mono">PIN : {org.code_pin_benevole ?? '—'}</div>
                   </td>
                   <td className="px-6 py-4 text-right text-slate-700">{org.nb_participants}</td>
                   <td className="px-6 py-4 text-right text-slate-700">{org.nb_dons}</td>

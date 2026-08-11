@@ -177,7 +177,7 @@ function DetailPanel({
         <h2 className="text-lg font-semibold text-slate-900">Détail du participant</h2>
         <button
           onClick={onClose}
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -191,19 +191,19 @@ function DetailPanel({
         {/* Identity */}
         <div>
           {p.civilite && (
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               {CIVILITE_LABELS[p.civilite]}
             </p>
           )}
           <p className="text-xl font-bold text-slate-900">{participantFullName(participant)}</p>
-          {p.email && <p className="mt-1 text-sm text-slate-500">{p.email}</p>}
+          {p.email && <p className="mt-1 text-sm text-slate-600">{p.email}</p>}
           {p.telephone && <p className="text-sm text-slate-500">{p.telephone}</p>}
         </div>
 
         {/* Co-signataire */}
         {(p.nom2 || p.prenom2) && (
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Co-signataire</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Co-signataire</p>
             <p className="mt-1 text-sm text-slate-700">{[p.prenom2, p.nom2].filter(Boolean).join(' ')}</p>
           </div>
         )}
@@ -211,7 +211,7 @@ function DetailPanel({
         {/* Adresse */}
         {(p.adresse || p.code_postal || p.ville || p.pays) && (
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Adresse</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Adresse</p>
             <div className="mt-1 text-sm text-slate-700">
               {p.adresse && <p>{p.adresse}</p>}
               {(p.code_postal || p.ville) && <p>{[p.code_postal, p.ville].filter(Boolean).join(' ')}</p>}
@@ -223,7 +223,7 @@ function DetailPanel({
         {/* Notes */}
         {participant.notes && (
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Notes</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Notes</p>
             <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{participant.notes}</p>
           </div>
         )}
@@ -231,22 +231,22 @@ function DetailPanel({
         {/* Identifiant externe */}
         {participant.id_externe && (
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Identifiant externe</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Identifiant externe</p>
             <p className="mt-1 text-sm text-slate-700">{participant.id_externe}</p>
           </div>
         )}
 
         {/* Total */}
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Total des dons</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total des dons</p>
           <p className="mt-1 text-xl font-bold text-indigo-600">{formatEur(totalDons)}</p>
         </div>
 
         {/* Donation history */}
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">Historique des dons</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-2">Historique des dons</p>
           {participantDons.length === 0 ? (
-            <p className="text-sm text-slate-400">Aucun don</p>
+            <p className="text-sm text-slate-500">Aucun don</p>
           ) : (
             <div className="space-y-2">
               {participantDons.map((don) => (
@@ -259,7 +259,7 @@ function DetailPanel({
                   </div>
                   <p className="mt-0.5 text-xs text-slate-500">{formatDate(don.date)}</p>
                   {don.activites && (
-                    <p className="mt-0.5 text-xs text-slate-400">{don.activites.nom}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{don.activites.nom}</p>
                   )}
                 </div>
               ))}
@@ -507,7 +507,7 @@ export default function ParticipantsPage() {
       {/* Page title */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Participants</h1>
-        <p className="mt-1 text-sm text-slate-500">Gestion des participants et de leurs dons</p>
+        <p className="mt-1 text-sm text-slate-600">Gestion des participants et de leurs dons</p>
       </div>
 
       {/* Error */}
@@ -558,7 +558,7 @@ export default function ParticipantsPage() {
             </div>
           ) : filteredParticipants.length === 0 ? (
             <div className="flex items-center justify-center py-16">
-              <p className="text-slate-400">Aucun participant trouvé</p>
+              <p className="text-slate-500">Aucun participant trouvé</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -601,7 +601,7 @@ export default function ParticipantsPage() {
                       <td className="whitespace-nowrap px-6 py-3 text-right font-medium text-slate-900">
                         {formatEur(totalDonsByParticipant.get(p.id) ?? 0)}
                       </td>
-                      <td className="px-6 py-3 text-right text-slate-400">
+                      <td className="px-6 py-3 text-right text-slate-500">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
@@ -619,6 +619,7 @@ export default function ParticipantsPage() {
               <div className="flex items-center gap-2 text-sm text-slate-500">
                 <span>Lignes par page</span>
                 <select
+                  aria-label="Lignes par page"
                   value={pageSize}
                   onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
                   className="select-field rounded-lg border border-slate-300 py-1 pl-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"

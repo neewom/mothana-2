@@ -58,7 +58,7 @@ function PinOverlay({ onSuccess }: { onSuccess: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div ref={containerRef} role="dialog" aria-modal="true" aria-labelledby="pin-overlay-title" className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl">
         <h2 id="pin-overlay-title" className="text-lg font-semibold text-slate-900">Session expirée</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-600">
           Ressaisissez le code PIN pour continuer — votre saisie en cours est conservée.
         </p>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -332,11 +332,11 @@ export default function BenevolePage() {
         <div className="w-full max-w-lg">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-slate-900">Saisie d'un don</h1>
-            <p className="mt-1 text-sm text-slate-500">Remplissez le formulaire pour enregistrer un don.</p>
+            <p className="mt-1 text-sm text-slate-600">Remplissez le formulaire pour enregistrer un don.</p>
           </div>
 
           {dataLoading ? (
-            <div className="flex items-center justify-center py-16 text-sm text-slate-400">
+            <div className="flex items-center justify-center py-16 text-sm text-slate-500">
               Chargement…
             </div>
           ) : loadError ? (
@@ -399,13 +399,13 @@ export default function BenevolePage() {
                       }}
                       onFocus={() => !showNew && setDropdownOpen(true)}
                       placeholder="Rechercher un participant…"
-                      className="w-full rounded-lg border border-slate-300 py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+                      className="w-full rounded-lg border border-slate-300 py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500"
                     />
                     {selectedParticipant && (
                       <button
                         type="button"
                         onClick={clearParticipant}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -417,7 +417,7 @@ export default function BenevolePage() {
                   {dropdownOpen && !showNew && (
                     <div className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
                       {filtered.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-slate-400">Aucun résultat</div>
+                        <div className="px-4 py-3 text-sm text-slate-500">Aucun résultat</div>
                       ) : (
                         filtered.map((p) => (
                           <button

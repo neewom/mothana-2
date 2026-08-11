@@ -41,7 +41,7 @@ const STATUT_CYCLE_LABELS: Record<StatutCycle, string> = {
 const STATUT_CYCLE_CLASSES: Record<StatutCycle, string> = {
   actif: 'bg-emerald-50 text-emerald-700',
   expire: 'bg-amber-50 text-amber-700',
-  aucune: 'bg-slate-100 text-slate-500',
+  aucune: 'bg-slate-100 text-slate-600',
 }
 
 const PRINT_HELP_TEXT =
@@ -290,7 +290,7 @@ export default function AdherentsPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Adhérents</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-600">
             Gestion des adhérents de votre organisation. Sélectionnez plusieurs adhérents (cases à cocher) pour imprimer leurs cartes en une seule fois.
           </p>
         </div>
@@ -309,6 +309,7 @@ export default function AdherentsPage() {
                 className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <select
+                aria-label="Statut"
                 value={statutFilter}
                 onChange={(e) => { setStatutFilter(e.target.value as StatutFilter); setCurrentPage(1) }}
                 className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -367,7 +368,7 @@ export default function AdherentsPage() {
             </div>
           ) : adherents.length === 0 ? (
             <div className="flex items-center justify-center py-16">
-              <p className="text-slate-400">Aucun adhérent trouvé</p>
+              <p className="text-slate-500">Aucun adhérent trouvé</p>
             </div>
           ) : (
             <ScrollShadowX>
@@ -411,7 +412,7 @@ export default function AdherentsPage() {
                         <td className="px-6 py-3">
                           <span
                             className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              a.statut === 'actif' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-500'
+                              a.statut === 'actif' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-600'
                             }`}
                           >
                             {a.statut === 'actif' ? 'Actif' : 'Archivé'}
@@ -422,7 +423,7 @@ export default function AdherentsPage() {
                             {STATUT_CYCLE_LABELS[cycle]}
                           </span>
                           {latestAdhesions.get(a.id)?.date_fin && (
-                            <p className="mt-0.5 text-xs text-slate-400">
+                            <p className="mt-0.5 text-xs text-slate-500">
                               jusqu'au {formatDate(latestAdhesions.get(a.id)!.date_fin!)}
                             </p>
                           )}
@@ -481,6 +482,7 @@ export default function AdherentsPage() {
               <div className="flex items-center gap-2 text-sm text-slate-500">
                 <span>Lignes par page</span>
                 <select
+                  aria-label="Lignes par page"
                   value={pageSize}
                   onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
                   className="select-field rounded-lg border border-slate-300 py-1 pl-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"

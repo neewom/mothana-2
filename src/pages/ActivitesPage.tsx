@@ -247,7 +247,7 @@ export default function ActivitesPage() {
       {/* Page title */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Activités</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-600">
           {activites.length} activité{activites.length !== 1 ? 's' : ''}
         </p>
       </div>
@@ -286,7 +286,7 @@ export default function ActivitesPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-sm text-slate-400">
+          <div className="flex items-center justify-center py-16 text-sm text-slate-500">
             Chargement…
           </div>
         ) : filteredActivites.length === 0 ? (
@@ -297,7 +297,7 @@ export default function ActivitesPage() {
             <p className="text-sm font-medium text-slate-500">
               {activites.length === 0 ? 'Aucune activité' : 'Aucune activité trouvée'}
             </p>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slate-500">
               {activites.length === 0 ? 'Créez votre première activité pour commencer.' : 'Essayez une autre recherche.'}
             </p>
           </div>
@@ -322,7 +322,7 @@ export default function ActivitesPage() {
                       </p>
                     )}
                     {a.id_externe && (
-                      <p className="text-xs text-slate-400">Réf. import : {a.id_externe}</p>
+                      <p className="text-xs text-slate-500">Réf. import : {a.id_externe}</p>
                     )}
                   </div>
                 </div>

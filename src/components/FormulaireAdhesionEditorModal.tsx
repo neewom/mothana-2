@@ -12,6 +12,7 @@ import { copyTextToClipboard } from '../lib/clipboard'
 import { fetchOrganisationAssets, buildAssetPlaceholders, assetPlaceholderKey } from '../lib/organisationAssets'
 import { fetchOrganisationPreviewOverrides } from '../lib/cerfaPreview'
 import Modal from './Modal'
+import SectionHeader from './SectionHeader'
 
 interface FormulaireAdhesionEditorModalProps {
   open: boolean
@@ -158,48 +159,46 @@ export default function FormulaireAdhesionEditorModal({
       fullScreen={fullScreen}
       heightClassName="h-[85vh] min-h-[560px]"
     >
-      <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 pr-14 sm:flex-row sm:items-start sm:justify-between sm:pr-10">
-        <div className="min-w-0">
-          <h2 id="formulaire-adhesion-editor-title" className="text-lg font-semibold text-slate-900">
-            En-tête et pied de page du formulaire d'adhésion
-          </h2>
-          <p className="mt-0.5 text-xs text-slate-400">
-            Le formulaire central (champs à remplir) n'est pas modifiable ici, seuls l'en-tête et le pied de page le sont.
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-xs font-medium">
+      <SectionHeader
+        titleId="formulaire-adhesion-editor-title"
+        reserveCloseButton
+        title="En-tête et pied de page du formulaire d'adhésion"
+        description="Le formulaire central (champs à remplir) n'est pas modifiable ici, seuls l'en-tête et le pied de page le sont."
+        actions={
+          <>
+            <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => setPanelMode('both')}
+                className={`rounded-md px-2 py-1 ${panelMode === 'both' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              >
+                Les deux
+              </button>
+              <button
+                type="button"
+                onClick={() => setPanelMode('editor')}
+                className={`rounded-md px-2 py-1 ${panelMode === 'editor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              >
+                Éditeur
+              </button>
+              <button
+                type="button"
+                onClick={() => setPanelMode('preview')}
+                className={`rounded-md px-2 py-1 ${panelMode === 'preview' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              >
+                Aperçu
+              </button>
+            </div>
             <button
               type="button"
-              onClick={() => setPanelMode('both')}
-              className={`rounded-md px-2 py-1 ${panelMode === 'both' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              onClick={() => setFullScreen((f) => !f)}
+              className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-600"
             >
-              Les deux
+              {fullScreen ? 'Réduire' : 'Plein écran'}
             </button>
-            <button
-              type="button"
-              onClick={() => setPanelMode('editor')}
-              className={`rounded-md px-2 py-1 ${panelMode === 'editor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-            >
-              Éditeur
-            </button>
-            <button
-              type="button"
-              onClick={() => setPanelMode('preview')}
-              className={`rounded-md px-2 py-1 ${panelMode === 'preview' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-            >
-              Aperçu
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setFullScreen((f) => !f)}
-            className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-          >
-            {fullScreen ? 'Réduire' : 'Plein écran'}
-          </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <form ref={formRef} onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
         <div className="flex flex-1 flex-col overflow-y-auto p-6">
@@ -298,13 +297,13 @@ export default function FormulaireAdhesionEditorModal({
                     })}
                   </div>
                   {assetTags.length === 0 && (
-                    <p className="mt-1.5 text-xs text-slate-400">
+                    <p className="mt-1.5 text-xs text-slate-500">
                       Aucun asset configuré — ajoutez-en dans Paramètres › Identité visuelle pour obtenir des placeholders
                       <code className="mx-1 rounded bg-slate-100 px-1">{'{{asset_...}}'}</code>
                       ici.
                     </p>
                   )}
-                  <p className={`mt-1 text-xs font-medium ${copiedKey ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  <p className={`mt-1 text-xs font-medium ${copiedKey ? 'text-indigo-600' : 'text-slate-500'}`}>
                     {copiedKey ? `✓ {{${copiedKey}}} copié dans le presse-papier` : 'Cliquer pour copier. Survoler pour voir un exemple de valeur.'}
                   </p>
                 </div>

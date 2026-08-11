@@ -59,7 +59,7 @@ export default function DeclarationCerfaCard({ rows, loading }: DeclarationCerfa
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
         </div>
       ) : rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-400">Aucun reçu fiscal généré pour le moment</p>
+        <p className="py-8 text-center text-sm text-slate-500">Aucun reçu fiscal généré pour le moment</p>
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">
@@ -93,7 +93,7 @@ export default function DeclarationCerfaCard({ rows, loading }: DeclarationCerfa
         </div>
       )}
 
-      <p className="mt-4 text-xs text-slate-400">
+      <p className="mt-4 text-xs text-slate-500">
         Déclaration à effectuer avant le 2ᵉ jour ouvré suivant le 1ᵉʳ mai N+1 (ou dans les 3 mois suivant
         la clôture de l'exercice pour les organismes n'étant pas sur l'année civile), directement sur
         impots.gouv.fr ou demarches-simplifiees.fr selon le statut de l'organisme. Mothana ne soumet rien

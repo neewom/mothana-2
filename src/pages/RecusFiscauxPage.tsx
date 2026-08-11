@@ -316,7 +316,7 @@ export default function RecusFiscauxPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Reçus fiscaux</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-600">
             {rows.length} participant{rows.length !== 1 ? 's' : ''} avec des dons en {annee}
             {totalGeneres > 0 && ` · ${totalGeneres} reçu${totalGeneres !== 1 ? 's' : ''} généré${totalGeneres !== 1 ? 's' : ''}`}
           </p>
@@ -325,6 +325,7 @@ export default function RecusFiscauxPage() {
         <div className="flex items-center gap-3">
           {/* Year selector */}
           <select
+            aria-label="Année"
             value={annee}
             onChange={(e) => { setAnnee(Number(e.target.value)); setCurrentPage(1) }}
             className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -379,7 +380,7 @@ export default function RecusFiscauxPage() {
       {/* Table */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-sm text-slate-400">
+          <div className="flex items-center justify-center py-16 text-sm text-slate-500">
             Chargement…
           </div>
         ) : rows.length === 0 ? (
@@ -388,7 +389,7 @@ export default function RecusFiscauxPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
             </svg>
             <p className="text-sm font-medium text-slate-500">Aucun don enregistré en {annee}</p>
-            <p className="mt-1 text-xs text-slate-400">Sélectionnez une autre année ou ajoutez des dons.</p>
+            <p className="mt-1 text-xs text-slate-500">Sélectionnez une autre année ou ajoutez des dons.</p>
           </div>
         ) : (
           <ScrollShadowX>
@@ -430,7 +431,7 @@ export default function RecusFiscauxPage() {
                           </span>
                         )}
                       </div>
-                      {row.profil.personnes.email && <div className="text-xs text-slate-400">{row.profil.personnes.email}</div>}
+                      {row.profil.personnes.email && <div className="text-xs text-slate-500">{row.profil.personnes.email}</div>}
                     </td>
 
                     {/* Total */}
@@ -456,7 +457,7 @@ export default function RecusFiscauxPage() {
                           Généré
                         </span>
                       ) : (
-                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
                           Non généré
                         </span>
                       )}
@@ -540,6 +541,7 @@ export default function RecusFiscauxPage() {
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <span>Lignes par page</span>
               <select
+                aria-label="Lignes par page"
                 value={pageSize}
                 onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
                 className="select-field rounded-lg border border-slate-300 py-1 pl-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"

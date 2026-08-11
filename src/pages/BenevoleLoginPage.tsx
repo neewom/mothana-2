@@ -63,7 +63,7 @@ export default function BenevoleLoginPage() {
             </svg>
           </div>
           <h1 className="text-xl font-semibold text-slate-900">Espace Bénévole</h1>
-          <p className="mt-1 text-sm text-slate-500">Saisissez votre code PIN pour accéder</p>
+          <p className="mt-1 text-sm text-slate-600">Saisissez votre code PIN pour accéder</p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             <div className="text-center">

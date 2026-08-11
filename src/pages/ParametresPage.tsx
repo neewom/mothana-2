@@ -536,7 +536,7 @@ export default function ParametresPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-sm text-slate-400">
+      <div className="flex items-center justify-center py-24 text-sm text-slate-500">
         Chargement…
       </div>
     )
@@ -553,7 +553,7 @@ export default function ParametresPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Paramètres</h1>
-        <p className="mt-1 text-sm text-slate-500">Gérez les informations et la configuration de votre organisation.</p>
+        <p className="mt-1 text-sm text-slate-600">Gérez les informations et la configuration de votre organisation.</p>
       </div>
 
       {/* Section 1 — Informations générales */}
@@ -695,7 +695,7 @@ export default function ParametresPage() {
                   value={ville}
                   onChange={(e) => setVille(e.target.value)}
                   placeholder="Ville"
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <input
@@ -732,8 +732,9 @@ export default function ParametresPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Objet social</label>
+            <label htmlFor="modele-objet-social" className="mb-1 block text-sm font-medium text-slate-700">Objet social</label>
             <textarea
+              id="modele-objet-social"
               rows={2}
               value={modele.objet_social}
               onChange={(e) => setModele((m) => ({ ...m, objet_social: e.target.value }))}
@@ -743,20 +744,22 @@ export default function ParametresPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Mention légale</label>
+            <label htmlFor="modele-mention-legale" className="mb-1 block text-sm font-medium text-slate-700">Mention légale</label>
             <textarea
+              id="modele-mention-legale"
               rows={2}
               value={modele.mention_legale}
               onChange={(e) => setModele((m) => ({ ...m, mention_legale: e.target.value }))}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
             />
-            <p className="mt-1 text-xs text-slate-400">Affichée sur le reçu pour justifier l'éligibilité au mécénat.</p>
+            <p className="mt-1 text-xs text-slate-500">Affichée sur le reçu pour justifier l'éligibilité au mécénat.</p>
           </div>
 
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Numéro du premier reçu</label>
+              <label htmlFor="modele-numero-recu-depart" className="mb-1 block text-sm font-medium text-slate-700">Numéro du premier reçu</label>
               <input
+                id="modele-numero-recu-depart"
                 type="number"
                 min={1}
                 value={modele.numero_recu_depart}
@@ -765,9 +768,10 @@ export default function ParametresPage() {
               />
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Taux de réduction fiscale</label>
+              <label htmlFor="modele-taux-reduction" className="mb-1 block text-sm font-medium text-slate-700">Taux de réduction fiscale</label>
               <div className="relative">
                 <input
+                  id="modele-taux-reduction"
                   type="number"
                   min={0}
                   max={100}
@@ -775,9 +779,9 @@ export default function ParametresPage() {
                   onChange={(e) => setModele((m) => ({ ...m, taux_reduction: Number(e.target.value) }))}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">%</span>
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">%</span>
               </div>
-              <p className="mt-1 text-xs text-slate-400">66% standard, 75% pour certains organismes (ex : aide aux personnes en difficulté).</p>
+              <p className="mt-1 text-xs text-slate-500">66% standard, 75% pour certains organismes (ex : aide aux personnes en difficulté).</p>
             </div>
           </div>
 
@@ -830,7 +834,7 @@ export default function ParametresPage() {
               />
             </div>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500">
             Disponibles comme placeholders <code>{'{{president_nom}}'}</code> et <code>{'{{president_titre}}'}</code> dans vos templates.
           </p>
 
@@ -856,12 +860,12 @@ export default function ParametresPage() {
 
         <div className="mt-6 max-w-lg">
           <p className="mb-2 text-sm font-medium text-slate-700">Assets</p>
-          <p className="mb-3 text-xs text-slate-400">
+          <p className="mb-3 text-xs text-slate-500">
             Logo, tampon, signature ou tout autre visuel — chaque asset ajouté devient utilisable comme placeholder{' '}
             <code>{'{{asset_<identifiant>}}'}</code> dans vos templates. PNG ou JPEG, 2 Mo max. Enregistré immédiatement à l'upload.
           </p>
           {assetsLoading ? (
-            <p className="text-xs text-slate-400">Chargement…</p>
+            <p className="text-xs text-slate-500">Chargement…</p>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {assets.map((asset) => (
@@ -958,7 +962,7 @@ export default function ParametresPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Adresse du formulaire</label>
             <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-              <span className="break-all text-sm text-slate-400">{window.location.origin}/adhesion/</span>
+              <span className="break-all text-sm text-slate-500">{window.location.origin}/adhesion/</span>
               <input
                 type="text"
                 value={slug}
@@ -967,7 +971,7 @@ export default function ParametresPage() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:flex-1"
               />
             </div>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slate-500">
               Lettres minuscules, chiffres et tirets uniquement. Modifier ce slug change l'adresse du formulaire public.
             </p>
           </div>
@@ -1001,7 +1005,7 @@ export default function ParametresPage() {
 
         <div className="mt-6 max-w-lg">
           <p className="mb-2 text-sm font-medium text-slate-700">Statuts de l'association</p>
-          <p className="mb-3 text-xs text-slate-400">
+          <p className="mb-3 text-xs text-slate-500">
             PDF affiché et téléchargeable sur le formulaire public, pour que le demandeur puisse en prendre connaissance avant de signer.
           </p>
           <div className="flex items-center gap-3">
@@ -1034,7 +1038,7 @@ export default function ParametresPage() {
 
         <div className="mt-6 max-w-lg">
           <p className="mb-2 text-sm font-medium text-slate-700">En-tête et pied de page</p>
-          <p className="mb-3 text-xs text-slate-400">
+          <p className="mb-3 text-xs text-slate-500">
             Le formulaire central reste inchangé. Personnalisez l'en-tête et le pied de page avec vos assets (logo, bannière…) via l'éditeur.
           </p>
           <div className="flex items-center gap-3">
@@ -1053,7 +1057,7 @@ export default function ParametresPage() {
 
         <form onSubmit={handleSaveMessageSucces} className="mt-6 max-w-lg">
           <p className="mb-2 text-sm font-medium text-slate-700">Message de succès</p>
-          <p className="mb-3 text-xs text-slate-400">
+          <p className="mb-3 text-xs text-slate-500">
             Affiché au demandeur une fois le formulaire envoyé. Laissez vide pour garder le message par défaut.
           </p>
           <textarea

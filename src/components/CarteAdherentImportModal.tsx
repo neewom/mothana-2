@@ -117,7 +117,7 @@ export default function CarteAdherentImportModal({ open, onClose, onDraftReady }
             onChange={handleFileChange}
             className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
           />
-          <p className="mt-1 text-xs text-slate-400">PDF, PNG ou JPEG — 4 Mo maximum.</p>
+          <p className="mt-1 text-xs text-slate-500">PDF, PNG ou JPEG — 4 Mo maximum.</p>
         </div>
 
         {error && <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}

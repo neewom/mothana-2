@@ -115,7 +115,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-sm text-slate-400">
+      <div className="flex items-center justify-center py-24 text-sm text-slate-500">
         Chargement…
       </div>
     )
@@ -125,7 +125,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Tableau de bord</h1>
-        <p className="mt-1 text-sm text-slate-500">Vue d'ensemble de votre organisation.</p>
+        <p className="mt-1 text-sm text-slate-600">Vue d'ensemble de votre organisation.</p>
       </div>
 
       {demandesEnAttente > 0 && (
@@ -146,7 +146,7 @@ export default function DashboardPage() {
               Soumises via le formulaire public, à examiner par le conseil d'administration.
             </p>
           </div>
-          <span className="shrink-0 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white">
+          <span className="shrink-0 rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white">
             Examiner →
           </span>
         </Link>
@@ -157,12 +157,12 @@ export default function DashboardPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Dons ce mois-ci</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{formatEur(montantMois)}</p>
-          <p className="mt-1 text-xs text-slate-400">{nombreDonsMois} don{nombreDonsMois > 1 ? 's' : ''}</p>
+          <p className="mt-1 text-xs text-slate-500">{nombreDonsMois} don{nombreDonsMois > 1 ? 's' : ''}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-sm text-slate-500">Adhérents proches d'expiration (30 jours)</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{adherentsExpiration.length}</p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-slate-500">
             {adherentsExpiration.length === 0 ? 'Aucun renouvellement à prévoir' : 'À relancer pour renouvellement'}
           </p>
         </div>
@@ -171,7 +171,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card title="Dons récents" action={<Link to="/admin/dons" className="text-xs font-medium text-indigo-600 hover:text-indigo-700">Voir tout</Link>}>
           {recentDons.length === 0 ? (
-            <p className="text-sm text-slate-400">Aucun don enregistré.</p>
+            <p className="text-sm text-slate-500">Aucun don enregistré.</p>
           ) : (
             <ul className="space-y-3">
               {recentDons.map((don) => (
@@ -188,14 +188,14 @@ export default function DashboardPage() {
 
         <Card title="Activités récentes" action={<Link to="/admin/activites" className="text-xs font-medium text-indigo-600 hover:text-indigo-700">Voir tout</Link>}>
           {recentActivites.length === 0 ? (
-            <p className="text-sm text-slate-400">Aucune activité enregistrée.</p>
+            <p className="text-sm text-slate-500">Aucune activité enregistrée.</p>
           ) : (
             <ul className="space-y-3">
               {recentActivites.map((activite) => (
                 <li key={activite.id} className="text-sm">
                   <p className="text-slate-700">{activite.nom}</p>
                   {activite.date_debut && (
-                    <p className="text-xs text-slate-400">{formatDate(activite.date_debut)}</p>
+                    <p className="text-xs text-slate-500">{formatDate(activite.date_debut)}</p>
                   )}
                 </li>
               ))}
@@ -205,7 +205,7 @@ export default function DashboardPage() {
 
         <Card title="Adhérents proches d'expiration" action={<Link to="/admin/adherents" className="text-xs font-medium text-indigo-600 hover:text-indigo-700">Voir tout</Link>}>
           {adherentsExpiration.length === 0 ? (
-            <p className="text-sm text-slate-400">Aucun adhérent proche d'expiration.</p>
+            <p className="text-sm text-slate-500">Aucun adhérent proche d'expiration.</p>
           ) : (
             <ul className="space-y-3">
               {adherentsExpiration.map((adhesion) => (
@@ -213,7 +213,7 @@ export default function DashboardPage() {
                   <span className="text-slate-700">
                     {adhesion.adherents?.prenom} {adhesion.adherents?.nom}
                   </span>
-                  <span className="text-xs text-slate-400">{formatDate(adhesion.date_fin)}</span>
+                  <span className="text-xs text-slate-500">{formatDate(adhesion.date_fin)}</span>
                 </li>
               ))}
             </ul>

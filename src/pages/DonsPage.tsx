@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Don, ProfilParticipant, Activite } from '../types'
 import DonModal from '../components/DonModal'
+import SectionHeader from '../components/SectionHeader'
 import ParticipantAutocomplete from '../components/ParticipantAutocomplete'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
 import { fetchAllRows } from '../lib/fetchAllRows'
@@ -187,7 +188,7 @@ function DetailPanel({ don, onClose, onEdit, onDeleted }: DetailPanelProps) {
         <h2 className="text-lg font-semibold text-slate-900">Détail du don</h2>
         <button
           onClick={onClose}
-          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -198,7 +199,7 @@ function DetailPanel({ don, onClose, onEdit, onDeleted }: DetailPanelProps) {
       {/* Body */}
       <div className="flex-1 overflow-y-auto space-y-5 px-6 py-5">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Participant</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Participant</p>
           <p className="mt-1 font-semibold text-slate-900">
             {p ? (p.prenom ? `${p.prenom} ${p.nom}` : p.nom) : '—'}
           </p>
@@ -208,29 +209,29 @@ function DetailPanel({ don, onClose, onEdit, onDeleted }: DetailPanelProps) {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Montant</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Montant</p>
             <p className="mt-1 text-xl font-bold text-slate-900">{formatEur(don.montant)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Date</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Date</p>
             <p className="mt-1 text-sm text-slate-900">{formatDate(don.date)}</p>
           </div>
         </div>
 
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Mode de paiement</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Mode de paiement</p>
           <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_PAIEMENT_BADGE_CLASSES[don.mode_paiement]}`}>
             {MODE_PAIEMENT_LABELS[don.mode_paiement]}
           </span>
         </div>
 
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Activité</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Activité</p>
           <p className="mt-1 text-sm text-slate-900">{don.activites?.nom ?? '—'}</p>
         </div>
 
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Saisi par</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Saisi par</p>
           <p className="mt-1 text-sm capitalize text-slate-900">{don.created_by_role}</p>
         </div>
       </div>
@@ -420,7 +421,7 @@ export default function DonsPage() {
       {/* Page title */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Dons</h1>
-        <p className="mt-1 text-sm text-slate-500">Gestion et suivi des donations</p>
+        <p className="mt-1 text-sm text-slate-600">Gestion et suivi des donations</p>
       </div>
 
       {/* Error */}
@@ -452,8 +453,9 @@ export default function DonsPage() {
         {/* Date range + dropdowns */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Début</label>
+            <label htmlFor="dons-date-debut" className="mb-1 block text-xs font-medium text-slate-500">Début</label>
             <input
+              id="dons-date-debut"
               type="date"
               value={dateDebut}
               onChange={(e) => handleDateDebutChange(e.target.value)}
@@ -461,8 +463,9 @@ export default function DonsPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Fin</label>
+            <label htmlFor="dons-date-fin" className="mb-1 block text-xs font-medium text-slate-500">Fin</label>
             <input
+              id="dons-date-fin"
               type="date"
               value={dateFin}
               onChange={(e) => handleDateFinChange(e.target.value)}
@@ -488,8 +491,9 @@ export default function DonsPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Mode de paiement</label>
+            <label htmlFor="dons-mode-paiement" className="mb-1 block text-xs font-medium text-slate-500">Mode de paiement</label>
             <select
+              id="dons-mode-paiement"
               value={filterMode}
               onChange={(e) => { setFilterMode(e.target.value); setCurrentPage(1) }}
               className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -515,39 +519,41 @@ export default function DonsPage() {
       <div className={`flex gap-6 ${selectedDon ? 'items-start' : ''}`}>
         {/* Table card */}
         <div className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="font-semibold text-slate-900">Liste des dons</h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={handleExport}
-                disabled={filteredDons.length === 0}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
-                </svg>
-                Exporter
-              </button>
-              <button
-                onClick={() => setImportOpen(true)}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                </svg>
-                Importer
-              </button>
-              <button
-                onClick={openAdd}
-                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Ajouter
-              </button>
-            </div>
-          </div>
+          <SectionHeader
+            title="Liste des dons"
+            actions={
+              <>
+                <button
+                  onClick={handleExport}
+                  disabled={filteredDons.length === 0}
+                  className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
+                  </svg>
+                  Exporter
+                </button>
+                <button
+                  onClick={() => setImportOpen(true)}
+                  className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  Importer
+                </button>
+                <button
+                  onClick={openAdd}
+                  className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Ajouter
+                </button>
+              </>
+            }
+          />
 
           {loading ? (
             <div className="flex items-center justify-center py-16">
@@ -555,7 +561,7 @@ export default function DonsPage() {
             </div>
           ) : filteredDons.length === 0 ? (
             <div className="flex items-center justify-center py-16">
-              <p className="text-slate-400">Aucun don trouvé</p>
+              <p className="text-slate-500">Aucun don trouvé</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -596,7 +602,7 @@ export default function DonsPage() {
                           {MODE_PAIEMENT_LABELS[don.mode_paiement]}
                         </span>
                       </td>
-                      <td className="px-6 py-3 text-right text-slate-400">
+                      <td className="px-6 py-3 text-right text-slate-500">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
@@ -614,6 +620,7 @@ export default function DonsPage() {
               <div className="flex items-center gap-2 text-sm text-slate-500">
                 <span>Lignes par page</span>
                 <select
+                  aria-label="Lignes par page"
                   value={pageSize}
                   onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
                   className="select-field rounded-lg border border-slate-300 py-1 pl-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
