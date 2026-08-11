@@ -13,6 +13,7 @@ import { fetchOrganisationAssets, buildAssetPlaceholders, assetPlaceholderKey } 
 import { fetchOrganisationPreviewOverrides } from '../lib/cerfaPreview'
 import Modal from './Modal'
 import SectionHeader from './SectionHeader'
+import Tooltip from './Tooltip'
 
 interface FormulaireAdhesionEditorModalProps {
   open: boolean
@@ -282,17 +283,17 @@ export default function FormulaireAdhesionEditorModal({
                     {[...OPTIONAL_TAGS, ...assetTags].map((key) => {
                       const copied = copiedKey === key
                       return (
-                        <button
-                          key={key}
-                          type="button"
-                          title={`Exemple : ${previewValues[key]}`}
-                          onClick={() => copyPlaceholder(key)}
-                          className={`rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 hover:bg-slate-200 ${
-                            copied ? 'ring-2 ring-offset-1 ring-indigo-500' : ''
-                          }`}
-                        >
-                          {`{{${key}}}`}
-                        </button>
+                        <Tooltip key={key} bare content={`Exemple : ${previewValues[key]}`}>
+                          <button
+                            type="button"
+                            onClick={() => copyPlaceholder(key)}
+                            className={`rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 hover:bg-slate-200 ${
+                              copied ? 'ring-2 ring-offset-1 ring-indigo-500' : ''
+                            }`}
+                          >
+                            {`{{${key}}}`}
+                          </button>
+                        </Tooltip>
                       )
                     })}
                   </div>

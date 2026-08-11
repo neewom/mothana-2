@@ -14,6 +14,7 @@ import type { TemplateCarteAdherent } from '../types'
 import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS } from '../lib/defaultCarteAdherentTemplate'
 import Modal from './Modal'
 import SectionHeader from './SectionHeader'
+import Tooltip from './Tooltip'
 
 export interface CarteAdherentDraft {
   nom: string
@@ -330,20 +331,20 @@ export default function CarteAdherentEditorModal({
                     const missing = isTagMissing(key, htmlTemplate)
                     const copied = copiedKey === key
                     return (
-                      <button
-                        key={key}
-                        type="button"
-                        title={`Exemple : ${previewValues[key]}`}
-                        onClick={() => copyPlaceholder(key)}
-                        className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] ${
-                          missing
-                            ? 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200 hover:bg-red-100'
-                            : 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100'
-                        } ${copied ? 'ring-2 ring-offset-1 ring-indigo-500' : ''}`}
-                      >
-                        {missing ? '⚠️ ' : '✓ '}
-                        {`{{${key}}}`}
-                      </button>
+                      <Tooltip key={key} bare content={`Exemple : ${previewValues[key]}`}>
+                        <button
+                          type="button"
+                          onClick={() => copyPlaceholder(key)}
+                          className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] ${
+                            missing
+                              ? 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200 hover:bg-red-100'
+                              : 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100'
+                          } ${copied ? 'ring-2 ring-offset-1 ring-indigo-500' : ''}`}
+                        >
+                          {missing ? '⚠️ ' : '✓ '}
+                          {`{{${key}}}`}
+                        </button>
+                      </Tooltip>
                     )
                   })}
                 </div>
@@ -353,17 +354,17 @@ export default function CarteAdherentEditorModal({
                   {[...OPTIONAL_TAGS, ...assetTags].map((key) => {
                     const copied = copiedKey === key
                     return (
-                      <button
-                        key={key}
-                        type="button"
-                        title={`Exemple : ${previewValues[key]}`}
-                        onClick={() => copyPlaceholder(key)}
-                        className={`rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 hover:bg-slate-200 ${
-                          copied ? 'ring-2 ring-offset-1 ring-indigo-500' : ''
-                        }`}
-                      >
-                        {`{{${key}}}`}
-                      </button>
+                      <Tooltip key={key} bare content={`Exemple : ${previewValues[key]}`}>
+                        <button
+                          type="button"
+                          onClick={() => copyPlaceholder(key)}
+                          className={`rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 hover:bg-slate-200 ${
+                            copied ? 'ring-2 ring-offset-1 ring-indigo-500' : ''
+                          }`}
+                        >
+                          {`{{${key}}}`}
+                        </button>
+                      </Tooltip>
                     )
                   })}
                 </div>
