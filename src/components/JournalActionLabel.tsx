@@ -32,7 +32,7 @@ export default function JournalActionLabel({ entry, showTable = true, showName =
         <span className="font-medium text-slate-900">{actionLabel}</span>
       )}
       {showTable && (
-        <span className="text-slate-400"> · {TABLE_CIBLE_LABELS[entry.table_cible as TableCibleJournal] ?? entry.table_cible}</span>
+        <span className="text-slate-500"> · {TABLE_CIBLE_LABELS[entry.table_cible as TableCibleJournal] ?? entry.table_cible}</span>
       )}
       {showName && <span className="text-slate-500"> — {describeJournalEntry(entry)}</span>}
     </>

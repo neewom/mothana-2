@@ -93,7 +93,7 @@ export default function AdhesionModal({ open, onClose, onSaved, adherent }: Adhe
         <h2 id="adhesion-modal-title" className="text-lg font-semibold text-slate-900">
           Renouveler l'adhésion
         </h2>
-        <p className="mt-0.5 text-xs text-slate-400">{adherentFullName(adherent)}</p>
+        <p className="mt-0.5 text-xs text-slate-500">{adherentFullName(adherent)}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">

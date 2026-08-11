@@ -224,14 +224,14 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
       )}
 
       {loading ? (
-        <div className="py-8 text-center text-sm text-slate-400">Chargement…</div>
+        <div className="py-8 text-center text-sm text-slate-500">Chargement…</div>
       ) : (
         <div className="space-y-6">
           {(['11580', '16216'] as const).map((type) => (
             <div key={type}>
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{TYPE_LABELS[type]}</h3>
               {grouped[type].length === 0 ? (
-                <p className="rounded-lg border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-400">
+                <p className="rounded-lg border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-500">
                   Aucun template pour ce type.
                 </p>
               ) : (
@@ -246,14 +246,14 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-slate-900">{template.nom}</span>
                             {template.is_archived ? (
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Archivé</span>
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Archivé</span>
                             ) : template.is_active ? (
                               <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">Actif</span>
                             ) : (
                               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">Inactif</span>
                             )}
                           </div>
-                          <p className="mt-0.5 text-xs text-slate-400">Mis à jour le {formatDate(template.updated_at)}</p>
+                          <p className="mt-0.5 text-xs text-slate-500">Mis à jour le {formatDate(template.updated_at)}</p>
                           {errMsg && <p className="mt-1 text-xs text-red-600">{errMsg}</p>}
                         </div>
 

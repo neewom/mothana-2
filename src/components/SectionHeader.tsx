@@ -31,7 +31,7 @@ export default function SectionHeader({
         <h2 id={titleId} className="text-lg font-semibold text-slate-900">
           {title}
         </h2>
-        {description && <p className="mt-0.5 text-xs text-slate-400">{description}</p>}
+        {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>

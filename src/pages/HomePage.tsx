@@ -63,7 +63,7 @@ export default function HomePage() {
         {/* Header */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Mothana</h1>
-          <p className="mt-1 text-sm text-slate-500">Gestion des dons et bénévoles</p>
+          <p className="mt-1 text-sm text-slate-600">Gestion des dons et bénévoles</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -71,7 +71,7 @@ export default function HomePage() {
             <ShieldIcon />
           </div>
           <h2 className="text-xl font-semibold text-slate-900">Connexion Admin</h2>
-          <p className="mt-1 text-sm text-slate-500">Accès au tableau de bord</p>
+          <p className="mt-1 text-sm text-slate-600">Accès au tableau de bord</p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>

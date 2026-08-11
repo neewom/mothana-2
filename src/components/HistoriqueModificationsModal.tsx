@@ -71,7 +71,7 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
           </div>
         ) : entries.length === 0 ? (
           <div className="flex items-center justify-center py-16">
-            <p className="text-slate-400">Aucune entrée</p>
+            <p className="text-slate-500">Aucune entrée</p>
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">
@@ -81,12 +81,12 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
                   <div>
                     <JournalActionLabel entry={entry} />
                   </div>
-                  <span className="shrink-0 text-xs text-slate-400">{formatDateTime(entry.created_at)}</span>
+                  <span className="shrink-0 text-xs text-slate-500">{formatDateTime(entry.created_at)}</span>
                 </div>
                 {entry.action === 'refus' && typeof entry.details?.motif_refus === 'string' && entry.details.motif_refus && (
                   <p className="mt-1 text-xs text-slate-500">Motif : {entry.details.motif_refus}</p>
                 )}
-                <p className="mt-0.5 text-xs text-slate-400">Par {entry.auteur_nom ?? '—'}</p>
+                <p className="mt-0.5 text-xs text-slate-500">Par {entry.auteur_nom ?? '—'}</p>
               </li>
             ))}
           </ul>

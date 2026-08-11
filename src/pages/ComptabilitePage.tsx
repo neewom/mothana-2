@@ -23,7 +23,7 @@ import type { Don, ModePaiement } from '../types'
 const CATEGORICAL = ['#2a78d6', '#008300', '#e87ba4', '#eda100'] as const // blue, green, magenta, yellow
 const ACCENT = CATEGORICAL[0]
 const CONTEXT_GRAY = '#52514e' // encre secondaire — année N-1, "contexte" (emphasis job)
-const GOOD = '#0ca30c'
+const GOOD = '#067606' // assombri depuis #0ca30c — la valeur d'origine n'atteignait que 3.35:1 sur blanc, sous le seuil AA (4.5:1) pour le texte de variation des StatCard
 const CRITICAL = '#d03b3b'
 const GRID_STROKE = '#e2e8f0' // slate-200
 const AXIS_STROKE = '#94a3b8' // slate-400
@@ -263,7 +263,7 @@ export default function ComptabilitePage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Comptabilité</h1>
-          <p className="mt-1 text-sm text-slate-500">Vue d'ensemble des dons collectés</p>
+          <p className="mt-1 text-sm text-slate-600">Vue d'ensemble des dons collectés</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -328,7 +328,7 @@ export default function ComptabilitePage() {
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="mb-4 font-semibold text-slate-900">Répartition par activité — {year}</h2>
               {activiteBreakdown.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-400">Aucun don sur cette année</p>
+                <p className="py-8 text-center text-sm text-slate-500">Aucun don sur cette année</p>
               ) : (
                 <ResponsiveContainer width="100%" height={Math.max(160, activiteBreakdown.length * 44)}>
                   <BarChart data={activiteBreakdown} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>

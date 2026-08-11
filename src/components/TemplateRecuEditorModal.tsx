@@ -228,7 +228,7 @@ export default function TemplateRecuEditorModal({
             <button
               type="button"
               onClick={() => setFullScreen((f) => !f)}
-              className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-600"
             >
               {fullScreen ? 'Réduire' : 'Plein écran'}
             </button>
@@ -398,13 +398,13 @@ export default function TemplateRecuEditorModal({
                   })}
                 </div>
                 {assetTags.length === 0 && (
-                  <p className="mt-1.5 text-xs text-slate-400">
+                  <p className="mt-1.5 text-xs text-slate-500">
                     Aucun asset configuré — ajoutez-en dans Paramètres › Identité visuelle pour obtenir des placeholders
                     <code className="mx-1 rounded bg-slate-100 px-1">{'{{asset_...}}'}</code>
                     ici.
                   </p>
                 )}
-                <p className={`mt-1 text-xs font-medium ${copiedKey ? 'text-indigo-600' : 'text-slate-400'}`}>
+                <p className={`mt-1 text-xs font-medium ${copiedKey ? 'text-indigo-600' : 'text-slate-500'}`}>
                   {copiedKey ? `✓ {{${copiedKey}}} copié dans le presse-papier` : 'Cliquer pour copier. Survoler pour voir un exemple de valeur.'}
                 </p>
               </div>

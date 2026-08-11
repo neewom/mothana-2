@@ -183,7 +183,7 @@ export default function DonModal({
               placeholder="Rechercher par nom et prénom…"
             />
             {isEdit && (
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-slate-500">
                 Changer le participant réaffecte ce don — bloqué si un reçu fiscal a déjà été émis pour l'année concernée.
               </p>
             )}

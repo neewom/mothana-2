@@ -175,7 +175,7 @@ export default function DemandesAdhesionPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Demandes d'adhésion</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-600">
             Demandes soumises via le formulaire public, à ratifier par le conseil d'administration.
           </p>
         </div>
@@ -205,7 +205,7 @@ export default function DemandesAdhesionPage() {
             </div>
           ) : demandes.length === 0 ? (
             <div className="flex items-center justify-center py-16">
-              <p className="text-slate-400">Aucune demande</p>
+              <p className="text-slate-500">Aucune demande</p>
             </div>
           ) : (
             <ScrollShadowX>
@@ -246,7 +246,7 @@ export default function DemandesAdhesionPage() {
                         <td className="px-6 py-3 text-slate-700">{d.prenom ?? '—'}</td>
                         <td className="px-6 py-3 text-slate-500">
                           {d.courriel ?? '—'}
-                          {d.telephone && <p className="text-xs text-slate-400">{d.telephone}</p>}
+                          {d.telephone && <p className="text-xs text-slate-500">{d.telephone}</p>}
                         </td>
                         <td className="px-6 py-3 text-slate-500">
                           {formatDateTime(tab === 'en_attente' ? d.created_at : (d.decided_at ?? d.created_at))}
@@ -263,7 +263,7 @@ export default function DemandesAdhesionPage() {
                               <>
                                 <button
                                   onClick={() => setRatifyingDemande(d)}
-                                  className="rounded-lg border border-emerald-200 px-2.5 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50"
+                                  className="rounded-lg border border-emerald-200 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
                                 >
                                   Ratifier
                                 </button>
@@ -326,7 +326,7 @@ export default function DemandesAdhesionPage() {
             </p>
             <div className="mt-4">
               <label className="mb-1 block text-sm font-medium text-slate-700">
-                Motif du refus <span className="font-normal text-slate-400">(interne, non transmis au demandeur)</span>
+                Motif du refus <span className="font-normal text-slate-500">(interne, non transmis au demandeur)</span>
               </label>
               <textarea
                 value={motifRefus}
@@ -385,7 +385,7 @@ export default function DemandesAdhesionPage() {
 
             <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
               <div className="col-span-2">
-                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Nom et prénom</dt>
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Nom et prénom</dt>
                 <dd
                   className={`mt-0.5 ${nomPrenomConflicts.length > 0 ? 'rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-amber-900' : 'text-slate-700'}`}
                 >
@@ -396,15 +396,15 @@ export default function DemandesAdhesionPage() {
                 )}
               </div>
               <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Civilité</dt>
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Civilité</dt>
                 <dd className="mt-0.5 text-slate-700">{CIVILITE_ADHERENT_LABELS[detailDemande.civilite]}</dd>
               </div>
               <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Date de naissance</dt>
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Date de naissance</dt>
                 <dd className="mt-0.5 text-slate-700">{detailDemande.date_naissance ? formatDate(detailDemande.date_naissance) : '—'}</dd>
               </div>
               <div className="col-span-2">
-                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Adresse</dt>
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Adresse</dt>
                 <dd className="mt-0.5 text-slate-700">
                   {detailDemande.adresse ?? '—'}
                   {(detailDemande.code_postal || detailDemande.ville) && (
@@ -422,7 +422,7 @@ export default function DemandesAdhesionPage() {
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Téléphone</dt>
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Téléphone</dt>
                 <dd
                   className={`mt-0.5 ${telephoneConflicts.length > 0 ? 'rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-amber-900' : 'text-slate-700'}`}
                 >
@@ -433,7 +433,7 @@ export default function DemandesAdhesionPage() {
                 )}
               </div>
               <div>
-                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Courriel</dt>
+                <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Courriel</dt>
                 <dd
                   className={`mt-0.5 ${courrielConflicts.length > 0 ? 'rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-amber-900' : 'text-slate-700'}`}
                 >
@@ -446,7 +446,7 @@ export default function DemandesAdhesionPage() {
             </dl>
 
             <div className="mt-5">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Signature</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Signature</p>
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <img src={detailDemande.signature_data_url} alt="Signature" className="w-full" />
               </div>
@@ -454,14 +454,14 @@ export default function DemandesAdhesionPage() {
 
             {detailDemande.statut === 'refusee' && detailDemande.motif_refus && (
               <div className="mt-5">
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Motif du refus</p>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Motif du refus</p>
                 <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
                   {detailDemande.motif_refus}
                 </p>
               </div>
             )}
 
-            <p className="mt-3 text-xs text-slate-400">
+            <p className="mt-3 text-xs text-slate-500">
               Demande soumise le {formatDateTime(detailDemande.created_at)}, statuts approuvés et consentement RGPD donné.
             </p>
           </div>

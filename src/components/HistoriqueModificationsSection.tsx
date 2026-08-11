@@ -49,16 +49,16 @@ export default function HistoriqueModificationsSection({ organisationId }: Histo
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
         </div>
       ) : entries.length === 0 ? (
-        <p className="py-4 text-sm text-slate-400">Aucune modification enregistrée pour l'instant.</p>
+        <p className="py-4 text-sm text-slate-500">Aucune modification enregistrée pour l'instant.</p>
       ) : (
         <ul className="divide-y divide-slate-100">
           {entries.map((entry) => (
             <li key={entry.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
               <div>
                 <JournalActionLabel entry={entry} />
-                <span className="text-slate-400"> · par {entry.auteur_nom ?? '—'}</span>
+                <span className="text-slate-500"> · par {entry.auteur_nom ?? '—'}</span>
               </div>
-              <span className="shrink-0 text-xs text-slate-400">{formatDateTime(entry.created_at)}</span>
+              <span className="shrink-0 text-xs text-slate-500">{formatDateTime(entry.created_at)}</span>
             </li>
           ))}
         </ul>

@@ -76,7 +76,7 @@ export default function SignaturePad({ onChange }: SignaturePadProps) {
         onPointerUp={handlePointerUp}
       />
       <div className="mt-2 flex items-center justify-between">
-        <p className="text-xs text-slate-400">Signez avec la souris ou le doigt</p>
+        <p className="text-xs text-slate-500">Signez avec la souris ou le doigt</p>
         <button
           type="button"
           onClick={handleClear}
