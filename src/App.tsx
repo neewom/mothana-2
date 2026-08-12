@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 
 import HomePage from './pages/HomePage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import BenevoleLoginPage from './pages/BenevoleLoginPage'
 import DemandeAdhesionPage from './pages/DemandeAdhesionPage'
 import AdminLayout from './pages/AdminLayout'
@@ -29,6 +30,7 @@ function App() {
       <Routes>
         {/* Public */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/mot-de-passe/nouveau" element={<ResetPasswordPage />} />
         <Route path="/login/benevole" element={<BenevoleLoginPage />} />
         <Route path="/adhesion/:slug" element={<DemandeAdhesionPage />} />
 
