@@ -15,6 +15,7 @@ import ActivitesPage from './pages/ActivitesPage'
 import RecusFiscauxPage from './pages/RecusFiscauxPage'
 import AdherentsPage from './pages/AdherentsPage'
 import DemandesAdhesionPage from './pages/DemandesAdhesionPage'
+import CampagneMailingPage from './pages/CampagneMailingPage'
 import ComptabilitePage from './pages/ComptabilitePage'
 import ParametresOrganisationPage from './pages/ParametresOrganisationPage'
 import ParametresFiscalPage from './pages/ParametresFiscalPage'
@@ -44,6 +45,7 @@ function App() {
             <Route path="recus" element={<RecusFiscauxPage />} />
             <Route path="adherents" element={<AdherentsPage />} />
             <Route path="adherents/demandes" element={<DemandesAdhesionPage />} />
+            <Route path="adherents/mailing" element={<CampagneMailingPage />} />
             <Route path="comptabilite" element={<ComptabilitePage />} />
             <Route path="parametres" element={<ParametresOrganisationPage />} />
             <Route path="parametres/fiscal" element={<ParametresFiscalPage />} />
