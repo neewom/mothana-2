@@ -120,6 +120,38 @@ export default function CampagneMailingPage() {
     },
   })
 
+  const draftKey = organisationId ? `mothana-mailing-draft-${organisationId}` : null
+  const draftRestoredRef = useRef(false)
+
+  // Restauration du brouillon (une seule fois, une fois l'éditeur prêt) — protège
+  // contre une perte de progression sur rechargement de page (HMR en dev, F5 accidentel…).
+  useEffect(() => {
+    if (!editor || !draftKey || draftRestoredRef.current) return
+    draftRestoredRef.current = true
+    const raw = localStorage.getItem(draftKey)
+    if (!raw) return
+    try {
+      const draft = JSON.parse(raw) as { sujet: string; corpsHtml: string; filtreStatut: FiltreStatut }
+      setSujet(draft.sujet ?? '')
+      setFiltreStatut(draft.filtreStatut ?? 'actif')
+      editor.commands.setContent(draft.corpsHtml ?? '')
+      setCorpsHtml(draft.corpsHtml ?? '')
+      setCorpsVide(editor.getText().trim() === '')
+    } catch {
+      localStorage.removeItem(draftKey)
+    }
+  }, [editor, draftKey])
+
+  // Sauvegarde continue du brouillon (pièce jointe exclue : trop volumineuse pour localStorage)
+  useEffect(() => {
+    if (!draftKey) return
+    if (!sujet && corpsVide) {
+      localStorage.removeItem(draftKey)
+      return
+    }
+    localStorage.setItem(draftKey, JSON.stringify({ sujet, corpsHtml, filtreStatut }))
+  }, [draftKey, sujet, corpsHtml, filtreStatut, corpsVide])
+
   useEffect(() => {
     if (!organisationId) return
     async function fetchConfig() {
@@ -218,6 +250,7 @@ export default function CampagneMailingPage() {
     setCorpsHtml('')
     setCorpsVide(true)
     setPieceJointe(null)
+    if (draftKey) localStorage.removeItem(draftKey)
   }
 
   async function handleSend() {
