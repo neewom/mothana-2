@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { supabase } from '../lib/supabaseClient'
@@ -47,6 +47,11 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
+const PLACEHOLDERS = [
+  { key: 'prenom', label: 'Prénom' },
+  { key: 'nom', label: 'Nom' },
+]
+
 function EditorToolbarButton({ active, onClick, children, label }: { active: boolean; onClick: () => void; children: React.ReactNode; label: string }) {
   return (
     <button
@@ -93,6 +98,18 @@ export default function CampagneMailingPage() {
 
   const [corpsHtml, setCorpsHtml] = useState('')
   const [corpsVide, setCorpsVide] = useState(true)
+  const [placeholdersOpen, setPlaceholdersOpen] = useState(false)
+  const placeholdersRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (placeholdersRef.current && !placeholdersRef.current.contains(e.target as Node)) {
+        setPlaceholdersOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
 
   const editor = useEditor({
     extensions: [StarterKit.configure({ link: { openOnClick: false } })],
@@ -354,6 +371,33 @@ export default function CampagneMailingPage() {
                 >
                   Lien
                 </EditorToolbarButton>
+                <div ref={placeholdersRef} className="relative">
+                  <EditorToolbarButton label="Insérer un placeholder" active={false} onClick={() => setPlaceholdersOpen((o) => !o)}>
+                    {'{{ }}'}
+                  </EditorToolbarButton>
+                  {placeholdersOpen && (
+                    <div className="absolute left-0 top-full z-10 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                      {PLACEHOLDERS.map((p) => (
+                        <button
+                          key={p.key}
+                          type="button"
+                          onClick={() => {
+                            editor
+                              ?.chain()
+                              .focus()
+                              .insertContent({ type: 'text', text: `{{params.${p.key}}}` })
+                              .insertContent({ type: 'text', text: ' ' })
+                              .run()
+                            setPlaceholdersOpen(false)
+                          }}
+                          className="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <EditorContent editor={editor} className="prose prose-sm max-w-none px-3 py-2 [&_.ProseMirror]:min-h-[150px] [&_.ProseMirror]:outline-none" />
             </div>

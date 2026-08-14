@@ -158,6 +158,7 @@ Deno.serve(async (req) => {
           htmlContent: corps_html,
           messageVersions: chunk.map((a) => ({
             to: [{ email: a.courriel, name: [a.prenom, a.nom].filter(Boolean).join(' ') }],
+            params: { prenom: a.prenom ?? '', nom: a.nom },
           })),
           ...(brevoAttachment ? { attachment: brevoAttachment } : {}),
         }),
