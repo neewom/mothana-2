@@ -483,7 +483,7 @@ export default function CampagneMailingPage() {
           </div>
 
           {!configured && (
-            <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Configurez d'abord la clé API Brevo et l'expéditeur ci-dessus.
             </p>
           )}
