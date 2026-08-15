@@ -57,10 +57,25 @@ Change le workflow habituel (auparavant : PR de feature mergée directement sur 
 1. **Branches de feature** : partent de `dev`, PR **vers `dev`** (pas `main`). Chaque merge dans
    `dev` déploie automatiquement sur la recette.
 2. **Validation** : le client (ou l'utilisateur) teste sur `test.samakan.fr`.
-3. **Promotion vers prod** : une fois validé, merge direct `dev` → `main` (`--no-ff` pour garder
-   un commit de fusion traceable dans l'historique) sur confirmation explicite de l'utilisateur.
-   Pas de re-review de contenu à ce stade (déjà validé au merge feature→dev) — ce merge est
-   uniquement le déclencheur de la promotion prod.
+3. **Promotion vers prod** : une fois validé, via une **PR GitHub `dev` → `main`** (pas de merge
+   git direct — bloqué par le classifier auto-mode de Claude Code sur des actions jugées sensibles
+   sur `main`), sur confirmation explicite de l'utilisateur pour démarrer la promotion. `gh pr
+   create` (base `main`, head `dev`) puis `gh pr merge --merge` (commit de fusion, jamais
+   `--squash`/`--rebase`, pour garder l'équivalent `--no-ff` et une trace lisible dans
+   l'historique). Pas de re-review de contenu à ce stade (déjà validé au merge feature→dev) — ce
+   merge est uniquement le déclencheur de la promotion prod. Exception scopée à cette PR de
+   promotion précise : une fois la promotion démarrée sur confirmation explicite, l'agent peut
+   créer **et** merger cette PR sans redemander (ne s'applique pas aux PR de feature classiques).
+
+   > ⚠️⚠️⚠️ **NE JAMAIS supprimer la branche `dev` au merge de cette PR** ⚠️⚠️⚠️
+   > `gh pr merge` propose par défaut de supprimer la branche source — c'est le bon réflexe pour
+   > une branche de feature jetable, mais **catastrophique** ici : `dev` est **permanente**, pas
+   > une branche de feature. La recette (`test.samakan.fr`) et les variables d'environnement
+   > Vercel scopées "Preview + Custom Preview Branch = dev" y sont rattachées par son *nom* (voir
+   > "Point de vigilance permanent" plus bas). La supprimer ferait basculer la recette
+   > **silencieusement** sur les identifiants **prod**, sans erreur visible ni alerte. Toujours
+   > passer `--delete-branch=false` explicitement, ou décocher l'option si le flux est interactif.
+   > ⚠️⚠️⚠️ NE JAMAIS SUPPRIMER `dev` ⚠️⚠️⚠️
 4. **Promotion par feature, pas par lot** — cohérent avec le rythme "un sujet à la fois" déjà en
    place sur ce projet, évite qu'une feature validée reste bloquée en prod à cause d'une autre pas
    encore approuvée dans le même lot.

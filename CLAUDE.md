@@ -112,7 +112,9 @@ Règles génériques (ne jamais merger sans confirmation, vérifier les PR ouver
 
 Spécifique à Mothana :
 - Quand l'utilisateur informe qu'une PR est mergée, `checkout main` puis `pull` pour mettre la branche locale à jour avant de démarrer les développements suivants. Vérifier aussi à ce moment-là la liste "Todo" du board Trello "Mothana" (voir mémoire persistante) : identifier les cartes traitées par cette PR, les déplacer soi-même vers "Done" (le token a les droits d'écriture depuis le 2026-08-08), et signaler à l'utilisateur les cartes déplacées + toute nouvelle carte apparue depuis le dernier check, pour discuter d'éventuels nouveaux sujets — vérification **bidirectionnelle** (voir mémoire persistante), pas seulement un scan des nouvelles cartes
-- **Branche `dev` (depuis le 2026-08-15, environnement de recette)** : les PR de features ciblent désormais `dev`, plus `main` directement. `main` ne reçoit que des promotions depuis `dev` (merge direct `--no-ff` sur confirmation explicite, une feature à la fois, pas de lot) — c'est ce merge `dev → main`, pas le merge feature→`dev`, qui déclenche migrations Supabase + déploiement Edge Function en prod. Détail complet : `docs/environnement-recette.md`. Les commits de documentation pure (`CLAUDE.md`, résumés de session) restent une exception assumée, toujours directs sur `main`.
+- **Branche `dev` (depuis le 2026-08-15, environnement de recette)** : les PR de features ciblent désormais `dev`, plus `main` directement. `main` ne reçoit que des promotions depuis `dev` (une feature à la fois, pas de lot) — c'est ce merge `dev → main`, pas le merge feature→`dev`, qui déclenche migrations Supabase + déploiement Edge Function en prod. Détail complet : `docs/environnement-recette.md`. Les commits de documentation pure (`CLAUDE.md`, résumés de session) restent une exception assumée, toujours directs sur `main`.
+- **Promotion `dev` → `main` via PR GitHub (depuis le 2026-08-15)** : `git merge` direct bloqué par le classifier auto-mode sur des actions jugées sensibles sur `main` — la promotion passe donc par `gh pr create` (base `main`, head `dev`) puis `gh pr merge --merge` (commit de fusion, jamais `--squash`/`--rebase`, pour garder l'équivalent `--no-ff`). Exception scopée à *cette* PR de promotion : sur confirmation explicite de l'utilisateur pour démarrer la promotion, l'agent peut créer **et** merger cette PR sans redemander — pas de re-review de contenu à ce stade (déjà validé au merge feature→dev). Ne s'applique **pas** aux PR de feature classiques (feature→`dev`), qui restent soumises à la règle standard "jamais merger sans autorisation explicite" (`~/.claude/CLAUDE.md`).
+  - ⚠️⚠️⚠️ **NE JAMAIS laisser `gh pr merge` supprimer la branche `dev`** (option par défaut sur une PR de feature, à désactiver explicitement ici — `--delete-branch=false` ou décocher dans le flux interactif). `dev` est une branche **permanente**, pas une branche de feature jetable : la recette (`test.samakan.fr`) et les variables d'environnement Vercel scopées y sont rattachées par son *nom*. Une suppression basculerait silencieusement la recette sur les identifiants **prod**, sans erreur visible. ⚠️⚠️⚠️
 
 ---
 
@@ -137,6 +139,7 @@ Historique complet des sujets terminés (détail des décisions techniques, bugs
 - **Tooltip stylisé sur les placeholders** (terminée, PR #59) : remplace le `title` natif par `Tooltip.tsx` (prop `bare` ajouté) sur les 3 éditeurs de template (Cerfa, carte adhérent, formulaire d'adhésion)
 - **Réorganisation Paramètres** (terminée, PR #60) : 4 sous-pages routées (`/admin/parametres`, `/fiscal`, `/adherents`, `/suivi`), composant partagé `ParametresSection.tsx`
 - **Environnement de recette** (terminé 2026-08-15) : `test.samakan.fr` (branche `dev`, réutilise le projet Supabase `mothana-staging`, isolation par organisation dédiée par client), nouveau workflow git `dev`→`main` pour la promotion vers prod. Détail complet : `docs/environnement-recette.md`
+- **Email d'invitation admin + mot de passe oublié via Resend** (terminé 2026-08-15, PR #63 dev, PR #64 promotion prod) : `create-admin` génère un lien d'invitation (`auth.admin.generateLink`) au lieu d'un mot de passe en clair, nouvelle Edge Function `request-password-reset` (réponse générique anti-énumération), les deux envoyées via Resend (template HTML Mothana). Un seul compte Resend pour dev/recette/prod (domaine `samakan.fr` vérifié). Validé de bout en bout sur la recette avant promotion
 
 **Point de vigilance permanent** : les Edge Functions ne se déploient jamais automatiquement au push/merge sur ce projet — toujours `supabase functions deploy <nom>` explicitement après une édition de leur code (voir mémoire persistante).
 
@@ -151,18 +154,20 @@ Le board Trello est la source de vérité unique du backlog (hors cartes "Action
 3. **Rapprochement chèques/virements** — pas cadré. [Trello](https://trello.com/c/DwPzxngO)
 4. **Vérification carte adhérent par nom/prénom** (espace bénévole) — cadré le 2026-08-08. [Trello](https://trello.com/c/HbOvv6Kx)
 5. **Pièces jointes sur un don** (justificatifs) — cadré le 2026-08-09 : table `dons_fichiers`, bucket Storage privé + URL signée, images/PDF 10 Mo max, upload côté admin (`DonModal`) et bénévole (`BenevolePage`). [Trello](https://trello.com/c/G1MFP7Ao)
-6. **Double opt-in email** avant ratification d'une demande d'adhésion — cadré le 2026-08-08, nécessite un compte Resend (action utilisateur, prérequis externe). [Trello](https://trello.com/c/0gt0LIVU)
-7. **Email d'invitation admin via Resend** (création compte + mot de passe oublié) — cadré le 2026-08-11, scindée de la carte page (PR #61, prête). Bloquée par le même prérequis Resend. Point de vigilance déjà identifié : whitelister `/mot-de-passe/nouveau` (dev + prod) dans les Redirect URLs Auth Supabase avant de considérer la carte terminée. [Trello](https://trello.com/c/iotLaqn3)
-8. **Priorité 4 — Envoi email des reçus fiscaux** — pas cadré, même dépendance Resend que le double opt-in ci-dessus. [Trello](https://trello.com/c/Do9GVjOt)
-9. **OCR scan de carte adhérent** — pas encore cadré, discussion préliminaire seulement. [Trello](https://trello.com/c/zVBOjAWk)
-10. **Sélection d'un adhérent à la saisie d'un don + doublonnement** — prio basse, hors scope V1 du module Adhérents, pas cadré. [Trello](https://trello.com/c/RtRY8ltX)
-11. **Priorité 5 — Export FEC / intégrations comptables** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/W3GCYUOt)
-12. **Priorité 5 — Brique événements/coupons** (Pagode Coupon) — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/C9A5B9jr)
-13. **Priorité 5 — Gestion abonnements/plans** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/cfKF8BNw)
-14. **Contrainte d'unicité `id_externe` par organisation sur les activités** — point non bloquant, pas cadré. [Trello](https://trello.com/c/WkPAb7K7)
-15. **Nettoyer la dette lint** (32 erreurs/avertissements pré-existants, +5 depuis, cf. `react-hooks/set-state-in-effect`) — pas cadré. [Trello](https://trello.com/c/dep6US2K)
-16. **Renommage public en "Samakan"** (nom de projet Mothana inchangé) — cadré, détail à vérifier dans la carte. [Trello](https://trello.com/c/pmLDyy2t)
-17. **Modèles réutilisables pour les campagnes mailing** — évoqué le 2026-08-14, pas cadré. [Trello](https://trello.com/c/BfHOUb3v)
+6. **Double opt-in email** avant ratification d'une demande d'adhésion — cadré le 2026-08-08. Prérequis Resend désormais levé (compte en place depuis le 2026-08-15). [Trello](https://trello.com/c/0gt0LIVU)
+7. **Priorité 4 — Envoi email des reçus fiscaux** — pas cadré. Prérequis Resend désormais levé (compte en place depuis le 2026-08-15). [Trello](https://trello.com/c/Do9GVjOt)
+8. **OCR scan de carte adhérent** — pas encore cadré, discussion préliminaire seulement. [Trello](https://trello.com/c/zVBOjAWk)
+9. **Sélection d'un adhérent à la saisie d'un don + doublonnement** — prio basse, hors scope V1 du module Adhérents, pas cadré. [Trello](https://trello.com/c/RtRY8ltX)
+10. **Priorité 5 — Export FEC / intégrations comptables** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/W3GCYUOt)
+11. **Priorité 5 — Brique événements/coupons** (Pagode Coupon) — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/C9A5B9jr)
+12. **Priorité 5 — Gestion abonnements/plans** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/cfKF8BNw)
+13. **Contrainte d'unicité `id_externe` par organisation sur les activités** — point non bloquant, pas cadré. [Trello](https://trello.com/c/WkPAb7K7)
+14. **Nettoyer la dette lint** (32 erreurs/avertissements pré-existants, +5 depuis, cf. `react-hooks/set-state-in-effect`) — pas cadré. [Trello](https://trello.com/c/dep6US2K)
+15. **Renommage public en "Samakan"** (nom de projet Mothana inchangé) — cadré, détail à vérifier dans la carte. [Trello](https://trello.com/c/pmLDyy2t)
+16. **Modèles réutilisables pour les campagnes mailing** — évoqué le 2026-08-14, pas cadré. [Trello](https://trello.com/c/BfHOUb3v)
+17. **Aspect légal du mailing** (RGPD, opt-out, page de désinscription) — nouvelle carte détectée le 2026-08-15, pas cadrée. [Trello](https://trello.com/c/e3aJfN3l)
+18. **Configurer le contenu des mails de création de compte / reset password** — nouvelle carte détectée le 2026-08-15, pas cadrée. [Trello](https://trello.com/c/Qf8mdFTz)
+19. **Bandeau visuel distinguant l'environnement recette de la prod** — créée le 2026-08-15 (idée annexe au cadrage de l'environnement de recette), pas cadrée. [Trello](https://trello.com/c/hSogRI1Y)
 
 ---
 
