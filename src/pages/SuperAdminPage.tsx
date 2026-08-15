@@ -201,7 +201,6 @@ function AdminsModal({ open, org, onClose }: AdminsModalProps) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newNom, setNewNom] = useState('')
   const [newEmail, setNewEmail] = useState('')
-  const [newPassword, setNewPassword] = useState('')
   const [addError, setAddError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
 
@@ -213,7 +212,6 @@ function AdminsModal({ open, org, onClose }: AdminsModalProps) {
       setShowAddForm(false)
       setNewNom('')
       setNewEmail('')
-      setNewPassword('')
       setAddError(null)
       setError(null)
       fetchAdmins()
@@ -248,7 +246,7 @@ function AdminsModal({ open, org, onClose }: AdminsModalProps) {
         Authorization: `Bearer ${token}`,
         apikey: SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({ nom: newNom, email: newEmail, password: newPassword, organisation_id: org!.id }),
+      body: JSON.stringify({ nom: newNom, email: newEmail, organisation_id: org!.id, site_url: window.location.origin }),
     })
     const json = await res.json()
     setAdding(false)
@@ -261,7 +259,6 @@ function AdminsModal({ open, org, onClose }: AdminsModalProps) {
     setShowAddForm(false)
     setNewNom('')
     setNewEmail('')
-    setNewPassword('')
     fetchAdmins()
   }
 
@@ -377,18 +374,7 @@ function AdminsModal({ open, org, onClose }: AdminsModalProps) {
                   placeholder="admin@exemple.fr"
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Mot de passe <span className="text-red-500">*</span></label>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="8 caractères minimum"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+                <p className="mt-1 text-xs text-slate-500">Un email d'invitation sera envoyé pour définir le mot de passe.</p>
               </div>
               <div className="flex justify-end gap-2 pt-1">
                 <button
@@ -403,7 +389,7 @@ function AdminsModal({ open, org, onClose }: AdminsModalProps) {
                   disabled={adding}
                   className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
                 >
-                  {adding ? 'Création…' : 'Créer le compte'}
+                  {adding ? 'Envoi…' : "Envoyer l'invitation"}
                 </button>
               </div>
             </form>
