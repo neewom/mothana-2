@@ -113,6 +113,7 @@ const NAV_ITEMS: NavEntry[] = [
     items: [
       { label: 'Adhérents', to: '/admin/adherents', end: true },
       { label: "Demandes d'adhésion", to: '/admin/adherents/demandes' },
+      { label: 'Mailing', to: '/admin/adherents/mailing' },
     ],
   },
   { type: 'link', label: 'Comptabilité', to: '/admin/comptabilite', icon: <ChartIcon /> },
