@@ -133,6 +133,8 @@ Historique complet des sujets terminés (détail des décisions techniques, bugs
 - **Environnement staging Supabase** (terminé 2026-08-10) : projet `mothana-staging` séparé de prod, schéma/Edge Functions/secrets répliqués, comptes de test créés, workflow dump/restore par sujet documenté dans `docs/environnement-staging.md`. Bug corrigé au passage : création d'organisation cassée en prod depuis le 2026-08-05 (`organisations.slug` non renseigné)
 - **Revue UI responsive admin** (terminée 2026-08-11, PR #57) : 6 débordements mobile corrigés (table SuperAdminPage, header dupliqué dans 5 modales/pages, champ slug Paramètres), audit Playwright systématique 3 largeurs + données de test réalistes injectées dans "Association Démo Staging" (staging, conservées pour les prochains audits). Skill design QA `impeccable` (pbakaus/impeccable) installé en scope utilisateur au passage — carte Trello dédiée pour refaire cette même revue avec, une fois initialisé
 - **Campagnes de mailing Brevo** (terminée 2026-08-15, PR #62) : config Brevo par organisation (clé API + expéditeur), page `/admin/adherents/mailing` (composition TipTap gras/lien/placeholders `{{params.prenom}}`/`{{params.nom}}`, pièce jointe 10 Mo max transmise en base64, filtre destinataires actif/archivé/tous, confirmation avant envoi, brouillon persistant en localStorage, historique), Edge Function `send-mailing-brevo` (mode batch natif Brevo `messageVersions`, jusqu'à 1000 destinataires/appel)
+- **Tooltip stylisé sur les placeholders** (terminée, PR #59) : remplace le `title` natif par `Tooltip.tsx` (prop `bare` ajouté) sur les 3 éditeurs de template (Cerfa, carte adhérent, formulaire d'adhésion)
+- **Réorganisation Paramètres** (terminée, PR #60) : 4 sous-pages routées (`/admin/parametres`, `/fiscal`, `/adherents`, `/suivi`), composant partagé `ParametresSection.tsx`
 
 **Point de vigilance permanent** : les Edge Functions ne se déploient jamais automatiquement au push/merge sur ce projet — toujours `supabase functions deploy <nom>` explicitement après une édition de leur code (voir mémoire persistante).
 
@@ -143,23 +145,22 @@ Historique complet des sujets terminés (détail des décisions techniques, bugs
 Le board Trello est la source de vérité unique du backlog (hors cartes "Action admin", gérées par l'utilisateur lui-même). Chaque carte cadrée a sa description Trello à jour avec le détail complet des décisions — vérifiée à chaque session, pas dupliquée ici. Confirmation explicite à redemander avant de démarrer le dev de l'une d'entre elles, même déjà cadrée.
 
 1. **Refaire la revue UI responsive admin avec le skill impeccable** — cadré le 2026-08-11, même périmètre que la revue terminée en PR #57 (super admin + panel org, 3 largeurs), à comparer aux résultats de l'audit manuel. Nécessite `/impeccable init` (skill installé, pas encore initialisé). Description enrichie de 7 axes d'amélioration UI identifiés en fin de PR #57 (priorité : factoriser le pattern de header dupliqué, cause de 5 des 6 bugs corrigés). [Trello](https://trello.com/c/0cgE88pI)
-2. **Tooltip stylisé sur les placeholders** (templates Cerfa/carte adhérent/formulaire d'adhésion) — cadré le 2026-08-10, remplace le `title` natif par le composant `Tooltip.tsx` existant (adapté : pas de `<button>` imbriqué). [Trello](https://trello.com/c/SfQW9a3o)
-3. **Réorganisation Paramètres** en sous-pages routées (même pattern que Dons/Adhérents) — cadré le 2026-08-08. [Trello](https://trello.com/c/p3FrYi70)
-4. **Mire de connexion personnalisée par organisation** (admin + bénévole) — cadré le 2026-08-10, même mécanique que le formulaire d'adhésion (header/footer/css éditables, URL `/connexion/{slug}` et `/login/benevole/{slug}` réutilisant le slug existant). [Trello](https://trello.com/c/gkOuH3uh)
-5. **Rapprochement chèques/virements** — pas cadré. [Trello](https://trello.com/c/DwPzxngO)
-6. **Vérification carte adhérent par nom/prénom** (espace bénévole) — cadré le 2026-08-08. [Trello](https://trello.com/c/HbOvv6Kx)
-7. **Pièces jointes sur un don** (justificatifs) — cadré le 2026-08-09 : table `dons_fichiers`, bucket Storage privé + URL signée, images/PDF 10 Mo max, upload côté admin (`DonModal`) et bénévole (`BenevolePage`). [Trello](https://trello.com/c/G1MFP7Ao)
-8. **Double opt-in email** avant ratification d'une demande d'adhésion — cadré le 2026-08-08, nécessite un compte Resend (action utilisateur, prérequis externe). [Trello](https://trello.com/c/0gt0LIVU)
-9. **Priorité 4 — Envoi email des reçus fiscaux** — pas cadré, même dépendance Resend que le double opt-in ci-dessus. [Trello](https://trello.com/c/Do9GVjOt)
-10. **OCR scan de carte adhérent** — pas encore cadré, discussion préliminaire seulement. [Trello](https://trello.com/c/zVBOjAWk)
-11. **Sélection d'un adhérent à la saisie d'un don + doublonnement** — prio basse, hors scope V1 du module Adhérents, pas cadré. [Trello](https://trello.com/c/RtRY8ltX)
-12. **Priorité 5 — Export FEC / intégrations comptables** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/W3GCYUOt)
-13. **Priorité 5 — Brique événements/coupons** (Pagode Coupon) — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/C9A5B9jr)
-14. **Priorité 5 — Gestion abonnements/plans** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/cfKF8BNw)
-15. **Contrainte d'unicité `id_externe` par organisation sur les activités** — point non bloquant, pas cadré. [Trello](https://trello.com/c/WkPAb7K7)
-16. **Nettoyer la dette lint** (32 erreurs/avertissements pré-existants, +5 depuis, cf. `react-hooks/set-state-in-effect`) — pas cadré. [Trello](https://trello.com/c/dep6US2K)
-17. **Renommage public en "Samakan"** (nom de projet Mothana inchangé) — cadré, détail à vérifier dans la carte. [Trello](https://trello.com/c/pmLDyy2t)
-18. **Modèles réutilisables pour les campagnes mailing** — évoqué le 2026-08-14, pas cadré. [Trello](https://trello.com/c/BfHOUb3v)
+2. **Mire de connexion personnalisée par organisation** (admin + bénévole) — cadré le 2026-08-10, même mécanique que le formulaire d'adhésion (header/footer/css éditables, URL `/connexion/{slug}` et `/login/benevole/{slug}` réutilisant le slug existant). [Trello](https://trello.com/c/gkOuH3uh)
+3. **Rapprochement chèques/virements** — pas cadré. [Trello](https://trello.com/c/DwPzxngO)
+4. **Vérification carte adhérent par nom/prénom** (espace bénévole) — cadré le 2026-08-08. [Trello](https://trello.com/c/HbOvv6Kx)
+5. **Pièces jointes sur un don** (justificatifs) — cadré le 2026-08-09 : table `dons_fichiers`, bucket Storage privé + URL signée, images/PDF 10 Mo max, upload côté admin (`DonModal`) et bénévole (`BenevolePage`). [Trello](https://trello.com/c/G1MFP7Ao)
+6. **Double opt-in email** avant ratification d'une demande d'adhésion — cadré le 2026-08-08, nécessite un compte Resend (action utilisateur, prérequis externe). [Trello](https://trello.com/c/0gt0LIVU)
+7. **Email d'invitation admin via Resend** (création compte + mot de passe oublié) — cadré le 2026-08-11, scindée de la carte page (PR #61, prête). Bloquée par le même prérequis Resend. Point de vigilance déjà identifié : whitelister `/mot-de-passe/nouveau` (dev + prod) dans les Redirect URLs Auth Supabase avant de considérer la carte terminée. [Trello](https://trello.com/c/iotLaqn3)
+8. **Priorité 4 — Envoi email des reçus fiscaux** — pas cadré, même dépendance Resend que le double opt-in ci-dessus. [Trello](https://trello.com/c/Do9GVjOt)
+9. **OCR scan de carte adhérent** — pas encore cadré, discussion préliminaire seulement. [Trello](https://trello.com/c/zVBOjAWk)
+10. **Sélection d'un adhérent à la saisie d'un don + doublonnement** — prio basse, hors scope V1 du module Adhérents, pas cadré. [Trello](https://trello.com/c/RtRY8ltX)
+11. **Priorité 5 — Export FEC / intégrations comptables** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/W3GCYUOt)
+12. **Priorité 5 — Brique événements/coupons** (Pagode Coupon) — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/C9A5B9jr)
+13. **Priorité 5 — Gestion abonnements/plans** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/cfKF8BNw)
+14. **Contrainte d'unicité `id_externe` par organisation sur les activités** — point non bloquant, pas cadré. [Trello](https://trello.com/c/WkPAb7K7)
+15. **Nettoyer la dette lint** (32 erreurs/avertissements pré-existants, +5 depuis, cf. `react-hooks/set-state-in-effect`) — pas cadré. [Trello](https://trello.com/c/dep6US2K)
+16. **Renommage public en "Samakan"** (nom de projet Mothana inchangé) — cadré, détail à vérifier dans la carte. [Trello](https://trello.com/c/pmLDyy2t)
+17. **Modèles réutilisables pour les campagnes mailing** — évoqué le 2026-08-14, pas cadré. [Trello](https://trello.com/c/BfHOUb3v)
 
 ---
 
