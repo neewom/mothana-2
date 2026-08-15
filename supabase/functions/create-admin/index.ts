@@ -5,6 +5,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function inviteAdminEmailHtml(nom: string, actionLink: string): string {
+  return `<!doctype html><html><body style="font-family: ui-sans-serif, system-ui, sans-serif; background: #f8fafc; padding: 32px;">
+  <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e2e8f0;">
+    <h1 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">Bienvenue sur Mothana</h1>
+    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Bonjour ${nom},</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Un compte administrateur vient d'être créé pour vous. Cliquez sur le bouton ci-dessous pour définir votre mot de passe et accéder à votre espace.</p>
+    <p style="margin: 24px 0;">
+      <a href="${actionLink}" style="background: #4f46e5; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Définir mon mot de passe</a>
+    </p>
+    <p style="color: #94a3b8; font-size: 12px;">Si vous n'êtes pas à l'origine de cette invitation, vous pouvez ignorer cet email.</p>
+  </div>
+</body></html>`
+}
+
+async function sendViaResend(to: string, subject: string, html: string): Promise<{ ok: boolean; detail?: string }> {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'Mothana <noreply@samakan.fr>',
+      to: [to],
+      subject,
+      html,
+    }),
+  })
+  if (!res.ok) {
+    return { ok: false, detail: await res.text() }
+  }
+  return { ok: true }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -33,11 +67,11 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { nom, email, password, organisation_id } = await req.json()
+    const { nom, email, organisation_id, site_url } = await req.json()
 
-    if (!nom || !email || !password || !organisation_id) {
+    if (!nom || !email || !organisation_id || !site_url) {
       return new Response(
-        JSON.stringify({ error: 'Paramètres manquants : nom, email, password, organisation_id requis' }),
+        JSON.stringify({ error: 'Paramètres manquants : nom, email, organisation_id, site_url requis' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
@@ -49,22 +83,23 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     })
 
-    // Create the Auth account for the new admin
-    const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
+    // Create the Auth account and get an invite action link in one call
+    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+      type: 'invite',
       email,
-      password,
-      email_confirm: true,
+      options: { redirectTo: `${site_url}/mot-de-passe/nouveau` },
     })
 
-    if (createError || !newUser?.user) {
-      console.error('createUser error:', createError?.message)
+    if (linkError || !linkData?.user) {
+      console.error('generateLink error:', linkError?.message)
       return new Response(
-        JSON.stringify({ error: createError?.message ?? 'Erreur lors de la création du compte' }),
+        JSON.stringify({ error: linkError?.message ?? 'Erreur lors de la création du compte' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
-    const utilisateur_id = newUser.user.id
+    const utilisateur_id = linkData.user.id
+    const actionLink = linkData.properties.action_link
 
     // Insert the admin profile linked to the organisation
     const { data: profil, error: profilError } = await adminClient
@@ -88,6 +123,13 @@ Deno.serve(async (req) => {
       )
     }
 
+    const emailResult = await sendViaResend(email, 'Votre accès administrateur Mothana', inviteAdminEmailHtml(nom, actionLink))
+
+    if (!emailResult.ok) {
+      console.error('Resend error:', emailResult.detail)
+      // Non-bloquant : le compte est créé, seul l'email échoue
+    }
+
     return new Response(
       JSON.stringify({
         id: profil.id,
@@ -95,6 +137,7 @@ Deno.serve(async (req) => {
         nom_affiche: profil.nom_affiche,
         email,
         organisation_id: profil.organisation_id,
+        email_envoye: emailResult.ok,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
