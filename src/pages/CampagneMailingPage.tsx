@@ -7,6 +7,7 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import Modal from '../components/Modal'
 import ParametresSection from '../components/ParametresSection'
+import ScrollShadowX from '../components/ScrollShadowX'
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
 
@@ -509,26 +510,28 @@ export default function CampagneMailingPage() {
         ) : historique.length === 0 ? (
           <p className="text-sm text-slate-500">Aucune campagne envoyée pour le moment.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                <th className="py-2 pr-4">Date</th>
-                <th className="py-2 pr-4">Sujet</th>
-                <th className="py-2 pr-4">Destinataires</th>
-                <th className="py-2">Exclus</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {historique.map((c) => (
-                <tr key={c.id}>
-                  <td className="py-2 pr-4 text-slate-500">{formatDateTime(c.created_at)}</td>
-                  <td className="py-2 pr-4 font-medium text-slate-900">{c.sujet}</td>
-                  <td className="py-2 pr-4 text-slate-700">{c.nombre_destinataires}</td>
-                  <td className="py-2 text-slate-700">{c.nombre_exclus}</td>
+          <ScrollShadowX>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <th className="py-2 pr-4">Date</th>
+                  <th className="py-2 pr-4">Sujet</th>
+                  <th className="py-2 pr-4">Destinataires</th>
+                  <th className="py-2">Exclus</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {historique.map((c) => (
+                  <tr key={c.id}>
+                    <td className="py-2 pr-4 text-slate-500">{formatDateTime(c.created_at)}</td>
+                    <td className="py-2 pr-4 font-medium text-slate-900">{c.sujet}</td>
+                    <td className="py-2 pr-4 text-slate-700">{c.nombre_destinataires}</td>
+                    <td className="py-2 text-slate-700">{c.nombre_exclus}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </ScrollShadowX>
         )}
       </ParametresSection>
 
