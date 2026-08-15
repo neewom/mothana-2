@@ -21,11 +21,13 @@ Ce fichier est lu automatiquement par Claude Code à chaque session. Il contient
 - Si un fichier existe déjà pour aujourd'hui, le compléter plutôt que le remplacer
 - Format du nom de fichier : `YYYY-MM-DD_sujet-en-kebab-case.md`
 - Exemple : `2026-07-17_refonte-cerfa.md`
+- **Déplacement Trello Done ↔ résumé "Terminé" de ce fichier : action indissociable, jamais l'une sans l'autre.** Dès qu'une carte passe en Done (fin de sujet ou merge de PR), ajouter dans la même respiration l'entrée résumé correspondante dans "État d'avancement" ci-dessous — ne jamais différer à une session ultérieure (c'est exactement ce qui a créé une désynchro le 2026-08-15 : carte Trello "impeccable" en Done depuis le 2026-08-12 sans entrée correspondante dans ce fichier, découverte seulement au check bidirectionnel 3 jours après)
 
 ### Règles
 - Toujours lire AVANT d'agir — ne pas redemander ce qui est déjà documenté
 - Les blockers non résolus de la session précédente deviennent la priorité
 - Quand un blocker est levé, le noter explicitement dans "Réalisé"
+- **Avant toute action corrective sur une carte Trello jugée mal classée** (ex. carte en Done qui semble ne pas avoir été terminée, ou l'inverse) : `grep` l'URL/le nom de la carte sur **l'ensemble** de `.claude/sessions/*.md`, pas seulement le fichier de session le plus récent, pour reconstituer l'historique complet avant de conclure et d'agir — un sujet peut se refermer dans une session ultérieure à celle qui l'a initialement cadré
 
 ---
 
