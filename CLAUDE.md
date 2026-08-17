@@ -152,24 +152,26 @@ Historique complet des sujets terminés (détail des décisions techniques, bugs
 
 Le board Trello est la source de vérité unique du backlog (hors cartes "Action admin", gérées par l'utilisateur lui-même). Chaque carte cadrée a sa description Trello à jour avec le détail complet des décisions — vérifiée à chaque session, pas dupliquée ici. Confirmation explicite à redemander avant de démarrer le dev de l'une d'entre elles, même déjà cadrée.
 
-1. **Vérification carte adhérent par nom/prénom** (espace bénévole) — cadré le 2026-08-08. [Trello](https://trello.com/c/HbOvv6Kx)
-2. **Pièces jointes sur un don** (justificatifs) — cadré le 2026-08-09 : table `dons_fichiers`, bucket Storage privé + URL signée, images/PDF 10 Mo max, upload côté admin (`DonModal`) et bénévole (`BenevolePage`). [Trello](https://trello.com/c/G1MFP7Ao)
-3. **Double opt-in email** avant ratification d'une demande d'adhésion — cadré le 2026-08-08. Prérequis Resend désormais levé (compte en place depuis le 2026-08-15). [Trello](https://trello.com/c/0gt0LIVU)
-4. **Priorité 4 — Envoi email des reçus fiscaux** — pas cadré. Prérequis Resend désormais levé (compte en place depuis le 2026-08-15). [Trello](https://trello.com/c/Do9GVjOt)
-5. **OCR scan de carte adhérent** — pas encore cadré, discussion préliminaire seulement. [Trello](https://trello.com/c/zVBOjAWk)
-6. **Sélection d'un adhérent à la saisie d'un don + doublonnement** — prio basse, hors scope V1 du module Adhérents, pas cadré. [Trello](https://trello.com/c/RtRY8ltX)
-7. **Priorité 5 — Export FEC / intégrations comptables** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/W3GCYUOt)
-8. **Priorité 5 — Brique événements/coupons** (Pagode Coupon) — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/C9A5B9jr)
-9. **Priorité 5 — Gestion abonnements/plans** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/cfKF8BNw)
-10. **Contrainte d'unicité `id_externe` par organisation sur les activités** — point non bloquant, pas cadré. [Trello](https://trello.com/c/WkPAb7K7)
-11. **Nettoyer la dette lint** (32 erreurs/avertissements pré-existants, +5 depuis, cf. `react-hooks/set-state-in-effect`) — pas cadré. [Trello](https://trello.com/c/dep6US2K)
-12. **Mire de connexion personnalisée par organisation** (admin + bénévole) — cadré le 2026-08-10, même mécanique que le formulaire d'adhésion (header/footer/css éditables, URL `/connexion/{slug}` et `/login/benevole/{slug}` réutilisant le slug existant). [Trello](https://trello.com/c/gkOuH3uh)
-13. **Ajouter samakan.fr (apex + www) comme domaine personnalisé de la prod sur Vercel** — cadré le 2026-08-17 : action manuelle (Vercel Settings→Domains puis DNS OVH, comme `test.samakan.fr`), apex+www servent la prod directement, `mothana.vercel.app` coexiste sans redirection. Débloque le renommage Samakan ci-dessous. [Trello](https://trello.com/c/sphiwiCT)
-14. **Renommage public en "Samakan"** (nom de projet Mothana inchangé) — cadré, détail à vérifier dans la carte. [Trello](https://trello.com/c/pmLDyy2t)
-15. **Modèles réutilisables pour les campagnes mailing** — évoqué le 2026-08-14, pas cadré. [Trello](https://trello.com/c/BfHOUb3v)
-16. **Aspect légal du mailing** (RGPD, opt-out, page de désinscription) — nouvelle carte détectée le 2026-08-15, pas cadrée. [Trello](https://trello.com/c/e3aJfN3l)
-17. **Bandeau visuel distinguant l'environnement recette de la prod** — créée le 2026-08-15 (idée annexe au cadrage de l'environnement de recette), pas cadrée. [Trello](https://trello.com/c/hSogRI1Y)
-18. **Configurer le contenu des mails de création de compte / reset password** — nouvelle carte détectée le 2026-08-15, pas cadrée. [Trello](https://trello.com/c/Qf8mdFTz)
+Ordre reclassé le 2026-08-17 (jugement agent, mix importance/complexité — pas un simple reflet de l'ordre d'ajout) :
+
+1. **Aspect légal du mailing** (RGPD, opt-out, page de désinscription) — remonté en tête : la campagne de mailing Brevo est déjà en prod et envoie à de vrais adhérents sans mécanisme d'opt-out connu, risque de conformité réel malgré une complexité encore inconnue (pas cadré). [Trello](https://trello.com/c/e3aJfN3l)
+2. **Ajouter samakan.fr (apex + www) comme domaine personnalisé de la prod sur Vercel** — cadré le 2026-08-17, quasi gratuit (config manuelle, pas de code), débloque le renommage Samakan ci-dessous. [Trello](https://trello.com/c/sphiwiCT)
+3. **Mire de connexion personnalisée par organisation** (admin + bénévole) — cadré le 2026-08-10, même mécanique que le formulaire d'adhésion (header/footer/css éditables, URL `/connexion/{slug}` et `/login/benevole/{slug}` réutilisant le slug existant). Valeur UX/confiance multi-org. [Trello](https://trello.com/c/gkOuH3uh)
+4. **Configurer le contenu des mails de création de compte / reset password** — pas cadré, mais polish probablement contenu sur un parcours critique déjà en prod (templates Resend). [Trello](https://trello.com/c/Qf8mdFTz)
+5. **Renommage public en "Samakan"** (nom de projet Mothana inchangé) — cadré, complexité faible une fois le domaine (#2) en place. [Trello](https://trello.com/c/pmLDyy2t)
+6. **Vérification carte adhérent par nom/prénom** (espace bénévole) — cadré le 2026-08-08, scope contenu, valeur opérationnelle réelle (vérif terrain par les bénévoles). [Trello](https://trello.com/c/HbOvv6Kx)
+7. **Pièces jointes sur un don** (justificatifs) — cadré le 2026-08-09 : table `dons_fichiers`, bucket Storage privé + URL signée, images/PDF 10 Mo max, upload côté admin (`DonModal`) et bénévole (`BenevolePage`). [Trello](https://trello.com/c/G1MFP7Ao)
+8. **Priorité 4 — Envoi email des reçus fiscaux** — pas cadré. Prérequis Resend désormais levé (compte en place depuis le 2026-08-15), complète le pipeline Cerfa. [Trello](https://trello.com/c/Do9GVjOt)
+9. **Double opt-in email** avant ratification d'une demande d'adhésion — cadré le 2026-08-08. Prérequis Resend désormais levé. Complexité un peu plus élevée que les items précédents (nouveau token/route publique). [Trello](https://trello.com/c/0gt0LIVU)
+10. **Bandeau visuel distinguant l'environnement recette de la prod** — pas cadrée, complexité faible, utilité accrue depuis que la recette sert à des clients réels. [Trello](https://trello.com/c/hSogRI1Y)
+11. **Modèles réutilisables pour les campagnes mailing** — évoqué le 2026-08-14, pas cadré, amélioration de confort sur une feature déjà livrée. [Trello](https://trello.com/c/BfHOUb3v)
+12. **Nettoyer la dette lint** (32 erreurs/avertissements pré-existants, +5 depuis, cf. `react-hooks/set-state-in-effect`) — pas cadré, dette technique sans valeur utilisateur directe, pas urgent. [Trello](https://trello.com/c/dep6US2K)
+13. **Contrainte d'unicité `id_externe` par organisation sur les activités** — point non bloquant, pas cadré, aucun incident constaté à date. [Trello](https://trello.com/c/WkPAb7K7)
+14. **Sélection d'un adhérent à la saisie d'un don + doublonnement** — prio basse (dit explicitement par l'utilisateur), hors scope V1 du module Adhérents, logique de dédoublonnage non triviale. [Trello](https://trello.com/c/RtRY8ltX)
+15. **OCR scan de carte adhérent** — pas encore cadré, discussion préliminaire seulement, intégration API OCR externe, besoin niche déjà partiellement couvert par la recherche nom/prénom (#6). [Trello](https://trello.com/c/zVBOjAWk)
+16. **Priorité 5 — Export FEC / intégrations comptables** — roadmap lointaine, pas cadrée, forte complexité (formalisme légal), besoin réel non confirmé à ce stade. [Trello](https://trello.com/c/W3GCYUOt)
+17. **Priorité 5 — Brique événements/coupons** (Pagode Coupon) — roadmap lointaine, pas cadrée, nouveau domaine fonctionnel entier. [Trello](https://trello.com/c/C9A5B9jr)
+18. **Priorité 5 — Gestion abonnements/plans** — roadmap lointaine, pas cadrée, scope encore flou même au niveau concept. [Trello](https://trello.com/c/cfKF8BNw)
 
 ---
 
