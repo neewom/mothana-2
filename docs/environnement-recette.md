@@ -84,6 +84,11 @@ Change le workflow habituel (auparavant : PR de feature mergée directement sur 
 
 Les commits de documentation pure (`CLAUDE.md`, résumés de session `.claude/sessions/`, sans
 impact sur le build/déploiement) restent une exception assumée à cette règle — direct sur `main`.
+**Mais** ils suivent la même logique que le cas 5 ci-dessus (remerger `main` dans `dev` juste
+après, ajouté le 2026-08-17) : sans ce geste, `dev` — la branche sur laquelle partent les features
+suivantes et que l'agent relit en début de session — prendrait du retard sur `CLAUDE.md` à chaque
+mise à jour de doc faite directement sur `main`. Pas de gating ici puisqu'il n'y a ni migration ni
+déploiement déclenché par ce merge, contrairement à la promotion `dev` → `main`.
 
 ## Migrations Supabase
 

@@ -114,7 +114,7 @@ Règles génériques (ne jamais merger sans confirmation, vérifier les PR ouver
 
 Spécifique à Mothana :
 - Quand l'utilisateur informe qu'une PR est mergée, `checkout main` puis `pull` pour mettre la branche locale à jour avant de démarrer les développements suivants. Vérifier aussi à ce moment-là la liste "Todo" du board Trello "Mothana" (voir mémoire persistante) : identifier les cartes traitées par cette PR, les déplacer soi-même vers "Done" (le token a les droits d'écriture depuis le 2026-08-08), et signaler à l'utilisateur les cartes déplacées + toute nouvelle carte apparue depuis le dernier check, pour discuter d'éventuels nouveaux sujets — vérification **bidirectionnelle** (voir mémoire persistante), pas seulement un scan des nouvelles cartes
-- **Branche `dev` (depuis le 2026-08-15, environnement de recette)** : les PR de features ciblent désormais `dev`, plus `main` directement. `main` ne reçoit que des promotions depuis `dev` (une feature à la fois, pas de lot) — c'est ce merge `dev → main`, pas le merge feature→`dev`, qui déclenche migrations Supabase + déploiement Edge Function en prod. Détail complet : `docs/environnement-recette.md`. Les commits de documentation pure (`CLAUDE.md`, résumés de session) restent une exception assumée, toujours directs sur `main`.
+- **Branche `dev` (depuis le 2026-08-15, environnement de recette)** : les PR de features ciblent désormais `dev`, plus `main` directement. `main` ne reçoit que des promotions depuis `dev` (une feature à la fois, pas de lot) — c'est ce merge `dev → main`, pas le merge feature→`dev`, qui déclenche migrations Supabase + déploiement Edge Function en prod. Détail complet : `docs/environnement-recette.md`. Les commits de documentation pure (`CLAUDE.md`, résumés de session) restent une exception assumée, toujours directs sur `main` — **mais** doivent être immédiatement resynchronisés sur `dev` juste après (`git merge main` sur `dev`, pas de gating puisque c'est de la doc pure, pas de migration/déploiement déclenché), même règle que le cas "hotfix direct sur `main`" de `docs/environnement-recette.md` — évite que `dev` (branche de travail des features suivantes, relue en début de session) prenne du retard sur `CLAUDE.md`.
 - **Promotion `dev` → `main` via PR GitHub (depuis le 2026-08-15)** : `git merge` direct bloqué par le classifier auto-mode sur des actions jugées sensibles sur `main` — la promotion passe donc par `gh pr create` (base `main`, head `dev`) puis `gh pr merge --merge` (commit de fusion, jamais `--squash`/`--rebase`, pour garder l'équivalent `--no-ff`). Exception scopée à *cette* PR de promotion : sur confirmation explicite de l'utilisateur pour démarrer la promotion, l'agent peut créer **et** merger cette PR sans redemander — pas de re-review de contenu à ce stade (déjà validé au merge feature→dev). Ne s'applique **pas** aux PR de feature classiques (feature→`dev`), qui restent soumises à la règle standard "jamais merger sans autorisation explicite" (`~/.claude/CLAUDE.md`).
   - ⚠️⚠️⚠️ **NE JAMAIS laisser `gh pr merge` supprimer la branche `dev`** (option par défaut sur une PR de feature, à désactiver explicitement ici — `--delete-branch=false` ou décocher dans le flux interactif). `dev` est une branche **permanente**, pas une branche de feature jetable : la recette (`test.samakan.fr`) et les variables d'environnement Vercel scopées y sont rattachées par son *nom*. Une suppression basculerait silencieusement la recette sur les identifiants **prod**, sans erreur visible. ⚠️⚠️⚠️
 
@@ -152,24 +152,25 @@ Historique complet des sujets terminés (détail des décisions techniques, bugs
 
 Le board Trello est la source de vérité unique du backlog (hors cartes "Action admin", gérées par l'utilisateur lui-même). Chaque carte cadrée a sa description Trello à jour avec le détail complet des décisions — vérifiée à chaque session, pas dupliquée ici. Confirmation explicite à redemander avant de démarrer le dev de l'une d'entre elles, même déjà cadrée.
 
-1. **Mire de connexion personnalisée par organisation** (admin + bénévole) — cadré le 2026-08-10, même mécanique que le formulaire d'adhésion (header/footer/css éditables, URL `/connexion/{slug}` et `/login/benevole/{slug}` réutilisant le slug existant). [Trello](https://trello.com/c/gkOuH3uh)
-2. **Rapprochement chèques/virements** — pas cadré. [Trello](https://trello.com/c/DwPzxngO)
-3. **Vérification carte adhérent par nom/prénom** (espace bénévole) — cadré le 2026-08-08. [Trello](https://trello.com/c/HbOvv6Kx)
-4. **Pièces jointes sur un don** (justificatifs) — cadré le 2026-08-09 : table `dons_fichiers`, bucket Storage privé + URL signée, images/PDF 10 Mo max, upload côté admin (`DonModal`) et bénévole (`BenevolePage`). [Trello](https://trello.com/c/G1MFP7Ao)
-5. **Double opt-in email** avant ratification d'une demande d'adhésion — cadré le 2026-08-08. Prérequis Resend désormais levé (compte en place depuis le 2026-08-15). [Trello](https://trello.com/c/0gt0LIVU)
-6. **Priorité 4 — Envoi email des reçus fiscaux** — pas cadré. Prérequis Resend désormais levé (compte en place depuis le 2026-08-15). [Trello](https://trello.com/c/Do9GVjOt)
-7. **OCR scan de carte adhérent** — pas encore cadré, discussion préliminaire seulement. [Trello](https://trello.com/c/zVBOjAWk)
-8. **Sélection d'un adhérent à la saisie d'un don + doublonnement** — prio basse, hors scope V1 du module Adhérents, pas cadré. [Trello](https://trello.com/c/RtRY8ltX)
-9. **Priorité 5 — Export FEC / intégrations comptables** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/W3GCYUOt)
-10. **Priorité 5 — Brique événements/coupons** (Pagode Coupon) — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/C9A5B9jr)
-11. **Priorité 5 — Gestion abonnements/plans** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/cfKF8BNw)
-12. **Contrainte d'unicité `id_externe` par organisation sur les activités** — point non bloquant, pas cadré. [Trello](https://trello.com/c/WkPAb7K7)
-13. **Nettoyer la dette lint** (32 erreurs/avertissements pré-existants, +5 depuis, cf. `react-hooks/set-state-in-effect`) — pas cadré. [Trello](https://trello.com/c/dep6US2K)
-14. **Renommage public en "Samakan"** (nom de projet Mothana inchangé) — cadré, détail à vérifier dans la carte. [Trello](https://trello.com/c/pmLDyy2t)
-15. **Modèles réutilisables pour les campagnes mailing** — évoqué le 2026-08-14, pas cadré. [Trello](https://trello.com/c/BfHOUb3v)
-16. **Aspect légal du mailing** (RGPD, opt-out, page de désinscription) — nouvelle carte détectée le 2026-08-15, pas cadrée. [Trello](https://trello.com/c/e3aJfN3l)
-17. **Configurer le contenu des mails de création de compte / reset password** — nouvelle carte détectée le 2026-08-15, pas cadrée. [Trello](https://trello.com/c/Qf8mdFTz)
+1. **Rapprochement chèques/virements** — pas cadré. [Trello](https://trello.com/c/DwPzxngO)
+2. **Vérification carte adhérent par nom/prénom** (espace bénévole) — cadré le 2026-08-08. [Trello](https://trello.com/c/HbOvv6Kx)
+3. **Pièces jointes sur un don** (justificatifs) — cadré le 2026-08-09 : table `dons_fichiers`, bucket Storage privé + URL signée, images/PDF 10 Mo max, upload côté admin (`DonModal`) et bénévole (`BenevolePage`). [Trello](https://trello.com/c/G1MFP7Ao)
+4. **Double opt-in email** avant ratification d'une demande d'adhésion — cadré le 2026-08-08. Prérequis Resend désormais levé (compte en place depuis le 2026-08-15). [Trello](https://trello.com/c/0gt0LIVU)
+5. **Priorité 4 — Envoi email des reçus fiscaux** — pas cadré. Prérequis Resend désormais levé (compte en place depuis le 2026-08-15). [Trello](https://trello.com/c/Do9GVjOt)
+6. **OCR scan de carte adhérent** — pas encore cadré, discussion préliminaire seulement. [Trello](https://trello.com/c/zVBOjAWk)
+7. **Sélection d'un adhérent à la saisie d'un don + doublonnement** — prio basse, hors scope V1 du module Adhérents, pas cadré. [Trello](https://trello.com/c/RtRY8ltX)
+8. **Priorité 5 — Export FEC / intégrations comptables** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/W3GCYUOt)
+9. **Priorité 5 — Brique événements/coupons** (Pagode Coupon) — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/C9A5B9jr)
+10. **Priorité 5 — Gestion abonnements/plans** — roadmap lointaine, pas cadrée. [Trello](https://trello.com/c/cfKF8BNw)
+11. **Contrainte d'unicité `id_externe` par organisation sur les activités** — point non bloquant, pas cadré. [Trello](https://trello.com/c/WkPAb7K7)
+12. **Nettoyer la dette lint** (32 erreurs/avertissements pré-existants, +5 depuis, cf. `react-hooks/set-state-in-effect`) — pas cadré. [Trello](https://trello.com/c/dep6US2K)
+13. **Mire de connexion personnalisée par organisation** (admin + bénévole) — cadré le 2026-08-10, même mécanique que le formulaire d'adhésion (header/footer/css éditables, URL `/connexion/{slug}` et `/login/benevole/{slug}` réutilisant le slug existant). [Trello](https://trello.com/c/gkOuH3uh)
+14. **Ajouter samakan.fr (apex + www) comme domaine personnalisé de la prod sur Vercel** — cadré le 2026-08-17 : action manuelle (Vercel Settings→Domains puis DNS OVH, comme `test.samakan.fr`), apex+www servent la prod directement, `mothana.vercel.app` coexiste sans redirection. Débloque le renommage Samakan ci-dessous. [Trello](https://trello.com/c/sphiwiCT)
+15. **Renommage public en "Samakan"** (nom de projet Mothana inchangé) — cadré, détail à vérifier dans la carte. [Trello](https://trello.com/c/pmLDyy2t)
+16. **Modèles réutilisables pour les campagnes mailing** — évoqué le 2026-08-14, pas cadré. [Trello](https://trello.com/c/BfHOUb3v)
+17. **Aspect légal du mailing** (RGPD, opt-out, page de désinscription) — nouvelle carte détectée le 2026-08-15, pas cadrée. [Trello](https://trello.com/c/e3aJfN3l)
 18. **Bandeau visuel distinguant l'environnement recette de la prod** — créée le 2026-08-15 (idée annexe au cadrage de l'environnement de recette), pas cadrée. [Trello](https://trello.com/c/hSogRI1Y)
+19. **Configurer le contenu des mails de création de compte / reset password** — nouvelle carte détectée le 2026-08-15, pas cadrée. [Trello](https://trello.com/c/Qf8mdFTz)
 
 ---
 
