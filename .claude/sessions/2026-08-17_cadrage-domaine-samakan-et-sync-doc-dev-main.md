@@ -28,14 +28,25 @@
 - Décision de l'utilisateur : abandon complet, pas juste dépriorisation.
 - Carte Trello archivée (`closed=true`, réversible). Retirée du backlog actif `CLAUDE.md`. `docs/journal-avancement.md` mis à jour (item Priorité 2 — Export comptable marqué terminé avec périmètre réduit).
 
+### Reclassement complet du backlog Trello (demande explicite de l'utilisateur)
+- Les 18 cartes actives (hors "Action admin") repassées en revue et réordonnées selon un mix importance/complexité, jugement agent.
+- Nouvel ordre : Désinscription mailing RGPD (remontée en tête — risque de conformité sur une feature déjà en prod) → domaine samakan.fr → mire de connexion → contenu mails création/reset → renommage Samakan → vérif carte adhérent → pièces jointes don → envoi email reçus fiscaux → double opt-in → bandeau recette/prod → modèles mailing → dette lint → contrainte unicité id_externe → sélection adhérent/don → OCR carte → les 3 items Priorité 5 (FEC, Pagode Coupon, abonnements) en bas de liste.
+- Appliqué via l'API Trello (`pos`) puis répercuté dans `CLAUDE.md` (Trello reste la source de vérité de l'ordre).
+
+### Cadrage : Désinscription mailing (RGPD)
+- État des lieux : la campagne de mailing Brevo (déjà en prod depuis le 2026-08-15) n'a aucun mécanisme de désinscription — filtre destinataires actuel exclut seulement les emails manquants, pas de lien opt-out dans les emails envoyés.
+- `adherents.consent_rgpd` existant est le consentement d'adhésion (traitement des données), pas un consentement mailing — décision de ne pas le réutiliser, nouveau champ dédié.
+- Décisions actées : nouveaux champs `adherents.mailing_opt_out` / `mailing_opt_out_at` / `mailing_unsubscribe_token` (token généré automatiquement pour tous les adhérents existants au moment de l'ALTER TABLE, pas de backfill manuel) ; route publique `/desinscription?token=...` + nouvelle Edge Function `unsubscribe-mailing` (sans auth, réponse générique anti-énumération) ; footer de désinscription **injecté automatiquement côté serveur** par `send-mailing-brevo` dans chaque email (pas un placeholder laissé à la main de l'admin) ; toggle manuel "Ne pas contacter par email" ajouté dans `AdherentModal`. Portée limitée au mailing — aucun impact sur les emails transactionnels (reset password, invitation admin) ni le reste de l'app.
+- Hors scope explicite : droit à l'oubli / suppression complète des données, suivi ouvertures/clics.
+- Carte Trello mise à jour (titre reformulé en "Désinscription mailing (RGPD) : opt-out par lien + toggle admin"), étiquette "cadré" appliquée.
+
 ## Reste à faire
 
-Suite de l'ordre Trello habituel (backlog actif renuméroté dans `CLAUDE.md`) :
-1. **Vérification carte adhérent par nom/prénom** (espace bénévole) — déjà cadrée le 2026-08-08, prête à démarrer. Confirmation explicite à redemander avant de coder, comme toujours.
-2. Puis : Pièces jointes sur un don, Double opt-in email, Priorité 4 (email reçus fiscaux), etc. — voir liste complète dans `CLAUDE.md`.
+Suite de l'ordre Trello habituel (backlog actif renuméroté dans `CLAUDE.md`), prochain sujet en tête :
+1. **Désinscription mailing (RGPD)** — cadré cette session, prêt à démarrer. Confirmation explicite à redemander avant de coder, comme toujours.
+2. Puis : domaine samakan.fr (action manuelle Vercel/OVH), mire de connexion personnalisée, contenu des mails création/reset, renommage Samakan, etc. — voir liste complète dans `CLAUDE.md`.
 
-3 cartes toujours pas cadrées, en attente depuis le 2026-08-15 (reporté à nouveau cette session, pas abordé) :
-- Aspect légal du mailing (RGPD, opt-out) — https://trello.com/c/e3aJfN3l
+2 cartes toujours pas cadrées, en attente depuis le 2026-08-15 (pas abordées cette session) :
 - Bandeau visuel recette/prod — https://trello.com/c/hSogRI1Y
 - Configurer le contenu des mails de création de compte / reset password — https://trello.com/c/Qf8mdFTz
 
@@ -48,3 +59,5 @@ Aucun.
 - Ordre du backlog `CLAUDE.md` : toujours aligné sur la position réelle des cartes Trello (`pos`), jamais l'inverse en cas de divergence — à vérifier à l'avenir si un doute similaire se représente.
 - Commits de doc pure sur `main` → toujours remergés dans `dev` juste après (nouvelle routine permanente, voir `CLAUDE.md` et `docs/environnement-recette.md`).
 - Rapprochement chèques/virements : abandonné définitivement (pas juste reporté), carte archivée.
+- Reclassement backlog complet (mix importance/complexité) fait sur demande explicite, pas seulement à l'ajout d'une nouveauté — routine potentiellement à refaire ponctuellement, pas juste au fil de l'eau.
+- Désinscription mailing RGPD : opt-out (pas opt-in bloquant), lien token public + toggle admin, champ dédié distinct de `consent_rgpd`.
