@@ -26,6 +26,14 @@ interface AdherentDestinataire {
   courriel: string
   nom: string
   prenom: string | null
+  mailing_unsubscribe_token: string
+}
+
+function unsubscribeFooterHtml(): string {
+  return `<hr style="margin-top:32px;border:none;border-top:1px solid #e2e8f0;" />
+<p style="margin-top:16px;font-size:11px;color:#94a3b8;">
+  <a href="{{params.lien_desinscription}}" style="color:#94a3b8;">Se désinscrire</a>
+</p>`
 }
 
 Deno.serve(async (req) => {
@@ -39,13 +47,16 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Non autorisé' }, 401)
     }
 
-    const { sujet, corps_html, filtre_statut, piece_jointe } = await req.json()
+    const { sujet, corps_html, filtre_statut, piece_jointe, site_url } = await req.json()
 
     if (!sujet || typeof sujet !== 'string' || !corps_html || typeof corps_html !== 'string') {
       return jsonResponse({ error: 'Sujet et contenu du message requis' }, 400)
     }
     if (!['actif', 'archive', 'tous'].includes(filtre_statut)) {
       return jsonResponse({ error: 'Filtre de statut invalide' }, 400)
+    }
+    if (!site_url || typeof site_url !== 'string') {
+      return jsonResponse({ error: 'site_url requis' }, 400)
     }
 
     const attachment = piece_jointe as PieceJointe | null | undefined
@@ -112,8 +123,9 @@ Deno.serve(async (req) => {
 
     let query = adminClient
       .from('adherents')
-      .select('courriel, nom, prenom')
+      .select('courriel, nom, prenom, mailing_unsubscribe_token')
       .eq('organisation_id', organisationId)
+      .eq('mailing_opt_out', false)
 
     if (filtre_statut !== 'tous') {
       query = query.eq('statut', filtre_statut)
@@ -142,6 +154,8 @@ Deno.serve(async (req) => {
       ? [{ content: attachment.contenu_base64, name: attachment.nom }]
       : undefined
 
+    const htmlContentAvecFooter = corps_html + unsubscribeFooterHtml()
+
     for (let i = 0; i < destinataires.length; i += BREVO_BATCH_SIZE) {
       const chunk = destinataires.slice(i, i + BREVO_BATCH_SIZE)
 
@@ -155,10 +169,14 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           sender: { name: org.brevo_expediteur_nom, email: org.brevo_expediteur_email },
           subject: sujet,
-          htmlContent: corps_html,
+          htmlContent: htmlContentAvecFooter,
           messageVersions: chunk.map((a) => ({
             to: [{ email: a.courriel, name: [a.prenom, a.nom].filter(Boolean).join(' ') }],
-            params: { prenom: a.prenom ?? '', nom: a.nom },
+            params: {
+              prenom: a.prenom ?? '',
+              nom: a.nom,
+              lien_desinscription: `${site_url}/desinscription?token=${a.mailing_unsubscribe_token}`,
+            },
           })),
           ...(brevoAttachment ? { attachment: brevoAttachment } : {}),
         }),
