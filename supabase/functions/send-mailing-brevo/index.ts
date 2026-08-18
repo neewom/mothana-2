@@ -32,8 +32,7 @@ interface AdherentDestinataire {
 function unsubscribeFooterHtml(): string {
   return `<hr style="margin-top:32px;border:none;border-top:1px solid #e2e8f0;" />
 <p style="margin-top:16px;font-size:11px;color:#94a3b8;">
-  Vous recevez cet email en tant qu'adhérent.
-  <a href="{{params.lien_desinscription}}" style="color:#94a3b8;">Se désinscrire de ces communications</a>
+  <a href="{{params.lien_desinscription}}" style="color:#94a3b8;">Se désinscrire</a>
 </p>`
 }
 
