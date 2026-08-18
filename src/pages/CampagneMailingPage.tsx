@@ -192,7 +192,11 @@ export default function CampagneMailingPage() {
 
   const fetchDestinatairesCount = useCallback(async () => {
     if (!organisationId) return
-    let query = supabase.from('adherents').select('courriel', { count: 'exact' }).eq('organisation_id', organisationId)
+    let query = supabase
+      .from('adherents')
+      .select('courriel', { count: 'exact' })
+      .eq('organisation_id', organisationId)
+      .eq('mailing_opt_out', false)
     if (filtreStatut !== 'tous') query = query.eq('statut', filtreStatut)
     const { data, count } = await query
     const avecEmail = (data ?? []).filter((a) => a.courriel && a.courriel.trim() !== '').length
@@ -278,6 +282,7 @@ export default function CampagneMailingPage() {
         corps_html: corpsHtml,
         filtre_statut: filtreStatut,
         piece_jointe: pieceJointe ? { nom: pieceJointe.fichier.name, contenu_base64: pieceJointe.base64, type_mime: pieceJointe.fichier.type } : null,
+        site_url: window.location.origin,
       }),
     })
 

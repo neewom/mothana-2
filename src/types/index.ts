@@ -23,6 +23,8 @@ export interface Adherent {
   statut: 'actif' | 'archive'
   statuts_acceptes: boolean
   consent_rgpd: boolean
+  mailing_opt_out: boolean
+  mailing_opt_out_at: string | null
   created_at: string
   updated_at: string
 }

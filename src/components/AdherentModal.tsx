@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { Adherent, Adhesion, CiviliteAdherent, ModePaiement } from '../types'
 import { CIVILITE_ADHERENT_OPTIONS } from '../lib/civiliteAdherent'
@@ -66,6 +66,10 @@ export default function AdherentModal({
   const [pays, setPays] = useState('France')
   const [telephone, setTelephone] = useState('')
   const [courriel, setCourriel] = useState('')
+  const [mailingOptOut, setMailingOptOut] = useState(false)
+  // Sert uniquement à ne recalculer mailing_opt_out_at que si la case a réellement changé
+  // (sinon un enregistrement du formulaire sans y toucher écraserait la date d'origine)
+  const initialMailingOptOutRef = useRef(false)
 
   // Premier cycle (création uniquement)
   const [dateDebut, setDateDebut] = useState(today())
@@ -91,6 +95,8 @@ export default function AdherentModal({
         setPays(adherent.pays ?? 'France')
         setTelephone(adherent.telephone ?? '')
         setCourriel(adherent.courriel ?? '')
+        setMailingOptOut(adherent.mailing_opt_out)
+        initialMailingOptOutRef.current = adherent.mailing_opt_out
       } else {
         setCivilite(prefill?.civilite ?? 0)
         setNom(toUpperName(prefill?.nom ?? ''))
@@ -102,6 +108,8 @@ export default function AdherentModal({
         setPays(prefill?.pays ?? 'France')
         setTelephone(prefill?.telephone ?? '')
         setCourriel(prefill?.courriel ?? '')
+        setMailingOptOut(false)
+        initialMailingOptOutRef.current = false
         setDateDebut(today())
         setMontantCotisation('')
         setModePaiement('')
@@ -148,6 +156,10 @@ export default function AdherentModal({
       pays: pays || null,
       telephone: telephone || null,
       courriel: courriel || null,
+      mailing_opt_out: mailingOptOut,
+      ...(mailingOptOut !== initialMailingOptOutRef.current
+        ? { mailing_opt_out_at: mailingOptOut ? new Date().toISOString() : null }
+        : {}),
     }
 
     if (isEdit && adherent) {
@@ -235,6 +247,7 @@ export default function AdherentModal({
         statut: 'actif',
         statuts_acceptes: true,
         consent_rgpd: false,
+        mailing_opt_out_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         ...identite,
@@ -446,6 +459,16 @@ export default function AdherentModal({
             />
             {courrielInvalid && <p className="mt-1 text-xs text-red-600">Format d'email invalide.</p>}
           </div>
+
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={mailingOptOut}
+              onChange={(e) => setMailingOptOut(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            Ne pas contacter par email (campagnes mailing)
+          </label>
 
           {!isEdit && (
             <>
