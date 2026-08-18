@@ -29,6 +29,18 @@ prod déployée n'est jamais affectée par ce qui se passe en local. Le `.env` g
 - Super admin : `SUPER_ADMIN_ID`/`SUPER_ADMIN_PASSWORD` dans `.env`
 - Admin de l'organisation de démo ("Association Démo Staging") : `STAGING_DEMO_ADMIN_ID`/`STAGING_DEMO_ADMIN_PASSWORD` dans `.env`
 
+## Mot de passe DB staging
+
+Stocké en clair dans `.env` (`STAGING_SUPABASE_DB_PW`), au même titre que `PROD_SUPABASE_PW`.
+Revient sur la décision initiale du 2026-08-10/2026-08-14 (ne jamais le conserver, le
+régénérer à chaque fois via l'API Management Supabase) — inversée le 2026-08-19 : la
+régénération à la demande (`PATCH /v1/projects/{ref}/database/password`, token CLI récupéré
+dans le Keychain macOS) est une action jugée sensible par le classifieur auto-mode et demande
+une confirmation explicite à chaque fois, ce qui devenait un frein récurrent pour un usage
+courant (migrations, requêtes ponctuelles) sur un projet dont les données sont synthétiques et
+dont le mot de passe prod, objectivement plus sensible, était déjà en clair dans le même
+fichier. `.env` reste gitignored dans les deux cas.
+
 ## Déploiements ciblés
 
 Jamais de `supabase link` global (risque d'oublier de re-basculer entre les deux projets).
@@ -36,7 +48,7 @@ Chaque commande cible explicitement le bon projet :
 
 ```bash
 # Migrations SQL (pas de format horodaté CLI sur ce projet, cf. supabase/migrations/) :
-psql "postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres" -v ON_ERROR_STOP=1 -f fichier.sql
+psql "postgresql://postgres:${STAGING_SUPABASE_DB_PW}@db.<ref>.supabase.co:5432/postgres" -v ON_ERROR_STOP=1 -f fichier.sql
 
 # Edge Functions :
 supabase functions deploy --project-ref <ref> --use-api   # --use-api : pas de Docker sur cette machine
@@ -77,11 +89,11 @@ si déjà présentes par défaut mais non activées) : `pg_trgm`, `unaccent` (sc
 
 ```bash
 # Dump (schema + data) de staging avant une migration :
-pg_dump "postgresql://postgres:<password>@db.cxngcmvxktddhyxboyyx.supabase.co:5432/postgres" \
+pg_dump "postgresql://postgres:${STAGING_SUPABASE_DB_PW}@db.cxngcmvxktddhyxboyyx.supabase.co:5432/postgres" \
   --schema=public -f dump_avant_<sujet>.sql
 
 # Restore si la PR est rejetée :
-psql "postgresql://postgres:<password>@db.cxngcmvxktddhyxboyyx.supabase.co:5432/postgres" \
+psql "postgresql://postgres:${STAGING_SUPABASE_DB_PW}@db.cxngcmvxktddhyxboyyx.supabase.co:5432/postgres" \
   -v ON_ERROR_STOP=1 -f dump_avant_<sujet>.sql
 ```
 
