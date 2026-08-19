@@ -212,3 +212,12 @@ Cadré le 2026-08-17. Action manuelle (Vercel Settings → Domains, OVH zone DNS
 - **Redirection 308 apex→www** activée par défaut côté Vercel à l'ajout de l'apex (suggestion automatique de Vercel) — contraire à la décision actée au cadrage (les deux doivent servir directement, sans redirection). Désactivée manuellement (Project → Settings → Domains → Edit sur `samakan.fr` → "Redirect to" → None).
 - Vérification finale : `curl -I` en forçant la résolution vers l'IP Vercel confirme un `200` direct sur les deux domaines, sans redirection. Cache DNS local (agent et utilisateur) resté périmé quelques minutes après les corrections — attendu, propagation déjà confirmée correcte à la source avant même l'expiration du cache local.
 - Débloque "Renommage public en Samakan" (prérequis désormais levé).
+
+## Renommage public en "Samakan" — terminé le 2026-08-19 (PR #67 dev)
+
+Cadré le 2026-08-12 (grep exhaustif du code à l'époque, 9 endroits identifiés), travail annulé sur demande explicite ce jour-là faute du prérequis domaine, refait à l'identique une fois "Domaine samakan.fr" débloqué (voir section ci-dessus).
+
+- **Décision** : "Mothana" reste le nom de projet interne (code, docs, projet Supabase, board Trello, dépôt Git). "Samakan" devient le nom public affiché à l'écran uniquement.
+- **10 endroits modifiés** (9 du cadrage d'origine + 1 apparu depuis) : `index.html` (titre d'onglet, `mothana-temp` — reliquat de scaffolding jamais nettoyé — → `Samakan`), `HomePage.tsx`/`ResetPasswordPage.tsx`/`DesinscriptionMailingPage.tsx` (titres d'écrans publics — la 3e n'existait pas au cadrage initial, créée entre-temps par la feature RGPD, ajoutée au périmètre car même catégorie exacte), `AdminLayout.tsx`/`SuperAdminLayout.tsx` (en-têtes sidebar), `BenevolePage.tsx` (en-tête espace bénévole), `DeclarationCerfaCard.tsx` (texte de conformité "Samakan ne soumet rien automatiquement"), `ParametresOrganisationPage.tsx`/`SuperAdminPage.tsx` (placeholder d'exemple "Ex : Association Mothana" → "Ex : Les Amis du Quartier", décision actée au cadrage de ne pas laisser un exemple lié à la marque).
+- **Hors scope explicite (inchangé)** : `CLAUDE.md`, `PRODUCT.md`, `DESIGN.md`, tous les `docs/*.md`, `package.json`, prompts internes des edge functions IA (jamais affichés à l'utilisateur).
+- Vérifié par grep exhaustif post-modification (aucune occurrence restante dans le périmètre concerné) + vérification visuelle Playwright sur l'instance de dev (titre d'onglet, page de connexion, sidebar admin, sidebar super-admin).
