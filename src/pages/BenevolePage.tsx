@@ -315,7 +315,7 @@ export default function BenevolePage() {
 
       {/* Header */}
       <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm">
-        <span className="text-base font-bold tracking-tight text-slate-900">Mothana</span>
+        <span className="text-base font-bold tracking-tight text-slate-900">Samakan</span>
         <button
           onClick={handleLogout}
           className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"

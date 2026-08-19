@@ -19,7 +19,7 @@ export default function SuperAdminLayout() {
       {/* Top bar */}
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold tracking-tight text-slate-900">Mothana</span>
+          <span className="text-lg font-bold tracking-tight text-slate-900">Samakan</span>
           <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
             Super Admin
           </span>
