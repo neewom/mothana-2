@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient'
 import type { ProfilParticipant, Activite } from '../types'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
+import BenevoleVerificationAdherent from '../components/BenevoleVerificationAdherent'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -95,6 +96,9 @@ export default function BenevolePage() {
   const navigate = useNavigate()
 
   const organisationId = auth.type === 'benevole' ? auth.organisationId : ''
+
+  // Onglets
+  const [activeTab, setActiveTab] = useState<'don' | 'verification'>('don')
 
   // Data
   const [participants, setParticipants] = useState<ProfilParticipant[]>([])
@@ -330,6 +334,31 @@ export default function BenevolePage() {
       {/* Content */}
       <main className="flex flex-1 items-start justify-center px-4 py-8">
         <div className="w-full max-w-lg">
+          <div className="mb-6 flex gap-2 rounded-lg bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('don')}
+              className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'don' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Saisir un don
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('verification')}
+              className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'verification' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Vérifier un adhérent
+            </button>
+          </div>
+
+          {activeTab === 'verification' ? (
+            <BenevoleVerificationAdherent organisationId={organisationId} />
+          ) : (
+            <>
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-slate-900">Saisie d'un don</h1>
             <p className="mt-1 text-sm text-slate-600">Remplissez le formulaire pour enregistrer un don.</p>
@@ -578,6 +607,8 @@ export default function BenevolePage() {
                 {saving ? 'Enregistrement…' : 'Enregistrer le don'}
               </button>
             </form>
+          )}
+            </>
           )}
         </div>
       </main>
