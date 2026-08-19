@@ -94,7 +94,7 @@ export default function HomePage() {
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Mothana</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Samakan</h1>
           <p className="mt-1 text-sm text-slate-600">Gestion des dons et bénévoles</p>
         </div>
 
