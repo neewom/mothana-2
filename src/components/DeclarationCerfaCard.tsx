@@ -96,7 +96,7 @@ export default function DeclarationCerfaCard({ rows, loading }: DeclarationCerfa
       <p className="mt-4 text-xs text-slate-500">
         Déclaration à effectuer avant le 2ᵉ jour ouvré suivant le 1ᵉʳ mai N+1 (ou dans les 3 mois suivant
         la clôture de l'exercice pour les organismes n'étant pas sur l'année civile), directement sur
-        impots.gouv.fr ou demarches-simplifiees.fr selon le statut de l'organisme. Mothana ne soumet rien
+        impots.gouv.fr ou demarches-simplifiees.fr selon le statut de l'organisme. Samakan ne soumet rien
         automatiquement — c'est une auto-déclaration à la charge de l'organisation.
       </p>
     </div>

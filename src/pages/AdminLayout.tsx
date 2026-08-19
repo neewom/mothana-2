@@ -187,7 +187,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
     <div className="flex h-full flex-col bg-slate-900 text-white">
       {/* Logo */}
       <div className="flex h-16 items-center justify-between px-6">
-        <span className="text-lg font-bold tracking-tight">Mothana</span>
+        <span className="text-lg font-bold tracking-tight">Samakan</span>
         {onClose && (
           <button onClick={onClose} className="rounded p-1 hover:bg-slate-700 lg:hidden">
             <XIcon />
