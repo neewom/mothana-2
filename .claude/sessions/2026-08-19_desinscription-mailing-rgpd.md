@@ -80,3 +80,29 @@ Aucun.
 - "Modifier le title" : doublon de "Renommage Samakan", archivé.
 - Notification WhatsApp automatique : explorée puis écartée (pas de canal officiel adapté à un post dans un groupe existant, alternative via Playwright jugée hors cadre pour l'instant).
 - Validation en recette réelle (`test.samakan.fr`), pas seulement via l'instance locale pointant vers le même backend, désormais le standard avant toute promotion prod — le gap (URL d'origine différente) s'est avéré concret sur ce sujet précis.
+
+---
+
+## Suite (même jour, 3e bloc) — domaine samakan.fr + renommage public Samakan
+
+### Domaine samakan.fr (apex + www) sur la prod Vercel — terminé
+- Guidage pas à pas de l'utilisateur côté Vercel (Connect domaine → Production) et OVH (zone DNS), via screenshots successifs plutôt qu'un accès direct au départ.
+- Blocage : suppression d'enregistrements par défaut OVH impossible dans le Manager ("Une erreur est survenue"), y compris un par un. Diagnostic DNSSEC évoqué (piste documentée, jamais confirmée faute d'accès).
+- **Accès API OVH mis en place** (proposition utilisateur) : clé scopée strictement à `/domain/zone/samakan.fr/*` (GET/POST/PUT/DELETE), vérifiée via `/auth/currentCredential` avant usage, stockée dans `.env`. Détail complet + méthode de signature : [[reference_ovh_api]] (nouvelle mémoire persistante).
+- Avec cet accès : diagnostic que les entrées bloquantes affichées sous `www.samakan.fr` par le Manager étaient en fait des enregistrements **apex** (config de redirection par défaut OVH) — CNAME `www` créé directement via l'API sans conflit réel.
+- **Bug plus sérieux trouvé après coup** : doublon d'enregistrement `A` à l'apex (ancien parking OVH `51.91.236.255` jamais retiré + nouvelle IP Vercel) → réponse DNS en round-robin, ~50% des visiteurs auraient atterri sur la page de parking. Même problème sur l'`AAAA`. Les deux supprimés, zone rafraîchie, revérifié propre sur le serveur faisant autorité + 3 résolveurs publics indépendants.
+- Redirection 308 apex→www activée par défaut côté Vercel (suggestion automatique) désactivée manuellement, conformément à la décision actée au cadrage (les deux doivent servir directement).
+- Cache DNS local (agent et utilisateur) resté périmé quelques minutes après les corrections — pas un vrai problème, juste un artefact de test, confirmé via `dig` direct sur le serveur faisant autorité et plusieurs résolveurs publics.
+- Trello déplacée en Done, `CLAUDE.md`/journal mis à jour (backlog renuméroté 1→16), débloque "Renommage public en Samakan".
+
+### Renommage public en "Samakan" — terminé (PR #67 dev, PR #68 promotion prod)
+- Repris à l'identique du cadrage du 2026-08-12 (grep exhaustif du code à l'époque, 9 endroits), + 1 endroit ajouté (`DesinscriptionMailingPage.tsx`, créée depuis par la feature RGPD, même catégorie "titre d'écran public").
+- 10 fichiers modifiés, texte uniquement, aucun changement de logique. Vérifié par grep exhaustif post-modification + vérification visuelle Playwright (titre d'onglet, page de connexion, sidebar admin, sidebar super-admin).
+- PR #67 mergée par l'utilisateur → Trello Done, `CLAUDE.md`/journal mis à jour (backlog renuméroté 1→15).
+- **Promotion prod immédiate** (règle clarifiée plus tôt dans la session : promouvoir avant d'enchaîner sur le sujet suivant) : PR #68 créée et mergée par l'agent, pas de migration/Edge Function (texte pur), confirmé en direct sur `samakan.fr` (`<title>Samakan</title>`).
+
+## Décisions (3e bloc)
+
+- Règle "promotion par feature, pas par lot" formalisée en pratique : chaque feature de ce bloc promue en prod immédiatement après son merge sur `dev`, avant de démarrer la suivante — plus de feature qui traîne sur `dev` en attente.
+- Accès API OVH scopé strictement au strict nécessaire (`/domain/zone/samakan.fr/*`) — pattern à réutiliser si un nouvel accès API tiers est nécessaire à l'avenir (toujours demander/vérifier le scope minimal).
+- Le Manager OVH peut afficher des entrées DNS trompeuses (attachées à l'apex mais affichées sous un sous-domaine) — piste à garder en tête pour tout futur blocage similaire, l'API révèle la vérité plus vite que l'interface.
