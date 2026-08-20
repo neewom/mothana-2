@@ -1,18 +1,18 @@
-import imgDashboard from '../assets/documentation/01-dashboard.png'
-import imgDonModal from '../assets/documentation/10-don-modal.png'
-import imgDonsListe from '../assets/documentation/02-dons-liste.png'
-import imgRecusFiscaux from '../assets/documentation/04-recus-fiscaux.png'
-import imgComptabilite from '../assets/documentation/03-comptabilite.png'
-import imgFormulairePublic from '../assets/documentation/13-formulaire-adhesion-public.png'
-import imgDemandesAdhesion from '../assets/documentation/06-demandes-adhesion.png'
-import imgAdherentsListe from '../assets/documentation/05-adherents-liste.png'
-import imgCarteAdherent from '../assets/documentation/11-carte-adherent-preview.png'
-import imgMailing from '../assets/documentation/07-mailing.png'
-import imgBenevoleLogin from '../assets/documentation/14-benevole-login.png'
-import imgBenevoleDon from '../assets/documentation/15-benevole-don.png'
-import imgBenevoleVerification from '../assets/documentation/16-benevole-verification.png'
-import imgParametresOrganisation from '../assets/documentation/08-parametres-organisation.png'
-import imgFormulaireEditor from '../assets/documentation/12-formulaire-adhesion-editor.png'
+import imgDashboard from '../assets/decouvrir/01-dashboard.png'
+import imgDonModal from '../assets/decouvrir/10-don-modal.png'
+import imgDonsListe from '../assets/decouvrir/02-dons-liste.png'
+import imgRecusFiscaux from '../assets/decouvrir/04-recus-fiscaux.png'
+import imgComptabilite from '../assets/decouvrir/03-comptabilite.png'
+import imgFormulairePublic from '../assets/decouvrir/13-formulaire-adhesion-public.png'
+import imgDemandesAdhesion from '../assets/decouvrir/06-demandes-adhesion.png'
+import imgAdherentsListe from '../assets/decouvrir/05-adherents-liste.png'
+import imgCarteAdherent from '../assets/decouvrir/11-carte-adherent-preview.png'
+import imgMailing from '../assets/decouvrir/07-mailing.png'
+import imgBenevoleLogin from '../assets/decouvrir/14-benevole-login.png'
+import imgBenevoleDon from '../assets/decouvrir/15-benevole-don.png'
+import imgBenevoleVerification from '../assets/decouvrir/16-benevole-verification.png'
+import imgParametresOrganisation from '../assets/decouvrir/08-parametres-organisation.png'
+import imgFormulaireEditor from '../assets/decouvrir/12-formulaire-adhesion-editor.png'
 
 const SECTIONS = [
   { id: 'dons', label: 'Dons' },
@@ -75,7 +75,7 @@ function SectionHeading({ eyebrow, title, description }: { eyebrow: string; titl
   )
 }
 
-export default function DocumentationPage() {
+export default function DecouvrirPage() {
   function scrollToSection(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
