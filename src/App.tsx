@@ -7,6 +7,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import BenevoleLoginPage from './pages/BenevoleLoginPage'
 import DemandeAdhesionPage from './pages/DemandeAdhesionPage'
 import DesinscriptionMailingPage from './pages/DesinscriptionMailingPage'
+import DocumentationPage from './pages/DocumentationPage'
 import AdminLayout from './pages/AdminLayout'
 import BenevolePage from './pages/BenevolePage'
 import DashboardPage from './pages/DashboardPage'
@@ -36,6 +37,7 @@ function App() {
         <Route path="/login/benevole" element={<BenevoleLoginPage />} />
         <Route path="/adhesion/:slug" element={<DemandeAdhesionPage />} />
         <Route path="/desinscription" element={<DesinscriptionMailingPage />} />
+        <Route path="/documentation" element={<DocumentationPage />} />
 
         {/* Admin (protected) */}
         <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
