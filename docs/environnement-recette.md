@@ -82,13 +82,12 @@ Change le workflow habituel (auparavant : PR de feature mergée directement sur 
 5. **Cas rare : hotfix direct sur `main`** — si ça arrive malgré tout, remerger `main` dans `dev`
    immédiatement après, pour que la recette ne régresse pas ce correctif à la prochaine promotion.
 
-Les commits de documentation pure (`CLAUDE.md`, résumés de session `.claude/sessions/`, sans
-impact sur le build/déploiement) restent une exception assumée à cette règle — direct sur `main`.
-**Mais** ils suivent la même logique que le cas 5 ci-dessus (remerger `main` dans `dev` juste
-après, ajouté le 2026-08-17) : sans ce geste, `dev` — la branche sur laquelle partent les features
-suivantes et que l'agent relit en début de session — prendrait du retard sur `CLAUDE.md` à chaque
-mise à jour de doc faite directement sur `main`. Pas de gating ici puisqu'il n'y a ni migration ni
-déploiement déclenché par ce merge, contrairement à la promotion `dev` → `main`.
+**Plus d'exception pour la documentation pure** (`CLAUDE.md`, résumés de session) depuis le
+2026-08-21 : l'exception initiale (commit direct sur `main` + resync immédiat sur `dev`, ajoutée
+le 2026-08-17) demandait une discipline manuelle qui s'est révélée source de dérive entre les deux
+branches sur plusieurs sessions. `CLAUDE.md` s'édite désormais comme n'importe quel fichier, sur
+`dev`, et suit le flux normal de promotion vers `main` — sans conséquence puisqu'il n'y a ni
+migration ni déploiement déclenché par son contenu.
 
 ## Migrations Supabase
 
