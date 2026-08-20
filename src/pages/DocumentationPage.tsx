@@ -181,7 +181,7 @@ export default function DocumentationPage() {
             <SectionHeading
               eyebrow="Adhérents"
               title="De la demande en ligne à la carte imprimée"
-              description="Les futurs adhérents candidatent en ligne, le bureau ratifie en un geste, et chaque adhérent reçoit une carte personnalisée à l'image de l'association."
+              description="Les futurs adhérents font leur demande en ligne, le bureau ratifie en un geste, et les cartes adhérent personnalisées s'impriment à l'unité ou en masse, à l'image de l'association."
             />
             <Feature
               title="Un formulaire d'adhésion en ligne"
