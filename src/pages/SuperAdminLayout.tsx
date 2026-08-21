@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import type { User } from '@supabase/supabase-js'
+import RecetteBanner from '../components/RecetteBanner'
 
 export default function SuperAdminLayout() {
   const { auth, logout } = useAuth()
@@ -16,6 +17,8 @@ export default function SuperAdminLayout() {
 
   return (
     <div className="min-h-screen bg-slate-100">
+      <RecetteBanner />
+
       {/* Top bar */}
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
         <div className="flex items-center gap-3">
