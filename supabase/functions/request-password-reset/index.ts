@@ -9,7 +9,7 @@ function resetPasswordEmailHtml(actionLink: string): string {
   return `<!doctype html><html><body style="font-family: ui-sans-serif, system-ui, sans-serif; background: #f8fafc; padding: 32px;">
   <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e2e8f0;">
     <h1 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">Réinitialisation de mot de passe</h1>
-    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Une demande de réinitialisation de mot de passe a été effectuée pour votre compte Mothana. Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe.</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Une demande de réinitialisation de mot de passe a été effectuée pour votre compte Samakan. Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe.</p>
     <p style="margin: 24px 0;">
       <a href="${actionLink}" style="background: #4f46e5; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Réinitialiser mon mot de passe</a>
     </p>
@@ -26,7 +26,7 @@ async function sendViaResend(to: string, subject: string, html: string): Promise
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Mothana <noreply@samakan.fr>',
+      from: 'Samakan <noreply@samakan.fr>',
       to: [to],
       subject,
       html,
@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
       return genericResponse()
     }
 
-    const emailResult = await sendViaResend(email, 'Réinitialisation de votre mot de passe Mothana', resetPasswordEmailHtml(linkData.properties.action_link))
+    const emailResult = await sendViaResend(email, 'Réinitialisation de votre mot de passe Samakan', resetPasswordEmailHtml(linkData.properties.action_link))
 
     if (!emailResult.ok) {
       console.error('Resend error:', emailResult.detail)
