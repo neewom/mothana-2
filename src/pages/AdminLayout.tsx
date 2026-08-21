@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { supabase } from '../lib/supabaseClient'
+import RecetteBanner from '../components/RecetteBanner'
 
 interface NavLinkItem {
   type: 'link'
@@ -265,6 +266,8 @@ export default function AdminLayout() {
 
       {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
+        <RecetteBanner />
+
         {/* Super-admin banner */}
         {isSuperAdminViewing && (
           <div className="flex items-center justify-between bg-indigo-600 px-4 py-2 text-sm text-white">

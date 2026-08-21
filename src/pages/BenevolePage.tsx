@@ -6,6 +6,7 @@ import type { ProfilParticipant, Activite } from '../types'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
 import BenevoleVerificationAdherent from '../components/BenevoleVerificationAdherent'
+import RecetteBanner from '../components/RecetteBanner'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -316,6 +317,8 @@ export default function BenevolePage() {
           }}
         />
       )}
+
+      <RecetteBanner />
 
       {/* Header */}
       <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm">
