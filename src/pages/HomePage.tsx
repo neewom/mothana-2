@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import RecetteBanner from '../components/RecetteBanner'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -90,7 +91,9 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 py-12">
+    <div className="flex min-h-screen flex-col bg-slate-50">
+      <RecetteBanner />
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="mb-8 text-center">
@@ -240,6 +243,7 @@ export default function HomePage() {
             Accéder avec votre code PIN
           </Link>
         </p>
+      </div>
       </div>
     </div>
   )
