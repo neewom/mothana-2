@@ -8,7 +8,7 @@ const corsHeaders = {
 function inviteAdminEmailHtml(nom: string, actionLink: string): string {
   return `<!doctype html><html><body style="font-family: ui-sans-serif, system-ui, sans-serif; background: #f8fafc; padding: 32px;">
   <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e2e8f0;">
-    <h1 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">Bienvenue sur Mothana</h1>
+    <h1 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">Bienvenue sur Samakan</h1>
     <p style="color: #475569; font-size: 14px; line-height: 1.5;">Bonjour ${nom},</p>
     <p style="color: #475569; font-size: 14px; line-height: 1.5;">Un compte administrateur vient d'être créé pour vous. Cliquez sur le bouton ci-dessous pour définir votre mot de passe et accéder à votre espace.</p>
     <p style="margin: 24px 0;">
@@ -27,7 +27,7 @@ async function sendViaResend(to: string, subject: string, html: string): Promise
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Mothana <noreply@samakan.fr>',
+      from: 'Samakan <noreply@samakan.fr>',
       to: [to],
       subject,
       html,
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    const emailResult = await sendViaResend(email, 'Votre accès administrateur Mothana', inviteAdminEmailHtml(nom, actionLink))
+    const emailResult = await sendViaResend(email, 'Votre accès administrateur Samakan', inviteAdminEmailHtml(nom, actionLink))
 
     if (!emailResult.ok) {
       console.error('Resend error:', emailResult.detail)
