@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import RecetteBanner from '../components/RecetteBanner'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string

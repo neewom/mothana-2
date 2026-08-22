@@ -98,7 +98,7 @@ function numberToWords(amount: number): string {
   const euros = Math.floor(amount)
   const cents = Math.round((amount - euros) * 100)
 
-  let words = ''
+  let words: string
   if (euros === 0) {
     words = 'zéro'
   } else if (euros < 1000) {
