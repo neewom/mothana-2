@@ -73,6 +73,9 @@ export default function DonModal({
       setExtraParticipants([])
       setError(null)
     }
+    // defaultParticipantId lu seulement à l'ouverture — l'exclure évite de réinitialiser
+    // la sélection en cours si la prop change pendant que la modale est déjà ouverte.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, don])
 
   if (!open) return null
@@ -130,7 +133,7 @@ export default function DonModal({
       mode_paiement: modePaiement,
     }
 
-    let err: { message: string } | null = null
+    let err: { message: string } | null
 
     if (isEdit && don) {
       const result = await supabase.from('dons').update(payload).eq('id', don.id)

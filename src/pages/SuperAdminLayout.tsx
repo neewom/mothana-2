@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { Outlet } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import type { User } from '@supabase/supabase-js'
 import RecetteBanner from '../components/RecetteBanner'
 

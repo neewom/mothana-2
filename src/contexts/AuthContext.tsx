@@ -1,6 +1,4 @@
 import {
-  createContext,
-  useContext,
   useEffect,
   useState,
   useCallback,
@@ -8,29 +6,10 @@ import {
 } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
+import { AuthContext, type AuthState } from './authContextInstance'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export type AuthState =
-  | { type: 'loading' }
-  | { type: 'unauthenticated' }
-  | { type: 'super_admin'; user: User }
-  | { type: 'admin'; user: User; organisationId: string }
-  | { type: 'benevole'; organisationId: string }
-
-interface AuthContextValue {
-  auth: AuthState
-  viewingOrgId: string | null
-  setViewingOrg: (orgId: string | null) => void
-  loginAdmin: (email: string, password: string) => Promise<{ error: string | null; authType?: 'super_admin' | 'admin' }>
-  loginBenevole: (pin: string) => Promise<{ error: string | null }>
-  logout: () => Promise<void>
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -57,12 +36,6 @@ function getBenevoleOrgFromUser(user: User): string | null {
   const orgId = appMeta?.organisation_id
   return typeof orgId === 'string' ? orgId : null
 }
-
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
-
-const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>({ type: 'loading' })
@@ -224,10 +197,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')
-  return ctx
 }
