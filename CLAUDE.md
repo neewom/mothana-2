@@ -158,7 +158,7 @@ Historique complet des sujets terminés (détail des décisions techniques, bugs
 
 **Point de vigilance permanent** : les Edge Functions ne se déploient jamais automatiquement au push/merge sur ce projet — toujours `supabase functions deploy <nom>` explicitement après une édition de leur code (voir mémoire persistante).
 
-**Limitation connue (non bloquante, décision utilisateur)** : les 4 fonctions RPC d'import échouent en mode super-admin "Consulter" (pas de `profils_organisation` dans ce contexte) — se connecter en admin normal pour tester les imports. Détail : `docs/journal-avancement.md`.
+**Limitation connue (non bloquante, décision utilisateur)** : les 4 fonctions RPC d'import échouent en mode super-admin "Consulter" (pas de `profils_organisation` dans ce contexte) — se connecter en admin normal pour tester les imports. Même limitation confirmée le 2026-08-22 sur les Edge Functions reçus fiscaux (`generate-recu`, `send-recu-email`) : contrôle d'accès basé uniquement sur `profils_organisation` de l'utilisateur authentifié, sans tenir compte de `viewingOrgId`. Décision explicite de l'utilisateur : laisser tel quel plutôt que de faire évoluer le contrôle d'accès. Détail : `docs/journal-avancement.md`.
 
 ### ⏳ Backlog actif — ordre Trello (board "Mothana", voir mémoire persistante)
 
