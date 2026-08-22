@@ -22,6 +22,7 @@ interface OrgRow {
   code_pin_benevole: string | null
   created_at: string
   nb_participants: number
+  nb_adherents: number
   nb_dons: number
   total_dons: number
 }
@@ -424,6 +425,7 @@ export default function SuperAdminPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<OrgRow | undefined>(undefined)
   const [deleteConfirm, setDeleteConfirm] = useState<OrgRow | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [adminsModalOrg, setAdminsModalOrg] = useState<OrgRow | null>(null)
@@ -471,6 +473,15 @@ export default function SuperAdminPage() {
         .range(from, to)
     )
 
+    // 4. All adherents (for count per org)
+    const { data: adherentsData } = await fetchAllRows<{ organisation_id: string }>((from, to) =>
+      supabase
+        .from('adherents')
+        .select('organisation_id')
+        .order('id', { ascending: true })
+        .range(from, to)
+    )
+
     // Aggregate
     const donsByOrg: Record<string, { count: number; total: number }> = {}
     for (const d of donsData) {
@@ -484,12 +495,18 @@ export default function SuperAdminPage() {
       participantsByOrg[p.organisation_id] = (participantsByOrg[p.organisation_id] ?? 0) + 1
     }
 
+    const adherentsByOrg: Record<string, number> = {}
+    for (const a of adherentsData) {
+      adherentsByOrg[a.organisation_id] = (adherentsByOrg[a.organisation_id] ?? 0) + 1
+    }
+
     const rows: OrgRow[] = orgsData.map((o) => ({
       id: o.id,
       nom: o.nom,
       code_pin_benevole: o.code_pin_benevole,
       created_at: o.created_at,
       nb_participants: participantsByOrg[o.id] ?? 0,
+      nb_adherents: adherentsByOrg[o.id] ?? 0,
       nb_dons: donsByOrg[o.id]?.count ?? 0,
       total_dons: donsByOrg[o.id]?.total ?? 0,
     }))
@@ -522,6 +539,7 @@ export default function SuperAdminPage() {
 
     setDeleting(false)
     setDeleteConfirm(null)
+    setDeleteConfirmText('')
     fetchAll()
   }
 
@@ -643,7 +661,7 @@ export default function SuperAdminPage() {
                         Modifier
                       </button>
                       <button
-                        onClick={() => { setDeleteConfirm(org); setDeleteError(null) }}
+                        onClick={() => { setDeleteConfirm(org); setDeleteError(null); setDeleteConfirmText('') }}
                         className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
                       >
                         Supprimer
@@ -680,10 +698,25 @@ export default function SuperAdminPage() {
             <div className="p-6">
               <h2 id="delete-org-title" className="text-lg font-semibold text-slate-900">Supprimer l'organisation</h2>
               <p className="mt-2 text-sm text-slate-600">
-                Êtes-vous sûr de vouloir supprimer{' '}
-                <span className="font-medium">« {deleteConfirm.nom} »</span> ?
-                Toutes les données associées (dons, participants, reçus) seront supprimées définitivement.
+                Vous êtes sur le point de supprimer définitivement{' '}
+                <span className="font-medium">« {deleteConfirm.nom} »</span> et toutes ses données :
               </p>
+              <ul className="mt-3 space-y-1 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <li>{deleteConfirm.nb_adherents} adhérent{deleteConfirm.nb_adherents !== 1 ? 's' : ''}</li>
+                <li>{deleteConfirm.nb_participants} donateur{deleteConfirm.nb_participants !== 1 ? 's' : ''}</li>
+                <li>{deleteConfirm.nb_dons} don{deleteConfirm.nb_dons !== 1 ? 's' : ''}</li>
+              </ul>
+              <label htmlFor="delete-org-confirm" className="mt-4 block text-sm text-slate-600">
+                Pour confirmer, saisissez le nom de l'organisation : <span className="font-medium">{deleteConfirm.nom}</span>
+              </label>
+              <input
+                id="delete-org-confirm"
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                className="mt-2 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                autoFocus
+              />
               {deleteError && (
                 <div className="mt-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{deleteError}</div>
               )}
@@ -696,7 +729,7 @@ export default function SuperAdminPage() {
                 </button>
                 <button
                   onClick={handleDelete}
-                  disabled={deleting}
+                  disabled={deleting || deleteConfirmText !== deleteConfirm.nom}
                   className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
                 >
                   {deleting ? 'Suppression…' : 'Supprimer'}
