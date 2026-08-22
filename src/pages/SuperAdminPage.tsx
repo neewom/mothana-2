@@ -8,6 +8,8 @@ import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS, DEFAULT_CARTE_ADHERENT_NOM } f
 import { slugifyUrl } from '../lib/organisationAssets'
 import Modal from '../components/Modal'
 import ScrollShadowX from '../components/ScrollShadowX'
+import Toast from '../components/Toast'
+import { useToast } from '../hooks/useToast'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -406,6 +408,7 @@ function OrgModal({ open, onClose, onSaved, onDeleteRequest, org }: OrgModalProp
 export default function SuperAdminPage() {
   const { setViewingOrg } = useAuth()
   const navigate = useNavigate()
+  const { toast, showToast, dismissToast } = useToast()
 
   const [orgs, setOrgs] = useState<OrgRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -526,6 +529,7 @@ export default function SuperAdminPage() {
     }
 
     setDeleting(false)
+    showToast(`« ${deleteConfirm.nom} » supprimée`)
     setDeleteConfirm(null)
     setDeleteConfirmText('')
     fetchAll()
@@ -712,6 +716,8 @@ export default function SuperAdminPage() {
             </div>
         </Modal>
       )}
+
+      {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
     </>
   )
 }
