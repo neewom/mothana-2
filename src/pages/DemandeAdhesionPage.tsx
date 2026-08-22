@@ -132,7 +132,7 @@ export default function DemandeAdhesionPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50 text-sm text-slate-500">
         Chargement…
       </div>
     )
@@ -140,7 +140,7 @@ export default function DemandeAdhesionPage() {
 
   if (notFound || !organisation) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50 px-4">
         <div className="max-w-md rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-900">Formulaire introuvable</h1>
           <p className="mt-2 text-sm text-slate-500">Ce lien n'est pas valide ou n'existe plus.</p>
@@ -151,7 +151,7 @@ export default function DemandeAdhesionPage() {
 
   if (submitted) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50 px-4">
         <div className="max-w-md rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
           <h1 className="text-lg font-semibold text-slate-900">Demande envoyée</h1>
           <p className="mt-2 whitespace-pre-line text-sm text-slate-500">
@@ -169,7 +169,7 @@ export default function DemandeAdhesionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-10">
+    <div className="min-h-dvh bg-slate-50 px-4 py-10">
       <div className="mx-auto max-w-xl">
         {organisation.formulaire_adhesion_header_html ? (
           <ShadowHtmlBlock
