@@ -1,4 +1,4 @@
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from './useAuth'
 
 /**
  * Returns the active organisation ID for the current user.

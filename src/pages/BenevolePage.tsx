@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react'
+import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabaseClient'
 import type { ProfilParticipant, Activite } from '../types'
 import { useFocusTrap } from '../hooks/useFocusTrap'
@@ -154,7 +154,7 @@ export default function BenevolePage() {
     return () => listener.subscription.unsubscribe()
   }, [])
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setDataLoading(true)
     setLoadError(null)
 
@@ -188,11 +188,11 @@ export default function BenevolePage() {
     )
     setActivites((actsResult.data ?? []) as Activite[])
     setDataLoading(false)
-  }
+  }, [organisationId])
 
   useEffect(() => {
     if (organisationId) loadData()
-  }, [organisationId])
+  }, [organisationId, loadData])
 
   useEffect(() => {
     if (!organisationId) return
