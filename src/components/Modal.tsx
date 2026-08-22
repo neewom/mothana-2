@@ -8,7 +8,7 @@ interface ModalProps {
   maxWidthClassName?: string
   labelledBy?: string
   fullScreen?: boolean
-  /** Remplace le max-h-[90vh] par défaut — utile quand le contenu doit occuper toute la hauteur disponible plutôt que s'ajuster à son contenu. */
+  /** Remplace le max-h-[90dvh] par défaut — utile quand le contenu doit occuper toute la hauteur disponible plutôt que s'ajuster à son contenu. */
   heightClassName?: string
 }
 
