@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactElement } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuth'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { supabase } from '../lib/supabaseClient'
 import RecetteBanner from '../components/RecetteBanner'

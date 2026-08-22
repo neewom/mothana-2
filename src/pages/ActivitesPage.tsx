@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, useCallback, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Activite } from '../types'
@@ -160,7 +160,7 @@ export default function ActivitesPage() {
   const [pageSize] = useState(50)
   const [currentPage, setCurrentPage] = useState(1)
 
-  async function fetchActivites() {
+  const fetchActivites = useCallback(async () => {
     setLoading(true)
     const { data } = await fetchAllRows<Activite>((from, to) =>
       supabase
@@ -172,11 +172,11 @@ export default function ActivitesPage() {
     )
     setActivites(data)
     setLoading(false)
-  }
+  }, [organisationId])
 
   useEffect(() => {
     if (organisationId) fetchActivites()
-  }, [organisationId])
+  }, [organisationId, fetchActivites])
 
   const filteredActivites = useMemo(
     () => filterActivites(activites, search),

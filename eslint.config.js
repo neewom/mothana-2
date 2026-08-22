@@ -18,5 +18,12 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Faux positifs connus sur le pattern fetch-au-montage
+      // (useEffect(() => { fetchX() }, [...]) avec setLoading(true) synchrone
+      // en tête de fetchX) — pattern recommandé par la doc React elle-même.
+      // Cf. https://github.com/react/react/issues/34743
+      'react-hooks/set-state-in-effect': 'off',
+    },
   },
 ])
