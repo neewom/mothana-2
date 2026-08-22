@@ -98,6 +98,8 @@ export default function BenevolePage() {
 
   const organisationId = auth.type === 'benevole' ? auth.organisationId : ''
 
+  const [organisationNom, setOrganisationNom] = useState<string | null>(null)
+
   // Onglets
   const [activeTab, setActiveTab] = useState<'don' | 'verification'>('don')
 
@@ -190,6 +192,18 @@ export default function BenevolePage() {
 
   useEffect(() => {
     if (organisationId) loadData()
+  }, [organisationId])
+
+  useEffect(() => {
+    if (!organisationId) return
+    void supabase
+      .from('organisations')
+      .select('nom')
+      .eq('id', organisationId)
+      .single()
+      .then(({ data }) => {
+        if (data) setOrganisationNom((data as { nom: string }).nom)
+      })
   }, [organisationId])
 
   const filtered = search.trim()
@@ -321,17 +335,22 @@ export default function BenevolePage() {
       <RecetteBanner />
 
       {/* Header */}
-      <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm">
-        <span className="text-base font-bold tracking-tight text-slate-900">Samakan</span>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-          </svg>
-          Quitter
-        </button>
+      <header className="border-b border-slate-200 bg-white px-4 shadow-sm">
+        <div className="flex h-14 items-center justify-between">
+          <span className="text-base font-bold tracking-tight text-slate-900">Samakan</span>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+            </svg>
+            Quitter
+          </button>
+        </div>
+        <div className="pb-2 text-xs font-medium text-slate-500">
+          Espace bénévole — {organisationNom ?? '…'}
+        </div>
       </header>
 
       {/* Content */}
