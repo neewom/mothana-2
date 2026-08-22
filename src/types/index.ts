@@ -122,6 +122,7 @@ export interface RecuFiscal {
   date_generation: string
   numero_ordre: string | null
   type_cerfa: '11580' | '16216' | null
+  email_envoye_at: string | null
 }
 
 export interface TemplateRecu {
