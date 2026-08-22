@@ -16,7 +16,7 @@ export default function SuperAdminLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-dvh bg-slate-100">
       <RecetteBanner />
 
       {/* Top bar */}

@@ -81,7 +81,7 @@ export default function DecouvrirPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-dvh bg-slate-50">
       {/* Hero */}
       <header className="bg-slate-900 px-6 pb-20 pt-16 text-white sm:pt-24">
         <div className="mx-auto max-w-5xl text-center">

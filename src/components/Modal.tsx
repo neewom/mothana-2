@@ -43,8 +43,8 @@ export default function Modal({
         aria-labelledby={labelledBy}
         className={
           fullScreen
-            ? 'relative z-10 flex h-screen w-screen flex-col bg-white shadow-xl'
-            : `relative z-10 flex w-full ${maxWidthClassName} flex-col rounded-2xl bg-white shadow-xl ${heightClassName ?? 'max-h-[90vh]'}`
+            ? 'relative z-10 flex h-dvh w-screen flex-col bg-white shadow-xl'
+            : `relative z-10 flex w-full ${maxWidthClassName} flex-col rounded-2xl bg-white shadow-xl ${heightClassName ?? 'max-h-[90dvh]'}`
         }
       >
         <button
