@@ -60,10 +60,11 @@ interface OrgModalProps {
   open: boolean
   onClose: () => void
   onSaved: () => void
+  onDeleteRequest: (org: OrgRow) => void
   org?: OrgRow
 }
 
-function OrgModal({ open, onClose, onSaved, org }: OrgModalProps) {
+function OrgModal({ open, onClose, onSaved, onDeleteRequest, org }: OrgModalProps) {
   const isEdit = !!org
   const [nom, setNom] = useState('')
   const [saving, setSaving] = useState(false)
@@ -162,21 +163,32 @@ function OrgModal({ open, onClose, onSaved, org }: OrgModalProps) {
               Un code PIN bénévole aléatoire sera généré automatiquement. Il pourra être modifié depuis les paramètres de l'organisation.
             </p>
           )}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
+          <div className={`flex items-center pt-2 ${isEdit ? 'justify-between' : 'justify-end'}`}>
+            {isEdit && org && (
+              <button
+                type="button"
+                onClick={() => onDeleteRequest(org)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+              >
+                Supprimer
+              </button>
+            )}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+              >
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
           </div>
         </form>
     </Modal>
@@ -654,18 +666,6 @@ export default function SuperAdminPage() {
                       >
                         Admins
                       </button>
-                      <button
-                        onClick={() => { setEditing(org); setModalOpen(true) }}
-                        className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                      >
-                        Modifier
-                      </button>
-                      <button
-                        onClick={() => { setDeleteConfirm(org); setDeleteError(null); setDeleteConfirmText('') }}
-                        className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                      >
-                        Supprimer
-                      </button>
                     </div>
                   </td>
                 </tr>
@@ -682,6 +682,12 @@ export default function SuperAdminPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSaved={fetchAll}
+        onDeleteRequest={(org) => {
+          setModalOpen(false)
+          setDeleteConfirm(org)
+          setDeleteError(null)
+          setDeleteConfirmText('')
+        }}
         org={editing}
       />
 
