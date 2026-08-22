@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 interface ResultatVerification {
   nom: string
   prenom: string | null
+  id_externe: string | null
   statut: 'actif' | 'archive'
   date_fin: string | null
 }
@@ -93,6 +94,9 @@ export default function BenevoleVerificationAdherent({ organisationId }: Benevol
               >
                 <div>
                   <p className="font-medium text-slate-900">{[r.prenom, r.nom].filter(Boolean).join(' ')}</p>
+                  {r.id_externe && (
+                    <p className="mt-0.5 text-xs text-slate-500">N° adhérent : {r.id_externe}</p>
+                  )}
                   {r.date_fin && (
                     <p className="mt-0.5 text-xs text-slate-500">jusqu'au {formatDate(r.date_fin)}</p>
                   )}
