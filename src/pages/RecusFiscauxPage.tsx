@@ -40,6 +40,10 @@ function currentYear() {
   return new Date().getFullYear()
 }
 
+function formatDateHeure(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 function yearOptions() {
   const cy = currentYear()
   return [cy, cy - 1, cy - 2, cy - 3]
@@ -72,6 +76,8 @@ export default function RecusFiscauxPage() {
   const [genError, setGenError] = useState<Record<string, string>>({})
   const [dlLoading, setDlLoading] = useState<Record<string, boolean>>({})
   const [dlError, setDlError] = useState<Record<string, string>>({})
+  const [sendLoading, setSendLoading] = useState<Record<string, boolean>>({})
+  const [sendError, setSendError] = useState<Record<string, string>>({})
 
   const [generateAllLoading, setGenerateAllLoading] = useState(false)
 
@@ -258,6 +264,45 @@ export default function RecusFiscauxPage() {
   }
 
   // ---------------------------------------------------------------------------
+  // Send a recu by email (Resend)
+  // ---------------------------------------------------------------------------
+
+  async function sendRecuEmail(row: ParticipantRow) {
+    const id = row.profil.id
+    setSendLoading((prev) => ({ ...prev, [id]: true }))
+    setSendError((prev) => ({ ...prev, [id]: '' }))
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      setSendError((prev) => ({ ...prev, [id]: 'Session expirée' }))
+      setSendLoading((prev) => ({ ...prev, [id]: false }))
+      return
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-recu-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+      },
+      body: JSON.stringify({ profil_participant_id: id, annee }),
+    })
+
+    const json = await res.json()
+    setSendLoading((prev) => ({ ...prev, [id]: false }))
+
+    if (!res.ok) {
+      setSendError((prev) => ({ ...prev, [id]: json.error ?? 'Erreur inconnue' }))
+      return
+    }
+
+    showToast(`Reçu envoyé à ${row.profil.personnes.email}`)
+    fetchData()
+  }
+
+  // ---------------------------------------------------------------------------
   // Generate all (skips les lignes bloquées)
   // ---------------------------------------------------------------------------
 
@@ -412,6 +457,8 @@ export default function RecusFiscauxPage() {
                 const genErr = genError[profilId]
                 const isDlLoading = dlLoading[profilId]
                 const dlErr = dlError[profilId]
+                const isSendLoading = sendLoading[profilId]
+                const sendErr = sendError[profilId]
                 const hasRecu = row.recu !== null
                 const isBlocked = orgMissing.length > 0 || row.validation.blocking || row.validation.missing.length > 0
                 const validationMessage = row.validation.message
@@ -473,11 +520,17 @@ export default function RecusFiscauxPage() {
                           </button>
                         </div>
                       )}
+                      {row.recu?.email_envoye_at && (
+                        <p className="mt-1 text-xs text-slate-500">Envoyé le {formatDateHeure(row.recu.email_envoye_at)}</p>
+                      )}
                       {genErr && (
                         <p className="mt-1 text-xs text-red-600">{genErr}</p>
                       )}
                       {dlErr && (
                         <p className="mt-1 text-xs text-red-600">{dlErr}</p>
+                      )}
+                      {sendErr && (
+                        <p className="mt-1 text-xs text-red-600">{sendErr}</p>
                       )}
                     </td>
 
@@ -503,6 +556,28 @@ export default function RecusFiscauxPage() {
                               </svg>
                             )}
                             PDF
+                          </button>
+                        )}
+
+                        {/* Send by email (only if recu exists and participant has an email) */}
+                        {hasRecu && row.profil.personnes.email && (
+                          <button
+                            onClick={() => sendRecuEmail(row)}
+                            disabled={isSendLoading}
+                            title="Envoyer le reçu par email"
+                            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                          >
+                            {isSendLoading ? (
+                              <svg className="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                              </svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                              </svg>
+                            )}
+                            Email
                           </button>
                         )}
 
