@@ -63,10 +63,11 @@ interface OrgModalProps {
   onClose: () => void
   onSaved: () => void
   onDeleteRequest: (org: OrgRow) => void
+  onAdminAdded: (email: string) => void
   org?: OrgRow
 }
 
-function OrgModal({ open, onClose, onSaved, onDeleteRequest, org }: OrgModalProps) {
+function OrgModal({ open, onClose, onSaved, onDeleteRequest, onAdminAdded, org }: OrgModalProps) {
   const isEdit = !!org
   const [nom, setNom] = useState('')
   const [saving, setSaving] = useState(false)
@@ -137,6 +138,7 @@ function OrgModal({ open, onClose, onSaved, onDeleteRequest, org }: OrgModalProp
     setShowAddForm(false)
     setNewNom('')
     setNewEmail('')
+    onAdminAdded(newEmail)
     fetchAdmins(org.id)
   }
 
@@ -667,6 +669,7 @@ export default function SuperAdminPage() {
           setDeleteError(null)
           setDeleteConfirmText('')
         }}
+        onAdminAdded={(email) => showToast(`Invitation envoyée à ${email}`)}
         org={editing}
       />
 
