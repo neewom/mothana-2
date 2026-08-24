@@ -5,7 +5,7 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
 import type { RecuFiscal, ProfilParticipant } from '../types'
 import { fetchAllRows } from '../lib/fetchAllRows'
-import { participantFullName } from '../lib/participantSearch'
+import { participantFullName, matchesParticipantSearch } from '../lib/participantSearch'
 import {
   validateOrganisationCerfa,
   validateParticipantCerfa,
@@ -337,19 +337,30 @@ export default function RecusFiscauxPage() {
   const totalGeneres = rows.filter((r) => r.recu !== null).length
 
   // ---------------------------------------------------------------------------
+  // Recherche
+  // ---------------------------------------------------------------------------
+
+  const [search, setSearch] = useState('')
+
+  const filteredRows = useMemo(
+    () => rows.filter((r) => matchesParticipantSearch(r.profil, search)),
+    [rows, search]
+  )
+
+  // ---------------------------------------------------------------------------
   // Pagination
   // ---------------------------------------------------------------------------
 
   const [pageSize, setPageSize] = useState(50)
   const [currentPage, setCurrentPage] = useState(1)
 
-  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize))
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize))
   const safePage = Math.min(currentPage, pageCount)
 
   const paginatedRows = useMemo(() => {
     const start = (safePage - 1) * pageSize
-    return rows.slice(start, start + pageSize)
-  }, [rows, safePage, pageSize])
+    return filteredRows.slice(start, start + pageSize)
+  }, [filteredRows, safePage, pageSize])
 
   // ---------------------------------------------------------------------------
   // Render
@@ -424,6 +435,17 @@ export default function RecusFiscauxPage() {
 
       {/* Table */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        {!loading && rows.length > 0 && (
+          <div className="border-b border-slate-200 px-6 py-4">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
+              placeholder="Rechercher par nom…"
+              className="w-full min-w-[12rem] max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        )}
         {loading ? (
           <div className="flex items-center justify-center py-16 text-sm text-slate-500">
             Chargement…
@@ -435,6 +457,10 @@ export default function RecusFiscauxPage() {
             </svg>
             <p className="text-sm font-medium text-slate-500">Aucun don enregistré en {annee}</p>
             <p className="mt-1 text-xs text-slate-500">Sélectionnez une autre année ou ajoutez des dons.</p>
+          </div>
+        ) : filteredRows.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-sm font-medium text-slate-500">Aucun résultat pour votre recherche</p>
           </div>
         ) : (
           <ScrollShadowX>
@@ -611,7 +637,7 @@ export default function RecusFiscauxPage() {
         )}
 
         {/* Pagination */}
-        {!loading && rows.length > 0 && (
+        {!loading && filteredRows.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-3">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <span>Lignes par page</span>
@@ -626,7 +652,7 @@ export default function RecusFiscauxPage() {
                 ))}
               </select>
               <span>
-                {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, rows.length)} sur {rows.length}
+                {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filteredRows.length)} sur {filteredRows.length}
               </span>
             </div>
 
