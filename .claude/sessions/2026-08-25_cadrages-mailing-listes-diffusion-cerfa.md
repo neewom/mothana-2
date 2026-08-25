@@ -60,13 +60,16 @@ Bug remonté par l'utilisateur via capture d'écran (`duplicate key value violat
 
 ### Nouvelle carte Trello détectée en cours de session
 
-"En cas de rechargement pendant l'édition d'une campagne mail, les paramètres sont conservés, mais la liste de diffusion, même réappliquée, n'est pas effective" — probablement liée au "bug bizarre du rafraîchissement" observé en testant PR #100. Remontée en position 1 du backlog (bug sur fonctionnalité en prod), **pas encore cadrée**.
+"En cas de rechargement pendant l'édition d'une campagne mail, les paramètres sont conservés, mais la liste de diffusion, même réappliquée, n'est pas effective" — remontée en position 1 du backlog (bug sur fonctionnalité en prod), **pas encore cadrée**. L'utilisateur a précisé après coup : le "bug bizarre du rafraîchissement" observé en testant PR #100 est probablement lié à son environnement local, non reproduit sur la recette (`test.samakan.fr`) — reste à déterminer si c'est le même sujet que cette carte Trello (qui décrit un problème plus précis : la liste de diffusion non effective après un rechargement) ou un sujet distinct, à creuser au moment du cadrage.
+
+### Promotion prod (PR #103) — mailing pièces jointes + fix id_externe
+
+Sur confirmation explicite ("Tu peux promouvoir les PR") : cherry-pick des 3 commits (PR #100, #101, #102) en un seul batch sur une branche dédiée depuis `main` (aucun conflit) — écart à la règle "une feature à la fois" habituelle, mais explicitement demandé par l'utilisateur au pluriel. Vérifié (`tsc -b` + `npm run build` + `eslint`), PR créée et mergée sans re-demander. Dump prod pris avant migration (`~/dump_prod_avant_mailing_id_externe_fix_20260825.sql`), migration `next_adherent_id_externe_resync.sql` rejouée et vérifiée présente sur prod, `send-mailing-brevo` redéployée sur prod. `CLAUDE.md` mis à jour (PR #103 promotion prod pour les deux entrées).
 
 ## Reste à faire
 
-- **Cadrer et confirmer le dev** du bug "rechargement pendant édition campagne mail" (nouvelle carte, position 1 du backlog) — creuser d'abord le lien avec le "bug bizarre du rafraîchissement" mentionné par l'utilisateur pendant les tests PR #100, avant de proposer un cadrage.
+- **Cadrer et confirmer le dev** du bug "rechargement pendant édition campagne mail" (nouvelle carte, position 1 du backlog) — vérifier d'abord si c'est bien le même sujet que le "bug du rafraîchissement" jugé local par l'utilisateur, ou un problème distinct à traiter séparément.
 - 1 carte du lot cadré le matin pas encore développée : détail Cerfa des dons de l'année.
-- Promotion prod en attente pour PR #100/#101/#102 (dev non encore promu vers main) — à confirmer avec l'utilisateur.
 
 ## Blockers
 
