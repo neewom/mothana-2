@@ -36,9 +36,19 @@ Démarré sur confirmation explicite ("Oui, go, démarre le dev"), suite au cadr
 - **PR #96 mergée dans `dev`** par l'utilisateur (testée manuellement, comme d'habitude) — `dev` local mis à jour, carte Trello déplacée en Done, `CLAUDE.md` mis à jour dans la foulée (résumé "Terminé" + backlog renuméroté 1-21).
 - **Promotion prod (PR #97)** sur confirmation explicite ("Go") : cherry-pick des 7 commits de la PR #96 sur une branche dédiée depuis `main` (aucun conflit), vérifié (`tsc -b` + `npm run build` + `eslint`), PR créée et mergée sans re-demander (règle actée pour cette étape précise). Dump prod pris avant migration (`~/dump_prod_avant_listes_diffusion_20260825.sql`), migrations `adherents_tags.sql` puis `listes_diffusion.sql` rejouées sur prod dans l'ordre, fonctions/trigger vérifiés présents, `send-mailing-brevo` redéployée sur prod. `CLAUDE.md` mis à jour (PR #97 promotion prod).
 
+### Dev "Configuration Brevo : CTA + modale de configuration" (terminé, PR #98 dev — pas encore promu prod)
+
+Démarré sur confirmation explicite ("Go"). Formulaire (clé API, expéditeur) sorti de `CampagneMailingPage.tsx` vers `BrevoConfigModal.tsx` — indicateur "Configuré"/"Non configuré" + bouton "Configurer" sur la page, "Enregistrer" affiché seulement en état "dirty" (au moins un champ différent des valeurs chargées), "Annuler" ferme sans sauvegarde partielle. Conforme au cadrage, aucun retour UI cette fois.
+
+Un blocage trouvé par l'utilisateur en relisant la PR : le champ email de l'expéditeur n'avait aucun contrôle de format. Corrigé dans la même PR (même pattern que `AdherentModal.tsx` : `isValidEmail`, erreur affichée dès le 1er caractère non conforme, bloque aussi la soumission) — absent du cadrage initial, ajouté en cours de revue.
+
+PR #98 mergée dans `dev` — Trello Done, `CLAUDE.md` mis à jour dans la foulée.
+
 ## Reste à faire
 
-3 cartes du même lot cadrées ce matin mais pas encore développées : Configuration Brevo (CTA + modale), pièces jointes multiples au mailing, détail Cerfa des dons de l'année — en tête du backlog actif, confirmation à redemander avant de démarrer l'une d'elles.
+2 cartes du même lot cadrées ce matin mais pas encore développées : pièces jointes multiples au mailing, détail Cerfa des dons de l'année — en tête du backlog actif, confirmation à redemander avant de démarrer l'une d'elles.
+
+Promotion `dev → main` de "Configuration Brevo" pas encore lancée — à confirmer avec l'utilisateur.
 
 ## Blockers
 
