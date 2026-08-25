@@ -22,9 +22,24 @@ Sur demande explicite : présenter tout cadrage (contexte, décisions, périmèt
 ### Reclassement du backlog Trello
 Carte "Listes de diffusion" en position 1. Sur demande explicite de l'utilisateur ("Remonte les oui"), les 3 autres cartes du même lot (config Brevo, pièces jointes multiples, détail Cerfa) remontées juste derrière, positions 2 à 4.
 
+### Dev "Listes de diffusion (tags adhérents)" (terminé, PR #96 dev — pas encore promu prod)
+
+Démarré sur confirmation explicite ("Oui, go, démarre le dev"), suite au cadrage ci-dessus.
+
+- **1er jet conforme au cadrage** : colonne `adherents.tags text[]`, RPC `search_adherents` étendue (`p_tag`/`p_exclude_tag`) + `add_adherents_tag` (batch) + `list_adherent_tags`, composant `TagsInput.tsx` partagé, nuage de tags dans `AdherentModal.tsx`, affectation en masse + filtres dans `AdherentsPage.tsx`, sélecteur "Envoyer à" unifié + "Exclure la liste" dans `CampagneMailingPage.tsx`, `send-mailing-brevo` étendu. Vérifié de bout en bout sur staging (Playwright), lint/typecheck propres.
+- **Build Vercel cassé au premier push** : `availableTags` rendue obligatoire sur `AdherentModal` sans voir que `DemandesAdhesionPage.tsx` (ratification de demande d'adhésion) réutilise aussi ce composant, sans charger cette liste. Corrigé en rendant la prop optionnelle (défaut `[]`). Cause racine du raté : `npx tsc --noEmit` local ne suit pas les project references sans `-b` (tsconfig racine vide, juste des `references`) — passait silencieusement. **Désormais `tsc -b` systématique**, seule commande qui matche exactement `npm run build`/Vercel.
+- **4 retours UI de l'utilisateur après une 1ère relecture**, traités un par un :
+  1. CTA "+ Créer une nouvelle liste" sorti du `<select>` de filtre → bouton séparé "Nouvelle liste" à côté d'Importer/Ajouter
+  2. Filtre liste + exclusion + CTA de création regroupés visuellement (bordure verticale) — dispersés initialement dans la barre d'outils
+  3. Légende "Listes de diffusion" ajoutée au-dessus du groupe, puis retirée sur demande ("finalement superflu") — le regroupement visuel suffit
+  4. **Pivot d'architecture** : l'utilisateur voulait créer une liste sans adhérent présélectionné. Le modèle "tags émergent de l'usage" (pas de table dédiée, décision actée au cadrage du matin) ne le permettait pas — proposé et validé : nouvelle table `listes_diffusion` (registre des noms par organisation), alimentée automatiquement par trigger dès qu'un tag est utilisé sur `adherents.tags` (RPC batch ou édition individuelle), `adherents.tags` reste la source de vérité de l'appartenance. `list_adherent_tags` (RPC) devenue inutile, supprimée ; les 3 sélecteurs lisent désormais `listes_diffusion` directement. Migration `listes_diffusion.sql` (avec backfill des tags déjà en usage) appliquée et revérifiée de bout en bout sur staging (création vide → apparition immédiate dans les filtres → affectation ultérieure).
+- **PR #96 mergée dans `dev`** par l'utilisateur (testée manuellement, comme d'habitude) — `dev` local mis à jour, carte Trello déplacée en Done, `CLAUDE.md` mis à jour dans la foulée (résumé "Terminé" + backlog renuméroté 1-21). **Pas encore promu en prod** : confirmation à redemander avant de lancer la promotion `dev → main`.
+
 ## Reste à faire
 
-Aucun dev démarré sur les 6 cartes cadrées cette session — "le dev sera pour la prochaine fois" (décision explicite de l'utilisateur en fin de session). Prochain sujet en tête de backlog : **"Listes de diffusion (tags adhérents)"**.
+3 cartes du même lot cadrées ce matin mais pas encore développées : Configuration Brevo (CTA + modale), pièces jointes multiples au mailing, détail Cerfa des dons de l'année — en tête du backlog actif, confirmation à redemander avant de démarrer l'une d'elles.
+
+Promotion `dev → main` de "Listes de diffusion" pas encore lancée — à confirmer avec l'utilisateur.
 
 ## Blockers
 
@@ -37,3 +52,5 @@ Aucun.
 - **Filtre mailing par liste = positif**, avec exclusion optionnelle sur un seul tag à la fois (pas de multi-exclusion en v1) — matche l'exemple concret donné par l'utilisateur (adhérents à l'étranger à exclure d'un mailing "événements").
 - **Sélectionner une liste de diffusion prime sur le statut actif/archivé** dans le mailing (envoie à tous les porteurs du tag, peu importe leur statut).
 - **L'utilisateur intègre lui-même le nouveau placeholder Cerfa** (`{{dons_detail}}`) dans les templates existants — pas de backfill automatique par l'agent, contrairement à d'autres ajouts de placeholder passés dans ce projet.
+- **Revirement en cours de dev sur le modèle "array de tags"** (décision 2 ci-dessus) : l'utilisateur a fini par vouloir créer une liste sans adhérent présélectionné, ce que le modèle sans table ne permet pas. Table `listes_diffusion` ajoutée en complément (registre des noms, `adherents.tags` reste la source de vérité de l'appartenance) — proposé en chat avant dev, confirmé explicitement.
+- **`tsc -b` désormais systématique avant de pousser** (pas `tsc --noEmit` seul) — la config racine de ce projet (`tsconfig.json`) ne contient que des `references`, sans `-b` aucune vérification réelle n'a lieu, ce qui a laissé passer une erreur qui a cassé le build Vercel.
