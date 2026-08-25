@@ -25,6 +25,7 @@ export interface Adherent {
   consent_rgpd: boolean
   mailing_opt_out: boolean
   mailing_opt_out_at: string | null
+  tags: string[]
   created_at: string
   updated_at: string
 }
