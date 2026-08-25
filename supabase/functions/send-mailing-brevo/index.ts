@@ -15,11 +15,23 @@ function jsonResponse(body: unknown, status = 200): Response {
 // Limite Brevo /v3/smtp/email : jusqu'à 1000 destinataires personnalisés par appel (messageVersions).
 const BREVO_BATCH_SIZE = 1000
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+const MAX_ATTACHMENTS = 3
 
 interface PieceJointe {
   nom: string
   contenu_base64: string
   type_mime: string
+}
+
+function validateAttachments(pieces: unknown): PieceJointe[] | null {
+  if (pieces === null || pieces === undefined) return []
+  if (!Array.isArray(pieces) || pieces.length > MAX_ATTACHMENTS) return null
+  for (const p of pieces) {
+    if (typeof p?.nom !== 'string' || typeof p?.contenu_base64 !== 'string' || typeof p?.type_mime !== 'string') return null
+    const decodedBytes = Math.floor((p.contenu_base64.length * 3) / 4)
+    if (decodedBytes > MAX_ATTACHMENT_BYTES) return null
+  }
+  return pieces as PieceJointe[]
 }
 
 interface AdherentDestinataire {
@@ -48,7 +60,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Non autorisé' }, 401)
     }
 
-    const { sujet, corps_html, filtre_statut, tag_envoi, exclude_tag, piece_jointe, site_url } = await req.json()
+    const { sujet, corps_html, filtre_statut, tag_envoi, exclude_tag, pieces_jointes, site_url } = await req.json()
 
     if (!sujet || typeof sujet !== 'string' || !corps_html || typeof corps_html !== 'string') {
       return jsonResponse({ error: 'Sujet et contenu du message requis' }, 400)
@@ -66,12 +78,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'site_url requis' }, 400)
     }
 
-    const attachment = piece_jointe as PieceJointe | null | undefined
-    if (attachment) {
-      const decodedBytes = Math.floor((attachment.contenu_base64.length * 3) / 4)
-      if (decodedBytes > MAX_ATTACHMENT_BYTES) {
-        return jsonResponse({ error: 'Pièce jointe trop volumineuse (10 Mo max)' }, 400)
-      }
+    const attachments = validateAttachments(pieces_jointes)
+    if (attachments === null) {
+      return jsonResponse({ error: `Pièces jointes invalides (${MAX_ATTACHMENTS} fichiers max, 10 Mo max par fichier)` }, 400)
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -163,8 +172,8 @@ Deno.serve(async (req) => {
     // 3. Envoi par lots (mode batch Brevo, messageVersions)
     // ---------------------------------------------------------------------
 
-    const brevoAttachment = attachment
-      ? [{ content: attachment.contenu_base64, name: attachment.nom }]
+    const brevoAttachment = attachments.length > 0
+      ? attachments.map((a) => ({ content: a.contenu_base64, name: a.nom }))
       : undefined
 
     const htmlContentAvecFooter = corps_html + unsubscribeFooterHtml()
