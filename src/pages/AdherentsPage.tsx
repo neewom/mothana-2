@@ -346,40 +346,43 @@ export default function AdherentsPage() {
               </select>
 
               {/* Groupe "listes de diffusion" : filtre, exclusion et création regroupés visuellement (retour utilisateur) */}
-              <div className="flex flex-wrap items-center gap-2 border-l border-slate-200 pl-3">
-                <select
-                  aria-label="Liste de diffusion"
-                  value={tagFilter}
-                  onChange={(e) => { setTagFilter(e.target.value); setCurrentPage(1) }}
-                  className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Toutes les listes</option>
-                  {availableTags.map((tag) => (
-                    <option key={tag} value={tag}>Liste : {tag}</option>
-                  ))}
-                </select>
-                {availableTags.length > 0 && (
+              <div className="border-l border-slate-200 pl-3">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Listes de diffusion</span>
+                <div className="flex flex-wrap items-center gap-2">
                   <select
-                    aria-label="Exclure une liste"
-                    value={excludeTagFilter}
-                    onChange={(e) => { setExcludeTagFilter(e.target.value); setCurrentPage(1) }}
+                    aria-label="Liste de diffusion"
+                    value={tagFilter}
+                    onChange={(e) => { setTagFilter(e.target.value); setCurrentPage(1) }}
                     className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value="">Sans exclusion</option>
+                    <option value="">Toutes les listes</option>
                     {availableTags.map((tag) => (
-                      <option key={tag} value={tag}>Exclure : {tag}</option>
+                      <option key={tag} value={tag}>Liste : {tag}</option>
                     ))}
                   </select>
-                )}
-                <button
-                  onClick={() => setAssignListeOpen(true)}
-                  className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
-                  </svg>
-                  Nouvelle liste
-                </button>
+                  {availableTags.length > 0 && (
+                    <select
+                      aria-label="Exclure une liste"
+                      value={excludeTagFilter}
+                      onChange={(e) => { setExcludeTagFilter(e.target.value); setCurrentPage(1) }}
+                      className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">Sans exclusion</option>
+                      {availableTags.map((tag) => (
+                        <option key={tag} value={tag}>Exclure : {tag}</option>
+                      ))}
+                    </select>
+                  )}
+                  <button
+                    onClick={() => setAssignListeOpen(true)}
+                    className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
+                    </svg>
+                    Nouvelle liste
+                  </button>
+                </div>
               </div>
             </div>
             <div className="flex flex-shrink-0 items-center gap-2">
