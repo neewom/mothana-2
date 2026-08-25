@@ -207,8 +207,16 @@ export default function CampagneMailingPage() {
 
   const { filtreStatut, tagEnvoi } = parseEnvoyerA(envoyerA)
 
+  // Garde-fou de séquencement : au chargement, le fetch parti avec la valeur
+  // par défaut de envoyerA ("Actifs") peut répondre après celui relancé une
+  // fois le brouillon localStorage restauré vers la vraie valeur — sans
+  // garde, le résultat qui arrive en dernier écrase l'autre, peu importe
+  // lequel est correct. On n'applique que le résultat du dernier appel lancé.
+  const destinatairesRequestIdRef = useRef(0)
+
   const fetchDestinatairesCount = useCallback(async () => {
     if (!organisationId) return
+    const requestId = ++destinatairesRequestIdRef.current
     let query = supabase
       .from('adherents')
       .select('courriel, tags')
@@ -222,6 +230,7 @@ export default function CampagneMailingPage() {
       query = query.eq('statut', filtreStatut)
     }
     const { data } = await query
+    if (requestId !== destinatairesRequestIdRef.current) return
     const rows = (data ?? []) as { courriel: string | null; tags: string[] }[]
     const filtered = excludeTag ? rows.filter((a) => !(a.tags ?? []).includes(excludeTag)) : rows
     const avecEmail = filtered.filter((a) => a.courriel && a.courriel.trim() !== '').length
