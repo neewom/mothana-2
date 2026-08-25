@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { isValidEmail } from '../lib/textFormat'
 import Modal from './Modal'
 
 export interface BrevoConfigValues {
@@ -40,11 +41,18 @@ export default function BrevoConfigModal({ open, onClose, onSaved, organisationI
   if (!open) return null
 
   const dirty = apiKey !== initial.apiKey || expediteurNom !== initial.expediteurNom || expediteurEmail !== initial.expediteurEmail
+  const emailInvalid = expediteurEmail.trim() !== '' && !isValidEmail(expediteurEmail)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setSaving(true)
     setError(null)
+
+    if (emailInvalid) {
+      setError("Le format de l'adresse email est invalide.")
+      return
+    }
+
+    setSaving(true)
 
     const { error: err } = await supabase
       .from('organisations')
@@ -104,8 +112,14 @@ export default function BrevoConfigModal({ open, onClose, onSaved, organisationI
               value={expediteurEmail}
               onChange={(e) => setExpediteurEmail(e.target.value)}
               placeholder="contact@association.fr"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-invalid={emailInvalid}
+              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+                emailInvalid
+                  ? 'border-red-400 focus:ring-red-500'
+                  : 'border-slate-300 focus:ring-indigo-500'
+              }`}
             />
+            {emailInvalid && <p className="mt-1 text-xs text-red-600">Format d'email invalide.</p>}
             <p className="mt-1 text-xs text-slate-500">Doit correspondre à un expéditeur vérifié dans votre compte Brevo.</p>
           </div>
         </div>
