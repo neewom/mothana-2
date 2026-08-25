@@ -30,25 +30,41 @@ export default function AssignerListeModal({
   if (!open) return null
 
   const tag = pendingTag[0]
+  const creatingEmpty = adherentIds.length === 0
 
   async function handleAssign() {
     if (!tag) return
     setSaving(true)
     setError(null)
 
-    const { error: err } = await supabase.rpc('add_adherents_tag', {
-      p_organisation_id: organisationId,
-      p_adherent_ids: adherentIds,
-      p_tag: tag,
-    })
+    // La liste peut être créée sans adhérent (registre listes_diffusion, alimenté
+    // aussi automatiquement par trigger dès qu'un tag est utilisé — cet insert
+    // explicite couvre le cas d'une liste créée vide, sans passer par un adhérent).
+    const { error: listeErr } = await supabase
+      .from('listes_diffusion')
+      .upsert({ organisation_id: organisationId, nom: tag }, { onConflict: 'organisation_id,nom', ignoreDuplicates: true })
 
-    setSaving(false)
-
-    if (err) {
-      setError(err.message)
+    if (listeErr) {
+      setError(listeErr.message)
+      setSaving(false)
       return
     }
 
+    if (adherentIds.length > 0) {
+      const { error: err } = await supabase.rpc('add_adherents_tag', {
+        p_organisation_id: organisationId,
+        p_adherent_ids: adherentIds,
+        p_tag: tag,
+      })
+
+      if (err) {
+        setError(err.message)
+        setSaving(false)
+        return
+      }
+    }
+
+    setSaving(false)
     onAssigned(tag)
     setPendingTag([])
     onClose()
@@ -58,21 +74,17 @@ export default function AssignerListeModal({
     <Modal open={open} onClose={onClose} maxWidthClassName="max-w-md" labelledBy="assigner-liste-title">
       <div className="border-b border-slate-200 px-6 py-4">
         <h2 id="assigner-liste-title" className="text-lg font-semibold text-slate-900">
-          Ajouter à une liste
+          {creatingEmpty ? 'Créer une liste' : 'Ajouter à une liste'}
         </h2>
       </div>
 
       <div className="space-y-4 p-6">
         {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-        {adherentIds.length === 0 && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Sélectionnez d'abord des adhérents (cases à cocher) avant d'ajouter une liste.
-          </div>
-        )}
-
         <p className="text-sm text-slate-600">
-          {adherentIds.length} adhérent{adherentIds.length > 1 ? 's' : ''} sélectionné{adherentIds.length > 1 ? 's' : ''}. Choisissez une liste existante ou créez-en une nouvelle.
+          {creatingEmpty
+            ? "Aucun adhérent sélectionné : la liste sera créée vide, vous pourrez lui affecter des adhérents plus tard."
+            : `${adherentIds.length} adhérent${adherentIds.length > 1 ? 's' : ''} sélectionné${adherentIds.length > 1 ? 's' : ''}. Choisissez une liste existante ou créez-en une nouvelle.`}
         </p>
 
         <TagsInput
@@ -94,10 +106,10 @@ export default function AssignerListeModal({
         <button
           type="button"
           onClick={handleAssign}
-          disabled={!tag || saving || adherentIds.length === 0}
+          disabled={!tag || saving}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
         >
-          {saving ? 'Ajout…' : 'Ajouter'}
+          {saving ? 'Enregistrement…' : creatingEmpty ? 'Créer' : 'Ajouter'}
         </button>
       </div>
     </Modal>

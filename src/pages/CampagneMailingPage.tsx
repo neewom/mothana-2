@@ -234,9 +234,14 @@ export default function CampagneMailingPage() {
 
   useEffect(() => {
     if (!organisationId) return
-    supabase.rpc('list_adherent_tags', { p_organisation_id: organisationId }).then(({ data }) => {
-      setAvailableTags(((data ?? []) as { tag: string }[]).map((r) => r.tag))
-    })
+    supabase
+      .from('listes_diffusion')
+      .select('nom')
+      .eq('organisation_id', organisationId)
+      .order('nom')
+      .then(({ data }) => {
+        setAvailableTags(((data ?? []) as { nom: string }[]).map((r) => r.nom))
+      })
   }, [organisationId])
 
   async function handleSaveConfig(e: FormEvent) {
