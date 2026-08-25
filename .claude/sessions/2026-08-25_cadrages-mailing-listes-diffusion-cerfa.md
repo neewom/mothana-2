@@ -33,13 +33,12 @@ Démarré sur confirmation explicite ("Oui, go, démarre le dev"), suite au cadr
   2. Filtre liste + exclusion + CTA de création regroupés visuellement (bordure verticale) — dispersés initialement dans la barre d'outils
   3. Légende "Listes de diffusion" ajoutée au-dessus du groupe, puis retirée sur demande ("finalement superflu") — le regroupement visuel suffit
   4. **Pivot d'architecture** : l'utilisateur voulait créer une liste sans adhérent présélectionné. Le modèle "tags émergent de l'usage" (pas de table dédiée, décision actée au cadrage du matin) ne le permettait pas — proposé et validé : nouvelle table `listes_diffusion` (registre des noms par organisation), alimentée automatiquement par trigger dès qu'un tag est utilisé sur `adherents.tags` (RPC batch ou édition individuelle), `adherents.tags` reste la source de vérité de l'appartenance. `list_adherent_tags` (RPC) devenue inutile, supprimée ; les 3 sélecteurs lisent désormais `listes_diffusion` directement. Migration `listes_diffusion.sql` (avec backfill des tags déjà en usage) appliquée et revérifiée de bout en bout sur staging (création vide → apparition immédiate dans les filtres → affectation ultérieure).
-- **PR #96 mergée dans `dev`** par l'utilisateur (testée manuellement, comme d'habitude) — `dev` local mis à jour, carte Trello déplacée en Done, `CLAUDE.md` mis à jour dans la foulée (résumé "Terminé" + backlog renuméroté 1-21). **Pas encore promu en prod** : confirmation à redemander avant de lancer la promotion `dev → main`.
+- **PR #96 mergée dans `dev`** par l'utilisateur (testée manuellement, comme d'habitude) — `dev` local mis à jour, carte Trello déplacée en Done, `CLAUDE.md` mis à jour dans la foulée (résumé "Terminé" + backlog renuméroté 1-21).
+- **Promotion prod (PR #97)** sur confirmation explicite ("Go") : cherry-pick des 7 commits de la PR #96 sur une branche dédiée depuis `main` (aucun conflit), vérifié (`tsc -b` + `npm run build` + `eslint`), PR créée et mergée sans re-demander (règle actée pour cette étape précise). Dump prod pris avant migration (`~/dump_prod_avant_listes_diffusion_20260825.sql`), migrations `adherents_tags.sql` puis `listes_diffusion.sql` rejouées sur prod dans l'ordre, fonctions/trigger vérifiés présents, `send-mailing-brevo` redéployée sur prod. `CLAUDE.md` mis à jour (PR #97 promotion prod).
 
 ## Reste à faire
 
 3 cartes du même lot cadrées ce matin mais pas encore développées : Configuration Brevo (CTA + modale), pièces jointes multiples au mailing, détail Cerfa des dons de l'année — en tête du backlog actif, confirmation à redemander avant de démarrer l'une d'elles.
-
-Promotion `dev → main` de "Listes de diffusion" pas encore lancée — à confirmer avec l'utilisateur.
 
 ## Blockers
 
