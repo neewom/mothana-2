@@ -12,6 +12,7 @@ import type { DuplicateMatch } from '../lib/adherentDuplicateCheck'
 import { logModification, computeAdherentDiff } from '../lib/journalModifications'
 import AdherentHistoriqueSection from './AdherentHistoriqueSection'
 import Modal from './Modal'
+import TagsInput from './TagsInput'
 
 interface IdentitePrefill {
   civilite: CiviliteAdherent
@@ -32,6 +33,9 @@ interface AdherentModalProps {
   onSaved: (adherent: Adherent, adhesion?: Adhesion) => void
   adherent?: Adherent
   organisationId: string
+  // Tags déjà utilisés dans l'organisation, pour les puces de suggestion du nuage de tags
+  // (optionnel : DemandesAdhesionPage n'a pas cette liste chargée, l'input reste utilisable sans suggestions)
+  availableTags?: string[]
   // Pré-remplit le formulaire de création à partir d'une demande d'adhésion en attente de ratification
   prefill?: IdentitePrefill
   // Doublons potentiels détectés côté DemandesAdhesionPage lors de l'ouverture pour ratification
@@ -49,6 +53,7 @@ export default function AdherentModal({
   onSaved,
   adherent,
   organisationId,
+  availableTags = [],
   prefill,
   duplicateWarnings,
   duplicateWarningsLoading,
@@ -67,6 +72,7 @@ export default function AdherentModal({
   const [telephone, setTelephone] = useState('')
   const [courriel, setCourriel] = useState('')
   const [mailingOptOut, setMailingOptOut] = useState(false)
+  const [tags, setTags] = useState<string[]>([])
   // Sert uniquement à ne recalculer mailing_opt_out_at que si la case a réellement changé
   // (sinon un enregistrement du formulaire sans y toucher écraserait la date d'origine)
   const initialMailingOptOutRef = useRef(false)
@@ -97,6 +103,7 @@ export default function AdherentModal({
         setCourriel(adherent.courriel ?? '')
         setMailingOptOut(adherent.mailing_opt_out)
         initialMailingOptOutRef.current = adherent.mailing_opt_out
+        setTags(adherent.tags ?? [])
       } else {
         setCivilite(prefill?.civilite ?? 0)
         setNom(toUpperName(prefill?.nom ?? ''))
@@ -110,6 +117,7 @@ export default function AdherentModal({
         setCourriel(prefill?.courriel ?? '')
         setMailingOptOut(false)
         initialMailingOptOutRef.current = false
+        setTags([])
         setDateDebut(today())
         setMontantCotisation('')
         setModePaiement('')
@@ -157,6 +165,7 @@ export default function AdherentModal({
       telephone: telephone || null,
       courriel: courriel || null,
       mailing_opt_out: mailingOptOut,
+      tags,
       ...(mailingOptOut !== initialMailingOptOutRef.current
         ? { mailing_opt_out_at: mailingOptOut ? new Date().toISOString() : null }
         : {}),
@@ -469,6 +478,11 @@ export default function AdherentModal({
             />
             Ne pas contacter par email (campagnes mailing)
           </label>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Listes de diffusion</label>
+            <TagsInput tags={tags} onChange={setTags} availableTags={availableTags} />
+          </div>
 
           {!isEdit && (
             <>

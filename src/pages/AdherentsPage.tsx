@@ -8,6 +8,7 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import Modal from '../components/Modal'
 import AdherentModal from '../components/AdherentModal'
+import AssignerListeModal from '../components/AssignerListeModal'
 import AdhesionModal from '../components/AdhesionModal'
 import ImportWizard from '../components/import/ImportWizard'
 import { adherentsImportConfig } from '../lib/import/configs'
@@ -68,8 +69,12 @@ export default function AdherentsPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [statutFilter, setStatutFilter] = useState<StatutFilter>('actif')
+  const [tagFilter, setTagFilter] = useState('')
+  const [excludeTagFilter, setExcludeTagFilter] = useState('')
   const [pageSize, setPageSize] = useState(50)
   const [currentPage, setCurrentPage] = useState(1)
+
+  const [availableTags, setAvailableTags] = useState<string[]>([])
 
   const [adherentModalOpen, setAdherentModalOpen] = useState(false)
   const [editingAdherent, setEditingAdherent] = useState<Adherent | undefined>(undefined)
@@ -82,6 +87,7 @@ export default function AdherentsPage() {
   const [printing, setPrinting] = useState(false)
   const [printError, setPrintError] = useState<string | null>(null)
   const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string; count: number } | null>(null)
+  const [assignListeOpen, setAssignListeOpen] = useState(false)
 
   // Debounce de la recherche pour éviter un appel serveur à chaque frappe
   useEffect(() => {
@@ -103,6 +109,8 @@ export default function AdherentsPage() {
       p_statut: statutFilter === 'all' ? null : statutFilter,
       p_limit: pageSize,
       p_offset: (currentPage - 1) * pageSize,
+      p_tag: tagFilter || null,
+      p_exclude_tag: excludeTagFilter || null,
     })
 
     if (err) {
@@ -133,17 +141,31 @@ export default function AdherentsPage() {
     }
 
     setLoading(false)
-  }, [organisationId, search, statutFilter, pageSize, currentPage])
+  }, [organisationId, search, statutFilter, tagFilter, excludeTagFilter, pageSize, currentPage])
 
   useEffect(() => {
     fetchAdherents()
   }, [fetchAdherents])
 
+  const fetchAvailableTags = useCallback(async () => {
+    if (!organisationId) return
+    const { data } = await supabase
+      .from('listes_diffusion')
+      .select('nom')
+      .eq('organisation_id', organisationId)
+      .order('nom')
+    setAvailableTags(((data ?? []) as { nom: string }[]).map((r) => r.nom))
+  }, [organisationId])
+
+  useEffect(() => {
+    fetchAvailableTags()
+  }, [fetchAvailableTags])
+
   // La sélection multiple ne survit pas à un changement de page/filtre/recherche
   // (les lignes affichées changent complètement, la garder n'aurait pas de sens).
   useEffect(() => {
     setSelectedIds(new Set())
-  }, [search, statutFilter, pageSize, currentPage])
+  }, [search, statutFilter, tagFilter, excludeTagFilter, pageSize, currentPage])
 
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -162,6 +184,18 @@ export default function AdherentsPage() {
     const wasEdit = !!editingAdherent
     showToast(`${adherentFullName(saved)} ${wasEdit ? 'modifié' : 'ajouté'}`)
     fetchAdherents()
+    fetchAvailableTags()
+  }
+
+  function handleListeAssigned(tag: string) {
+    showToast(
+      selectedIds.size === 0
+        ? `Liste « ${tag} » créée`
+        : `Liste « ${tag} » ajoutée à ${selectedIds.size} adhérent${selectedIds.size > 1 ? 's' : ''}`,
+    )
+    setSelectedIds(new Set())
+    fetchAdherents()
+    fetchAvailableTags()
   }
 
   function handleAdhesionSaved() {
@@ -318,6 +352,43 @@ export default function AdherentsPage() {
                 <option value="archive">Archivés</option>
                 <option value="all">Tous</option>
               </select>
+
+              {/* Groupe "listes de diffusion" : filtre, exclusion et création regroupés visuellement (retour utilisateur) */}
+              <div className="flex flex-wrap items-center gap-2 border-l border-slate-200 pl-3">
+                <select
+                  aria-label="Liste de diffusion"
+                  value={tagFilter}
+                  onChange={(e) => { setTagFilter(e.target.value); setCurrentPage(1) }}
+                  className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Toutes les listes</option>
+                  {availableTags.map((tag) => (
+                    <option key={tag} value={tag}>Liste : {tag}</option>
+                  ))}
+                </select>
+                {availableTags.length > 0 && (
+                  <select
+                    aria-label="Exclure une liste"
+                    value={excludeTagFilter}
+                    onChange={(e) => { setExcludeTagFilter(e.target.value); setCurrentPage(1) }}
+                    className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Sans exclusion</option>
+                    {availableTags.map((tag) => (
+                      <option key={tag} value={tag}>Exclure : {tag}</option>
+                    ))}
+                  </select>
+                )}
+                <button
+                  onClick={() => setAssignListeOpen(true)}
+                  className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
+                  </svg>
+                  Nouvelle liste
+                </button>
+              </div>
             </div>
             <div className="flex flex-shrink-0 items-center gap-2">
               <button
@@ -348,6 +419,12 @@ export default function AdherentsPage() {
                   {selectedIds.size} adhérent{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
                 </span>
                 <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setAssignListeOpen(true)}
+                    className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+                  >
+                    Ajouter à une liste
+                  </button>
                   <button
                     onClick={handlePrintCards}
                     disabled={printing}
@@ -542,6 +619,16 @@ export default function AdherentsPage() {
         onSaved={handleAdherentSaved}
         adherent={editingAdherent}
         organisationId={organisationId}
+        availableTags={availableTags}
+      />
+
+      <AssignerListeModal
+        open={assignListeOpen}
+        onClose={() => setAssignListeOpen(false)}
+        onAssigned={handleListeAssigned}
+        organisationId={organisationId}
+        adherentIds={Array.from(selectedIds)}
+        availableTags={availableTags}
       />
 
       <AdhesionModal
