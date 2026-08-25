@@ -46,9 +46,27 @@ PR #98 mergée dans `dev` — Trello Done, `CLAUDE.md` mis à jour dans la foul�
 
 **Promotion prod (PR #99)** sur confirmation explicite ("Go promo") : cherry-pick des 2 commits de la PR #98 sur une branche dédiée depuis `main` (aucun conflit), vérifié (`tsc -b` + `npm run build` + `eslint`), PR créée et mergée sans re-demander. Pas de migration ni d'Edge Function pour cette feature (pure frontend). `CLAUDE.md` mis à jour (PR #99 promotion prod).
 
+### Dev "Mailing : joindre plusieurs fichiers (max 3)" (terminé, PR #100 dev + PR #102 dev — pas encore promu prod)
+
+Démarré sur confirmation explicite ("Go"). `pieceJointe` → `piecesJointes[]` (max 3), payload `piece_jointe` → `pieces_jointes`, `send-mailing-brevo` adapté (`validateAttachments`), input masqué au max. Vérifié sur staging (Playwright), conforme au cadrage.
+
+Testé par l'utilisateur sur mobile (Android) + Chrome macOS : ajout un par un fonctionnel, mais bug Brevo rencontré (expéditeur `contact@samakan.fr` non validé — "Sending has been rejected") et un "bug bizarre du rafraîchissement de la page" observé sans plus de détail à ce stade. Le blocage Brevo n'est pas un bug Mothana (résolu côté compte Brevo par l'utilisateur, authentification du domaine samakan.fr — proposé d'aider via l'accès API OVH déjà en place, pas eu besoin finalement). PR #100 mergée.
+
+Retour utilisateur après remerge : impossible de sélectionner plusieurs fichiers d'un coup dans le picker natif (Android + Chrome macOS), un par un seulement. Cause : `<input type="file">` sans attribut `multiple`. Corrigé en PR #102 séparée (sur demande explicite "Séparée, on garde la PR #100 propre") — `handleAttachmentsChange` traite désormais toute la `FileList`. Testé par l'utilisateur, fonctionnel, mergée.
+
+### Fix ad hoc "collision id_externe adhérent après import" (terminé, PR #101 dev — pas encore promu prod, pas de carte Trello)
+
+Bug remonté par l'utilisateur via capture d'écran (`duplicate key value violates unique constraint "adherents_id_externe_unique"` en créant un adhérent). Diagnostiqué et confirmé en base sur staging : la séquence d'auto-incrément `adherent_id_externe_seq_<org>` était à 13 alors que le max réel des `id_externe` numériques était 16 — `next_adherent_id_externe()` ne se resynchronise jamais après un import en masse (`import_upsert_adherents` insère l'`id_externe` fourni sans jamais toucher la séquence). Fix : `GREATEST(last_value, max réel)` recalculé à chaque appel. Vérifié via appel direct de la RPC (13→17, pas 14) puis création réelle via le vrai formulaire. Mergée par l'utilisateur.
+
+### Nouvelle carte Trello détectée en cours de session
+
+"En cas de rechargement pendant l'édition d'une campagne mail, les paramètres sont conservés, mais la liste de diffusion, même réappliquée, n'est pas effective" — probablement liée au "bug bizarre du rafraîchissement" observé en testant PR #100. Remontée en position 1 du backlog (bug sur fonctionnalité en prod), **pas encore cadrée**.
+
 ## Reste à faire
 
-2 cartes du même lot cadrées ce matin mais pas encore développées : pièces jointes multiples au mailing, détail Cerfa des dons de l'année — en tête du backlog actif, confirmation à redemander avant de démarrer l'une d'elles.
+- **Cadrer et confirmer le dev** du bug "rechargement pendant édition campagne mail" (nouvelle carte, position 1 du backlog) — creuser d'abord le lien avec le "bug bizarre du rafraîchissement" mentionné par l'utilisateur pendant les tests PR #100, avant de proposer un cadrage.
+- 1 carte du lot cadré le matin pas encore développée : détail Cerfa des dons de l'année.
+- Promotion prod en attente pour PR #100/#101/#102 (dev non encore promu vers main) — à confirmer avec l'utilisateur.
 
 ## Blockers
 
