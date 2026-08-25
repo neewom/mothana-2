@@ -149,8 +149,12 @@ export default function AdherentsPage() {
 
   const fetchAvailableTags = useCallback(async () => {
     if (!organisationId) return
-    const { data } = await supabase.rpc('list_adherent_tags', { p_organisation_id: organisationId })
-    setAvailableTags(((data ?? []) as { tag: string }[]).map((r) => r.tag))
+    const { data } = await supabase
+      .from('listes_diffusion')
+      .select('nom')
+      .eq('organisation_id', organisationId)
+      .order('nom')
+    setAvailableTags(((data ?? []) as { nom: string }[]).map((r) => r.nom))
   }, [organisationId])
 
   useEffect(() => {
@@ -184,7 +188,11 @@ export default function AdherentsPage() {
   }
 
   function handleListeAssigned(tag: string) {
-    showToast(`Liste « ${tag} » ajoutée à ${selectedIds.size} adhérent${selectedIds.size > 1 ? 's' : ''}`)
+    showToast(
+      selectedIds.size === 0
+        ? `Liste « ${tag} » créée`
+        : `Liste « ${tag} » ajoutée à ${selectedIds.size} adhérent${selectedIds.size > 1 ? 's' : ''}`,
+    )
     setSelectedIds(new Set())
     fetchAdherents()
     fetchAvailableTags()
