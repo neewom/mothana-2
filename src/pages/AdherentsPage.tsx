@@ -8,6 +8,7 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import Modal from '../components/Modal'
 import AdherentModal from '../components/AdherentModal'
+import AssignerListeModal from '../components/AssignerListeModal'
 import AdhesionModal from '../components/AdhesionModal'
 import ImportWizard from '../components/import/ImportWizard'
 import { adherentsImportConfig } from '../lib/import/configs'
@@ -68,8 +69,12 @@ export default function AdherentsPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [statutFilter, setStatutFilter] = useState<StatutFilter>('actif')
+  const [tagFilter, setTagFilter] = useState('')
+  const [excludeTagFilter, setExcludeTagFilter] = useState('')
   const [pageSize, setPageSize] = useState(50)
   const [currentPage, setCurrentPage] = useState(1)
+
+  const [availableTags, setAvailableTags] = useState<string[]>([])
 
   const [adherentModalOpen, setAdherentModalOpen] = useState(false)
   const [editingAdherent, setEditingAdherent] = useState<Adherent | undefined>(undefined)
@@ -82,6 +87,7 @@ export default function AdherentsPage() {
   const [printing, setPrinting] = useState(false)
   const [printError, setPrintError] = useState<string | null>(null)
   const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string; count: number } | null>(null)
+  const [assignListeOpen, setAssignListeOpen] = useState(false)
 
   // Debounce de la recherche pour éviter un appel serveur à chaque frappe
   useEffect(() => {
@@ -103,6 +109,8 @@ export default function AdherentsPage() {
       p_statut: statutFilter === 'all' ? null : statutFilter,
       p_limit: pageSize,
       p_offset: (currentPage - 1) * pageSize,
+      p_tag: tagFilter || null,
+      p_exclude_tag: excludeTagFilter || null,
     })
 
     if (err) {
@@ -133,17 +141,27 @@ export default function AdherentsPage() {
     }
 
     setLoading(false)
-  }, [organisationId, search, statutFilter, pageSize, currentPage])
+  }, [organisationId, search, statutFilter, tagFilter, excludeTagFilter, pageSize, currentPage])
 
   useEffect(() => {
     fetchAdherents()
   }, [fetchAdherents])
 
+  const fetchAvailableTags = useCallback(async () => {
+    if (!organisationId) return
+    const { data } = await supabase.rpc('list_adherent_tags', { p_organisation_id: organisationId })
+    setAvailableTags(((data ?? []) as { tag: string }[]).map((r) => r.tag))
+  }, [organisationId])
+
+  useEffect(() => {
+    fetchAvailableTags()
+  }, [fetchAvailableTags])
+
   // La sélection multiple ne survit pas à un changement de page/filtre/recherche
   // (les lignes affichées changent complètement, la garder n'aurait pas de sens).
   useEffect(() => {
     setSelectedIds(new Set())
-  }, [search, statutFilter, pageSize, currentPage])
+  }, [search, statutFilter, tagFilter, excludeTagFilter, pageSize, currentPage])
 
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -162,6 +180,14 @@ export default function AdherentsPage() {
     const wasEdit = !!editingAdherent
     showToast(`${adherentFullName(saved)} ${wasEdit ? 'modifié' : 'ajouté'}`)
     fetchAdherents()
+    fetchAvailableTags()
+  }
+
+  function handleListeAssigned(tag: string) {
+    showToast(`Liste « ${tag} » ajoutée à ${selectedIds.size} adhérent${selectedIds.size > 1 ? 's' : ''}`)
+    setSelectedIds(new Set())
+    fetchAdherents()
+    fetchAvailableTags()
   }
 
   function handleAdhesionSaved() {
@@ -318,6 +344,38 @@ export default function AdherentsPage() {
                 <option value="archive">Archivés</option>
                 <option value="all">Tous</option>
               </select>
+              <select
+                aria-label="Liste de diffusion"
+                value={tagFilter}
+                onChange={(e) => {
+                  if (e.target.value === '__create__') {
+                    setAssignListeOpen(true)
+                    return
+                  }
+                  setTagFilter(e.target.value)
+                  setCurrentPage(1)
+                }}
+                className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">Toutes les listes</option>
+                {availableTags.map((tag) => (
+                  <option key={tag} value={tag}>Liste : {tag}</option>
+                ))}
+                <option value="__create__">+ Créer une nouvelle liste</option>
+              </select>
+              {availableTags.length > 0 && (
+                <select
+                  aria-label="Exclure une liste"
+                  value={excludeTagFilter}
+                  onChange={(e) => { setExcludeTagFilter(e.target.value); setCurrentPage(1) }}
+                  className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Sans exclusion</option>
+                  {availableTags.map((tag) => (
+                    <option key={tag} value={tag}>Exclure : {tag}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="flex flex-shrink-0 items-center gap-2">
               <button
@@ -348,6 +406,12 @@ export default function AdherentsPage() {
                   {selectedIds.size} adhérent{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
                 </span>
                 <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setAssignListeOpen(true)}
+                    className="rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+                  >
+                    Ajouter à une liste
+                  </button>
                   <button
                     onClick={handlePrintCards}
                     disabled={printing}
@@ -542,6 +606,16 @@ export default function AdherentsPage() {
         onSaved={handleAdherentSaved}
         adherent={editingAdherent}
         organisationId={organisationId}
+        availableTags={availableTags}
+      />
+
+      <AssignerListeModal
+        open={assignListeOpen}
+        onClose={() => setAssignListeOpen(false)}
+        onAssigned={handleListeAssigned}
+        organisationId={organisationId}
+        adherentIds={Array.from(selectedIds)}
+        availableTags={availableTags}
       />
 
       <AdhesionModal

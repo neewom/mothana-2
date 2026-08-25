@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { supabase } from '../lib/supabaseClient'
@@ -12,6 +13,14 @@ import ScrollShadowX from '../components/ScrollShadowX'
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
 
 type FiltreStatut = 'actif' | 'archive' | 'tous'
+
+function parseEnvoyerA(value: string): { filtreStatut: FiltreStatut; tagEnvoi: string | null } {
+  const sep = value.indexOf(':')
+  const kind = value.slice(0, sep)
+  const rest = value.slice(sep + 1)
+  if (kind === 'tag') return { filtreStatut: 'tous', tagEnvoi: rest }
+  return { filtreStatut: rest as FiltreStatut, tagEnvoi: null }
+}
 
 interface BrevoConfig {
   brevo_api_key: string | null
@@ -71,6 +80,7 @@ function EditorToolbarButton({ active, onClick, children, label }: { active: boo
 
 export default function CampagneMailingPage() {
   const organisationId = useOrganisationId()
+  const navigate = useNavigate()
   const { toast, showToast, dismissToast } = useToast()
 
   // Config Brevo
@@ -85,7 +95,11 @@ export default function CampagneMailingPage() {
 
   // Composition
   const [sujet, setSujet] = useState('')
-  const [filtreStatut, setFiltreStatut] = useState<FiltreStatut>('actif')
+  // Encodé "statut:actif" | "statut:archive" | "statut:tous" | "tag:<nom>" — un seul
+  // sélecteur "Envoyer à" plutôt que deux champs séparés, cf. cadrage listes de diffusion.
+  const [envoyerA, setEnvoyerA] = useState('statut:actif')
+  const [excludeTag, setExcludeTag] = useState('')
+  const [availableTags, setAvailableTags] = useState<string[]>([])
   const [pieceJointe, setPieceJointe] = useState<PieceJointeState | null>(null)
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [destinatairesCount, setDestinatairesCount] = useState<{ avecEmail: number; exclus: number } | null>(null)
@@ -132,9 +146,10 @@ export default function CampagneMailingPage() {
     const raw = localStorage.getItem(draftKey)
     if (!raw) return
     try {
-      const draft = JSON.parse(raw) as { sujet: string; corpsHtml: string; filtreStatut: FiltreStatut }
+      const draft = JSON.parse(raw) as { sujet: string; corpsHtml: string; envoyerA?: string; excludeTag?: string }
       setSujet(draft.sujet ?? '')
-      setFiltreStatut(draft.filtreStatut ?? 'actif')
+      setEnvoyerA(draft.envoyerA ?? 'statut:actif')
+      setExcludeTag(draft.excludeTag ?? '')
       editor.commands.setContent(draft.corpsHtml ?? '')
       setCorpsHtml(draft.corpsHtml ?? '')
       setCorpsVide(editor.getText().trim() === '')
@@ -150,8 +165,8 @@ export default function CampagneMailingPage() {
       localStorage.removeItem(draftKey)
       return
     }
-    localStorage.setItem(draftKey, JSON.stringify({ sujet, corpsHtml, filtreStatut }))
-  }, [draftKey, sujet, corpsHtml, filtreStatut, corpsVide])
+    localStorage.setItem(draftKey, JSON.stringify({ sujet, corpsHtml, envoyerA, excludeTag }))
+  }, [draftKey, sujet, corpsHtml, envoyerA, excludeTag, corpsVide])
 
   useEffect(() => {
     if (!organisationId) return
@@ -190,22 +205,39 @@ export default function CampagneMailingPage() {
     fetchHistorique()
   }, [fetchHistorique])
 
+  const { filtreStatut, tagEnvoi } = parseEnvoyerA(envoyerA)
+
   const fetchDestinatairesCount = useCallback(async () => {
     if (!organisationId) return
     let query = supabase
       .from('adherents')
-      .select('courriel', { count: 'exact' })
+      .select('courriel, tags')
       .eq('organisation_id', organisationId)
       .eq('mailing_opt_out', false)
-    if (filtreStatut !== 'tous') query = query.eq('statut', filtreStatut)
-    const { data, count } = await query
-    const avecEmail = (data ?? []).filter((a) => a.courriel && a.courriel.trim() !== '').length
-    setDestinatairesCount({ avecEmail, exclus: (count ?? 0) - avecEmail })
-  }, [organisationId, filtreStatut])
+    // Sélectionner une liste prime sur le statut actif/archivé (envoie à tous les
+    // porteurs du tag, peu importe leur statut) — cf. cadrage.
+    if (tagEnvoi) {
+      query = query.contains('tags', [tagEnvoi])
+    } else if (filtreStatut !== 'tous') {
+      query = query.eq('statut', filtreStatut)
+    }
+    const { data } = await query
+    const rows = (data ?? []) as { courriel: string | null; tags: string[] }[]
+    const filtered = excludeTag ? rows.filter((a) => !(a.tags ?? []).includes(excludeTag)) : rows
+    const avecEmail = filtered.filter((a) => a.courriel && a.courriel.trim() !== '').length
+    setDestinatairesCount({ avecEmail, exclus: filtered.length - avecEmail })
+  }, [organisationId, filtreStatut, tagEnvoi, excludeTag])
 
   useEffect(() => {
     fetchDestinatairesCount()
   }, [fetchDestinatairesCount])
+
+  useEffect(() => {
+    if (!organisationId) return
+    supabase.rpc('list_adherent_tags', { p_organisation_id: organisationId }).then(({ data }) => {
+      setAvailableTags(((data ?? []) as { tag: string }[]).map((r) => r.tag))
+    })
+  }, [organisationId])
 
   async function handleSaveConfig(e: FormEvent) {
     e.preventDefault()
@@ -281,6 +313,8 @@ export default function CampagneMailingPage() {
         sujet,
         corps_html: corpsHtml,
         filtre_statut: filtreStatut,
+        tag_envoi: tagEnvoi,
+        exclude_tag: excludeTag || null,
         piece_jointe: pieceJointe ? { nom: pieceJointe.fichier.name, contenu_base64: pieceJointe.base64, type_mime: pieceJointe.fichier.type } : null,
         site_url: window.location.origin,
       }),
@@ -468,24 +502,59 @@ export default function CampagneMailingPage() {
             {attachmentError && <p className="mt-1 text-xs text-red-600">{attachmentError}</p>}
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Destinataires</label>
-            <select
-              value={filtreStatut}
-              onChange={(e) => setFiltreStatut(e.target.value as FiltreStatut)}
-              className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="actif">Adhérents actifs</option>
-              <option value="archive">Adhérents archivés</option>
-              <option value="tous">Tous les adhérents</option>
-            </select>
-            {destinatairesCount && (
-              <p className="mt-1.5 text-xs text-slate-500">
-                {destinatairesCount.avecEmail} destinataire{destinatairesCount.avecEmail > 1 ? 's' : ''} avec email
-                {destinatairesCount.exclus > 0 && ` — ${destinatairesCount.exclus} exclu${destinatairesCount.exclus > 1 ? 's' : ''} (email manquant)`}
-              </p>
+          <div className="flex flex-wrap items-start gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Envoyer à</label>
+              <select
+                value={envoyerA}
+                onChange={(e) => {
+                  if (e.target.value === '__create__') {
+                    navigate('/admin/adherents')
+                    return
+                  }
+                  setEnvoyerA(e.target.value)
+                }}
+                className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <optgroup label="Statut">
+                  <option value="statut:actif">Adhérents actifs</option>
+                  <option value="statut:archive">Adhérents archivés</option>
+                  <option value="statut:tous">Tous les adhérents</option>
+                </optgroup>
+                {availableTags.length > 0 && (
+                  <optgroup label="Listes">
+                    {availableTags.map((tag) => (
+                      <option key={tag} value={`tag:${tag}`}>Liste : {tag}</option>
+                    ))}
+                  </optgroup>
+                )}
+                <option value="__create__">+ Créer une nouvelle liste</option>
+              </select>
+            </div>
+
+            {availableTags.length > 0 && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Exclure la liste</label>
+                <select
+                  value={excludeTag}
+                  onChange={(e) => setExcludeTag(e.target.value)}
+                  className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Aucune</option>
+                  {availableTags.map((tag) => (
+                    <option key={tag} value={tag}>{tag}</option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
+
+          {destinatairesCount && (
+            <p className="text-xs text-slate-500">
+              {destinatairesCount.avecEmail} destinataire{destinatairesCount.avecEmail > 1 ? 's' : ''} avec email
+              {destinatairesCount.exclus > 0 && ` — ${destinatairesCount.exclus} exclu${destinatairesCount.exclus > 1 ? 's' : ''} (email manquant)`}
+            </p>
+          )}
 
           {!configured && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

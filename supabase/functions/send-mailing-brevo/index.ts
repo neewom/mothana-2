@@ -27,6 +27,7 @@ interface AdherentDestinataire {
   nom: string
   prenom: string | null
   mailing_unsubscribe_token: string
+  tags: string[]
 }
 
 function unsubscribeFooterHtml(): string {
@@ -47,13 +48,19 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Non autorisé' }, 401)
     }
 
-    const { sujet, corps_html, filtre_statut, piece_jointe, site_url } = await req.json()
+    const { sujet, corps_html, filtre_statut, tag_envoi, exclude_tag, piece_jointe, site_url } = await req.json()
 
     if (!sujet || typeof sujet !== 'string' || !corps_html || typeof corps_html !== 'string') {
       return jsonResponse({ error: 'Sujet et contenu du message requis' }, 400)
     }
     if (!['actif', 'archive', 'tous'].includes(filtre_statut)) {
       return jsonResponse({ error: 'Filtre de statut invalide' }, 400)
+    }
+    if (tag_envoi !== null && tag_envoi !== undefined && typeof tag_envoi !== 'string') {
+      return jsonResponse({ error: 'Liste de diffusion invalide' }, 400)
+    }
+    if (exclude_tag !== null && exclude_tag !== undefined && typeof exclude_tag !== 'string') {
+      return jsonResponse({ error: "Liste d'exclusion invalide" }, 400)
     }
     if (!site_url || typeof site_url !== 'string') {
       return jsonResponse({ error: 'site_url requis' }, 400)
@@ -123,11 +130,15 @@ Deno.serve(async (req) => {
 
     let query = adminClient
       .from('adherents')
-      .select('courriel, nom, prenom, mailing_unsubscribe_token')
+      .select('courriel, nom, prenom, mailing_unsubscribe_token, tags')
       .eq('organisation_id', organisationId)
       .eq('mailing_opt_out', false)
 
-    if (filtre_statut !== 'tous') {
+    // Sélectionner une liste de diffusion prime sur le statut actif/archivé
+    // (envoie à tous les porteurs du tag, peu importe leur statut).
+    if (tag_envoi) {
+      query = query.contains('tags', [tag_envoi])
+    } else if (filtre_statut !== 'tous') {
       query = query.eq('statut', filtre_statut)
     }
 
@@ -138,7 +149,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Erreur lors du chargement des adhérents' }, 500)
     }
 
-    const tousAdherents = (adherentsData ?? []) as AdherentDestinataire[]
+    const tousAdherents = ((adherentsData ?? []) as AdherentDestinataire[]).filter(
+      (a) => !exclude_tag || !(a.tags ?? []).includes(exclude_tag),
+    )
     const destinataires = tousAdherents.filter((a) => a.courriel && a.courriel.trim() !== '')
     const nombreExclus = tousAdherents.length - destinataires.length
 
