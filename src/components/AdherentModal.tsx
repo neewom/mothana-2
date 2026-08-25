@@ -34,7 +34,8 @@ interface AdherentModalProps {
   adherent?: Adherent
   organisationId: string
   // Tags déjà utilisés dans l'organisation, pour les puces de suggestion du nuage de tags
-  availableTags: string[]
+  // (optionnel : DemandesAdhesionPage n'a pas cette liste chargée, l'input reste utilisable sans suggestions)
+  availableTags?: string[]
   // Pré-remplit le formulaire de création à partir d'une demande d'adhésion en attente de ratification
   prefill?: IdentitePrefill
   // Doublons potentiels détectés côté DemandesAdhesionPage lors de l'ouverture pour ratification
@@ -52,7 +53,7 @@ export default function AdherentModal({
   onSaved,
   adherent,
   organisationId,
-  availableTags,
+  availableTags = [],
   prefill,
   duplicateWarnings,
   duplicateWarningsLoading,
