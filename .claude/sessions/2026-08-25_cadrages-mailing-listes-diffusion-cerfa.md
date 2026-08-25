@@ -44,11 +44,11 @@ Un blocage trouvé par l'utilisateur en relisant la PR : le champ email de l'exp
 
 PR #98 mergée dans `dev` — Trello Done, `CLAUDE.md` mis à jour dans la foulée.
 
+**Promotion prod (PR #99)** sur confirmation explicite ("Go promo") : cherry-pick des 2 commits de la PR #98 sur une branche dédiée depuis `main` (aucun conflit), vérifié (`tsc -b` + `npm run build` + `eslint`), PR créée et mergée sans re-demander. Pas de migration ni d'Edge Function pour cette feature (pure frontend). `CLAUDE.md` mis à jour (PR #99 promotion prod).
+
 ## Reste à faire
 
 2 cartes du même lot cadrées ce matin mais pas encore développées : pièces jointes multiples au mailing, détail Cerfa des dons de l'année — en tête du backlog actif, confirmation à redemander avant de démarrer l'une d'elles.
-
-Promotion `dev → main` de "Configuration Brevo" pas encore lancée — à confirmer avec l'utilisateur.
 
 ## Blockers
 
