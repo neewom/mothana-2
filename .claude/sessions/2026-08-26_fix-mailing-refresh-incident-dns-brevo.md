@@ -16,6 +16,7 @@ Cadré et développé sur confirmation explicite ("go").
 - **Vérifié par stress-test** : 5/5 tentatives correctes après le fix (contre un comportement intermittent avant), avec un délai post-reload plus court que celui qui avait initialement révélé le bug.
 - Carte Trello mise à jour avec le cadrage complet + étiquette "cadré" avant le dev (process habituel).
 - PR #104 mergée dans `dev` par l'utilisateur — Trello Done, `CLAUDE.md` mis à jour dans la foulée (résumé "Terminé" + backlog renuméroté 1-19, nouvelle carte détectée ajoutée en position 20).
+- **Promotion prod (PR #105)** sur confirmation explicite ("Go promo") : cherry-pick du commit unique de la PR #104 sur une branche dédiée depuis `main` (aucun conflit), vérifié (`tsc -b` + `npm run build` + `eslint`), PR créée et mergée sans re-demander. Pas de migration ni d'Edge Function pour ce fix (pure frontend). `CLAUDE.md` mis à jour (PR #105 promotion prod).
 
 ### Incident DNS Brevo (résolu en cours de route, sans rapport avec le sujet en cours)
 
@@ -31,7 +32,10 @@ L'utilisateur a signalé que l'environnement de test (`test.samakan.fr`) semblai
 
 - **Bug non repris ce jour** : détail Cerfa des dons de l'année (cadré le 2026-08-25, en tête de backlog restant).
 - **Nouvelle carte Trello détectée en fin de session, pas encore cadrée** : "Ajouter des contraintes de saisie de mot de passe dans la page reset password" (position 20 du backlog).
-- Promotion prod en attente pour PR #104 (fix compteur destinataires) — à confirmer avec l'utilisateur.
+
+## Fin de session
+
+`dev`/`main` alignés côté code, PR #104/#105 promues en prod, aucun blocker. Prochaine session : cadrer la nouvelle carte "contraintes mot de passe reset" ou reprendre le détail Cerfa des dons de l'année (backlog position 1).
 
 ## Blockers
 
