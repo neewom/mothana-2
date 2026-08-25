@@ -12,6 +12,7 @@ import ScrollShadowX from '../components/ScrollShadowX'
 import BrevoConfigModal, { type BrevoConfigValues } from '../components/BrevoConfigModal'
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
+const MAX_ATTACHMENTS = 3
 
 type FiltreStatut = 'actif' | 'archive' | 'tous'
 
@@ -97,7 +98,7 @@ export default function CampagneMailingPage() {
   const [envoyerA, setEnvoyerA] = useState('statut:actif')
   const [excludeTag, setExcludeTag] = useState('')
   const [availableTags, setAvailableTags] = useState<string[]>([])
-  const [pieceJointe, setPieceJointe] = useState<PieceJointeState | null>(null)
+  const [piecesJointes, setPiecesJointes] = useState<PieceJointeState[]>([])
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [destinatairesCount, setDestinatairesCount] = useState<{ avecEmail: number; exclus: number } | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -249,21 +250,40 @@ export default function CampagneMailingPage() {
     showToast('Configuration Brevo enregistrée')
   }
 
-  function handleAttachmentChange(file: File | null) {
+  function handleAttachmentsChange(files: FileList | null) {
     setAttachmentError(null)
-    if (!file) {
-      setPieceJointe(null)
-      return
+    if (!files || files.length === 0) return
+
+    const room = MAX_ATTACHMENTS - piecesJointes.length
+    const accepted: File[] = []
+    let error: string | null = null
+
+    for (const file of Array.from(files)) {
+      if (accepted.length >= room) {
+        error = `${MAX_ATTACHMENTS} fichiers maximum`
+        break
+      }
+      if (!['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        error = 'Format non supporté (PDF ou image uniquement)'
+        continue
+      }
+      if (file.size > MAX_ATTACHMENT_SIZE) {
+        error = 'Fichier trop volumineux (10 Mo max)'
+        continue
+      }
+      accepted.push(file)
     }
-    if (!['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-      setAttachmentError('Format non supporté (PDF ou image uniquement)')
-      return
-    }
-    if (file.size > MAX_ATTACHMENT_SIZE) {
-      setAttachmentError('Fichier trop volumineux (10 Mo max)')
-      return
-    }
-    fileToBase64(file).then((base64) => setPieceJointe({ fichier: file, base64 }))
+
+    if (error) setAttachmentError(error)
+
+    Promise.all(accepted.map((file) => fileToBase64(file).then((base64) => ({ fichier: file, base64 })))).then((newPieces) => {
+      setPiecesJointes((prev) => [...prev, ...newPieces])
+    })
+  }
+
+  function removeAttachment(index: number) {
+    setAttachmentError(null)
+    setPiecesJointes((prev) => prev.filter((_, i) => i !== index))
   }
 
   function resetForm() {
@@ -271,7 +291,7 @@ export default function CampagneMailingPage() {
     editor?.commands.setContent('')
     setCorpsHtml('')
     setCorpsVide(true)
-    setPieceJointe(null)
+    setPiecesJointes([])
     if (draftKey) localStorage.removeItem(draftKey)
   }
 
@@ -300,7 +320,7 @@ export default function CampagneMailingPage() {
         filtre_statut: filtreStatut,
         tag_envoi: tagEnvoi,
         exclude_tag: excludeTag || null,
-        piece_jointe: pieceJointe ? { nom: pieceJointe.fichier.name, contenu_base64: pieceJointe.base64, type_mime: pieceJointe.fichier.type } : null,
+        pieces_jointes: piecesJointes.map((p) => ({ nom: p.fichier.name, contenu_base64: p.base64, type_mime: p.fichier.type })),
         site_url: window.location.origin,
       }),
     })
@@ -437,28 +457,35 @@ export default function CampagneMailingPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Pièce jointe (facultatif)</label>
-            <div className="flex items-center gap-3">
-              {pieceJointe && <span className="text-sm text-slate-600">{pieceJointe.fichier.name}</span>}
-              <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
-                {pieceJointe ? 'Remplacer' : 'Choisir un fichier'}
+            <label className="mb-1 block text-sm font-medium text-slate-700">Pièces jointes (facultatif, {MAX_ATTACHMENTS} max)</label>
+            {piecesJointes.length > 0 && (
+              <ul className="mb-2 space-y-1">
+                {piecesJointes.map((p, i) => (
+                  <li key={`${p.fichier.name}-${i}`} className="flex items-center gap-2 text-sm text-slate-600">
+                    <span>{p.fichier.name}</span>
+                    <button type="button" onClick={() => removeAttachment(i)} className="text-xs font-medium text-red-600 hover:underline">
+                      Retirer
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {piecesJointes.length < MAX_ATTACHMENTS && (
+              <label className="inline-block cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                Choisir un ou plusieurs fichiers
                 <input
                   type="file"
                   accept="application/pdf,image/png,image/jpeg,image/webp"
+                  multiple
                   className="hidden"
                   onChange={(e) => {
-                    handleAttachmentChange(e.target.files?.[0] ?? null)
+                    handleAttachmentsChange(e.target.files)
                     e.target.value = ''
                   }}
                 />
               </label>
-              {pieceJointe && (
-                <button type="button" onClick={() => setPieceJointe(null)} className="text-xs font-medium text-red-600 hover:underline">
-                  Retirer
-                </button>
-              )}
-            </div>
-            <p className="mt-1 text-xs text-slate-500">PDF ou image, 10 Mo max, même fichier envoyé à tous les destinataires.</p>
+            )}
+            <p className="mt-1 text-xs text-slate-500">PDF ou image, 10 Mo max par fichier, mêmes fichiers envoyés à tous les destinataires.</p>
             {attachmentError && <p className="mt-1 text-xs text-red-600">{attachmentError}</p>}
           </div>
 
