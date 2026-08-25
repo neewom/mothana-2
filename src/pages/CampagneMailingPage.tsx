@@ -250,22 +250,35 @@ export default function CampagneMailingPage() {
     showToast('Configuration Brevo enregistrée')
   }
 
-  function handleAttachmentChange(file: File | null) {
+  function handleAttachmentsChange(files: FileList | null) {
     setAttachmentError(null)
-    if (!file) return
-    if (piecesJointes.length >= MAX_ATTACHMENTS) {
-      setAttachmentError(`${MAX_ATTACHMENTS} fichiers maximum`)
-      return
+    if (!files || files.length === 0) return
+
+    const room = MAX_ATTACHMENTS - piecesJointes.length
+    const accepted: File[] = []
+    let error: string | null = null
+
+    for (const file of Array.from(files)) {
+      if (accepted.length >= room) {
+        error = `${MAX_ATTACHMENTS} fichiers maximum`
+        break
+      }
+      if (!['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        error = 'Format non supporté (PDF ou image uniquement)'
+        continue
+      }
+      if (file.size > MAX_ATTACHMENT_SIZE) {
+        error = 'Fichier trop volumineux (10 Mo max)'
+        continue
+      }
+      accepted.push(file)
     }
-    if (!['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-      setAttachmentError('Format non supporté (PDF ou image uniquement)')
-      return
-    }
-    if (file.size > MAX_ATTACHMENT_SIZE) {
-      setAttachmentError('Fichier trop volumineux (10 Mo max)')
-      return
-    }
-    fileToBase64(file).then((base64) => setPiecesJointes((prev) => [...prev, { fichier: file, base64 }]))
+
+    if (error) setAttachmentError(error)
+
+    Promise.all(accepted.map((file) => fileToBase64(file).then((base64) => ({ fichier: file, base64 })))).then((newPieces) => {
+      setPiecesJointes((prev) => [...prev, ...newPieces])
+    })
   }
 
   function removeAttachment(index: number) {
@@ -459,13 +472,14 @@ export default function CampagneMailingPage() {
             )}
             {piecesJointes.length < MAX_ATTACHMENTS && (
               <label className="inline-block cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
-                Choisir un fichier
+                Choisir un ou plusieurs fichiers
                 <input
                   type="file"
                   accept="application/pdf,image/png,image/jpeg,image/webp"
+                  multiple
                   className="hidden"
                   onChange={(e) => {
-                    handleAttachmentChange(e.target.files?.[0] ?? null)
+                    handleAttachmentsChange(e.target.files)
                     e.target.value = ''
                   }}
                 />
