@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -9,6 +9,7 @@ import Toast from '../components/Toast'
 import Modal from '../components/Modal'
 import ParametresSection from '../components/ParametresSection'
 import ScrollShadowX from '../components/ScrollShadowX'
+import BrevoConfigModal, { type BrevoConfigValues } from '../components/BrevoConfigModal'
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
 
@@ -85,13 +86,9 @@ export default function CampagneMailingPage() {
 
   // Config Brevo
   const [configLoading, setConfigLoading] = useState(true)
-  const [apiKey, setApiKey] = useState('')
-  const [expediteurNom, setExpediteurNom] = useState('')
-  const [expediteurEmail, setExpediteurEmail] = useState('')
-  const [configSaving, setConfigSaving] = useState(false)
-  const [configSuccess, setConfigSuccess] = useState(false)
-  const [configError, setConfigError] = useState<string | null>(null)
+  const [brevoConfig, setBrevoConfig] = useState<BrevoConfigValues>({ apiKey: '', expediteurNom: '', expediteurEmail: '' })
   const [configured, setConfigured] = useState(false)
+  const [brevoModalOpen, setBrevoModalOpen] = useState(false)
 
   // Composition
   const [sujet, setSujet] = useState('')
@@ -179,9 +176,11 @@ export default function CampagneMailingPage() {
         .single()
 
       const raw = data as BrevoConfig | null
-      setApiKey(raw?.brevo_api_key ?? '')
-      setExpediteurNom(raw?.brevo_expediteur_nom ?? '')
-      setExpediteurEmail(raw?.brevo_expediteur_email ?? '')
+      setBrevoConfig({
+        apiKey: raw?.brevo_api_key ?? '',
+        expediteurNom: raw?.brevo_expediteur_nom ?? '',
+        expediteurEmail: raw?.brevo_expediteur_email ?? '',
+      })
       setConfigured(!!(raw?.brevo_api_key && raw.brevo_expediteur_nom && raw.brevo_expediteur_email))
       setConfigLoading(false)
     }
@@ -244,29 +243,10 @@ export default function CampagneMailingPage() {
       })
   }, [organisationId])
 
-  async function handleSaveConfig(e: FormEvent) {
-    e.preventDefault()
-    setConfigSaving(true)
-    setConfigError(null)
-    setConfigSuccess(false)
-
-    const { error } = await supabase
-      .from('organisations')
-      .update({
-        brevo_api_key: apiKey.trim() || null,
-        brevo_expediteur_nom: expediteurNom.trim() || null,
-        brevo_expediteur_email: expediteurEmail.trim() || null,
-      })
-      .eq('id', organisationId)
-
-    if (error) {
-      setConfigError(error.message)
-    } else {
-      setConfigured(!!(apiKey.trim() && expediteurNom.trim() && expediteurEmail.trim()))
-      setConfigSuccess(true)
-      setTimeout(() => setConfigSuccess(false), 3000)
-    }
-    setConfigSaving(false)
+  function handleConfigSaved(values: BrevoConfigValues) {
+    setBrevoConfig(values)
+    setConfigured(!!(values.apiKey.trim() && values.expediteurNom.trim() && values.expediteurEmail.trim()))
+    showToast('Configuration Brevo enregistrée')
   }
 
   function handleAttachmentChange(file: File | null) {
@@ -361,51 +341,26 @@ export default function CampagneMailingPage() {
         title="Configuration Brevo"
         description="Compte Brevo de votre organisation, utilisé pour l'envoi des campagnes."
       >
-        <form onSubmit={handleSaveConfig} className="max-w-lg space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Clé API</label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="xkeysib-…"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Nom de l'expéditeur</label>
-            <input
-              type="text"
-              value={expediteurNom}
-              onChange={(e) => setExpediteurNom(e.target.value)}
-              placeholder="Association Démo"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Email de l'expéditeur</label>
-            <input
-              type="email"
-              value={expediteurEmail}
-              onChange={(e) => setExpediteurEmail(e.target.value)}
-              placeholder="contact@association.fr"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <p className="mt-1 text-xs text-slate-500">Doit correspondre à un expéditeur vérifié dans votre compte Brevo.</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={configSaving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
-              {configSaving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
-            {configSuccess && <span className="text-sm text-emerald-600">Enregistré</span>}
-            {configError && <span className="text-sm text-red-600">{configError}</span>}
-          </div>
-        </form>
+        <div className="flex items-center gap-3">
+          <span
+            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              configured ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            {configured ? 'Configuré' : 'Non configuré'}
+          </span>
+          <button
+            type="button"
+            onClick={() => setBrevoModalOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Configurer
+          </button>
+        </div>
       </ParametresSection>
 
       <ParametresSection
@@ -642,6 +597,14 @@ export default function CampagneMailingPage() {
           </div>
         </Modal>
       )}
+
+      <BrevoConfigModal
+        open={brevoModalOpen}
+        onClose={() => setBrevoModalOpen(false)}
+        onSaved={handleConfigSaved}
+        organisationId={organisationId}
+        initial={brevoConfig}
+      />
 
       {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
     </div>
