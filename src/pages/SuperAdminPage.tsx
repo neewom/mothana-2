@@ -6,6 +6,8 @@ import { fetchAllRows } from '../lib/fetchAllRows'
 import { DEFAULT_CERFA_TEMPLATES } from '../lib/defaultCerfaTemplates'
 import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS, DEFAULT_CARTE_ADHERENT_NOM } from '../lib/defaultCarteAdherentTemplate'
 import { slugifyUrl } from '../lib/organisationAssets'
+import { isRecette, isStagingSupabaseProject } from '../lib/environment'
+import { seedDemoOrganisationData } from '../lib/demoOrgSeed'
 import Modal from '../components/Modal'
 import ScrollShadowX from '../components/ScrollShadowX'
 import Toast from '../components/Toast'
@@ -219,6 +221,14 @@ function OrgModal({ open, onClose, onSaved, onDeleteRequest, onAdminAdded, org }
         is_active: true,
       })
       if (carteErr) { setError(carteErr.message); setSaving(false); return }
+
+      if (isRecette() && isStagingSupabaseProject()) {
+        try {
+          await seedDemoOrganisationData(newOrg.id)
+        } catch (seedErr) {
+          console.error('Échec du peuplement factice (organisation créée quand même) :', seedErr)
+        }
+      }
     }
 
     setSaving(false)
