@@ -12,6 +12,7 @@ import AdminLayout from './pages/AdminLayout'
 import BenevolePage from './pages/BenevolePage'
 import DashboardPage from './pages/DashboardPage'
 import DonsPage from './pages/DonsPage'
+import DonsReguliersPage from './pages/DonsReguliersPage'
 import ParticipantsPage from './pages/ParticipantsPage'
 import ActivitesPage from './pages/ActivitesPage'
 import RecusFiscauxPage from './pages/RecusFiscauxPage'
@@ -44,6 +45,7 @@ function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="dons" element={<DonsPage />} />
+            <Route path="dons-reguliers" element={<DonsReguliersPage />} />
             <Route path="participants" element={<ParticipantsPage />} />
             <Route path="activites" element={<ActivitesPage />} />
             <Route path="recus" element={<RecusFiscauxPage />} />

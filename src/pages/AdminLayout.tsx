@@ -102,6 +102,7 @@ const NAV_ITEMS: NavEntry[] = [
     icon: <DonIcon />,
     items: [
       { label: 'Dons', to: '/admin/dons' },
+      { label: 'Dons réguliers', to: '/admin/dons-reguliers' },
       { label: 'Participants', to: '/admin/participants' },
       { label: 'Activités', to: '/admin/activites' },
       { label: 'Reçus fiscaux', to: '/admin/recus' },
