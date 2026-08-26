@@ -1,8 +1,4 @@
-const PROD_HOSTNAMES = ['samakan.fr', 'www.samakan.fr', 'mothana.vercel.app']
-
-function isRecette(): boolean {
-  return !PROD_HOSTNAMES.includes(window.location.hostname)
-}
+import { isRecette } from '../lib/environment'
 
 export default function RecetteBanner() {
   if (!isRecette()) return null
