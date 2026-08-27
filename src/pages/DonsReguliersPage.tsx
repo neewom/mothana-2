@@ -87,17 +87,28 @@ function DonRegulierModal({ open, onClose, onSaved, engagement, participants, ac
       date_fin: dateFin || null,
     }
 
-    const { error: err } = isEdit && engagement
-      ? await supabase.from('dons_reguliers').update(payload).eq('id', engagement.id)
-      : await supabase.from('dons_reguliers').insert({ ...payload, organisation_id: organisationId, statut: 'actif' })
+    if (isEdit && engagement) {
+      const { error: err } = await supabase.from('dons_reguliers').update(payload).eq('id', engagement.id)
+      if (err) { setSaving(false); setError(err.message); return }
 
-    setSaving(false)
-
-    if (err) {
-      setError(err.message)
-      return
+      // L'activité est propagée aux dons déjà générés (simple catégorisation, sans
+      // impact fiscal). Le montant reste volontairement futurs-uniquement : le
+      // modifier rétroactivement désynchroniserait le total d'un reçu déjà émis
+      // pour l'année concernée (même risque que la réaffectation de participant
+      // sur un don, cf. DonModal.tsx).
+      const { error: syncErr } = await supabase
+        .from('dons')
+        .update({ activite_id: activiteId || null })
+        .eq('don_regulier_id', engagement.id)
+      if (syncErr) { setSaving(false); setError(syncErr.message); return }
+    } else {
+      const { error: err } = await supabase
+        .from('dons_reguliers')
+        .insert({ ...payload, organisation_id: organisationId, statut: 'actif' })
+      if (err) { setSaving(false); setError(err.message); return }
     }
 
+    setSaving(false)
     onSaved()
     onClose()
   }

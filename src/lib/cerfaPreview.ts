@@ -20,6 +20,7 @@ export const CERFA_PREVIEW_PLACEHOLDERS: Record<string, string> = {
   donateur_ville: 'Paris',
   don_montant_chiffres: '150,00 €',
   don_montant_lettres: 'Cent cinquante euros',
+  dons_detail: '<table class="dons-detail"><thead><tr><th>Événement</th><th>Montant</th><th>Date</th><th>Mode</th></tr></thead><tbody><tr><td>Collecte annuelle</td><td>60,00 €</td><td>Nb Mois : 3</td><td>Prélèvement - virement</td></tr><tr><td></td><td>50,00 €</td><td>10/03/2026</td><td>Espèces</td></tr><tr class="dons-detail-total"><td>Total</td><td>110,00 €</td><td colspan="2"></td></tr></tbody></table>',
   don_annee: '2026',
   recu_numero_ordre: '2026-042',
   recu_date_generation: '18/07/2026',
