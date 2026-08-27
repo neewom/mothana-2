@@ -59,7 +59,7 @@ interface DonDetail {
   date: string
   mode_paiement: number
   don_regulier_id: string | null
-  activites: { id_externe: string | null } | null
+  activites: { nom: string } | null
 }
 
 // ---------------------------------------------------------------------------
@@ -168,7 +168,7 @@ function buildDonsDetailHtml(dons: DonDetail[]): string {
   }
 
   const lignes: Ligne[] = individuels.map((don) => ({
-    evenement: don.activites?.id_externe ?? '',
+    evenement: don.activites?.nom ?? '',
     montant: Number(don.montant),
     dateOuNbMois: formatDate(don.date),
     mode: MODE_PAIEMENT_LABELS[don.mode_paiement] ?? '',
@@ -179,7 +179,7 @@ function buildDonsDetailHtml(dons: DonDetail[]): string {
     if (groupe.length < 2) {
       for (const don of groupe) {
         lignes.push({
-          evenement: don.activites?.id_externe ?? '',
+          evenement: don.activites?.nom ?? '',
           montant: Number(don.montant),
           dateOuNbMois: formatDate(don.date),
           mode: MODE_PAIEMENT_LABELS[don.mode_paiement] ?? '',
@@ -189,7 +189,7 @@ function buildDonsDetailHtml(dons: DonDetail[]): string {
       continue
     }
     lignes.push({
-      evenement: groupe[0].activites?.id_externe ?? '',
+      evenement: groupe[0].activites?.nom ?? '',
       montant: groupe.reduce((sum, d) => sum + Number(d.montant), 0),
       dateOuNbMois: `Nb Mois : ${groupe.length}`,
       mode: MODE_PAIEMENT_LABELS[groupe[0].mode_paiement] ?? '',
@@ -418,7 +418,7 @@ Deno.serve(async (req) => {
 
     const { data: dons } = await adminClient
       .from('dons')
-      .select('montant, date, mode_paiement, don_regulier_id, activites(id_externe)')
+      .select('montant, date, mode_paiement, don_regulier_id, activites(nom)')
       .eq('profil_participant_id', profil_participant_id)
       .gte('date', `${anneeNum}-01-01`)
       .lte('date', `${anneeNum}-12-31`)
