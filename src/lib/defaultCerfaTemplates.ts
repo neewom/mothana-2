@@ -23,6 +23,11 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1e293b; font-si
 .recu-table { width: 100%; border-collapse: collapse; }
 .recu-table td { padding: 6px 0; border-bottom: 1px solid #e2e8f0; }
 .recu-table-valeur { text-align: right; font-weight: 700; }
+.dons-detail { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 11px; }
+.dons-detail th { text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #64748b; padding: 4px 6px; border-bottom: 1px solid #4338ca; }
+.dons-detail td { padding: 5px 6px; border-bottom: 1px solid #e2e8f0; }
+.dons-detail th:nth-child(2), .dons-detail td:nth-child(2) { text-align: right; }
+.dons-detail-total td { font-weight: 700; border-bottom: none; border-top: 1px solid #1e293b; }
 .recu-declaration { font-size: 11px; font-style: italic; color: #475569; }
 .recu-footer { margin-top: 32px; display: flex; justify-content: space-between; align-items: flex-end; }
 .recu-signature { width: 220px; height: 70px; border: 1px dashed #cbd5e1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; }

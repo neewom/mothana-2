@@ -175,6 +175,23 @@ export interface Don {
   mode_paiement: ModePaiement
   created_by_role: 'admin' | 'benevole'
   id_externe: string | null
+  don_regulier_id: string | null
+  created_at: string
+  updated_at: string
+  profils_participant: ProfilParticipant
+  activites: Activite | null
+}
+
+export interface DonRegulier {
+  id: string
+  organisation_id: string
+  profil_participant_id: string
+  activite_id: string | null
+  montant: number
+  jour_prelevement: number
+  date_debut: string
+  date_fin: string | null
+  statut: 'actif' | 'arrete'
   created_at: string
   updated_at: string
   profils_participant: ProfilParticipant

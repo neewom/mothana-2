@@ -54,6 +54,14 @@ interface Organisation {
   modele_recu_pdf: ModeleRecu | null
 }
 
+interface DonDetail {
+  montant: number
+  date: string
+  mode_paiement: number
+  don_regulier_id: string | null
+  activites: { nom: string } | null
+}
+
 // ---------------------------------------------------------------------------
 // Helpers de formatage
 // ---------------------------------------------------------------------------
@@ -121,6 +129,88 @@ function numberToWords(amount: number): string {
 
 function renderTemplate(html: string, values: Record<string, string>): string {
   return html.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? '')
+}
+
+// Dupliqué de src/lib/modePaiement.ts — pas de partage de code direct avec le
+// frontend, cette Edge Function est un déployable Deno isolé.
+const MODE_PAIEMENT_LABELS: Record<number, string> = {
+  1: 'Espèces',
+  2: 'Chèque',
+  3: 'Prélèvement - virement',
+  4: 'Autres',
+}
+
+// Une ligne groupée ("Nb Mois : N") n'est produite que pour un ensemble de 2
+// dons ou plus partageant le même don_regulier_id — signal non ambigu. Le
+// reste (mode 3 sans don_regulier_id, quel que soit le nombre de dons dans
+// l'année) reste affiché individuellement : impossible de distinguer de façon
+// fiable, sur les seules données historiques, un virement ponctuel d'un
+// engagement mensuel saisi en une fois pour toute l'année (cf. carte Trello).
+function buildDonsDetailHtml(dons: DonDetail[]): string {
+  const groupes = new Map<string, DonDetail[]>()
+  const individuels: DonDetail[] = []
+
+  for (const don of dons) {
+    if (!don.don_regulier_id) {
+      individuels.push(don)
+      continue
+    }
+    if (!groupes.has(don.don_regulier_id)) groupes.set(don.don_regulier_id, [])
+    groupes.get(don.don_regulier_id)!.push(don)
+  }
+
+  interface Ligne {
+    evenement: string
+    montant: number
+    dateOuNbMois: string
+    mode: string
+    dateTri: string
+  }
+
+  const lignes: Ligne[] = individuels.map((don) => ({
+    evenement: don.activites?.nom ?? '',
+    montant: Number(don.montant),
+    dateOuNbMois: formatDate(don.date),
+    mode: MODE_PAIEMENT_LABELS[don.mode_paiement] ?? '',
+    dateTri: don.date,
+  }))
+
+  for (const groupe of groupes.values()) {
+    if (groupe.length < 2) {
+      for (const don of groupe) {
+        lignes.push({
+          evenement: don.activites?.nom ?? '',
+          montant: Number(don.montant),
+          dateOuNbMois: formatDate(don.date),
+          mode: MODE_PAIEMENT_LABELS[don.mode_paiement] ?? '',
+          dateTri: don.date,
+        })
+      }
+      continue
+    }
+    lignes.push({
+      evenement: groupe[0].activites?.nom ?? '',
+      montant: groupe.reduce((sum, d) => sum + Number(d.montant), 0),
+      dateOuNbMois: `Nb Mois : ${groupe.length}`,
+      mode: MODE_PAIEMENT_LABELS[groupe[0].mode_paiement] ?? '',
+      dateTri: groupe[0].date,
+    })
+  }
+
+  lignes.sort((a, b) => a.dateTri.localeCompare(b.dateTri))
+
+  const rows = lignes
+    .map(
+      (l) => `<tr><td>${l.evenement}</td><td>${formatMontant(l.montant)}</td><td>${l.dateOuNbMois}</td><td>${l.mode}</td></tr>`
+    )
+    .join('')
+
+  const total = dons.reduce((sum, d) => sum + Number(d.montant), 0)
+
+  return (
+    '<table class="dons-detail"><thead><tr><th>Événement</th><th>Montant</th><th>Date</th><th>Mode</th></tr></thead>' +
+    `<tbody>${rows}<tr class="dons-detail-total"><td>Total</td><td>${formatMontant(total)}</td><td colspan="2"></td></tr></tbody></table>`
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -328,7 +418,7 @@ Deno.serve(async (req) => {
 
     const { data: dons } = await adminClient
       .from('dons')
-      .select('montant, date, mode_paiement')
+      .select('montant, date, mode_paiement, don_regulier_id, activites(nom)')
       .eq('profil_participant_id', profil_participant_id)
       .gte('date', `${anneeNum}-01-01`)
       .lte('date', `${anneeNum}-12-31`)
@@ -338,7 +428,8 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Aucun don pour cette année' }, 404)
     }
 
-    const totalMontant = dons.reduce((sum, d) => sum + Number(d.montant), 0)
+    const donsDetail = dons as unknown as DonDetail[]
+    const totalMontant = donsDetail.reduce((sum, d) => sum + Number(d.montant), 0)
 
     // ---------------------------------------------------------------------
     // 4. Type de Cerfa + template actif
@@ -452,6 +543,7 @@ Deno.serve(async (req) => {
       donateur_ville: personne.ville ?? '',
       don_montant_chiffres: formatMontant(totalMontant),
       don_montant_lettres: numberToWords(totalMontant),
+      dons_detail: buildDonsDetailHtml(donsDetail),
       don_annee: String(anneeNum),
       recu_numero_ordre: numeroOrdre,
       recu_date_generation: formatDate(new Date().toISOString().split('T')[0]),

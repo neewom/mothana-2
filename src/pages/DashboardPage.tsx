@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
+import { moisManquants, anneeMoisDeDate } from '../lib/donsReguliers'
 
 interface RecentDon {
   id: string
@@ -53,6 +54,7 @@ export default function DashboardPage() {
   const [recentActivites, setRecentActivites] = useState<RecentActivite[]>([])
   const [adherentsExpiration, setAdherentsExpiration] = useState<AdherentProcheExpiration[]>([])
   const [demandesEnAttente, setDemandesEnAttente] = useState(0)
+  const [donsReguliersAConfirmer, setDonsReguliersAConfirmer] = useState(0)
 
   useEffect(() => {
     if (!organisationId) return
@@ -65,7 +67,7 @@ export default function DashboardPage() {
       const aujourdhui = now.toISOString().split('T')[0]
       const dans30Jours = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-      const [donsMoisRes, recentDonsRes, recentActivitesRes, adherentsExpirationRes, demandesRes] = await Promise.all([
+      const [donsMoisRes, recentDonsRes, recentActivitesRes, adherentsExpirationRes, demandesRes, engagementsRes, donsGeneresRes] = await Promise.all([
         supabase
           .from('dons')
           .select('montant')
@@ -97,6 +99,16 @@ export default function DashboardPage() {
           .select('id', { count: 'exact', head: true })
           .eq('organisation_id', organisationId)
           .eq('statut', 'en_attente'),
+        supabase
+          .from('dons_reguliers')
+          .select('id, jour_prelevement, date_debut, date_fin')
+          .eq('organisation_id', organisationId)
+          .eq('statut', 'actif'),
+        supabase
+          .from('dons')
+          .select('don_regulier_id, date')
+          .eq('organisation_id', organisationId)
+          .not('don_regulier_id', 'is', null),
       ])
 
       const donsMois = (donsMoisRes.data ?? []) as { montant: number }[]
@@ -106,6 +118,20 @@ export default function DashboardPage() {
       setRecentActivites((recentActivitesRes.data ?? []) as RecentActivite[])
       setAdherentsExpiration((adherentsExpirationRes.data ?? []) as unknown as AdherentProcheExpiration[])
       setDemandesEnAttente(demandesRes.count ?? 0)
+
+      const engagements = (engagementsRes.data ?? []) as { id: string; jour_prelevement: number; date_debut: string; date_fin: string | null }[]
+      const donsGeneres = (donsGeneresRes.data ?? []) as { don_regulier_id: string; date: string }[]
+      const moisDejaGeneresParEngagement = new Map<string, Set<string>>()
+      for (const d of donsGeneres) {
+        if (!d.don_regulier_id) continue
+        if (!moisDejaGeneresParEngagement.has(d.don_regulier_id)) moisDejaGeneresParEngagement.set(d.don_regulier_id, new Set())
+        moisDejaGeneresParEngagement.get(d.don_regulier_id)!.add(anneeMoisDeDate(d.date))
+      }
+      const totalAConfirmer = engagements.reduce(
+        (sum, e) => sum + moisManquants(e, moisDejaGeneresParEngagement.get(e.id) ?? new Set()).length,
+        0
+      )
+      setDonsReguliersAConfirmer(totalAConfirmer)
 
       setLoading(false)
     }
@@ -148,6 +174,30 @@ export default function DashboardPage() {
           </div>
           <span className="shrink-0 rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white">
             Examiner →
+          </span>
+        </Link>
+      )}
+
+      {donsReguliersAConfirmer > 0 && (
+        <Link
+          to="/admin/dons-reguliers"
+          className="flex items-center gap-4 rounded-xl border-2 border-amber-300 bg-amber-50 px-6 py-5 shadow-sm transition-colors hover:bg-amber-100"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-400 text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3M3.75 6h16.5a1.5 1.5 0 011.5 1.5v9a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5v-9a1.5 1.5 0 011.5-1.5z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-base font-bold text-amber-900">
+              {donsReguliersAConfirmer} don{donsReguliersAConfirmer > 1 ? 's' : ''} régulier{donsReguliersAConfirmer > 1 ? 's' : ''} en attente de confirmation
+            </p>
+            <p className="mt-0.5 text-sm text-amber-700">
+              Prélèvements mensuels à valider avant enregistrement définitif.
+            </p>
+          </div>
+          <span className="shrink-0 rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white">
+            Confirmer →
           </span>
         </Link>
       )}
