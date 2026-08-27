@@ -83,6 +83,9 @@ export default function AdherentsPage() {
   const [archiving, setArchiving] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
 
+  // Sur mobile, la colonne checkbox reste masquée tant que ce mode n'est pas activé
+  // (action secondaire, coûteuse en largeur) — toujours visible sur desktop.
+  const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [printing, setPrinting] = useState(false)
   const [printError, setPrintError] = useState<string | null>(null)
@@ -268,6 +271,13 @@ export default function AdherentsPage() {
     )
   }
 
+  function toggleSelectionMode() {
+    setSelectionMode((prev) => {
+      if (prev) setSelectedIds(new Set())
+      return !prev
+    })
+  }
+
   async function printCards(ids: string[], filename: string) {
     setPrinting(true)
     setPrintError(null)
@@ -392,6 +402,19 @@ export default function AdherentsPage() {
             </div>
             <div className="flex flex-shrink-0 items-center gap-2">
               <button
+                onClick={toggleSelectionMode}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium sm:hidden ${
+                  selectionMode
+                    ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                    : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Sélectionner
+              </button>
+              <button
                 onClick={() => setImportOpen(true)}
                 className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
@@ -452,7 +475,7 @@ export default function AdherentsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                    <th className="px-6 py-3">
+                    <th className={`px-6 py-3 ${selectionMode ? '' : 'hidden sm:table-cell'}`}>
                       <input
                         type="checkbox"
                         checked={selectedIds.size > 0 && selectedIds.size === adherents.length}
@@ -474,7 +497,7 @@ export default function AdherentsPage() {
                     const cycle = statutCycleFor(latestAdhesions.get(a.id), todayIso)
                     return (
                       <tr key={a.id} onClick={() => openEdit(a)} className="cursor-pointer hover:bg-slate-50">
-                        <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
+                        <td className={`px-6 py-3 ${selectionMode ? '' : 'hidden sm:table-cell'}`} onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(a.id)}
