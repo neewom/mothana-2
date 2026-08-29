@@ -298,9 +298,18 @@ export default function DonsPage() {
 
   // Detail & modal
   const [selectedDon, setSelectedDon] = useState<Don | null>(null)
+  const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingDon, setEditingDon] = useState<Don | undefined>(undefined)
   const [importOpen, setImportOpen] = useState(false)
+
+  useEffect(() => {
+    if (selectedDon) {
+      const timer = setTimeout(() => setMobilePanelVisible(true), 10)
+      return () => clearTimeout(timer)
+    }
+    setMobilePanelVisible(false)
+  }, [selectedDon])
 
   function applyShortcut(s: Shortcut) {
     setShortcut(s)
@@ -694,7 +703,11 @@ export default function DonsPage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setSelectedDon(null)}
           />
-          <div className="absolute inset-y-0 right-0 w-full max-w-sm bg-white shadow-xl flex flex-col">
+          <div
+            className={`absolute inset-y-0 right-0 w-full max-w-sm bg-white shadow-xl flex flex-col transition-transform duration-200 ${
+              mobilePanelVisible ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
             <DetailPanel
               don={selectedDon}
               onClose={() => setSelectedDon(null)}
