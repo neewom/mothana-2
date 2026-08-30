@@ -325,6 +325,15 @@ export default function ParticipantsPage() {
 
   // Selected participant for detail panel
   const [selectedParticipant, setSelectedParticipant] = useState<ProfilParticipant | null>(null)
+  const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
+
+  useEffect(() => {
+    if (selectedParticipant) {
+      const timer = setTimeout(() => setMobilePanelVisible(true), 10)
+      return () => clearTimeout(timer)
+    }
+    setMobilePanelVisible(false)
+  }, [selectedParticipant])
 
   // Participant modal (add/edit)
   const [participantModalOpen, setParticipantModalOpen] = useState(false)
@@ -706,7 +715,11 @@ export default function ParticipantsPage() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setSelectedParticipant(null)}
           />
-          <div className="absolute inset-y-0 right-0 w-full max-w-sm bg-white shadow-xl flex flex-col">
+          <div
+            className={`absolute inset-y-0 right-0 w-full max-w-sm bg-white shadow-xl flex flex-col transition-transform duration-200 ${
+              mobilePanelVisible ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
             {loadingDons ? (
               <div className="flex flex-1 items-center justify-center py-16">
                 <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
