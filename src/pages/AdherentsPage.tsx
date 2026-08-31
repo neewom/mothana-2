@@ -391,8 +391,12 @@ export default function AdherentsPage() {
                 <option value="all">Tous</option>
               </Select>
 
-              {/* Groupe "listes de diffusion" : filtre, exclusion et création regroupés visuellement (retour utilisateur) */}
-              <div className="flex flex-wrap items-center gap-2 border-l border-paper-border pl-3">
+              {/* Groupe "listes de diffusion" : filtre, exclusion et création regroupés visuellement (retour
+                  utilisateur). La bordure/marge séparatrice ne s'applique qu'à partir de sm : en dessous, le
+                  groupe passe à la ligne (flex-wrap du parent) et se retrouvait avec un indent + une bordure
+                  verticale qui se lisait comme une boîte imbriquée non voulue (trouvé en testant sur un vrai
+                  téléphone à 360px, pas juste le viewport 390px habituel). */}
+              <div className="flex flex-wrap items-center gap-2 sm:border-l sm:border-paper-border sm:pl-3">
                 <Select
                   aria-label="Liste de diffusion"
                   value={tagFilter}
@@ -423,7 +427,12 @@ export default function AdherentsPage() {
                 </Button>
               </div>
             </div>
-            <div className="flex flex-shrink-0 items-center gap-2">
+            {/* w-full (pas flex-shrink-0) sur mobile : flex-shrink-0 fige la largeur "naturelle" du groupe
+                (les 3 boutons sur une seule ligne) sans jamais laisser flex-wrap se déclencher, puisque rien
+                ne contraint alors sa largeur disponible — le dernier bouton ("Ajouter") se retrouvait rendu
+                hors du viewport, invisible et inatteignable (AdminLayout.tsx a overflow-hidden sur son
+                conteneur racine, pas de scroll de secours). Trouvé en testant sur un vrai téléphone à 360px. */}
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
               <Button
                 variant={selectionMode ? 'default' : 'secondary'}
                 onClick={toggleSelectionMode}
@@ -571,7 +580,7 @@ export default function AdherentsPage() {
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button variant="secondary" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>«</Button>
                 <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
                   ‹ Précédent
