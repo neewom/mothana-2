@@ -25,6 +25,20 @@ module.exports = {
         stamp: {
           DEFAULT: '#a8281f',
         },
+        // Couleurs sémantiques réservées à la signalisation d'état (jamais décoratives),
+        // distinctes de l'encre de marque (stamp) — même principe que l'ancien DESIGN.md
+        // (rouge/ambre/émeraude séparés de l'accent primaire), ajoutées en rollout quand
+        // une page a un vrai besoin d'avertissement/succès (ActivitesPage n'en avait pas).
+        warning: {
+          DEFAULT: '#b45309',
+          tint: '#fffbeb',
+          border: '#fde68a',
+        },
+        success: {
+          DEFAULT: '#3f6b4a',
+          tint: '#f2f6f3',
+          border: '#c9dbcd',
+        },
       },
       fontFamily: {
         registre: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],

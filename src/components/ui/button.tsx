@@ -16,6 +16,9 @@ const buttonVariants = cva(
         secondary: 'border border-paper-border text-ink-muted bg-white hover:bg-paper',
         ghost: 'text-ink-muted hover:bg-paper-border/40',
         destructive: 'bg-stamp text-white hover:bg-stamp/90',
+        // Action positive (ex. ratifier une demande) — même logique outline que `default`,
+        // encre `success` réservée à la signalisation d'état plutôt qu'à la marque.
+        success: 'border border-success text-success bg-transparent hover:bg-success/[0.06]',
       },
       size: {
         default: 'h-9 px-3.5',
