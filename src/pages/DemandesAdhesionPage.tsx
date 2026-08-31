@@ -435,11 +435,14 @@ export default function DemandesAdhesionPage() {
                         )}
                       </dd>
                     </div>
-                    <div>
+                    {/* Téléphone/Courriel en pleine largeur (pas de colonne à 50%) : contrairement à
+                        Civilité/Date de naissance (formats courts et fixes), un email long forçait un
+                        scroll horizontal de la modale (retour utilisateur, testé sur une vraie demande). */}
+                    <div className="col-span-2">
                       <dt className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Téléphone</dt>
                       <dd
                         className={cn(
-                          'mt-0.5',
+                          'mt-0.5 break-words',
                           telephoneConflicts.length > 0 ? 'rounded-sm border border-warning-border bg-warning-tint px-2 py-1 text-warning' : 'text-ink-muted'
                         )}
                       >
@@ -449,11 +452,11 @@ export default function DemandesAdhesionPage() {
                         <p className="mt-1 font-registre-mono text-[11px] text-warning">Déjà utilisé par {conflictLabel(telephoneConflicts)}</p>
                       )}
                     </div>
-                    <div>
+                    <div className="col-span-2">
                       <dt className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Courriel</dt>
                       <dd
                         className={cn(
-                          'mt-0.5',
+                          'mt-0.5 break-words',
                           courrielConflicts.length > 0 ? 'rounded-sm border border-warning-border bg-warning-tint px-2 py-1 text-warning' : 'text-ink-muted'
                         )}
                       >
