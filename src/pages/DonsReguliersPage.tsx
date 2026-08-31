@@ -5,10 +5,13 @@ import type { DonRegulier, ProfilParticipant, Activite } from '../types'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { moisManquants, anneeMoisDeDate } from '../lib/donsReguliers'
 import { participantFullName } from '../lib/participantSearch'
-import Modal from '../components/Modal'
-import SectionHeader from '../components/SectionHeader'
 import ParticipantAutocomplete from '../components/ParticipantAutocomplete'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
+import { cn } from '../lib/utils'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
 
 function todayISO(): string {
   return new Date().toISOString().split('T')[0]
@@ -58,8 +61,6 @@ function DonRegulierModal({ open, onClose, onSaved, engagement, participants, ac
       setError(null)
     }
   }, [open, engagement])
-
-  if (!open) return null
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -114,115 +115,131 @@ function DonRegulierModal({ open, onClose, onSaved, engagement, participants, ac
   }
 
   return (
-    <Modal open={open} onClose={onClose} labelledBy="don-regulier-modal-title">
-      <div className="border-b border-slate-200 px-6 py-4">
-        <h2 id="don-regulier-modal-title" className="text-lg font-semibold text-slate-900">
-          {isEdit ? "Modifier l'engagement" : 'Nouvel engagement'}
-        </h2>
-      </div>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogContent aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Modifier l'engagement" : 'Nouvel engagement'}</DialogTitle>
+        </DialogHeader>
 
-      <form onSubmit={handleSubmit} className="space-y-4 p-6">
-        {error && (
-          <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-        )}
+        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+          {error && (
+            <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
+              {error}
+            </div>
+          )}
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">
-            Participant <span className="text-red-500">*</span>
-          </label>
-          <ParticipantAutocomplete
-            participants={participants}
-            value={profilParticipantId}
-            onChange={setProfilParticipantId}
-            placeholder="Rechercher par nom et prénom…"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Activité</label>
-          <ActiviteAutocomplete
-            activites={activites}
-            value={activiteId}
-            onChange={setActiviteId}
-            placeholder="Aucune activité"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Montant (€) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              required
-              value={montant}
-              onChange={(e) => setMontant(e.target.value)}
-              placeholder="0.00"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          <div className="space-y-1.5">
+            <Label>
+              Participant <span className="text-stamp">*</span>
+            </Label>
+            <ParticipantAutocomplete
+              participants={participants}
+              value={profilParticipantId}
+              onChange={setProfilParticipantId}
+              placeholder="Rechercher par nom et prénom…"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Jour du mois <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="28"
-              required
-              value={jourPrelevement}
-              onChange={(e) => setJourPrelevement(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <p className="mt-1 text-xs text-slate-500">Entre le 1 et le 28.</p>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Date de début <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              required
-              value={dateDebut}
-              onChange={(e) => setDateDebut(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          <div className="space-y-1.5">
+            <Label>Activité</Label>
+            <ActiviteAutocomplete
+              activites={activites}
+              value={activiteId}
+              onChange={setActiviteId}
+              placeholder="Aucune activité"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Date de fin</label>
-            <input
-              type="date"
-              value={dateFin}
-              onChange={(e) => setDateFin(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
 
-        <div className="flex justify-end gap-3 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
-            Annuler
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-          >
-            {saving ? 'Enregistrement…' : 'Enregistrer'}
-          </button>
-        </div>
-      </form>
-    </Modal>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="dr-montant">
+                Montant (€) <span className="text-stamp">*</span>
+              </Label>
+              <Input
+                id="dr-montant"
+                type="number"
+                step="0.01"
+                min="0.01"
+                required
+                value={montant}
+                onChange={(e) => setMontant(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="dr-jour">
+                Jour du mois <span className="text-stamp">*</span>
+              </Label>
+              <Input
+                id="dr-jour"
+                type="number"
+                min="1"
+                max="28"
+                required
+                value={jourPrelevement}
+                onChange={(e) => setJourPrelevement(e.target.value)}
+              />
+              <p className="font-registre-mono text-[11px] text-ink-faint">Entre le 1 et le 28.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="dr-debut">
+                Date de début <span className="text-stamp">*</span>
+              </Label>
+              <Input
+                id="dr-debut"
+                type="date"
+                required
+                value={dateDebut}
+                onChange={(e) => setDateDebut(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="dr-fin">Date de fin</Label>
+              <Input
+                id="dr-fin"
+                type="date"
+                value={dateFin}
+                onChange={(e) => setDateFin(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Annuler
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Enregistrement…' : 'Enregistrer'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Statut d'engagement — badge sobre, pas de cachet : contrairement à une activité,
+// "actif"/"arrêté" est une vraie action délibérée de l'admin (bouton Arrêter/
+// Réactiver), pas un fait dérivé automatiquement d'une date. Réserver le cachet
+// postal aux faits purement temporels évite de rejouer l'erreur du pilote
+// (cachet = validation manuelle inventée) dans l'autre sens.
+// ---------------------------------------------------------------------------
+
+function StatutBadge({ statut }: { statut: DonRegulier['statut'] }) {
+  const actif = statut === 'actif'
+  return (
+    <span
+      className={cn(
+        'font-registre-mono text-[10px] font-medium uppercase tracking-wide',
+        actif ? 'text-stamp' : 'text-ink-faint'
+      )}
+    >
+      {actif ? 'Actif' : 'Arrêté'}
+    </span>
   )
 }
 
@@ -420,71 +437,90 @@ export default function DonsReguliersPage() {
 
   return (
     <>
-      <div className="space-y-6">
+      {/*
+        THESIS: un engagement récurrent est un registre de prélèvements attendus, pas un
+        automate silencieux — la confirmation reste toujours un geste explicite de l'admin,
+        jamais une insertion automatique (contrainte fiscale Cerfa, inchangée du legacy).
+        OWN-WORLD: papier clair (paper #fdfcfa/#e8e4dc), encre vermillon unique (stamp
+        #a8281f, contour = action de marque, plein = danger), Inter (texte) + IBM Plex Mono
+        (montants/dates/statuts), radius plat (rounded-sm). Contrairement au cachet
+        d'ActivitesPage (fait dérivé des dates), le statut actif/arrêté est ici un badge
+        texte sobre : c'est une vraie action manuelle de l'admin, pas un fait automatique —
+        réserver le cachet aux faits temporels évite de le vider de son sens.
+        STORY: l'admin voit d'un coup d'œil ce qui attend une confirmation, coche/ajuste,
+        confirme en un geste ; gère ses engagements récurrents dans un second registre.
+        FIRST VIEWPORT: deux blocs empilés (Dons à confirmer, Engagements), mêmes primitives
+        que le pilote ActivitesPage (Button/Dialog/Input/Label, tokens paper/ink/stamp).
+        FORM: 2e page du rollout "carnet tamponné x registre" (direction déjà validée sur
+        ActivitesPage, PR #112) — pas de nouveau tirage de direction, réutilisation directe.
+        FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
+        review, the verdict, and DESIGN.md.
+      */}
+      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dons réguliers</h1>
-          <p className="mt-1 text-sm text-slate-600">
+          <h1 className="text-2xl font-bold text-ink md:text-3xl">Dons réguliers</h1>
+          <p className="mt-1 text-sm text-ink-muted">
             Automatise la saisie des dons récurrents (prélèvements mensuels) — chaque don reste soumis à ta confirmation avant d'être enregistré.
           </p>
         </div>
 
         {/* Dons à confirmer */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <SectionHeader
-            title="Dons à confirmer"
-            description={lignesAConfirmer.length > 0 ? `${lignesAConfirmer.length} mois en attente` : undefined}
-            actions={
-              lignesAConfirmer.length > 0 ? (
-                <button
-                  onClick={handleConfirmer}
-                  disabled={confirming || nombreCoches === 0}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {confirming ? 'Confirmation…' : `Confirmer (${nombreCoches})`}
-                </button>
-              ) : undefined
-            }
-          />
+        <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+          <div className="flex flex-col gap-3 border-b border-paper-border-muted px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-ink">Dons à confirmer</h2>
+              {lignesAConfirmer.length > 0 && (
+                <p className="mt-0.5 font-registre-mono text-xs text-ink-faint">{lignesAConfirmer.length} mois en attente</p>
+              )}
+            </div>
+            {lignesAConfirmer.length > 0 && (
+              <Button onClick={handleConfirmer} disabled={confirming || nombreCoches === 0}>
+                {confirming ? 'Confirmation…' : `Confirmer (${nombreCoches})`}
+              </Button>
+            )}
+          </div>
           {confirmError && (
-            <div className="mx-6 mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{confirmError}</div>
+            <div className="mx-4 mt-4 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp md:mx-6">
+              {confirmError}
+            </div>
           )}
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-sm text-slate-500">Chargement…</div>
+            <div className="flex items-center justify-center py-16 font-registre text-sm text-ink-faint">Chargement…</div>
           ) : lignesAConfirmer.length === 0 ? (
-            <div className="px-6 py-10 text-center text-sm text-slate-500">
+            <div className="px-4 py-10 text-center font-registre text-sm text-ink-faint md:px-6">
               Aucun don en attente de confirmation.
             </div>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul>
               {lignesAConfirmer.map((r) => (
-                <li key={r.key} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <li key={r.key} className="flex flex-col gap-3 border-t border-paper-border-muted px-4 py-4 first:border-t-0 sm:flex-row sm:items-center sm:justify-between md:px-6">
                   <label className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       checked={checked[r.key] ?? true}
                       onChange={(e) => setChecked((prev) => ({ ...prev, [r.key]: e.target.checked }))}
-                      className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
                     />
                     <div>
-                      <span className="text-sm font-medium text-slate-900">
+                      <span className="font-registre text-sm font-medium text-ink">
                         {participantFullName(r.engagement.profils_participant)}
                       </span>
-                      <p className="text-xs text-slate-500">
+                      <p className="font-registre-mono text-xs text-ink-faint">
                         {r.label}
                         {r.engagement.activites && ` · ${r.engagement.activites.nom}`}
                       </p>
                     </div>
                   </label>
                   <div className="flex items-center gap-2 sm:ml-4">
-                    <input
+                    <Input
                       type="number"
                       step="0.01"
                       min="0.01"
                       value={montants[r.key] ?? ''}
                       onChange={(e) => setMontants((prev) => ({ ...prev, [r.key]: e.target.value }))}
-                      className="w-28 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-28 font-registre-mono"
                     />
-                    <span className="text-sm text-slate-500">€</span>
+                    <span className="font-registre-mono text-sm text-ink-faint">€</span>
                   </div>
                 </li>
               ))}
@@ -493,70 +529,54 @@ export default function DonsReguliersPage() {
         </div>
 
         {/* Engagements */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <SectionHeader
-            title="Engagements"
-            description={`${engagements.length} engagement${engagements.length !== 1 ? 's' : ''}`}
-            actions={
-              <button
-                onClick={openAdd}
-                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Nouvel engagement
-              </button>
-            }
-          />
+        <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+          <div className="flex flex-col gap-3 border-b border-paper-border-muted px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-ink">Engagements</h2>
+              <p className="mt-0.5 font-registre-mono text-xs text-ink-faint">
+                {engagements.length} engagement{engagements.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <Button onClick={openAdd}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Nouvel engagement
+            </Button>
+          </div>
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-sm text-slate-500">Chargement…</div>
+            <div className="flex items-center justify-center py-16 font-registre text-sm text-ink-faint">Chargement…</div>
           ) : engagements.length === 0 ? (
-            <div className="px-6 py-10 text-center text-sm text-slate-500">
+            <div className="px-4 py-10 text-center font-registre text-sm text-ink-faint md:px-6">
               Aucun engagement de don régulier pour l'instant.
             </div>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul>
               {engagements.map((e) => (
-                <li key={e.id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <span className="text-sm font-medium text-slate-900">
-                      {participantFullName(e.profils_participant)}
-                    </span>
-                    <span
-                      className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                        e.statut === 'actif' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      {e.statut === 'actif' ? 'Actif' : 'Arrêté'}
-                    </span>
-                    <p className="text-xs text-slate-500">
+                <li key={e.id} className="flex flex-col gap-3 border-t border-paper-border-muted px-4 py-4 first:border-t-0 sm:flex-row sm:items-center sm:justify-between md:px-6">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-registre text-sm font-medium text-ink">
+                        {participantFullName(e.profils_participant)}
+                      </span>
+                      <StatutBadge statut={e.statut} />
+                    </div>
+                    <p className="font-registre-mono text-xs text-ink-faint">
                       {formatEur(e.montant)} · le {e.jour_prelevement} de chaque mois
                       {e.activites && ` · ${e.activites.nom}`}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="font-registre-mono text-xs text-ink-faint">
                       {formatDate(e.date_debut)} → {e.date_fin ? formatDate(e.date_fin) : '?'}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => openEdit(e)}
-                      className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
-                    >
-                      Modifier
-                    </button>
-                    <button
-                      onClick={() => handleToggleStatut(e)}
-                      className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
-                    >
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(e)}>Modifier</Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleToggleStatut(e)}>
                       {e.statut === 'actif' ? 'Arrêter' : 'Réactiver'}
-                    </button>
-                    <button
-                      onClick={() => { setDeleteConfirm(e); setDeleteError(null) }}
-                      className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
-                    >
+                    </Button>
+                    <Button variant="ghost" size="sm" className="hover:text-stamp" onClick={() => { setDeleteConfirm(e); setDeleteError(null) }}>
                       Supprimer
-                    </button>
+                    </Button>
                   </div>
                 </li>
               ))}
@@ -575,36 +595,33 @@ export default function DonsReguliersPage() {
         organisationId={organisationId}
       />
 
-      {deleteConfirm && (
-        <Modal open onClose={() => setDeleteConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="delete-don-regulier-title">
-          <div className="p-6">
-            <h2 id="delete-don-regulier-title" className="text-lg font-semibold text-slate-900">Supprimer l'engagement</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Êtes-vous sûr de vouloir supprimer cet engagement pour{' '}
-              <span className="font-medium">« {participantFullName(deleteConfirm.profils_participant)} »</span> ?
-              Les dons déjà générés ne seront pas supprimés.
-            </p>
-            {deleteError && (
-              <div className="mt-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{deleteError}</div>
-            )}
-            <div className="mt-5 flex justify-end gap-3">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-              >
-                {deleting ? 'Suppression…' : 'Supprimer'}
-              </button>
+      <Dialog open={!!deleteConfirm} onOpenChange={(next) => { if (!next) setDeleteConfirm(null) }}>
+        <DialogContent aria-describedby={undefined}>
+          {deleteConfirm && (
+            <div className="p-6">
+              <h2 className="font-registre text-lg font-semibold text-ink">Supprimer l'engagement</h2>
+              <p className="mt-2 font-registre text-sm text-ink-muted">
+                Êtes-vous sûr de vouloir supprimer cet engagement pour{' '}
+                <span className="font-medium text-ink">« {participantFullName(deleteConfirm.profils_participant)} »</span> ?
+                Les dons déjà générés ne seront pas supprimés.
+              </p>
+              {deleteError && (
+                <div className="mt-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
+                  {deleteError}
+                </div>
+              )}
+              <div className="mt-5 flex justify-end gap-3">
+                <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>
+                  Annuler
+                </Button>
+                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                  {deleting ? 'Suppression…' : 'Supprimer'}
+                </Button>
+              </div>
             </div>
-          </div>
-        </Modal>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
