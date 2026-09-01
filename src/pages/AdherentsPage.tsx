@@ -537,19 +537,19 @@ export default function AdherentsPage() {
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => openEdit(a)}>Modifier</Button>
-                            <Button variant="ghost" size="sm" onClick={() => handlePrintSingleCard(a)} disabled={printing} title={PRINT_HELP_TEXT}>
+                            <Button variant="secondary" size="sm" onClick={() => openEdit(a)}>Modifier</Button>
+                            <Button variant="secondary" size="sm" onClick={() => handlePrintSingleCard(a)} disabled={printing} title={PRINT_HELP_TEXT}>
                               Carte
                             </Button>
                             {a.statut === 'actif' && (
-                              <Button variant="ghost" size="sm" onClick={() => setRenewingAdherent(a)}>Renouveler</Button>
+                              <Button variant="secondary" size="sm" onClick={() => setRenewingAdherent(a)}>Renouveler</Button>
                             )}
                             {a.statut === 'actif' ? (
-                              <Button variant="ghost" size="sm" className="hover:text-stamp" onClick={() => setArchiveConfirm(a)}>
+                              <Button variant="secondary" size="sm" className="hover:text-stamp" onClick={() => setArchiveConfirm(a)}>
                                 Archiver
                               </Button>
                             ) : (
-                              <Button variant="ghost" size="sm" onClick={() => handleReactivate(a)}>Réactiver</Button>
+                              <Button variant="secondary" size="sm" onClick={() => handleReactivate(a)}>Réactiver</Button>
                             )}
                           </div>
                         </TableCell>
