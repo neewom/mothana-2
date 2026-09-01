@@ -290,7 +290,7 @@ export default function DemandesAdhesionPage() {
                                 <Button variant="success" size="sm" onClick={() => setRatifyingDemande(d)}>
                                   Ratifier
                                 </Button>
-                                <Button variant="default" size="sm" onClick={() => setRefusingDemande(d)}>
+                                <Button variant="danger" size="sm" onClick={() => setRefusingDemande(d)}>
                                   Refuser
                                 </Button>
                               </>

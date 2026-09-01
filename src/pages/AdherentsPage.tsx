@@ -542,10 +542,10 @@ export default function AdherentsPage() {
                               Carte
                             </Button>
                             {a.statut === 'actif' && (
-                              <Button variant="secondary" size="sm" onClick={() => setRenewingAdherent(a)}>Renouveler</Button>
+                              <Button variant="default" size="sm" onClick={() => setRenewingAdherent(a)}>Renouveler</Button>
                             )}
                             {a.statut === 'actif' ? (
-                              <Button variant="secondary" size="sm" className="hover:text-stamp" onClick={() => setArchiveConfirm(a)}>
+                              <Button variant="danger" size="sm" onClick={() => setArchiveConfirm(a)}>
                                 Archiver
                               </Button>
                             ) : (

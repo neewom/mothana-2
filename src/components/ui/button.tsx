@@ -19,6 +19,12 @@ const buttonVariants = cva(
         // Action positive (ex. ratifier une demande) — même logique outline que `default`,
         // encre `success` réservée à la signalisation d'état plutôt qu'à la marque.
         success: 'border border-success text-success bg-transparent hover:bg-success/[0.06]',
+        // CTA de ligne à conséquence négative mais non-finale (ex. Archiver, Refuser,
+        // le déclencheur "Supprimer" avant confirmation) — même gabarit que `secondary`
+        // (bordure + fond blanc, même affordance de bouton) mais texte stamp dès le repos,
+        // pas seulement au survol (sinon aucun signal sur tactile). `destructive` (plein)
+        // reste réservé au bouton de confirmation final dans la modale.
+        danger: 'border border-paper-border text-stamp bg-white hover:border-stamp/30 hover:bg-stamp/[0.04]',
       },
       size: {
         default: 'h-9 px-3.5',
