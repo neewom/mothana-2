@@ -260,8 +260,8 @@ function ActiviteRow({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1 pl-[68px] sm:pl-0">
-        <Button variant="ghost" size="sm" onClick={onEdit}>Modifier</Button>
-        <Button variant="ghost" size="sm" className="hover:text-stamp" onClick={onDelete}>Supprimer</Button>
+        <Button variant="secondary" size="sm" onClick={onEdit}>Modifier</Button>
+        <Button variant="danger" size="sm" onClick={onDelete}>Supprimer</Button>
       </div>
     </li>
   )

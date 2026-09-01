@@ -282,7 +282,7 @@ export default function DemandesAdhesionPage() {
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => setDetailDemande(d)}>
+                            <Button variant="secondary" size="sm" onClick={() => setDetailDemande(d)}>
                               Détail
                             </Button>
                             {tab === 'en_attente' && (
@@ -290,7 +290,7 @@ export default function DemandesAdhesionPage() {
                                 <Button variant="success" size="sm" onClick={() => setRatifyingDemande(d)}>
                                   Ratifier
                                 </Button>
-                                <Button variant="default" size="sm" onClick={() => setRefusingDemande(d)}>
+                                <Button variant="danger" size="sm" onClick={() => setRefusingDemande(d)}>
                                   Refuser
                                 </Button>
                               </>

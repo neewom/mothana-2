@@ -570,11 +570,11 @@ export default function DonsReguliersPage() {
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(e)}>Modifier</Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleToggleStatut(e)}>
+                    <Button variant="secondary" size="sm" onClick={() => openEdit(e)}>Modifier</Button>
+                    <Button variant="secondary" size="sm" onClick={() => handleToggleStatut(e)}>
                       {e.statut === 'actif' ? 'Arrêter' : 'Réactiver'}
                     </Button>
-                    <Button variant="ghost" size="sm" className="hover:text-stamp" onClick={() => { setDeleteConfirm(e); setDeleteError(null) }}>
+                    <Button variant="danger" size="sm" onClick={() => { setDeleteConfirm(e); setDeleteError(null) }}>
                       Supprimer
                     </Button>
                   </div>
