@@ -333,7 +333,7 @@ export default function DemandesAdhesionPage() {
       <Dialog open={!!refusingDemande} onOpenChange={(next) => { if (!next) { setRefusingDemande(null); setMotifRefus('') } }}>
         <DialogContent aria-describedby={undefined}>
           {refusingDemande && (
-            <div className="p-6">
+            <div className="overflow-y-auto p-6">
               <h2 className="font-registre text-lg font-semibold text-ink">Refuser la demande</h2>
               <p className="mt-2 font-registre text-sm text-ink-muted">
                 Êtes-vous sûr de vouloir refuser la demande d'adhésion de{' '}

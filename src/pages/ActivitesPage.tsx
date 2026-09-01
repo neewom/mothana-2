@@ -142,7 +142,7 @@ function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: Act
         <DialogHeader>
           <DialogTitle>{isEdit ? "Modifier l'activité" : 'Nouvelle activité'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto p-6">
           {error && (
             <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
               {error}
@@ -598,7 +598,7 @@ export default function ActivitesPage() {
       <Dialog open={!!deleteConfirm} onOpenChange={(next) => { if (!next) setDeleteConfirm(null) }}>
         <DialogContent aria-describedby={undefined}>
           {deleteConfirm && (
-            <div className="p-6">
+            <div className="overflow-y-auto p-6">
               <h2 className="font-registre text-lg font-semibold text-ink">Supprimer l'activité</h2>
               <p className="mt-2 font-registre text-sm text-ink-muted">
                 Êtes-vous sûr de vouloir supprimer{' '}

@@ -31,7 +31,12 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 z-50 grid w-full max-w-sm -translate-x-1/2 -translate-y-1/2 gap-0 border border-paper-border bg-paper font-registre shadow-lg max-h-[90dvh] overflow-y-auto rounded-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+        // flex-col + overflow-hidden (pas de scroll sur la coquille elle-même) : le contenu
+        // compose son propre header/body/footer (shrink-0 / flex-1 overflow-y-auto / shrink-0)
+        // — nécessaire pour un formulaire long comme AdherentModal (header et pied de page
+        // fixes, seul le corps scrolle), et ça marche aussi bien pour un contenu court qui
+        // ne remplit jamais max-h.
+        'fixed left-1/2 top-1/2 z-50 flex max-h-[90dvh] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-0 overflow-hidden rounded-sm border border-paper-border bg-paper font-registre shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
         className
       )}
       {...props}
