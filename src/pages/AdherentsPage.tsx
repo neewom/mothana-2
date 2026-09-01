@@ -634,7 +634,7 @@ export default function AdherentsPage() {
       <Dialog open={!!archiveConfirm} onOpenChange={(next) => { if (!next) setArchiveConfirm(null) }}>
         <DialogContent aria-describedby={undefined}>
           {archiveConfirm && (
-            <div className="p-6">
+            <div className="overflow-y-auto p-6">
               <h2 className="font-registre text-lg font-semibold text-ink">Archiver l'adhérent</h2>
               <p className="mt-2 font-registre text-sm text-ink-muted">
                 Êtes-vous sûr de vouloir archiver <span className="font-medium text-ink">« {adherentFullName(archiveConfirm)} »</span> ?
