@@ -36,15 +36,15 @@ export default function CarteAdherentPreviewModal({
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
       <DialogContent className="max-w-2xl" aria-describedby={undefined}>
-        <div className="border-b border-paper-border px-6 py-4 pr-12">
+        <div className="shrink-0 border-b border-paper-border px-6 py-4 pr-12">
           <h2 className="font-registre text-lg font-semibold text-ink">Aperçu — {nom}</h2>
           <p className="mt-0.5 text-xs text-ink-faint">Rendu avec des données d'exemple, à titre indicatif.</p>
         </div>
-        <div className="overflow-hidden p-6">
+        <div className="flex-1 overflow-y-auto p-6">
           <iframe
             title={`Aperçu de la carte ${nom}`}
             srcDoc={renderCartePreviewHtml(htmlTemplate, css, dynamicPlaceholders)}
-            className="h-[50vh] w-full rounded-sm border border-paper-border"
+            className="h-[50dvh] w-full rounded-sm border border-paper-border"
           />
         </div>
       </DialogContent>
