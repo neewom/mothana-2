@@ -36,10 +36,29 @@ Suite de la session du jour (allègement CLAUDE.md + ParticipantsPage/DonModal).
 - Carte Trello mise à jour : progression 9/24 + AdherentModal + DonModal, entrée #10 (RecusFiscauxPage), portée restante 15 pages.
 - Entrée ajoutée dans `docs/journal-avancement.md`.
 
+### SuperAdminPage migrée vers shadcn/ui (PR #122, dev, pas encore mergée)
+- 10e page du rollout. `OrgModal` (création/édition d'organisation + gestion des comptes admin) migré dans la même PR — composant privé à cette page, pas un seam.
+- Première utilisation du variant `Button` `ghost`/`icon` (bouton "Consulter") et du badge `stamp` (statut "Désactivé" d'un compte admin) — existaient déjà dans les primitives partagées, pas encore consommés ailleurs.
+- Confirmation de suppression d'organisation (saisie du nom exact, style GitHub) migrée de l'ancien `Modal` vers `Dialog`.
+- Cette fois la branche de feature a été créée **avant** toute édition (leçon retenue de la PR #121, où l'oubli avait été corrigé après coup sans conséquence).
+- Testé de bout en bout sur staging (Playwright, super-admin réel) : création (annulée), édition d'une organisation existante avec sa liste de comptes admin, sous-formulaire "Ajouter un admin" (annulé, aucune invitation envoyée), confirmation de suppression (annulée), navigation "Consulter" (redirige bien vers `/admin`), focus sur le bouton Fermer à l'ouverture des modales. Vérifié à 320/360/390/768/1440px, aucun débordement.
+- `tsc -b` et `eslint` propres.
+
+### Point de vigilance ajouté : passe CTA à icône seule (différée)
+- Utilisateur a demandé, hors flux d'une PR précise, une future passe sur les boutons : remplacer le texte par un picto seul quand la correspondance iconographie/action est évidente (ex. télécharger, envoyer par email, "Consulter"), pas pour les CTA d'action métier (Générer, Ajouter, Modifier…) qui gardent leur texte.
+- Cadrage présenté dans le chat puis validé ("Go") avant écriture sur Trello (habitude du projet). Noté sur la carte Trello du rollout, juste après le point similaire déjà existant sur la finition des formulaires — même statut : différé, pas de date, à traiter en passe groupée plus tard.
+- Premier exemple déjà en place sans qu'il y ait besoin d'y revenir : bouton "Consulter" de `SuperAdminPage.tsx` (PR #122, `ghost`/`icon`).
+
+### PR #122 mergée + suivi habituel
+- Utilisateur a confirmé le merge. `checkout dev` + `pull`, branche locale supprimée.
+- Carte Trello mise à jour : progression 10/24 + AdherentModal + DonModal, entrée #11 (SuperAdminPage), portée restante 14 pages (dashboard, paramètres, pages publiques — pas d'ordre encore établi).
+- Entrée ajoutée dans `docs/journal-avancement.md`.
+
 ## Reste à faire
 
-- **Progression : 9/24 pages migrées + AdherentModal + DonModal.**
-- Prochaine page proposée pour la suite (à confirmer en début de prochaine session) : `SuperAdminPage.tsx`, puis le reste (dashboard, paramètres, pages publiques) — 15 pages restantes.
+- **Progression : 10/24 pages migrées + AdherentModal + DonModal.**
+- Prochaine étape à confirmer en début de prochaine session : dashboard, pages Paramètres (dont le seam `ParametresSection`), pages publiques — 14 pages restantes, pas d'ordre encore établi au sein de ce reste.
+- Point de vigilance différé (pas de date) : passe CTA à icône seule (voir ci-dessus) — s'ajoute à la passe de finition des formulaires déjà différée.
 - Seams restants (composants partagés avec des pages non migrées) : `TagsInput`, `AdherentHistoriqueSection`, `AssignerListeModal`, `AdhesionModal`, `ParticipantModal`, `ParticipantAutocomplete`, `ActiviteAutocomplete`, `ImportWizard`, `ParametresSection`.
 - Dette non traitée (notée sur la carte Trello) : `DonsPage.tsx` sans `ScrollShadowX` sur son tableau.
 - Passe de finition groupée sur le contenu des formulaires migrés (différée depuis PR #115/#116, toujours pas de date fixée).
