@@ -77,12 +77,28 @@ Suite de la session du jour (allègement CLAUDE.md + ParticipantsPage/DonModal).
 - Carte Trello mise à jour : progression 11/24 + AdherentModal + DonModal, `ParametresSuiviPage.tsx` marquée faite dans le groupe 1 de l'ordre validé (barrée, détail du seam débloqué conservé).
 - Entrée ajoutée dans `docs/journal-avancement.md`.
 
+### ParametresFiscalPage migrée + templates de reçus (PR #124, mergée)
+
+- 12e page du rollout, 2e page du groupe Paramètres, confirmée par "Go" au démarrage de session suivante. Bénéficie de `ParametresSection` déjà migrée (PR #123).
+- Toute la famille de composants migrée dans la même PR : `TemplatesRecuSection` (liste 11580/16216, badges de statut, confirmations archiver/supprimer), `TemplateRecuPreviewModal`, `TemplateRecuImportPdfModal` (privés à cette page, pas des seams), et `TemplateRecuEditorModal` — le plus gros morceau du rollout à ce jour (éditeur Monaco HTML/CSS, panelMode Les deux/Éditeur/Aperçu, toggle plein écran, popover placeholders).
+- **Nouveau : prop `fullScreen` sur la primitive partagée `ui/dialog.tsx`** (`DialogContent`) — premier cas du rollout ayant besoin d'un Dialog Radix occupant tout l'écran (toggle utilisateur). Réutilisable pour `CarteAdherentEditorModal`/`FormulaireAdhesionEditorModal` (même besoin, pas encore migrées).
+- **Bug trouvé et corrigé en testant à 320px** : bouton "Nouveau template" tronqué en bord d'écran (`shrink-0` sur le conteneur des 2 boutons d'action empêchait son propre `flex-wrap` interne de s'appliquer). Retiré.
+- Identifiants admin démo staging retrouvés dans `.env` (`STAGING_DEMO_ADMIN_ID`/`STAGING_DEMO_ADMIN_PASSWORD`) — pas encore en mémoire persistante au début de ce test, ajoutés après coup.
+- Testé de bout en bout sur l'instance dev permanente (Playwright, admin démo) : formulaire fiscal, CRUD templates, import PDF, éditeur complet (Monaco, tabs, plein écran, placeholders, Ctrl+S), focus des modales, 320/360/390/768/1440px. `tsc -b` et `eslint` propres.
+
+### PR #124 mergée + suivi habituel
+
+- Utilisateur a confirmé le merge. `checkout dev` + `pull`, branche locale supprimée.
+- Carte Trello mise à jour : progression 12/24 + AdherentModal + DonModal, entrée #12 (ParametresFiscalPage + templates), groupe 1 de l'ordre validé mis à jour (`ParametresFiscalPage.tsx` fait, reste Adhérents/Organisation), portée restante 13 pages. Seam `ParametresSection` retiré de la liste des seams restants (n'était déjà plus un seam depuis PR #123, oubli de mise à jour corrigé).
+- Entrée ajoutée dans `docs/journal-avancement.md`.
+- Vérification Todo/Done bidirectionnelle faite (avant et après la PR) : aucune carte nouvelle, aucune disparue.
+
 ## Reste à faire
 
-- **Progression : 11/24 pages migrées + AdherentModal + DonModal.**
-- Prochaine page dans l'ordre validé : `ParametresFiscalPage.tsx` (bénéficie maintenant de `ParametresSection` déjà migrée) — à confirmer avant de démarrer.
-- Point de vigilance différé (pas de date) : passe CTA à icône seule (voir plus haut) — s'ajoute à la passe de finition des formulaires déjà différée.
-- Seams restants (composants partagés avec des pages non migrées) : `TagsInput`, `AdherentHistoriqueSection` (+ `JournalActionLabel`, seam mineur identifié en PR #123), `AssignerListeModal`, `AdhesionModal`, `ParticipantModal`, `ParticipantAutocomplete`, `ActiviteAutocomplete`, `ImportWizard`. `ParametresSection` débloquée en PR #123 (n'est plus un seam), mais les 3 sous-pages Paramètres qui l'utilisent encore (Organisation, Fiscalité, Adhérents) ont temporairement une carte neuve autour d'un contenu resté ancien, jusqu'à leur propre migration.
+- **Progression : 12/24 pages migrées + AdherentModal + DonModal.**
+- Prochaine page dans l'ordre validé (groupe 1) : `ParametresAdherentsPage.tsx`, puis `ParametresOrganisationPage.tsx` (la plus grosse du lot, en dernier) — à confirmer avant de démarrer.
+- Point de vigilance différé (pas de date) : passe CTA à icône seule — s'ajoute à la passe de finition des formulaires déjà différée.
+- Seams restants (composants partagés avec des pages non migrées) : `TagsInput`, `AdherentHistoriqueSection` (+ `JournalActionLabel`, seam mineur identifié en PR #123), `AssignerListeModal`, `AdhesionModal`, `ParticipantModal`, `ParticipantAutocomplete`, `ActiviteAutocomplete`, `ImportWizard`.
 - Dette non traitée (notée sur la carte Trello) : `DonsPage.tsx` sans `ScrollShadowX` sur son tableau.
 - Passe de finition groupée sur le contenu des formulaires migrés (différée depuis PR #115/#116, toujours pas de date fixée).
 - `DESIGN.md` racine toujours non réécrit (référence encore vraie pour les pages non migrées).
@@ -93,6 +109,7 @@ Aucun.
 
 ## Décisions
 
-- `ParametresSection` non migrée avec la page : composant partagé avec 4 sous-pages Paramètres non encore touchées, une carte locale (`SectionCard`) évite de changer leur rendu visuel prématurément — même logique de préservation des seams que pour les autres composants partagés du rollout.
+- `ParametresSection` non migrée avec la page (CampagneMailingPage) : composant partagé avec 4 sous-pages Paramètres non encore touchées, une carte locale (`SectionCard`) évite de changer leur rendu visuel prématurément — même logique de préservation des seams que pour les autres composants partagés du rollout.
 - `BrevoConfigModal` migré immédiatement (pas de PR séparée) car composant privé à `CampagneMailingPage`, pas un seam.
 - Focus des modales sur le bouton Fermer : corrigé dans la primitive partagée plutôt que localement, pour bénéficier à toutes les modales déjà migrées d'un coup (demande formulée en général, "aux ouvertures de modales", pas limitée à cette PR).
+- `fullScreen` sur `DialogContent` plutôt qu'un composant Dialog séparé pour l'éditeur : cohérent avec le principe déjà établi (primitive partagée, pas de variante ad hoc) — même logique que `elevated` sur `Modal.tsx` ou le fix de focus de la PR #120.
