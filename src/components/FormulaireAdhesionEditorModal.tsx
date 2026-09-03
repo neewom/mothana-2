@@ -11,9 +11,10 @@ import {
 import { copyTextToClipboard } from '../lib/clipboard'
 import { fetchOrganisationAssets, buildAssetPlaceholders, assetPlaceholderKey } from '../lib/organisationAssets'
 import { fetchOrganisationPreviewOverrides } from '../lib/cerfaPreview'
-import Modal from './Modal'
-import SectionHeader from './SectionHeader'
 import Tooltip from './Tooltip'
+import { cn } from '../lib/utils'
+import { Button } from './ui/button'
+import { Dialog, DialogContent } from './ui/dialog'
 
 interface FormulaireAdhesionEditorModalProps {
   open: boolean
@@ -28,6 +29,10 @@ interface FormulaireAdhesionEditorModalProps {
 type Tab = 'header' | 'footer' | 'css'
 
 const OPTIONAL_TAGS = Object.keys(FORMULAIRE_ADHESION_PREVIEW_PLACEHOLDERS)
+
+function segmentButtonClasses(active: boolean) {
+  return cn('rounded-sm px-2 py-1', active ? 'bg-white text-ink shadow-sm' : 'text-ink-faint')
+}
 
 export default function FormulaireAdhesionEditorModal({
   open,
@@ -116,8 +121,6 @@ export default function FormulaireAdhesionEditorModal({
     setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1500)
   }
 
-  if (!open) return null
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
@@ -152,191 +155,157 @@ export default function FormulaireAdhesionEditorModal({
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      maxWidthClassName="max-w-6xl"
-      labelledBy="formulaire-adhesion-editor-title"
-      fullScreen={fullScreen}
-      heightClassName="h-[85vh] min-h-[560px]"
-    >
-      <SectionHeader
-        titleId="formulaire-adhesion-editor-title"
-        reserveCloseButton
-        title="En-tête et pied de page du formulaire d'adhésion"
-        description="Le formulaire central (champs à remplir) n'est pas modifiable ici, seuls l'en-tête et le pied de page le sont."
-        actions={
-          <>
-            <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-xs font-medium">
-              <button
-                type="button"
-                onClick={() => setPanelMode('both')}
-                className={`rounded-md px-2 py-1 ${panelMode === 'both' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-              >
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogContent
+        className={fullScreen ? undefined : 'max-w-6xl h-[85vh] min-h-[560px]'}
+        fullScreen={fullScreen}
+        aria-describedby={undefined}
+      >
+        <div className="flex flex-col gap-3 border-b border-paper-border px-6 py-4 pr-14 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="font-registre text-lg font-semibold text-ink">En-tête et pied de page du formulaire d'adhésion</h2>
+            <p className="mt-0.5 font-registre text-xs text-ink-muted">
+              Le formulaire central (champs à remplir) n'est pas modifiable ici, seuls l'en-tête et le pied de page le sont.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="flex gap-1 rounded-sm bg-paper-border/40 p-1 font-registre text-xs font-medium">
+              <button type="button" onClick={() => setPanelMode('both')} className={segmentButtonClasses(panelMode === 'both')}>
                 Les deux
               </button>
-              <button
-                type="button"
-                onClick={() => setPanelMode('editor')}
-                className={`rounded-md px-2 py-1 ${panelMode === 'editor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-              >
+              <button type="button" onClick={() => setPanelMode('editor')} className={segmentButtonClasses(panelMode === 'editor')}>
                 Éditeur
               </button>
-              <button
-                type="button"
-                onClick={() => setPanelMode('preview')}
-                className={`rounded-md px-2 py-1 ${panelMode === 'preview' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-              >
+              <button type="button" onClick={() => setPanelMode('preview')} className={segmentButtonClasses(panelMode === 'preview')}>
                 Aperçu
               </button>
             </div>
             <button
               type="button"
               onClick={() => setFullScreen((f) => !f)}
-              className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-600"
+              className="rounded-sm px-2 py-1.5 font-registre text-xs font-medium text-ink-faint hover:bg-paper-border/40 hover:text-ink-muted"
             >
               {fullScreen ? 'Réduire' : 'Plein écran'}
             </button>
-          </>
-        }
-      />
-
-      <form ref={formRef} onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-1 flex-col overflow-y-auto p-6">
-          {error && (
-            <div className="mb-4 shrink-0 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-          )}
-
-          <div className="flex min-h-[300px] flex-1 flex-col gap-4 lg:flex-row">
-            {/* Éditeur */}
-            {panelMode !== 'preview' && (
-              <div className="flex min-w-0 flex-1 flex-col">
-                <div className="mb-2 flex shrink-0 gap-1 rounded-lg bg-slate-100 p-1 text-sm font-medium">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('header')}
-                    className={`flex-1 rounded-md py-1.5 ${activeTab === 'header' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-                  >
-                    En-tête
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('footer')}
-                    className={`flex-1 rounded-md py-1.5 ${activeTab === 'footer' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-                  >
-                    Pied de page
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('css')}
-                    className={`flex-1 rounded-md py-1.5 ${activeTab === 'css' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-                  >
-                    CSS
-                  </button>
-                </div>
-                <div className="min-h-[160px] flex-1 overflow-hidden rounded-lg border border-slate-300">
-                  <Editor
-                    height="100%"
-                    language={editorLang}
-                    value={editorValue}
-                    onChange={(v) => setEditorValue(v ?? '')}
-                    onMount={handleEditorMount}
-                    options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on' }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Prévisualisation */}
-            {panelMode !== 'editor' && (
-              <div className="flex min-w-0 flex-1 flex-col">
-                <div className="mb-2 shrink-0 rounded-lg bg-slate-100 p-1">
-                  <div className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-700">
-                    Aperçu (données d'exemple)
-                  </div>
-                </div>
-                <iframe
-                  title="Aperçu du formulaire d'adhésion"
-                  srcDoc={previewHtml}
-                  className="min-h-[160px] w-full flex-1 rounded-lg border border-slate-300"
-                />
-              </div>
-            )}
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-col gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)] sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <div ref={placeholdersRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setPlaceholdersOpen((o) => !o)}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Placeholders
-              </button>
+        <form ref={formRef} onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex flex-1 flex-col overflow-y-auto p-6">
+            {error && (
+              <div className="mb-4 shrink-0 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
+                {error}
+              </div>
+            )}
 
-              {placeholdersOpen && (
-                <div className="absolute bottom-full left-0 z-30 mb-2 max-h-96 w-[28rem] max-w-[90vw] overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 shadow-xl">
-                  <p className="mb-1.5 text-xs font-medium text-slate-500">Placeholders disponibles</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[...OPTIONAL_TAGS, ...assetTags].map((key) => {
-                      const copied = copiedKey === key
-                      return (
-                        <Tooltip key={key} bare content={`Exemple : ${previewValues[key]}`}>
-                          <button
-                            type="button"
-                            onClick={() => copyPlaceholder(key)}
-                            className={`rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 hover:bg-slate-200 ${
-                              copied ? 'ring-2 ring-offset-1 ring-indigo-500' : ''
-                            }`}
-                          >
-                            {`{{${key}}}`}
-                          </button>
-                        </Tooltip>
-                      )
-                    })}
+            <div className="flex min-h-[300px] flex-1 flex-col gap-4 lg:flex-row">
+              {/* Éditeur */}
+              {panelMode !== 'preview' && (
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <div className="mb-2 flex shrink-0 gap-1 rounded-sm bg-paper-border/40 p-1 font-registre text-sm font-medium">
+                    <button type="button" onClick={() => setActiveTab('header')} className={cn('flex-1 rounded-sm py-1.5', activeTab === 'header' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint')}>
+                      En-tête
+                    </button>
+                    <button type="button" onClick={() => setActiveTab('footer')} className={cn('flex-1 rounded-sm py-1.5', activeTab === 'footer' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint')}>
+                      Pied de page
+                    </button>
+                    <button type="button" onClick={() => setActiveTab('css')} className={cn('flex-1 rounded-sm py-1.5', activeTab === 'css' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint')}>
+                      CSS
+                    </button>
                   </div>
-                  {assetTags.length === 0 && (
-                    <p className="mt-1.5 text-xs text-slate-500">
-                      Aucun asset configuré — ajoutez-en dans Paramètres › Identité visuelle pour obtenir des placeholders
-                      <code className="mx-1 rounded bg-slate-100 px-1">{'{{asset_...}}'}</code>
-                      ici.
-                    </p>
-                  )}
-                  <p className={`mt-1 text-xs font-medium ${copiedKey ? 'text-indigo-600' : 'text-slate-500'}`}>
-                    {copiedKey ? `✓ {{${copiedKey}}} copié dans le presse-papier` : 'Cliquer pour copier. Survoler pour voir un exemple de valeur.'}
-                  </p>
+                  <div className="min-h-[160px] flex-1 overflow-hidden rounded-sm border border-paper-border">
+                    <Editor
+                      height="100%"
+                      language={editorLang}
+                      value={editorValue}
+                      onChange={(v) => setEditorValue(v ?? '')}
+                      onMount={handleEditorMount}
+                      options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on' }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Prévisualisation */}
+              {panelMode !== 'editor' && (
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <div className="mb-2 shrink-0 rounded-sm bg-paper-border/40 p-1">
+                    <div className="rounded-sm px-3 py-1.5 font-registre text-sm font-medium text-ink-muted">
+                      Aperçu (données d'exemple)
+                    </div>
+                  </div>
+                  <iframe
+                    title="Aperçu du formulaire d'adhésion"
+                    srcDoc={previewHtml}
+                    className="min-h-[160px] w-full flex-1 rounded-sm border border-paper-border"
+                  />
                 </div>
               )}
             </div>
-            <button
-              type="button"
-              onClick={handleReset}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50"
-            >
-              Restaurer les valeurs par défaut
-            </button>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
+          <div className="flex shrink-0 flex-col gap-3 border-t border-paper-border bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)] sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <div ref={placeholdersRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setPlaceholdersOpen((o) => !o)}
+                  className="rounded-sm border border-paper-border px-3 py-2 font-registre text-xs font-medium text-ink-muted hover:bg-paper"
+                >
+                  Placeholders
+                </button>
+
+                {placeholdersOpen && (
+                  <div className="absolute bottom-full left-0 z-30 mb-2 max-h-96 w-[28rem] max-w-[90vw] overflow-y-auto rounded-sm border border-paper-border bg-white p-4 shadow-xl">
+                    <p className="mb-1.5 font-registre text-xs font-medium text-ink-faint">Placeholders disponibles</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[...OPTIONAL_TAGS, ...assetTags].map((key) => {
+                        const copied = copiedKey === key
+                        return (
+                          <Tooltip key={key} bare content={`Exemple : ${previewValues[key]}`}>
+                            <button
+                              type="button"
+                              onClick={() => copyPlaceholder(key)}
+                              className={cn(
+                                'rounded-sm bg-paper-border/40 px-1.5 py-0.5 font-registre-mono text-[11px] text-ink-muted hover:bg-paper-border/60',
+                                copied && 'ring-2 ring-offset-1 ring-stamp/70'
+                              )}
+                            >
+                              {`{{${key}}}`}
+                            </button>
+                          </Tooltip>
+                        )
+                      })}
+                    </div>
+                    {assetTags.length === 0 && (
+                      <p className="mt-1.5 font-registre text-xs text-ink-faint">
+                        Aucun asset configuré — ajoutez-en dans Paramètres › Identité visuelle pour obtenir des placeholders
+                        <code className="mx-1 rounded-sm bg-paper-border/40 px-1">{'{{asset_...}}'}</code>
+                        ici.
+                      </p>
+                    )}
+                    <p className={cn('mt-1 font-registre text-xs font-medium', copiedKey ? 'text-stamp' : 'text-ink-faint')}>
+                      {copiedKey ? `✓ {{${copiedKey}}} copié dans le presse-papier` : 'Cliquer pour copier. Survoler pour voir un exemple de valeur.'}
+                    </p>
+                  </div>
+                )}
+              </div>
+              <Button type="button" variant="secondary" size="sm" onClick={handleReset}>
+                Restaurer les valeurs par défaut
+              </Button>
+            </div>
+
+            <div className="flex gap-3">
+              <Button type="button" variant="secondary" onClick={onClose}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </Button>
+            </div>
           </div>
-        </div>
-      </form>
-    </Modal>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
