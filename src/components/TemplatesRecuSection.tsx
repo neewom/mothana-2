@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { getMissingMandatoryPlaceholders } from '../lib/cerfaPreview'
 import type { TemplateRecu } from '../types'
-import Modal from './Modal'
 import TemplateRecuPreviewModal from './TemplateRecuPreviewModal'
 import TemplateRecuEditorModal, { type TemplateRecuDraft } from './TemplateRecuEditorModal'
 import TemplateRecuImportPdfModal from './TemplateRecuImportPdfModal'
+import { Button } from './ui/button'
+import { Badge } from './ui/badge'
+import { Dialog, DialogContent } from './ui/dialog'
 
 interface TemplatesRecuSectionProps {
   organisationId: string
@@ -197,45 +199,41 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-ink-muted">
           Un seul template actif par type à la fois. Le template actif est celui utilisé pour générer les reçus.
         </p>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <button
-            onClick={() => setImportOpen(true)}
-            className="rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-          >
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setImportOpen(true)}>
             Importer un PDF
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               setWizardDraft(null)
               setEditorState('new')
             }}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
           >
             Nouveau template
-          </button>
+          </Button>
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="mb-4 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{error}</div>
       )}
 
       {loading ? (
-        <div className="py-8 text-center text-sm text-slate-500">Chargement…</div>
+        <div className="py-8 text-center text-sm text-ink-faint">Chargement…</div>
       ) : (
         <div className="space-y-6">
           {(['11580', '16216'] as const).map((type) => (
             <div key={type}>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{TYPE_LABELS[type]}</h3>
+              <h3 className="mb-2 font-registre-mono text-xs font-semibold uppercase tracking-wide text-ink-faint">{TYPE_LABELS[type]}</h3>
               {grouped[type].length === 0 ? (
-                <p className="rounded-lg border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-500">
+                <p className="rounded-sm border border-dashed border-paper-border px-4 py-3 text-sm text-ink-faint">
                   Aucun template pour ce type.
                 </p>
               ) : (
-                <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                <div className="divide-y divide-paper-border-muted rounded-sm border border-paper-border">
                   {grouped[type].map((template) => {
                     const isLoading = actionLoading[template.id]
                     const errMsg = actionError[template.id]
@@ -244,64 +242,47 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
                       <div key={template.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-slate-900">{template.nom}</span>
+                            <span className="text-sm font-medium text-ink">{template.nom}</span>
                             {template.is_archived ? (
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Archivé</span>
+                              <Badge variant="neutral">Archivé</Badge>
                             ) : template.is_active ? (
-                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">Actif</span>
+                              <Badge variant="success">Actif</Badge>
                             ) : (
-                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">Inactif</span>
+                              <Badge variant="warning">Inactif</Badge>
                             )}
                           </div>
-                          <p className="mt-0.5 text-xs text-slate-500">Mis à jour le {formatDate(template.updated_at)}</p>
-                          {errMsg && <p className="mt-1 text-xs text-red-600">{errMsg}</p>}
+                          <p className="mt-0.5 text-xs text-ink-faint">Mis à jour le {formatDate(template.updated_at)}</p>
+                          {errMsg && <p className="mt-1 text-xs text-stamp">{errMsg}</p>}
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setPreviewTemplate(template)}
-                            className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                          >
+                          <Button type="button" variant="secondary" size="sm" onClick={() => setPreviewTemplate(template)}>
                             Prévisualiser
-                          </button>
+                          </Button>
                           {!template.is_archived && (
-                            <button
-                              type="button"
-                              onClick={() => setEditorState(template)}
-                              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                            >
+                            <Button type="button" variant="secondary" size="sm" onClick={() => setEditorState(template)}>
                               Modifier
-                            </button>
+                            </Button>
                           )}
                           {!template.is_archived && !template.is_active && (
-                            <button
-                              type="button"
-                              onClick={() => handleActivate(template)}
-                              disabled={isLoading}
-                              className="rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60"
-                            >
+                            <Button type="button" size="sm" onClick={() => handleActivate(template)} disabled={isLoading}>
                               Activer
-                            </button>
+                            </Button>
                           )}
                           {!template.is_archived && (
-                            <button
+                            <Button
                               type="button"
+                              variant="danger"
+                              size="sm"
                               onClick={() => (template.is_active ? setArchiveConfirm(template) : handleArchive(template))}
                               disabled={isLoading}
-                              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
                             >
                               Archiver
-                            </button>
+                            </Button>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => openDeleteConfirm(template)}
-                            disabled={isLoading}
-                            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
-                          >
+                          <Button type="button" variant="danger" size="sm" onClick={() => openDeleteConfirm(template)} disabled={isLoading}>
                             Supprimer
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     )
@@ -351,63 +332,58 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
       />
 
       {/* Confirmation archivage du template actif */}
-      {archiveConfirm && (
-        <Modal open onClose={() => setArchiveConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="archive-template-title">
-          <div className="p-6">
-            <h2 id="archive-template-title" className="text-lg font-semibold text-slate-900">Archiver le template actif</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              <span className="font-medium">« {archiveConfirm.nom} »</span> est le template actif pour les reçus{' '}
-              {TYPE_LABELS[archiveConfirm.type_cerfa]}. L'archiver laissera ce type de reçu <span className="font-medium">sans template actif</span> tant
-              qu'un autre n'est pas activé — la génération de reçus sera bloquée pour ce type entre-temps.
-            </p>
-            <div className="mt-5 flex justify-end gap-3">
-              <button
-                onClick={() => setArchiveConfirm(null)}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={() => handleArchive(archiveConfirm)}
-                disabled={actionLoading[archiveConfirm.id]}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-              >
-                Archiver quand même
-              </button>
+      <Dialog open={!!archiveConfirm} onOpenChange={(next) => { if (!next) setArchiveConfirm(null) }}>
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
+          {archiveConfirm && (
+            <div className="p-6">
+              <h2 className="font-registre text-lg font-semibold text-ink">Archiver le template actif</h2>
+              <p className="mt-2 font-registre text-sm text-ink-muted">
+                <span className="font-medium text-ink">« {archiveConfirm.nom} »</span> est le template actif pour les reçus{' '}
+                {TYPE_LABELS[archiveConfirm.type_cerfa]}. L'archiver laissera ce type de reçu <span className="font-medium text-ink">sans template actif</span> tant
+                qu'un autre n'est pas activé — la génération de reçus sera bloquée pour ce type entre-temps.
+              </p>
+              <div className="mt-5 flex justify-end gap-3">
+                <Button type="button" variant="secondary" onClick={() => setArchiveConfirm(null)}>
+                  Annuler
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => handleArchive(archiveConfirm)}
+                  disabled={actionLoading[archiveConfirm.id]}
+                >
+                  Archiver quand même
+                </Button>
+              </div>
             </div>
-          </div>
-        </Modal>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmation suppression */}
-      {deleteConfirm && (
-        <Modal open onClose={() => setDeleteConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="delete-template-title">
-          <div className="p-6">
-            <h2 id="delete-template-title" className="text-lg font-semibold text-slate-900">Supprimer le template</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Êtes-vous sûr de vouloir supprimer <span className="font-medium">« {deleteConfirm.nom} »</span> ? Cette action est irréversible.
-            </p>
-            {deleteError && (
-              <div className="mt-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{deleteError}</div>
-            )}
-            <div className="mt-5 flex justify-end gap-3">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-              >
-                {deleting ? 'Suppression…' : 'Supprimer'}
-              </button>
+      <Dialog open={!!deleteConfirm} onOpenChange={(next) => { if (!next) setDeleteConfirm(null) }}>
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
+          {deleteConfirm && (
+            <div className="p-6">
+              <h2 className="font-registre text-lg font-semibold text-ink">Supprimer le template</h2>
+              <p className="mt-2 font-registre text-sm text-ink-muted">
+                Êtes-vous sûr de vouloir supprimer <span className="font-medium text-ink">« {deleteConfirm.nom} »</span> ? Cette action est irréversible.
+              </p>
+              {deleteError && (
+                <div className="mt-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">{deleteError}</div>
+              )}
+              <div className="mt-5 flex justify-end gap-3">
+                <Button type="button" variant="secondary" onClick={() => setDeleteConfirm(null)}>
+                  Annuler
+                </Button>
+                <Button type="button" variant="destructive" onClick={handleDelete} disabled={deleting}>
+                  {deleting ? 'Suppression…' : 'Supprimer'}
+                </Button>
+              </div>
             </div>
-          </div>
-        </Modal>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

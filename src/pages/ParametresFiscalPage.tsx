@@ -5,6 +5,10 @@ import ParametresSection from '../components/ParametresSection'
 import TemplatesRecuSection from '../components/TemplatesRecuSection'
 import { DEFAULT_MODELE } from '../lib/modeleRecu'
 import type { ModeleRecu } from '../types'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
+import { Textarea } from '../components/ui/textarea'
 
 interface OrgSettings {
   adresse: string | null
@@ -93,7 +97,7 @@ export default function ParametresFiscalPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-sm text-slate-500">
+      <div className="flex items-center justify-center py-24 font-registre text-sm text-ink-faint">
         Chargement…
       </div>
     )
@@ -101,23 +105,25 @@ export default function ParametresFiscalPage() {
 
   if (fetchError) {
     return (
-      <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{fetchError}</div>
+      <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
+        {fetchError}
+      </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Paramètres — Fiscalité</h1>
-        <p className="mt-1 text-sm text-slate-600">Informations fiscales et modèles de reçus utilisés pour vos donateurs.</p>
+        <h1 className="text-2xl font-bold text-ink md:text-3xl">Paramètres — Fiscalité</h1>
+        <p className="mt-1 text-sm text-ink-muted">Informations fiscales et modèles de reçus utilisés pour vos donateurs.</p>
       </div>
 
       <ParametresSection
         title="Informations fiscales"
         description="Ces informations apparaissent sur les reçus fiscaux générés pour vos donateurs et sont requises pour être conforme."
       >
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="mb-6 rounded-sm border border-warning-border bg-warning-tint px-4 py-3 text-sm text-warning">
           <p className="font-medium">⚠️ Obligations légales</p>
           <ul className="mt-1.5 list-disc space-y-1 pl-4">
             <li>L'association doit conserver une copie de chaque reçu émis pendant 6 ans.</li>
@@ -126,137 +132,133 @@ export default function ParametresFiscalPage() {
           </ul>
         </div>
 
-        <form onSubmit={handleSaveModele} className="space-y-4 max-w-lg">
+        <form onSubmit={handleSaveModele} className="max-w-lg space-y-4">
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">Adresse de l'association</p>
-            <div className="space-y-3">
-              <input
+            <Label>Adresse de l'association</Label>
+            <div className="mt-2 space-y-3">
+              <Input
                 type="text"
                 value={adresse}
                 onChange={(e) => setAdresse(e.target.value)}
                 placeholder="Ex : 12 rue des Lilas"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <div className="flex gap-3">
-                <input
+                <Input
                   type="text"
                   value={codePostal}
                   onChange={(e) => setCodePostal(e.target.value)}
                   placeholder="Code postal"
-                  className="w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-32"
                 />
-                <input
+                <Input
                   type="text"
                   value={ville}
                   onChange={(e) => setVille(e.target.value)}
                   placeholder="Ville"
-                  className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="min-w-0 flex-1"
                 />
               </div>
-              <input
+              <Input
                 type="text"
                 value={pays}
                 onChange={(e) => setPays(e.target.value)}
                 placeholder="Pays"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
 
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Numéro RNA</label>
-              <input
+              <Label htmlFor="modele-rna">Numéro RNA</Label>
+              <Input
+                id="modele-rna"
                 type="text"
                 value={modele.rna}
                 onChange={(e) => setModele((m) => ({ ...m, rna: e.target.value }))}
                 placeholder="Ex : W751234567"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1"
               />
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Numéro SIREN</label>
-              <input
+              <Label htmlFor="modele-siren">Numéro SIREN</Label>
+              <Input
+                id="modele-siren"
                 type="text"
                 value={modele.siren}
                 onChange={(e) => setModele((m) => ({ ...m, siren: e.target.value }))}
                 placeholder="Optionnel si RNA renseigné"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="modele-objet-social" className="mb-1 block text-sm font-medium text-slate-700">Objet social</label>
-            <textarea
+            <Label htmlFor="modele-objet-social">Objet social</Label>
+            <Textarea
               id="modele-objet-social"
               rows={2}
               value={modele.objet_social}
               onChange={(e) => setModele((m) => ({ ...m, objet_social: e.target.value }))}
               placeholder="Ex : association d'intérêt général à but non lucratif"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="mt-1 resize-none"
             />
           </div>
 
           <div>
-            <label htmlFor="modele-mention-legale" className="mb-1 block text-sm font-medium text-slate-700">Mention légale</label>
-            <textarea
+            <Label htmlFor="modele-mention-legale">Mention légale</Label>
+            <Textarea
               id="modele-mention-legale"
               rows={2}
               value={modele.mention_legale}
               onChange={(e) => setModele((m) => ({ ...m, mention_legale: e.target.value }))}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              className="mt-1 resize-none"
             />
-            <p className="mt-1 text-xs text-slate-500">Affichée sur le reçu pour justifier l'éligibilité au mécénat.</p>
+            <p className="mt-1 text-xs text-ink-faint">Affichée sur le reçu pour justifier l'éligibilité au mécénat.</p>
           </div>
 
           <div className="flex gap-3">
             <div className="flex-1">
-              <label htmlFor="modele-numero-recu-depart" className="mb-1 block text-sm font-medium text-slate-700">Numéro du premier reçu</label>
-              <input
+              <Label htmlFor="modele-numero-recu-depart">Numéro du premier reçu</Label>
+              <Input
                 id="modele-numero-recu-depart"
                 type="number"
                 min={1}
                 value={modele.numero_recu_depart}
                 onChange={(e) => setModele((m) => ({ ...m, numero_recu_depart: Number(e.target.value) }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1"
               />
             </div>
             <div className="flex-1">
-              <label htmlFor="modele-taux-reduction" className="mb-1 block text-sm font-medium text-slate-700">Taux de réduction fiscale</label>
-              <div className="relative">
-                <input
+              <Label htmlFor="modele-taux-reduction">Taux de réduction fiscale</Label>
+              <div className="relative mt-1">
+                <Input
                   id="modele-taux-reduction"
                   type="number"
                   min={0}
                   max={100}
                   value={modele.taux_reduction}
                   onChange={(e) => setModele((m) => ({ ...m, taux_reduction: Number(e.target.value) }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="pr-8"
                 />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">%</span>
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-faint">%</span>
               </div>
-              <p className="mt-1 text-xs text-slate-500">66% standard, 75% pour certains organismes (ex : aide aux personnes en difficulté).</p>
+              <p className="mt-1 text-xs text-ink-faint">66% standard, 75% pour certains organismes (ex : aide aux personnes en difficulté).</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3 pt-1">
-            <button
-              type="submit"
-              disabled={modeleSaving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
+            <Button type="submit" disabled={modeleSaving}>
               {modeleSaving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
+            </Button>
             {modeleSuccess && (
-              <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+              <span className="flex items-center gap-1.5 text-sm text-success">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
                 Enregistré
               </span>
             )}
-            {modeleError && <span className="text-sm text-red-600">{modeleError}</span>}
+            {modeleError && <span className="text-sm text-stamp">{modeleError}</span>}
           </div>
         </form>
       </ParametresSection>
