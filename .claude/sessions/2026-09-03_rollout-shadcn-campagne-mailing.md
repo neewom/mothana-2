@@ -54,11 +54,22 @@ Suite de la session du jour (allègement CLAUDE.md + ParticipantsPage/DonModal).
 - Carte Trello mise à jour : progression 10/24 + AdherentModal + DonModal, entrée #11 (SuperAdminPage), portée restante 14 pages (dashboard, paramètres, pages publiques — pas d'ordre encore établi).
 - Entrée ajoutée dans `docs/journal-avancement.md`.
 
+### Ordre proposé et validé pour les 14 pages restantes
+- Demandé par l'utilisateur ("Propose un ordre pour les 14 pages restantes"). Constat en vérifiant l'état réel des fichiers (grep `font-registre` plutôt que se fier au seul compteur) : 9 pages migrées au sens strict (fichier), le compteur "10/24" contient un décalage historique d'1 (numérotation "5e page" pour AdherentsPage alors que seules 3 pages précédaient — bug de comptage d'une session antérieure, non corrigé rétroactivement, sans conséquence sur la suite).
+- Ordre proposé en 5 paliers, présenté et validé dans le chat avant écriture Trello (habitude du projet) :
+  1. Débloquer le seam `ParametresSection` : `ParametresSuiviPage.tsx` (trivial — migrer `ParametresSection` elle-même à cette occasion plutôt que dupliquer un `SectionCard` local page par page), puis `ParametresFiscalPage.tsx`, `ParametresAdherentsPage.tsx`, `ParametresOrganisationPage.tsx` (la plus grosse, en dernier).
+  2. Cœur d'app : `DashboardPage.tsx`, `SuperAdminLayout.tsx` (trivial), `ComptabilitePage.tsx`.
+  3. Authentification : `HomePage.tsx`, `BenevoleLoginPage.tsx`, `ResetPasswordPage.tsx`.
+  4. Pages publiques : `DemandeAdhesionPage.tsx`, `DesinscriptionMailingPage.tsx`, `DecouvrirPage.tsx`.
+  5. En dernier : `BenevolePage.tsx` (639 lignes, la plus complexe/critique terrain), puis `AdminLayout.tsx` (sidebar/header partagé par toutes les pages admin).
+- **Décision** : `AdminLayout.tsx` avait été explicitement classée hors scope lors de la revue de finition du pilote ("chrome non migré, limite acceptée") — question posée à l'utilisateur pour clarifier si limite provisoire ou définitive, réponse explicite : l'inclure en tout dernier.
+- Trello mis à jour avec le détail complet de l'ordre (carte "Généraliser shadcn/ui aux 23 pages restantes").
+
 ## Reste à faire
 
-- **Progression : 10/24 pages migrées + AdherentModal + DonModal.**
-- Prochaine étape à confirmer en début de prochaine session : dashboard, pages Paramètres (dont le seam `ParametresSection`), pages publiques — 14 pages restantes, pas d'ordre encore établi au sein de ce reste.
-- Point de vigilance différé (pas de date) : passe CTA à icône seule (voir ci-dessus) — s'ajoute à la passe de finition des formulaires déjà différée.
+- **Progression : 10/24 pages migrées + AdherentModal + DonModal (9 pages au sens strict, décalage de comptage historique noté ci-dessus).**
+- Prochaine page à traiter (ordre validé) : `ParametresSuiviPage.tsx` — à confirmer avant de démarrer le dev, même déjà cadrée (règle du projet).
+- Point de vigilance différé (pas de date) : passe CTA à icône seule (voir plus haut) — s'ajoute à la passe de finition des formulaires déjà différée.
 - Seams restants (composants partagés avec des pages non migrées) : `TagsInput`, `AdherentHistoriqueSection`, `AssignerListeModal`, `AdhesionModal`, `ParticipantModal`, `ParticipantAutocomplete`, `ActiviteAutocomplete`, `ImportWizard`, `ParametresSection`.
 - Dette non traitée (notée sur la carte Trello) : `DonsPage.tsx` sans `ScrollShadowX` sur son tableau.
 - Passe de finition groupée sur le contenu des formulaires migrés (différée depuis PR #115/#116, toujours pas de date fixée).
