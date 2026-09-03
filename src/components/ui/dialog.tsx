@@ -22,10 +22,15 @@ const DialogOverlay = React.forwardRef<
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-const DialogContent = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, onOpenAutoFocus, ...props }, ref) => {
+interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+  /** Occupe tout l'écran (pas de centrage/max-w/radius) — pour un contenu qui a besoin de
+   * toute la largeur disponible (ex. éditeur de template avec panneau code + aperçu), avec
+   * un toggle utilisateur pour y entrer/sortir plutôt qu'un choix fixe à l'ouverture. */
+  fullScreen?: boolean
+}
+
+const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Content>, DialogContentProps>(
+  ({ className, children, onOpenAutoFocus, fullScreen = false, ...props }, ref) => {
   const closeRef = React.useRef<HTMLButtonElement>(null)
   return (
     <DialogPortal>
@@ -47,7 +52,9 @@ const DialogContent = React.forwardRef<
           // — nécessaire pour un formulaire long comme AdherentModal (header et pied de page
           // fixes, seul le corps scrolle), et ça marche aussi bien pour un contenu court qui
           // ne remplit jamais max-h.
-          'fixed left-1/2 top-1/2 z-50 flex max-h-[90dvh] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-0 overflow-hidden rounded-sm border border-paper-border bg-paper font-registre shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+          fullScreen
+            ? 'fixed inset-0 z-50 flex h-dvh w-screen flex-col gap-0 overflow-hidden bg-paper font-registre data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0'
+            : 'fixed left-1/2 top-1/2 z-50 flex max-h-[90dvh] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-0 overflow-hidden rounded-sm border border-paper-border bg-paper font-registre shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
           className
         )}
         {...props}

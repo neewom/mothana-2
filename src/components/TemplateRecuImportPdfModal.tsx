@@ -1,7 +1,10 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import Modal from './Modal'
 import type { TemplateRecuDraft } from './TemplateRecuEditorModal'
+import { Button } from './ui/button'
+import { Label } from './ui/label'
+import { Select } from './ui/select'
+import { Dialog, DialogContent } from './ui/dialog'
 
 interface TemplateRecuImportPdfModalProps {
   open: boolean
@@ -28,8 +31,6 @@ export default function TemplateRecuImportPdfModal({ open, onClose, onDraftReady
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  if (!open) return null
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files?.[0] ?? null
@@ -92,67 +93,60 @@ export default function TemplateRecuImportPdfModal({ open, onClose, onDraftReady
   }
 
   return (
-    <Modal open={open} onClose={onClose} maxWidthClassName="max-w-lg" labelledBy="import-pdf-title">
-      <form onSubmit={handleSubmit} className="p-6">
-        <h2 id="import-pdf-title" className="text-lg font-semibold text-slate-900">
-          Importer un PDF
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Uploadez un modèle de reçu existant (PDF). Un brouillon de template sera généré à partir de sa mise en page
-          — il faudra le relire et le compléter dans l'éditeur avant de pouvoir l'activer.
-        </p>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogContent className="max-w-lg" aria-describedby={undefined}>
+        <form onSubmit={handleSubmit} className="p-6">
+          <h2 className="font-registre text-lg font-semibold text-ink">Importer un PDF</h2>
+          <p className="mt-1 font-registre text-sm text-ink-muted">
+            Uploadez un modèle de reçu existant (PDF). Un brouillon de template sera généré à partir de sa mise en page
+            — il faudra le relire et le compléter dans l'éditeur avant de pouvoir l'activer.
+          </p>
 
-        <div className="mt-4">
-          <label className="mb-1 block text-sm font-medium text-slate-700">Type Cerfa</label>
-          <select
-            value={typeCerfa}
-            onChange={(e) => setTypeCerfa(e.target.value as '11580' | '16216')}
-            className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="11580">11580 · Particuliers</option>
-            <option value="16216">16216 · Entreprises</option>
-          </select>
-        </div>
-
-        <div className="mt-4">
-          <label className="mb-1 block text-sm font-medium text-slate-700">
-            Fichier PDF <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="file"
-            accept="application/pdf"
-            required
-            onChange={handleFileChange}
-            className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
-          />
-          <p className="mt-1 text-xs text-slate-500">4 Mo maximum.</p>
-        </div>
-
-        {error && <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-        {loading && (
-          <div className="mt-4 rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
-            Analyse du PDF en cours… (peut prendre jusqu'à 30 secondes)
+          <div className="mt-4">
+            <Label>Type Cerfa</Label>
+            <Select
+              value={typeCerfa}
+              onChange={(e) => setTypeCerfa(e.target.value as '11580' | '16216')}
+              className="mt-1 w-full"
+            >
+              <option value="11580">11580 · Particuliers</option>
+              <option value="16216">16216 · Entreprises</option>
+            </Select>
           </div>
-        )}
 
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
-          >
-            Annuler
-          </button>
-          <button
-            type="submit"
-            disabled={loading || !file}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-          >
-            {loading ? 'Analyse…' : 'Analyser le PDF'}
-          </button>
-        </div>
-      </form>
-    </Modal>
+          <div className="mt-4">
+            <Label>
+              Fichier PDF <span className="text-stamp">*</span>
+            </Label>
+            <div className="mt-1">
+              <label className="inline-flex h-9 cursor-pointer items-center rounded-sm border border-paper-border bg-white px-3 font-registre text-sm font-medium text-ink-muted hover:bg-paper">
+                Choisir un fichier
+                <input type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" />
+              </label>
+              {file && <p className="mt-1.5 text-xs text-ink-muted">{file.name}</p>}
+            </div>
+            <p className="mt-1 text-xs text-ink-faint">4 Mo maximum.</p>
+          </div>
+
+          {error && (
+            <div className="mt-4 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">{error}</div>
+          )}
+          {loading && (
+            <div className="mt-4 rounded-sm border border-paper-border bg-paper px-4 py-3 font-registre text-sm text-ink-muted">
+              Analyse du PDF en cours… (peut prendre jusqu'à 30 secondes)
+            </div>
+          )}
+
+          <div className="mt-6 flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
+              Annuler
+            </Button>
+            <Button type="submit" disabled={loading || !file}>
+              {loading ? 'Analyse…' : 'Analyser le PDF'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

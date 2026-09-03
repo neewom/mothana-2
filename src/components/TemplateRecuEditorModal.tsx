@@ -12,9 +12,13 @@ import {
 import { copyTextToClipboard } from '../lib/clipboard'
 import { fetchOrganisationAssets, buildAssetPlaceholders, assetPlaceholderKey } from '../lib/organisationAssets'
 import type { TemplateRecu } from '../types'
-import Modal from './Modal'
-import SectionHeader from './SectionHeader'
 import Tooltip from './Tooltip'
+import { cn } from '../lib/utils'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
+import { Select } from './ui/select'
+import { Dialog, DialogContent } from './ui/dialog'
 
 export interface TemplateRecuDraft {
   nom: string
@@ -49,6 +53,10 @@ const DEFAULT_HTML = `<div class="recu">
 </div>`
 
 const DEFAULT_CSS = `.recu { font-family: sans-serif; padding: 24px; }`
+
+function segmentButtonClasses(active: boolean) {
+  return cn('rounded-sm px-2 py-1', active ? 'bg-white text-ink shadow-sm' : 'text-ink-faint')
+}
 
 export default function TemplateRecuEditorModal({
   open,
@@ -148,8 +156,6 @@ export default function TemplateRecuEditorModal({
     setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1500)
   }
 
-  if (!open) return null
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
@@ -182,254 +188,229 @@ export default function TemplateRecuEditorModal({
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      maxWidthClassName="max-w-6xl"
-      labelledBy="template-editor-title"
-      fullScreen={fullScreen}
-      heightClassName="h-[85vh] min-h-[560px]"
-    >
-      <SectionHeader
-        titleId="template-editor-title"
-        reserveCloseButton
-        title={isEdit ? `Modifier — ${template.nom}` : 'Nouveau template de reçu'}
-        description={
-          isEdit
-            ? template.is_active
-              ? 'Ce template est actif : les modifications seront utilisées dès la prochaine génération de reçu.'
-              : 'Les modifications seront utilisées dès que ce template sera activé.'
-            : 'Créé désactivé — activez-le depuis la liste une fois vérifié.'
-        }
-        actions={
-          <>
-            <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-xs font-medium">
-              <button
-                type="button"
-                onClick={() => setPanelMode('both')}
-                className={`rounded-md px-2 py-1 ${panelMode === 'both' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-              >
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogContent
+        className={fullScreen ? undefined : 'max-w-6xl h-[85vh] min-h-[560px]'}
+        fullScreen={fullScreen}
+        aria-describedby={undefined}
+      >
+        <div className="flex flex-col gap-3 border-b border-paper-border px-6 py-4 pr-14 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="font-registre text-lg font-semibold text-ink">
+              {isEdit ? `Modifier — ${template.nom}` : 'Nouveau template de reçu'}
+            </h2>
+            <p className="mt-0.5 font-registre text-xs text-ink-muted">
+              {isEdit
+                ? template.is_active
+                  ? 'Ce template est actif : les modifications seront utilisées dès la prochaine génération de reçu.'
+                  : 'Les modifications seront utilisées dès que ce template sera activé.'
+                : 'Créé désactivé — activez-le depuis la liste une fois vérifié.'}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="flex gap-1 rounded-sm bg-paper-border/40 p-1 font-registre text-xs font-medium">
+              <button type="button" onClick={() => setPanelMode('both')} className={segmentButtonClasses(panelMode === 'both')}>
                 Les deux
               </button>
-              <button
-                type="button"
-                onClick={() => setPanelMode('editor')}
-                className={`rounded-md px-2 py-1 ${panelMode === 'editor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-              >
+              <button type="button" onClick={() => setPanelMode('editor')} className={segmentButtonClasses(panelMode === 'editor')}>
                 Éditeur
               </button>
-              <button
-                type="button"
-                onClick={() => setPanelMode('preview')}
-                className={`rounded-md px-2 py-1 ${panelMode === 'preview' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-              >
+              <button type="button" onClick={() => setPanelMode('preview')} className={segmentButtonClasses(panelMode === 'preview')}>
                 Aperçu
               </button>
             </div>
             <button
               type="button"
               onClick={() => setFullScreen((f) => !f)}
-              className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-600"
+              className="rounded-sm px-2 py-1.5 font-registre text-xs font-medium text-ink-faint hover:bg-paper-border/40 hover:text-ink-muted"
             >
               {fullScreen ? 'Réduire' : 'Plein écran'}
             </button>
-          </>
-        }
-      />
-
-      <form ref={formRef} onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-1 flex-col overflow-y-auto p-6">
-          {error && (
-            <div className="mb-4 shrink-0 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-          )}
-
-          <div className="mb-4 grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Nom du template <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={nom}
-                onChange={(e) => setNom(e.target.value)}
-                placeholder="Ex : Cerfa 11580 — révision 2026"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Type Cerfa</label>
-              <select
-                value={typeCerfa}
-                onChange={(e) => setTypeCerfa(e.target.value as '11580' | '16216')}
-                className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="11580">11580 · Particuliers</option>
-                <option value="16216">16216 · Entreprises</option>
-              </select>
-            </div>
           </div>
+        </div>
 
-          <div className="flex min-h-[300px] flex-1 flex-col gap-4 lg:flex-row">
-            {/* Éditeur */}
-            {panelMode !== 'preview' && (
-              <div className="flex min-w-0 flex-1 flex-col">
-                <div className="mb-2 flex shrink-0 gap-1 rounded-lg bg-slate-100 p-1 text-sm font-medium">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('html')}
-                    className={`flex-1 rounded-md py-1.5 ${activeTab === 'html' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-                  >
-                    HTML
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('css')}
-                    className={`flex-1 rounded-md py-1.5 ${activeTab === 'css' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-                  >
-                    CSS
-                  </button>
-                </div>
-                <div className="min-h-[160px] flex-1 overflow-hidden rounded-lg border border-slate-300">
-                  {activeTab === 'html' ? (
-                    <Editor
-                      height="100%"
-                      language="html"
-                      value={htmlTemplate}
-                      onChange={(v) => setHtmlTemplate(v ?? '')}
-                      onMount={handleEditorMount}
-                      options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on' }}
-                    />
-                  ) : (
-                    <Editor
-                      height="100%"
-                      language="css"
-                      value={css}
-                      onChange={(v) => setCss(v ?? '')}
-                      onMount={handleEditorMount}
-                      options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on' }}
-                    />
-                  )}
-                </div>
+        <form ref={formRef} onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex flex-1 flex-col overflow-y-auto p-6">
+            {error && (
+              <div className="mb-4 shrink-0 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
+                {error}
               </div>
             )}
 
-            {/* Prévisualisation */}
-            {panelMode !== 'editor' && (
-              <div className="flex min-w-0 flex-1 flex-col">
-                <div className="mb-2 shrink-0 rounded-lg bg-slate-100 p-1">
-                  <div className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-700">
-                    Aperçu (données d'exemple)
-                  </div>
-                </div>
-                <iframe
-                  title="Aperçu du template"
-                  srcDoc={previewHtml}
-                  className="min-h-[160px] w-full flex-1 rounded-lg border border-slate-300"
+            <div className="mb-4 grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="template-nom">
+                  Nom du template <span className="text-stamp">*</span>
+                </Label>
+                <Input
+                  id="template-nom"
+                  type="text"
+                  required
+                  value={nom}
+                  onChange={(e) => setNom(e.target.value)}
+                  placeholder="Ex : Cerfa 11580 — révision 2026"
+                  className="mt-1"
                 />
               </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex shrink-0 items-center justify-between gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)]">
-          <div ref={placeholdersRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setPlaceholdersOpen((o) => !o)}
-              className={`rounded-lg border px-3 py-2 text-xs font-medium ${
-                missingMandatory.length > 0
-                  ? 'border-red-200 text-red-600 hover:bg-red-50'
-                  : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
-              }`}
-            >
-              Placeholders — {mandatoryPresentCount}/{MANDATORY_TAGS.length} obligatoires
-            </button>
-
-            {placeholdersOpen && (
-              <div className="absolute bottom-full left-0 z-30 mb-2 max-h-96 w-[32rem] max-w-[90vw] overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 shadow-xl">
-                <p
-                  className={`mb-1.5 text-xs font-medium ${
-                    missingMandatory.length > 0 ? 'text-red-600' : 'text-emerald-600'
-                  }`}
+              <div>
+                <Label htmlFor="template-type-cerfa">Type Cerfa</Label>
+                <Select
+                  id="template-type-cerfa"
+                  value={typeCerfa}
+                  onChange={(e) => setTypeCerfa(e.target.value as '11580' | '16216')}
+                  className="mt-1 w-full"
                 >
-                  {mandatoryPresentCount}/{MANDATORY_TAGS.length} placeholders obligatoires présents
-                  {missingMandatory.length > 0 && ` — manquants : ${missingMandatory.join(', ')}`}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {MANDATORY_TAGS.map((key) => {
-                    const missing = isTagMissing(key, htmlTemplate)
-                    const copied = copiedKey === key
-                    return (
-                      <Tooltip key={key} bare content={`Exemple : ${previewValues[key]}`}>
-                        <button
-                          type="button"
-                          onClick={() => copyPlaceholder(key)}
-                          className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] ${
-                            missing
-                              ? 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200 hover:bg-red-100'
-                              : 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100'
-                          } ${copied ? 'ring-2 ring-offset-1 ring-indigo-500' : ''}`}
-                        >
-                          {missing ? '⚠️ ' : '✓ '}
-                          {`{{${key}}}`}
-                        </button>
-                      </Tooltip>
-                    )
-                  })}
-                </div>
-
-                <p className="mb-1.5 mt-3 text-xs font-medium text-slate-500">Placeholders optionnels</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[...OPTIONAL_TAGS, ...assetTags].map((key) => {
-                    const copied = copiedKey === key
-                    return (
-                      <Tooltip key={key} bare content={`Exemple : ${previewValues[key]}`}>
-                        <button
-                          type="button"
-                          onClick={() => copyPlaceholder(key)}
-                          className={`rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 hover:bg-slate-200 ${
-                            copied ? 'ring-2 ring-offset-1 ring-indigo-500' : ''
-                          }`}
-                        >
-                          {`{{${key}}}`}
-                        </button>
-                      </Tooltip>
-                    )
-                  })}
-                </div>
-                {assetTags.length === 0 && (
-                  <p className="mt-1.5 text-xs text-slate-500">
-                    Aucun asset configuré — ajoutez-en dans Paramètres › Identité visuelle pour obtenir des placeholders
-                    <code className="mx-1 rounded bg-slate-100 px-1">{'{{asset_...}}'}</code>
-                    ici.
-                  </p>
-                )}
-                <p className={`mt-1 text-xs font-medium ${copiedKey ? 'text-indigo-600' : 'text-slate-500'}`}>
-                  {copiedKey ? `✓ {{${copiedKey}}} copié dans le presse-papier` : 'Cliquer pour copier. Survoler pour voir un exemple de valeur.'}
-                </p>
+                  <option value="11580">11580 · Particuliers</option>
+                  <option value="16216">16216 · Entreprises</option>
+                </Select>
               </div>
-            )}
+            </div>
+
+            <div className="flex min-h-[300px] flex-1 flex-col gap-4 lg:flex-row">
+              {/* Éditeur */}
+              {panelMode !== 'preview' && (
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <div className="mb-2 flex shrink-0 gap-1 rounded-sm bg-paper-border/40 p-1 font-registre text-sm font-medium">
+                    <button type="button" onClick={() => setActiveTab('html')} className={cn('flex-1 rounded-sm py-1.5', activeTab === 'html' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint')}>
+                      HTML
+                    </button>
+                    <button type="button" onClick={() => setActiveTab('css')} className={cn('flex-1 rounded-sm py-1.5', activeTab === 'css' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint')}>
+                      CSS
+                    </button>
+                  </div>
+                  <div className="min-h-[160px] flex-1 overflow-hidden rounded-sm border border-paper-border">
+                    {activeTab === 'html' ? (
+                      <Editor
+                        height="100%"
+                        language="html"
+                        value={htmlTemplate}
+                        onChange={(v) => setHtmlTemplate(v ?? '')}
+                        onMount={handleEditorMount}
+                        options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on' }}
+                      />
+                    ) : (
+                      <Editor
+                        height="100%"
+                        language="css"
+                        value={css}
+                        onChange={(v) => setCss(v ?? '')}
+                        onMount={handleEditorMount}
+                        options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on' }}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Prévisualisation */}
+              {panelMode !== 'editor' && (
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <div className="mb-2 shrink-0 rounded-sm bg-paper-border/40 p-1">
+                    <div className="rounded-sm px-3 py-1.5 font-registre text-sm font-medium text-ink-muted">
+                      Aperçu (données d'exemple)
+                    </div>
+                  </div>
+                  <iframe
+                    title="Aperçu du template"
+                    srcDoc={previewHtml}
+                    className="min-h-[160px] w-full flex-1 rounded-sm border border-paper-border"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
-              {saving ? 'Enregistrement…' : isEdit ? 'Enregistrer' : 'Créer le template'}
-            </button>
+          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-paper-border bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)]">
+            <div ref={placeholdersRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setPlaceholdersOpen((o) => !o)}
+                className={cn(
+                  'rounded-sm border px-3 py-2 font-registre text-xs font-medium',
+                  missingMandatory.length > 0
+                    ? 'border-warning-border text-warning hover:bg-warning-tint'
+                    : 'border-success-border text-success hover:bg-success-tint'
+                )}
+              >
+                Placeholders — {mandatoryPresentCount}/{MANDATORY_TAGS.length} obligatoires
+              </button>
+
+              {placeholdersOpen && (
+                <div className="absolute bottom-full left-0 z-30 mb-2 max-h-96 w-[32rem] max-w-[90vw] overflow-y-auto rounded-sm border border-paper-border bg-white p-4 shadow-xl">
+                  <p className={cn('mb-1.5 font-registre text-xs font-medium', missingMandatory.length > 0 ? 'text-warning' : 'text-success')}>
+                    {mandatoryPresentCount}/{MANDATORY_TAGS.length} placeholders obligatoires présents
+                    {missingMandatory.length > 0 && ` — manquants : ${missingMandatory.join(', ')}`}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {MANDATORY_TAGS.map((key) => {
+                      const missing = isTagMissing(key, htmlTemplate)
+                      const copied = copiedKey === key
+                      return (
+                        <Tooltip key={key} bare content={`Exemple : ${previewValues[key]}`}>
+                          <button
+                            type="button"
+                            onClick={() => copyPlaceholder(key)}
+                            className={cn(
+                              'rounded-sm px-1.5 py-0.5 font-registre-mono text-[11px]',
+                              missing
+                                ? 'bg-warning-tint text-warning ring-1 ring-inset ring-warning-border hover:bg-warning-tint/70'
+                                : 'bg-success-tint text-success ring-1 ring-inset ring-success-border hover:bg-success-tint/70',
+                              copied && 'ring-2 ring-offset-1 ring-stamp/70'
+                            )}
+                          >
+                            {missing ? '⚠️ ' : '✓ '}
+                            {`{{${key}}}`}
+                          </button>
+                        </Tooltip>
+                      )
+                    })}
+                  </div>
+
+                  <p className="mb-1.5 mt-3 font-registre text-xs font-medium text-ink-faint">Placeholders optionnels</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[...OPTIONAL_TAGS, ...assetTags].map((key) => {
+                      const copied = copiedKey === key
+                      return (
+                        <Tooltip key={key} bare content={`Exemple : ${previewValues[key]}`}>
+                          <button
+                            type="button"
+                            onClick={() => copyPlaceholder(key)}
+                            className={cn(
+                              'rounded-sm bg-paper-border/40 px-1.5 py-0.5 font-registre-mono text-[11px] text-ink-muted hover:bg-paper-border/60',
+                              copied && 'ring-2 ring-offset-1 ring-stamp/70'
+                            )}
+                          >
+                            {`{{${key}}}`}
+                          </button>
+                        </Tooltip>
+                      )
+                    })}
+                  </div>
+                  {assetTags.length === 0 && (
+                    <p className="mt-1.5 font-registre text-xs text-ink-faint">
+                      Aucun asset configuré — ajoutez-en dans Paramètres › Identité visuelle pour obtenir des placeholders
+                      <code className="mx-1 rounded-sm bg-paper-border/40 px-1">{'{{asset_...}}'}</code>
+                      ici.
+                    </p>
+                  )}
+                  <p className={cn('mt-1 font-registre text-xs font-medium', copiedKey ? 'text-stamp' : 'text-ink-faint')}>
+                    {copiedKey ? `✓ {{${copiedKey}}} copié dans le presse-papier` : 'Cliquer pour copier. Survoler pour voir un exemple de valeur.'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <Button type="button" variant="secondary" onClick={onClose}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Enregistrement…' : isEdit ? 'Enregistrer' : 'Créer le template'}
+              </Button>
+            </div>
           </div>
-        </div>
-      </form>
-    </Modal>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
