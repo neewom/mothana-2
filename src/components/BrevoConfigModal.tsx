@@ -1,7 +1,11 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { isValidEmail } from '../lib/textFormat'
-import Modal from './Modal'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
+import { cn } from '../lib/utils'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 
 export interface BrevoConfigValues {
   apiKey: string
@@ -38,8 +42,6 @@ export default function BrevoConfigModal({ open, onClose, onSaved, organisationI
     }
   }, [open, initial])
 
-  if (!open) return null
-
   const dirty = apiKey !== initial.apiKey || expediteurNom !== initial.expediteurNom || expediteurEmail !== initial.expediteurEmail
   const emailInvalid = expediteurEmail.trim() !== '' && !isValidEmail(expediteurEmail)
 
@@ -75,74 +77,65 @@ export default function BrevoConfigModal({ open, onClose, onSaved, organisationI
   }
 
   return (
-    <Modal open={open} onClose={onClose} maxWidthClassName="max-w-lg" labelledBy="brevo-config-title">
-      <div className="border-b border-slate-200 px-6 py-4">
-        <h2 id="brevo-config-title" className="text-lg font-semibold text-slate-900">Configuration Brevo</h2>
-        <p className="mt-1 text-sm text-slate-600">Compte Brevo de votre organisation, utilisé pour l'envoi des campagnes.</p>
-      </div>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogContent className="max-w-lg" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>Configuration Brevo</DialogTitle>
+          <p className="mt-1 text-sm text-ink-muted">Compte Brevo de votre organisation, utilisé pour l'envoi des campagnes.</p>
+        </DialogHeader>
 
-      <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
-        <div className="space-y-4 p-6">
-          {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-1 space-y-4 overflow-y-auto p-6">
+            {error && <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">{error}</div>}
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Clé API</label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="xkeysib-…"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <div className="space-y-1.5">
+              <Label htmlFor="brevo-api-key">Clé API</Label>
+              <Input
+                id="brevo-api-key"
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="xkeysib-…"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="brevo-expediteur-nom">Nom de l'expéditeur</Label>
+              <Input
+                id="brevo-expediteur-nom"
+                type="text"
+                value={expediteurNom}
+                onChange={(e) => setExpediteurNom(e.target.value)}
+                placeholder="Association Démo"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="brevo-expediteur-email">Email de l'expéditeur</Label>
+              <Input
+                id="brevo-expediteur-email"
+                type="email"
+                value={expediteurEmail}
+                onChange={(e) => setExpediteurEmail(e.target.value)}
+                placeholder="contact@association.fr"
+                aria-invalid={emailInvalid}
+                className={cn(emailInvalid && 'border-stamp focus-visible:ring-stamp')}
+              />
+              {emailInvalid && <p className="mt-1 text-xs text-stamp">Format d'email invalide.</p>}
+              <p className="mt-1 text-xs text-ink-faint">Doit correspondre à un expéditeur vérifié dans votre compte Brevo.</p>
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Nom de l'expéditeur</label>
-            <input
-              type="text"
-              value={expediteurNom}
-              onChange={(e) => setExpediteurNom(e.target.value)}
-              placeholder="Association Démo"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Email de l'expéditeur</label>
-            <input
-              type="email"
-              value={expediteurEmail}
-              onChange={(e) => setExpediteurEmail(e.target.value)}
-              placeholder="contact@association.fr"
-              aria-invalid={emailInvalid}
-              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                emailInvalid
-                  ? 'border-red-400 focus:ring-red-500'
-                  : 'border-slate-300 focus:ring-indigo-500'
-              }`}
-            />
-            {emailInvalid && <p className="mt-1 text-xs text-red-600">Format d'email invalide.</p>}
-            <p className="mt-1 text-xs text-slate-500">Doit correspondre à un expéditeur vérifié dans votre compte Brevo.</p>
-          </div>
-        </div>
 
-        <div className="flex shrink-0 justify-end gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
-            Annuler
-          </button>
-          {dirty && (
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
-          )}
-        </div>
-      </form>
-    </Modal>
+          <div className="flex shrink-0 justify-end gap-3 border-t border-paper-border bg-white px-6 py-4">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Annuler
+            </Button>
+            {dirty && (
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </Button>
+            )}
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
