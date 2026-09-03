@@ -65,10 +65,22 @@ Suite de la session du jour (allègement CLAUDE.md + ParticipantsPage/DonModal).
 - **Décision** : `AdminLayout.tsx` avait été explicitement classée hors scope lors de la revue de finition du pilote ("chrome non migré, limite acceptée") — question posée à l'utilisateur pour clarifier si limite provisoire ou définitive, réponse explicite : l'inclure en tout dernier.
 - Trello mis à jour avec le détail complet de l'ordre (carte "Généraliser shadcn/ui aux 23 pages restantes").
 
+### ParametresSuiviPage migrée + ParametresSection débloquée (PR #123, dev, pas encore mergée)
+- Première page de l'ordre validé. `ParametresSection.tsx` migrée vers les nouveaux tokens à cette occasion (plutôt que dupliquer un `SectionCard` local) — conséquence assumée : les 3 sous-pages Paramètres pas encore migrées (Organisation, Fiscalité, Adhérents) ont désormais une carte au nouveau style avec un contenu resté ancien, écart visuel mineur et temporaire.
+- `HistoriqueModificationsSection.tsx`/`HistoriqueModificationsModal.tsx` migrés dans la même PR (privés à cette page). `JournalActionLabel.tsx` volontairement laissé tel quel — seam partagé avec `AdherentHistoriqueSection.tsx` (non migré, utilisé dans `AdherentModal.tsx` déjà migré), impact visuel jugé minime (couleurs de texte proches).
+- Testé sur staging (Playwright) : page Historique + vérification visuelle des 3 sous-pages Paramètres non migrées (carte neuve, contenu ancien intact). Vérifié 320/360/390/768/1440px.
+- `tsc -b` et `eslint` propres.
+
+### PR #123 mergée + suivi habituel
+- Utilisateur a d'abord demandé une checklist explicite de ce qu'il devait vérifier avant de merger (fourni : page migrée elle-même, effet de bord attendu sur les 3 autres pages Paramètres, mobile) — puis confirmé le merge.
+- `checkout dev` + `pull`, branche locale supprimée.
+- Carte Trello mise à jour : progression 11/24 + AdherentModal + DonModal, `ParametresSuiviPage.tsx` marquée faite dans le groupe 1 de l'ordre validé (barrée, détail du seam débloqué conservé).
+- Entrée ajoutée dans `docs/journal-avancement.md`.
+
 ## Reste à faire
 
-- **Progression : 10/24 pages migrées + AdherentModal + DonModal (9 pages au sens strict, décalage de comptage historique noté ci-dessus).**
-- Prochaine page à traiter (ordre validé) : `ParametresSuiviPage.tsx` — à confirmer avant de démarrer le dev, même déjà cadrée (règle du projet).
+- **Progression : 11/24 pages migrées + AdherentModal + DonModal.**
+- Prochaine page dans l'ordre validé : `ParametresFiscalPage.tsx` (bénéficie maintenant de `ParametresSection` déjà migrée) — à confirmer avant de démarrer.
 - Point de vigilance différé (pas de date) : passe CTA à icône seule (voir plus haut) — s'ajoute à la passe de finition des formulaires déjà différée.
 - Seams restants (composants partagés avec des pages non migrées) : `TagsInput`, `AdherentHistoriqueSection`, `AssignerListeModal`, `AdhesionModal`, `ParticipantModal`, `ParticipantAutocomplete`, `ActiviteAutocomplete`, `ImportWizard`, `ParametresSection`.
 - Dette non traitée (notée sur la carte Trello) : `DonsPage.tsx` sans `ScrollShadowX` sur son tableau.
