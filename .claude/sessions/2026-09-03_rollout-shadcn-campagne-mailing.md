@@ -82,7 +82,7 @@ Suite de la session du jour (allègement CLAUDE.md + ParticipantsPage/DonModal).
 - **Progression : 11/24 pages migrées + AdherentModal + DonModal.**
 - Prochaine page dans l'ordre validé : `ParametresFiscalPage.tsx` (bénéficie maintenant de `ParametresSection` déjà migrée) — à confirmer avant de démarrer.
 - Point de vigilance différé (pas de date) : passe CTA à icône seule (voir plus haut) — s'ajoute à la passe de finition des formulaires déjà différée.
-- Seams restants (composants partagés avec des pages non migrées) : `TagsInput`, `AdherentHistoriqueSection`, `AssignerListeModal`, `AdhesionModal`, `ParticipantModal`, `ParticipantAutocomplete`, `ActiviteAutocomplete`, `ImportWizard`, `ParametresSection`.
+- Seams restants (composants partagés avec des pages non migrées) : `TagsInput`, `AdherentHistoriqueSection` (+ `JournalActionLabel`, seam mineur identifié en PR #123), `AssignerListeModal`, `AdhesionModal`, `ParticipantModal`, `ParticipantAutocomplete`, `ActiviteAutocomplete`, `ImportWizard`. `ParametresSection` débloquée en PR #123 (n'est plus un seam), mais les 3 sous-pages Paramètres qui l'utilisent encore (Organisation, Fiscalité, Adhérents) ont temporairement une carte neuve autour d'un contenu resté ancien, jusqu'à leur propre migration.
 - Dette non traitée (notée sur la carte Trello) : `DonsPage.tsx` sans `ScrollShadowX` sur son tableau.
 - Passe de finition groupée sur le contenu des formulaires migrés (différée depuis PR #115/#116, toujours pas de date fixée).
 - `DESIGN.md` racine toujours non réécrit (référence encore vraie pour les pages non migrées).
