@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { getMissingMandatoryCartePlaceholders } from '../lib/cartePreview'
 import type { TemplateCarteAdherent } from '../types'
-import Modal from './Modal'
 import CarteAdherentPreviewModal from './CarteAdherentPreviewModal'
 import CarteAdherentEditorModal, { type CarteAdherentDraft } from './CarteAdherentEditorModal'
 import CarteAdherentImportModal from './CarteAdherentImportModal'
+import { Button } from './ui/button'
+import { Badge } from './ui/badge'
+import { Dialog, DialogContent } from './ui/dialog'
 
 interface CarteAdherentSectionProps {
   organisationId: string
@@ -152,40 +154,36 @@ export default function CarteAdherentSection({ organisationId }: CarteAdherentSe
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-ink-muted">
           Un seul gabarit actif à la fois. Celui-ci est utilisé pour l'impression des cartes adhérent.
         </p>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <button
-            onClick={() => setImportOpen(true)}
-            className="rounded-lg border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-          >
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setImportOpen(true)}>
             Importer un modèle
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               setWizardDraft(null)
               setEditorState('new')
             }}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
           >
             Nouveau gabarit
-          </button>
+          </Button>
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="mb-4 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{error}</div>
       )}
 
       {loading ? (
-        <div className="py-8 text-center text-sm text-slate-500">Chargement…</div>
+        <div className="py-8 text-center text-sm text-ink-faint">Chargement…</div>
       ) : templates.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-500">
+        <p className="rounded-sm border border-dashed border-paper-border px-4 py-3 text-sm text-ink-faint">
           Aucun gabarit de carte.
         </p>
       ) : (
-        <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+        <div className="divide-y divide-paper-border-muted rounded-sm border border-paper-border">
           {templates.map((template) => {
             const isLoading = actionLoading[template.id]
             const errMsg = actionError[template.id]
@@ -194,64 +192,47 @@ export default function CarteAdherentSection({ organisationId }: CarteAdherentSe
               <div key={template.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-900">{template.nom}</span>
+                    <span className="text-sm font-medium text-ink">{template.nom}</span>
                     {template.is_archived ? (
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Archivé</span>
+                      <Badge variant="neutral">Archivé</Badge>
                     ) : template.is_active ? (
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">Actif</span>
+                      <Badge variant="success">Actif</Badge>
                     ) : (
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">Inactif</span>
+                      <Badge variant="warning">Inactif</Badge>
                     )}
                   </div>
-                  <p className="mt-0.5 text-xs text-slate-500">Mis à jour le {formatDate(template.updated_at)}</p>
-                  {errMsg && <p className="mt-1 text-xs text-red-600">{errMsg}</p>}
+                  <p className="mt-0.5 text-xs text-ink-faint">Mis à jour le {formatDate(template.updated_at)}</p>
+                  {errMsg && <p className="mt-1 text-xs text-stamp">{errMsg}</p>}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewTemplate(template)}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
+                  <Button type="button" variant="secondary" size="sm" onClick={() => setPreviewTemplate(template)}>
                     Prévisualiser
-                  </button>
+                  </Button>
                   {!template.is_archived && (
-                    <button
-                      type="button"
-                      onClick={() => setEditorState(template)}
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    >
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setEditorState(template)}>
                       Modifier
-                    </button>
+                    </Button>
                   )}
                   {!template.is_archived && !template.is_active && (
-                    <button
-                      type="button"
-                      onClick={() => handleActivate(template)}
-                      disabled={isLoading}
-                      className="rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-60"
-                    >
+                    <Button type="button" size="sm" onClick={() => handleActivate(template)} disabled={isLoading}>
                       Activer
-                    </button>
+                    </Button>
                   )}
                   {!template.is_archived && (
-                    <button
+                    <Button
                       type="button"
+                      variant="danger"
+                      size="sm"
                       onClick={() => (template.is_active ? setArchiveConfirm(template) : handleArchive(template))}
                       disabled={isLoading}
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
                     >
                       Archiver
-                    </button>
+                    </Button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setDeleteConfirm(template)}
-                    disabled={isLoading}
-                    className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
-                  >
+                  <Button type="button" variant="danger" size="sm" onClick={() => setDeleteConfirm(template)} disabled={isLoading}>
                     Supprimer
-                  </button>
+                  </Button>
                 </div>
               </div>
             )
@@ -296,59 +277,54 @@ export default function CarteAdherentSection({ organisationId }: CarteAdherentSe
       />
 
       {/* Confirmation archivage du gabarit actif */}
-      {archiveConfirm && (
-        <Modal open onClose={() => setArchiveConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="archive-carte-title">
-          <div className="p-6">
-            <h2 id="archive-carte-title" className="text-lg font-semibold text-slate-900">Archiver le gabarit actif</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              <span className="font-medium">« {archiveConfirm.nom} »</span> est le gabarit actif. L'archiver laissera
-              l'impression de cartes <span className="font-medium">sans gabarit actif</span> tant qu'un autre n'est pas activé.
-            </p>
-            <div className="mt-5 flex justify-end gap-3">
-              <button
-                onClick={() => setArchiveConfirm(null)}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={() => handleArchive(archiveConfirm)}
-                disabled={actionLoading[archiveConfirm.id]}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-              >
-                Archiver quand même
-              </button>
+      <Dialog open={!!archiveConfirm} onOpenChange={(next) => { if (!next) setArchiveConfirm(null) }}>
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
+          {archiveConfirm && (
+            <div className="p-6">
+              <h2 className="font-registre text-lg font-semibold text-ink">Archiver le gabarit actif</h2>
+              <p className="mt-2 font-registre text-sm text-ink-muted">
+                <span className="font-medium text-ink">« {archiveConfirm.nom} »</span> est le gabarit actif. L'archiver laissera
+                l'impression de cartes <span className="font-medium text-ink">sans gabarit actif</span> tant qu'un autre n'est pas activé.
+              </p>
+              <div className="mt-5 flex justify-end gap-3">
+                <Button type="button" variant="secondary" onClick={() => setArchiveConfirm(null)}>
+                  Annuler
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => handleArchive(archiveConfirm)}
+                  disabled={actionLoading[archiveConfirm.id]}
+                >
+                  Archiver quand même
+                </Button>
+              </div>
             </div>
-          </div>
-        </Modal>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmation suppression */}
-      {deleteConfirm && (
-        <Modal open onClose={() => setDeleteConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="delete-carte-title">
-          <div className="p-6">
-            <h2 id="delete-carte-title" className="text-lg font-semibold text-slate-900">Supprimer le gabarit</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Êtes-vous sûr de vouloir supprimer <span className="font-medium">« {deleteConfirm.nom} »</span> ? Cette action est irréversible.
-            </p>
-            <div className="mt-5 flex justify-end gap-3">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-              >
-                {deleting ? 'Suppression…' : 'Supprimer'}
-              </button>
+      <Dialog open={!!deleteConfirm} onOpenChange={(next) => { if (!next) setDeleteConfirm(null) }}>
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
+          {deleteConfirm && (
+            <div className="p-6">
+              <h2 className="font-registre text-lg font-semibold text-ink">Supprimer le gabarit</h2>
+              <p className="mt-2 font-registre text-sm text-ink-muted">
+                Êtes-vous sûr de vouloir supprimer <span className="font-medium text-ink">« {deleteConfirm.nom} »</span> ? Cette action est irréversible.
+              </p>
+              <div className="mt-5 flex justify-end gap-3">
+                <Button type="button" variant="secondary" onClick={() => setDeleteConfirm(null)}>
+                  Annuler
+                </Button>
+                <Button type="button" variant="destructive" onClick={handleDelete} disabled={deleting}>
+                  {deleting ? 'Suppression…' : 'Supprimer'}
+                </Button>
+              </div>
             </div>
-          </div>
-        </Modal>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
