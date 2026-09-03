@@ -23,10 +23,23 @@ Suite de la session du jour (allègement CLAUDE.md + ParticipantsPage/DonModal).
 - Carte Trello "Généraliser shadcn/ui aux 23 pages restantes" mise à jour : progression 8/24 + AdherentModal + DonModal, entrée #9 (CampagneMailingPage + BrevoConfigModal + fix focus modales), nouveau seam `ParametresSection` ajouté à la liste, portée restante 16 pages.
 - Entrée ajoutée dans `docs/journal-avancement.md` (2 entrées : migration de la page, fix focus séparé).
 
+### RecusFiscauxPage migrée vers shadcn/ui (PR #121, dev, pas encore mergée)
+- 9e page du rollout. Utilisateur a confirmé "Go" pour enchaîner directement après le merge de la PR #120, sans repasser par une nouvelle confirmation de cadrage (page déjà annoncée en fin de PR précédente).
+- Mêmes primitives que les pages à tableau précédentes (`Button`/`Input`/`Select`/`Badge`/`Table`/`Dialog`), aucun nouveau composant. Bannière "organisation incomplète" en `warning` (remplace l'ambre indigo), statuts Généré/Non généré en `Badge` `success`/`neutral`, confirmation de régénération migrée de l'ancien `Modal` vers `Dialog`.
+- **Point de vigilance process** : les modifications ont été faites par erreur directement sur `dev` avant la création de la branche de feature — corrigé immédiatement (`git checkout -b` après coup, les modifications non commitées suivent le changement de branche), aucune conséquence puisque rien n'avait encore été commité.
+- Seam `ParticipantModal` (non migré) laissé tel quel — testé, aucun conflit visuel/z-index avec la nouvelle page (contrairement au cas DonModal/ParticipantModal de la PR #119, ici pas de nesting Dialog-dans-Dialog).
+- Testé de bout en bout sur staging (Playwright, admin démo) : recherche, changement d'année (2026/2025, lignes bloquées vs éligibles), confirmation de régénération (annulée), ouverture de `ParticipantModal`, focus sur le bouton Fermer à l'ouverture de la modale (hérite du fix de la PR #120). Vérifié à 320/360/390/768px, `ScrollShadowX` gère le scroll horizontal du tableau sur mobile.
+- `tsc -b` et `eslint` propres.
+
+### PR #121 mergée + suivi habituel
+- Utilisateur a confirmé le merge. `checkout dev` + `pull`, branche locale supprimée.
+- Carte Trello mise à jour : progression 9/24 + AdherentModal + DonModal, entrée #10 (RecusFiscauxPage), portée restante 15 pages.
+- Entrée ajoutée dans `docs/journal-avancement.md`.
+
 ## Reste à faire
 
-- **Progression : 8/24 pages migrées + AdherentModal + DonModal.**
-- Prochaine page proposée pour la suite (à confirmer en début de prochaine session) : `RecusFiscauxPage.tsx`, puis `SuperAdminPage.tsx`, puis le reste (dashboard, paramètres, pages publiques) — 16 pages restantes.
+- **Progression : 9/24 pages migrées + AdherentModal + DonModal.**
+- Prochaine page proposée pour la suite (à confirmer en début de prochaine session) : `SuperAdminPage.tsx`, puis le reste (dashboard, paramètres, pages publiques) — 15 pages restantes.
 - Seams restants (composants partagés avec des pages non migrées) : `TagsInput`, `AdherentHistoriqueSection`, `AssignerListeModal`, `AdhesionModal`, `ParticipantModal`, `ParticipantAutocomplete`, `ActiviteAutocomplete`, `ImportWizard`, `ParametresSection`.
 - Dette non traitée (notée sur la carte Trello) : `DonsPage.tsx` sans `ScrollShadowX` sur son tableau.
 - Passe de finition groupée sur le contenu des formulaires migrés (différée depuis PR #115/#116, toujours pas de date fixée).
