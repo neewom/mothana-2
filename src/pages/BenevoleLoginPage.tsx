@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { Button } from '../components/ui/button'
 
 export default function BenevoleLoginPage() {
   const { loginBenevole } = useAuth()
@@ -24,12 +25,12 @@ export default function BenevoleLoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-slate-50 px-4 py-12">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-paper px-4 py-12 font-registre">
       <div className="w-full max-w-sm">
         {/* Back link */}
         <Link
           to="/"
-          className="mb-8 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+          className="mb-8 inline-flex items-center gap-1 text-sm text-ink-faint hover:text-ink-muted"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -44,9 +45,9 @@ export default function BenevoleLoginPage() {
           Retour
         </Link>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="rounded-sm border border-paper-border bg-white p-8">
           {/* Header */}
-          <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-rose-500 text-white">
+          <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-sm bg-stamp text-white">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-6 w-6"
@@ -62,8 +63,8 @@ export default function BenevoleLoginPage() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-slate-900">Espace Bénévole</h1>
-          <p className="mt-1 text-sm text-slate-600">Saisissez votre code PIN pour accéder</p>
+          <h1 className="text-xl font-semibold text-ink">Espace Bénévole</h1>
+          <p className="mt-1 text-sm text-ink-muted">Saisissez votre code PIN pour accéder</p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             <div className="text-center">
@@ -78,22 +79,18 @@ export default function BenevoleLoginPage() {
                 required
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                className="block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-4 text-center text-3xl font-bold tracking-[0.5em] text-slate-900 shadow-sm focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
+                className="block w-full rounded-sm border border-paper-border bg-paper px-4 py-4 text-center font-registre-mono text-3xl font-bold tracking-[0.5em] text-ink focus:border-stamp focus:outline-none focus:ring-2 focus:ring-stamp/70"
                 placeholder="••••••"
               />
             </div>
 
             {error && (
-              <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">
                 {error}
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading || pin.length === 0}
-              className="mt-2 w-full rounded-lg bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-            >
+            <Button type="submit" disabled={loading || pin.length === 0} className="mt-2 w-full">
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -105,7 +102,7 @@ export default function BenevoleLoginPage() {
               ) : (
                 'Accéder'
               )}
-            </button>
+            </Button>
           </form>
         </div>
       </div>
