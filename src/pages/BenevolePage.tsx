@@ -7,6 +7,10 @@ import { useFocusTrap } from '../hooks/useFocusTrap'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
 import BenevoleVerificationAdherent from '../components/BenevoleVerificationAdherent'
 import RecetteBanner from '../components/RecetteBanner'
+import { cn } from '../lib/utils'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -57,10 +61,10 @@ function PinOverlay({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div ref={containerRef} role="dialog" aria-modal="true" aria-labelledby="pin-overlay-title" className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl">
-        <h2 id="pin-overlay-title" className="text-lg font-semibold text-slate-900">Session expirée</h2>
-        <p className="mt-1 text-sm text-slate-600">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 font-registre">
+      <div ref={containerRef} role="dialog" aria-modal="true" aria-labelledby="pin-overlay-title" className="w-full max-w-sm rounded-sm border border-paper-border bg-white p-8 shadow-xl">
+        <h2 id="pin-overlay-title" className="text-lg font-semibold text-ink">Session expirée</h2>
+        <p className="mt-1 text-sm text-ink-muted">
           Ressaisissez le code PIN pour continuer — votre saisie en cours est conservée.
         </p>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -71,17 +75,13 @@ function PinOverlay({ onSuccess }: { onSuccess: () => void }) {
             required
             value={pin}
             onChange={(e) => setPin(e.target.value)}
-            className="block w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-4 text-center text-3xl font-bold tracking-[0.5em] text-slate-900 focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
+            className="block w-full rounded-sm border border-paper-border bg-paper px-4 py-4 text-center font-registre-mono text-3xl font-bold tracking-[0.5em] text-ink focus:border-stamp focus:outline-none focus:ring-2 focus:ring-stamp/70"
             placeholder="••••"
           />
-          {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-          <button
-            type="submit"
-            disabled={loading || pin.length === 0}
-            className="w-full rounded-lg bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-600 disabled:opacity-60"
-          >
+          {error && <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{error}</div>}
+          <Button type="submit" disabled={loading || pin.length === 0} className="w-full">
             {loading ? 'Vérification…' : 'Continuer'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>
@@ -322,7 +322,7 @@ export default function BenevolePage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-50">
+    <div className="flex min-h-dvh flex-col bg-paper font-registre">
       {sessionExpired && (
         <PinOverlay
           onSuccess={() => {
@@ -335,20 +335,17 @@ export default function BenevolePage() {
       <RecetteBanner />
 
       {/* Header */}
-      <header className="border-b border-slate-200 bg-white px-4 shadow-sm">
+      <header className="border-b border-paper-border bg-white px-4">
         <div className="flex h-14 items-center justify-between">
-          <span className="text-base font-bold tracking-tight text-slate-900">Samakan</span>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
+          <span className="text-base font-bold tracking-tight text-ink">Samakan</span>
+          <Button variant="secondary" size="sm" onClick={handleLogout}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
             </svg>
             Quitter
-          </button>
+          </Button>
         </div>
-        <div className="pb-2 text-xs font-medium text-slate-500">
+        <div className="pb-2 text-xs font-medium text-ink-faint">
           Espace bénévole — {organisationNom ?? '…'}
         </div>
       </header>
@@ -356,22 +353,24 @@ export default function BenevolePage() {
       {/* Content */}
       <main className="flex flex-1 items-start justify-center px-4 py-8">
         <div className="w-full max-w-lg">
-          <div className="mb-6 flex gap-2 rounded-lg bg-slate-100 p-1">
+          <div className="mb-6 flex gap-2 rounded-sm bg-paper-border/40 p-1">
             <button
               type="button"
               onClick={() => setActiveTab('don')}
-              className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                activeTab === 'don' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={cn(
+                'flex-1 rounded-sm px-3 py-2 text-sm font-medium transition-colors',
+                activeTab === 'don' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
+              )}
             >
               Saisir un don
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('verification')}
-              className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                activeTab === 'verification' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={cn(
+                'flex-1 rounded-sm px-3 py-2 text-sm font-medium transition-colors',
+                activeTab === 'verification' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
+              )}
             >
               Vérifier un adhérent
             </button>
@@ -382,64 +381,58 @@ export default function BenevolePage() {
           ) : (
             <>
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-900">Saisie d'un don</h1>
-            <p className="mt-1 text-sm text-slate-600">Remplissez le formulaire pour enregistrer un don.</p>
+            <h1 className="text-2xl font-bold text-ink">Saisie d'un don</h1>
+            <p className="mt-1 text-sm text-ink-muted">Remplissez le formulaire pour enregistrer un don.</p>
           </div>
 
           {dataLoading ? (
-            <div className="flex items-center justify-center py-16 text-sm text-slate-500">
+            <div className="flex items-center justify-center py-16 text-sm text-ink-faint">
               Chargement…
             </div>
           ) : loadError ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-              <p className="text-sm font-medium text-red-700">Erreur de chargement</p>
-              <p className="mt-1 text-xs text-red-600">{loadError}</p>
-              <button
-                onClick={loadData}
-                className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-              >
+            <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] p-6 text-center">
+              <p className="text-sm font-medium text-stamp">Erreur de chargement</p>
+              <p className="mt-1 text-xs text-stamp">{loadError}</p>
+              <Button variant="destructive" onClick={loadData} className="mt-4">
                 Réessayer
-              </button>
+              </Button>
             </div>
           ) : success ? (
             /* Success state */
-            <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center shadow-sm">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-600">
+            <div className="rounded-sm border border-success-border bg-success-tint p-8 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white text-success">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
               </div>
-              <h2 className="text-lg font-semibold text-green-900">Don enregistré !</h2>
-              <p className="mt-1 text-sm text-green-700">
+              <h2 className="text-lg font-semibold text-success">Don enregistré !</h2>
+              <p className="mt-1 text-sm text-success">
                 Le don de{' '}
                 <span className="font-medium">
                   {parseFloat(montant).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €
                 </span>{' '}
                 a bien été enregistré.
               </p>
-              <button
-                onClick={resetForm}
-                className="mt-6 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
-              >
+              <Button variant="success" onClick={resetForm} className="mt-6">
                 Saisir un nouveau don
-              </button>
+              </Button>
             </div>
           ) : (
             /* Form */
-            <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <form onSubmit={handleSubmit} className="space-y-5 rounded-sm border border-paper-border bg-white p-6">
               {error && (
-                <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+                <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{error}</div>
               )}
 
               {/* Participant */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Participant <span className="text-red-500">*</span>
-                </label>
+                <Label>
+                  Participant <span className="text-stamp">*</span>
+                </Label>
 
-                <div ref={searchRef} className="relative">
+                <div ref={searchRef} className="relative mt-1">
                   <div className="relative">
-                    <input
+                    <Input
                       type="text"
                       value={search}
                       disabled={showNew}
@@ -450,13 +443,13 @@ export default function BenevolePage() {
                       }}
                       onFocus={() => !showNew && setDropdownOpen(true)}
                       placeholder="Rechercher un participant…"
-                      className="w-full rounded-lg border border-slate-300 py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500"
+                      className="pr-8"
                     />
                     {selectedParticipant && (
                       <button
                         type="button"
                         onClick={clearParticipant}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-muted"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -466,9 +459,9 @@ export default function BenevolePage() {
                   </div>
 
                   {dropdownOpen && !showNew && (
-                    <div className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                    <div className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-sm border border-paper-border bg-white shadow-lg">
                       {filtered.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-slate-500">Aucun résultat</div>
+                        <div className="px-4 py-3 text-sm text-ink-faint">Aucun résultat</div>
                       ) : (
                         filtered.map((p) => (
                           <button
@@ -478,7 +471,7 @@ export default function BenevolePage() {
                               e.preventDefault()
                               selectParticipant(p)
                             }}
-                            className="flex w-full items-center px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                            className="flex w-full items-center px-4 py-2.5 text-left text-sm text-ink-muted hover:bg-paper"
                           >
                             <span className="font-medium">{participantLabel(p)}</span>
                           </button>
@@ -496,7 +489,7 @@ export default function BenevolePage() {
                     setSearch('')
                     setDropdownOpen(false)
                   }}
-                  className="mt-2 flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                  className="mt-2 flex items-center gap-1 text-xs font-medium text-stamp hover:underline"
                 >
                   {showNew ? (
                     <>
@@ -516,40 +509,40 @@ export default function BenevolePage() {
                 </button>
 
                 {showNew && (
-                  <div className="mt-3 space-y-3 rounded-lg border border-indigo-100 bg-indigo-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Nouveau participant</p>
+                  <div className="mt-3 space-y-3 rounded-sm border border-paper-border bg-paper p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Nouveau participant</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="mb-1 block text-xs font-medium text-slate-600">Prénom</label>
-                        <input
+                        <Label className="text-xs">Prénom</Label>
+                        <Input
                           type="text"
                           value={newPrenom}
                           onChange={(e) => setNewPrenom(e.target.value)}
                           placeholder="Jean"
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="mt-1"
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-xs font-medium text-slate-600">
-                          Nom <span className="text-red-500">*</span>
-                        </label>
-                        <input
+                        <Label className="text-xs">
+                          Nom <span className="text-stamp">*</span>
+                        </Label>
+                        <Input
                           type="text"
                           value={newNom}
                           onChange={(e) => setNewNom(e.target.value)}
                           placeholder="Dupont"
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="mt-1"
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-600">Email (optionnel)</label>
-                      <input
+                      <Label className="text-xs">Email (optionnel)</Label>
+                      <Input
                         type="email"
                         value={newEmail}
                         onChange={(e) => setNewEmail(e.target.value)}
                         placeholder="jean.dupont@exemple.fr"
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="mt-1"
                       />
                     </div>
                   </div>
@@ -558,21 +551,23 @@ export default function BenevolePage() {
 
               {/* Activité */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Activité</label>
-                <ActiviteAutocomplete
-                  activites={activites}
-                  value={activiteId}
-                  onChange={setActiviteId}
-                  placeholder="Aucune activité"
-                />
+                <Label>Activité</Label>
+                <div className="mt-1">
+                  <ActiviteAutocomplete
+                    activites={activites}
+                    value={activiteId}
+                    onChange={setActiviteId}
+                    placeholder="Aucune activité"
+                  />
+                </div>
               </div>
 
               {/* Montant */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Montant (€) <span className="text-red-500">*</span>
-                </label>
-                <input
+                <Label>
+                  Montant (€) <span className="text-stamp">*</span>
+                </Label>
+                <Input
                   type="number"
                   step="0.01"
                   min="0.01"
@@ -580,40 +575,41 @@ export default function BenevolePage() {
                   value={montant}
                   onChange={(e) => setMontant(e.target.value)}
                   placeholder="0.00"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="mt-1"
                 />
               </div>
 
               {/* Date */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Date <span className="text-red-500">*</span>
-                </label>
-                <input
+                <Label>
+                  Date <span className="text-stamp">*</span>
+                </Label>
+                <Input
                   type="date"
                   required
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="mt-1"
                 />
               </div>
 
               {/* Mode de paiement */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Mode de paiement <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+                <Label>
+                  Mode de paiement <span className="text-stamp">*</span>
+                </Label>
+                <div className="mt-1 grid grid-cols-3 gap-2">
                   {(['virement', 'cheque', 'especes'] as const).map((mode) => (
                     <button
                       key={mode}
                       type="button"
                       onClick={() => setModePaiement(mode)}
-                      className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                      className={cn(
+                        'rounded-sm border px-3 py-2 text-sm font-medium transition-colors',
                         modePaiement === mode
-                          ? 'border-indigo-600 bg-indigo-600 text-white'
-                          : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
+                          ? 'border-stamp bg-stamp text-white'
+                          : 'border-paper-border bg-white text-ink-muted hover:bg-paper'
+                      )}
                     >
                       {mode === 'virement' ? 'Virement' : mode === 'cheque' ? 'Chèque' : 'Espèces'}
                     </button>
@@ -621,13 +617,9 @@ export default function BenevolePage() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={saving || (!selectedParticipant && !showNew)}
-                className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
+              <Button type="submit" disabled={saving || (!selectedParticipant && !showNew)} className="w-full">
                 {saving ? 'Enregistrement…' : 'Enregistrer le don'}
-              </button>
+              </Button>
             </form>
           )}
             </>
