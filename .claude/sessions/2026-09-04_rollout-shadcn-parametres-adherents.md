@@ -31,14 +31,40 @@ Suite du rollout shadcn/ui. Routine de début de session faite (Trello/PR/synchr
 
 - Nécessaires pour les tests Playwright (login réel sur l'instance dev permanente). Pas encore en mémoire persistante en début de cette session (redemandés à l'utilisateur, retrouvés dans `.env` : `STAGING_DEMO_ADMIN_ID`/`STAGING_DEMO_ADMIN_PASSWORD`) — ajoutés à la mémoire persistante pour ne plus avoir à redemander.
 
+### ParametresOrganisationPage migrée (PR #126, mergée)
+
+- 14e page du rollout, 4e et dernière page du groupe Paramètres — le groupe est désormais bouclé (ParametresSuiviPage #123, ParametresFiscalPage #124, ParametresAdherentsPage #125, ParametresOrganisationPage #126).
+- Page autonome, sans seam ni modale partagée : informations générales (nom), code PIN bénévole (toggle œil, régénération), identité visuelle (président + grille d'assets upload/remplacement/suppression).
+- Piège de test évité : `/admin/parametres/organisation` n'existe pas comme route — la page Organisation est en réalité l'index `/admin/parametres` (les 3 autres sous-pages ont un suffixe `/fiscal`, `/adherents`, `/suivi`, pas celle-ci). Confirmé en lisant `App.tsx` après un premier test en page blanche.
+- Testé de bout en bout sur l'instance dev (Playwright, admin démo) : sauvegarde du nom, toggle/régénération PIN, formulaire président, grille d'assets (aucun asset configuré sur l'org de démo — état de données, pas un bug), 320/360/390/768/1440px, aucune erreur console. `tsc -b` et `eslint` propres.
+
+### Exploration usage/Remote Control (hors rollout)
+
+- Discussion sur la gestion du usage Claude Code à travers plusieurs sessions (déclenchée par une question sur le traitement d'un batch de cartes Trello). Pas d'outil pour lire `/usage` directement ; recherche web faite sur les workflows documentés :
+  - **Task budgets** (API Anthropic) : existe mais explicitement non supporté sur Claude Code ni sur Sonnet 5 — pas utilisable ici.
+  - **`autoContinueAtUsageLimit`** (Claude Code CLI, v2.1.234+) : attend et reprend automatiquement une tâche après reset de quota, sans reprompt. Activé par défaut en théorie ; ajouté explicitement à `~/.claude/settings.json` de l'utilisateur (absent, donc ambiguïté sur le défaut réel dans ce harnais) — voir Décisions.
+  - **`/insights`** : rapport HTML rétrospectif sur les sessions passées, utile pour calibrer *a posteriori* le coût typique d'un type de tâche.
+- **Remote Control testé** : l'utilisateur a confirmé recevoir les notifications push sur son téléphone (app Claude) alors que le tool `PushNotification` répondait `Not sent — terminal is active — redundant` dans les deux tests. Donc le canal push mobile fonctionne déjà dans ce harnais, indépendamment du retour du tool. Pas de vraie vérification possible en conditions "utilisateur absent" (les deux tests étaient juste après un message de l'utilisateur, donc "terminal actif" dans les deux cas) — à confirmer au premier vrai cas d'usage (reprise après reset de quota avec un vrai écart de temps).
+- Mémoire créée : `project_push_notification_reaches_phone_despite_not_sent_log.md`.
+- Erreur trouvée et corrigée dans une mémoire existante : `reference_staging_demo_admin_credentials.md` indiquait un email inventé (`admin@mothana-demo.fr`, donné de mémoire par l'utilisateur dans une session précédente) au lieu de la vraie valeur `.env` (`STAGING_DEMO_ADMIN_ID`, réellement `admin-demo@mothana-staging.internal`).
+
+### PR #126 mergée + suivi habituel
+
+- Utilisateur a confirmé le merge. `checkout dev` + `pull`, branche locale supprimée.
+- Carte Trello mise à jour : progression 14/24 + AdherentModal + DonModal, entrée #14, groupe Paramètres marqué entièrement fait (4/4), portée restante 11 pages, `DashboardPage.tsx` identifiée comme prochaine étape.
+- Entrée ajoutée dans `docs/journal-avancement.md`.
+- Vérification Todo/Done bidirectionnelle faite : aucune carte nouvelle, aucune disparue.
+
 ## Reste à faire
 
-- **Progression : 13/24 pages migrées + AdherentModal + DonModal.**
-- Prochaine page dans l'ordre validé (fin du groupe 1) : `ParametresOrganisationPage.tsx` — la plus grosse sous-page Paramètres, à confirmer avant de démarrer.
+- **Progression : 14/24 pages migrées + AdherentModal + DonModal. Groupe Paramètres bouclé.**
+- Prochaine page dans l'ordre validé (groupe 2, cœur d'app) : `DashboardPage.tsx` (1er écran après connexion) — confirmée par l'utilisateur, à démarrer.
+- Puis dans ce même groupe : `SuperAdminLayout.tsx` (trivial), `ComptabilitePage.tsx`.
 - Point de vigilance différé (pas de date) : passe CTA à icône seule + passe de finition des formulaires (différées depuis PR #115/#116/#122).
 - Seams restants (composants partagés avec des pages non migrées) : `TagsInput`, `AdherentHistoriqueSection` (+ `JournalActionLabel`), `AssignerListeModal`, `AdhesionModal`, `ParticipantModal`, `ParticipantAutocomplete`, `ActiviteAutocomplete`, `ImportWizard`.
 - Dette non traitée (notée sur la carte Trello) : `DonsPage.tsx` sans `ScrollShadowX` sur son tableau.
 - `DESIGN.md` racine toujours non réécrit (référence encore vraie pour les pages non migrées).
+- **À confirmer au prochain vrai cas d'usage** : est-ce que la notification push mobile atteint bien l'utilisateur quand il n'est pas activement en train d'écrire dans la conversation (cas réel visé : reprise automatique après reset de quota).
 
 ## Blockers
 
@@ -48,3 +74,5 @@ Aucun.
 
 - Fix du bug de scroll bundlé dans PR #125 plutôt qu'une PR séparée, malgré l'origine PR #124 (déjà mergée) pour l'un des deux fichiers touchés — même famille de bug, trouvée en testant la PR en cours, convention établie du projet.
 - `vh` → `dvh` sur les iframes d'aperçu : alignement avec la convention déjà en place sur la coquille `DialogContent` (`max-h-[90dvh]`), pas une nouvelle convention introduite ponctuellement.
+- `autoContinueAtUsageLimit: true` ajouté explicitement dans `~/.claude/settings.json` (scope utilisateur) sur demande explicite de l'utilisateur, en best-effort — pas de garantie que ce harnais respecte ce réglage CLI officiel (clés non-standard déjà présentes dans le fichier, ex. `agentPushNotifEnabled`, signe que l'environnement n'est pas le CLI Claude Code brut).
+- Pas d'activation manuelle de Remote Control nécessaire : l'utilisateur reçoit déjà les notifs push sans avoir suivi le flux de pairing QR code décrit dans la doc officielle — le canal mobile semble déjà actif via ce harnais.
