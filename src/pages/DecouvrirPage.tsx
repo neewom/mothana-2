@@ -13,6 +13,7 @@ import imgBenevoleDon from '../assets/decouvrir/15-benevole-don.png'
 import imgBenevoleVerification from '../assets/decouvrir/16-benevole-verification.png'
 import imgParametresOrganisation from '../assets/decouvrir/08-parametres-organisation.png'
 import imgFormulaireEditor from '../assets/decouvrir/12-formulaire-adhesion-editor.png'
+import { Button } from '../components/ui/button'
 
 const SECTIONS = [
   { id: 'dons', label: 'Dons' },
@@ -24,11 +25,11 @@ const SECTIONS = [
 
 function BrowserFrame({ src, alt }: { src: string; alt: string }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex h-8 items-center gap-1.5 border-b border-slate-200 bg-slate-100 px-3">
-        <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-        <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-        <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+    <div className="overflow-hidden rounded-sm border border-paper-border bg-white">
+      <div className="flex h-8 items-center gap-1.5 border-b border-paper-border bg-paper px-3">
+        <span className="h-2.5 w-2.5 rounded-full bg-paper-border" />
+        <span className="h-2.5 w-2.5 rounded-full bg-paper-border" />
+        <span className="h-2.5 w-2.5 rounded-full bg-paper-border" />
       </div>
       <img src={src} alt={alt} className="block w-full" loading="lazy" />
     </div>
@@ -53,8 +54,8 @@ function Feature({
   return (
     <div className="grid items-center gap-8 py-10 lg:grid-cols-5 lg:gap-12">
       <div className={`lg:col-span-2 ${reverse ? 'lg:order-2' : ''}`}>
-        <h3 className="text-xl font-semibold text-slate-900">{title}</h3>
-        <p className="mt-3 text-sm leading-relaxed text-slate-600">{description}</p>
+        <h3 className="text-xl font-semibold text-ink">{title}</h3>
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted">{description}</p>
       </div>
       <div className={`lg:col-span-3 ${reverse ? 'lg:order-1' : ''} ${mobile ? 'flex justify-center' : ''}`}>
         <div className={mobile ? 'w-full max-w-[280px]' : 'w-full'}>
@@ -68,9 +69,9 @@ function Feature({
 function SectionHeading({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
   return (
     <div className="max-w-2xl">
-      <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">{eyebrow}</p>
-      <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{title}</h2>
-      <p className="mt-3 text-base leading-relaxed text-slate-600">{description}</p>
+      <p className="text-sm font-semibold uppercase tracking-wide text-stamp">{eyebrow}</p>
+      <h2 className="mt-2 text-2xl font-bold tracking-tight text-ink sm:text-3xl">{title}</h2>
+      <p className="mt-3 text-base leading-relaxed text-ink-muted">{description}</p>
     </div>
   )
 }
@@ -81,13 +82,13 @@ export default function DecouvrirPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-slate-50">
+    <div className="min-h-dvh bg-paper font-registre">
       {/* Hero */}
-      <header className="bg-slate-900 px-6 pb-20 pt-16 text-white sm:pt-24">
+      <header className="bg-ink px-6 pb-20 pt-16 text-paper sm:pt-24">
         <div className="mx-auto max-w-5xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-wide text-indigo-400">Présentation</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-paper/60">Présentation</p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">Samakan</h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-300">
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-paper/70">
             La plateforme de gestion des dons et des adhésions pensée pour les associations —
             dons, adhérents, reçus fiscaux Cerfa, campagnes email et espace bénévole terrain,
             réunis dans un seul outil.
@@ -99,7 +100,7 @@ export default function DecouvrirPage() {
                 e.preventDefault()
                 scrollToSection('dons')
               }}
-              className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+              className="rounded-sm bg-stamp px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-stamp/90"
             >
               Découvrir les fonctionnalités
             </a>
@@ -111,13 +112,13 @@ export default function DecouvrirPage() {
       </header>
 
       {/* Mobile sticky nav */}
-      <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur lg:hidden">
-        <nav className="flex gap-4 overflow-x-auto px-4 py-3 text-sm font-medium text-slate-600">
+      <div className="sticky top-0 z-30 border-b border-paper-border bg-white/95 backdrop-blur lg:hidden">
+        <nav className="flex gap-4 overflow-x-auto px-4 py-3 text-sm font-medium text-ink-muted">
           {SECTIONS.map((s) => (
             <button
               key={s.id}
               onClick={() => scrollToSection(s.id)}
-              className="shrink-0 whitespace-nowrap rounded-md px-2 py-1 hover:bg-slate-100 hover:text-slate-900"
+              className="shrink-0 whitespace-nowrap rounded-sm px-2 py-1 hover:bg-paper hover:text-ink"
             >
               {s.label}
             </button>
@@ -133,7 +134,7 @@ export default function DecouvrirPage() {
               <button
                 key={s.id}
                 onClick={() => scrollToSection(s.id)}
-                className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                className="block w-full rounded-sm px-3 py-2 text-left text-sm font-medium text-ink-muted transition-colors hover:bg-paper hover:text-ink"
               >
                 {s.label}
               </button>
@@ -143,7 +144,7 @@ export default function DecouvrirPage() {
 
         {/* Content */}
         <main className="min-w-0 flex-1">
-          <section id="dons" className="scroll-mt-20 border-b border-slate-200 pb-4">
+          <section id="dons" className="scroll-mt-20 border-b border-paper-border pb-4">
             <SectionHeading
               eyebrow="Dons"
               title="De la saisie au reçu fiscal, sans ressaisie"
@@ -177,7 +178,7 @@ export default function DecouvrirPage() {
             />
           </section>
 
-          <section id="adherents" className="scroll-mt-20 border-b border-slate-200 py-4">
+          <section id="adherents" className="scroll-mt-20 border-b border-paper-border py-4">
             <SectionHeading
               eyebrow="Adhérents"
               title="De la demande en ligne à la carte imprimée"
@@ -211,7 +212,7 @@ export default function DecouvrirPage() {
             />
           </section>
 
-          <section id="mailing" className="scroll-mt-20 border-b border-slate-200 py-4">
+          <section id="mailing" className="scroll-mt-20 border-b border-paper-border py-4">
             <SectionHeading
               eyebrow="Mailing"
               title="Des campagnes email en quelques minutes"
@@ -225,7 +226,7 @@ export default function DecouvrirPage() {
             />
           </section>
 
-          <section id="benevole" className="scroll-mt-20 border-b border-slate-200 py-4">
+          <section id="benevole" className="scroll-mt-20 border-b border-paper-border py-4">
             <SectionHeading
               eyebrow="Espace bénévole"
               title="Un outil pensé pour le terrain"
@@ -276,18 +277,15 @@ export default function DecouvrirPage() {
             />
           </section>
 
-          <footer className="mt-8 rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900">Envie d'en discuter ?</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+          <footer className="mt-8 rounded-sm border border-paper-border bg-white p-10 text-center">
+            <h2 className="text-2xl font-bold text-ink">Envie d'en discuter ?</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">
               Sécurité des données et confidentialité par organisation sont assurées au niveau de la
               base de données elle-même, pas seulement dans l'interface.
             </p>
-            <a
-              href="mailto:contact@samakan.fr"
-              className="mt-6 inline-block rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
-            >
-              Nous contacter
-            </a>
+            <Button asChild className="mt-6">
+              <a href="mailto:contact@samakan.fr">Nous contacter</a>
+            </Button>
           </footer>
         </main>
       </div>
