@@ -5,6 +5,10 @@ import ParametresSection from '../components/ParametresSection'
 import { slugifyIdentifiant, type OrganisationAsset } from '../lib/organisationAssets'
 import { DEFAULT_MODELE } from '../lib/modeleRecu'
 import type { ModeleRecu } from '../types'
+import { cn } from '../lib/utils'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
 
 const MAX_ASSET_SIZE = 2 * 1024 * 1024
 const ALLOWED_ASSET_TYPES = ['image/png', 'image/jpeg']
@@ -312,7 +316,7 @@ export default function ParametresOrganisationPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-sm text-slate-500">
+      <div className="flex items-center justify-center py-24 font-registre text-sm text-ink-faint">
         Chargement…
       </div>
     )
@@ -320,50 +324,49 @@ export default function ParametresOrganisationPage() {
 
   if (fetchError) {
     return (
-      <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{fetchError}</div>
+      <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
+        {fetchError}
+      </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Paramètres</h1>
-        <p className="mt-1 text-sm text-slate-600">Gérez les informations et la configuration de votre organisation.</p>
+        <h1 className="text-2xl font-bold text-ink md:text-3xl">Paramètres</h1>
+        <p className="mt-1 text-sm text-ink-muted">Gérez les informations et la configuration de votre organisation.</p>
       </div>
 
       <ParametresSection title="Informations générales">
-        <form onSubmit={handleSaveNom} className="space-y-4 max-w-md">
+        <form onSubmit={handleSaveNom} className="max-w-md space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Nom de l'association <span className="text-red-500">*</span>
-            </label>
-            <input
+            <Label htmlFor="org-nom">
+              Nom de l'association <span className="text-stamp">*</span>
+            </Label>
+            <Input
+              id="org-nom"
               type="text"
               required
               value={nom}
               onChange={(e) => setNom(e.target.value)}
               placeholder="Ex : Les Amis du Quartier"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="mt-1"
             />
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={nomSaving || nom === settings?.nom}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" disabled={nomSaving || nom === settings?.nom}>
               {nomSaving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
+            </Button>
             {nomSuccess && (
-              <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+              <span className="flex items-center gap-1.5 text-sm text-success">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
                 Enregistré
               </span>
             )}
-            {nomError && <span className="text-sm text-red-600">{nomError}</span>}
+            {nomError && <span className="text-sm text-stamp">{nomError}</span>}
           </div>
         </form>
       </ParametresSection>
@@ -372,17 +375,18 @@ export default function ParametresOrganisationPage() {
         title="Code PIN bénévole"
         description="Ce code permet aux bénévoles d'accéder à l'écran de saisie de dons. Il est partagé entre tous les bénévoles de votre organisation."
       >
-        <div className="space-y-4 max-w-md">
+        <div className="max-w-md space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Code PIN actuel</label>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-mono tracking-widest text-slate-900">
+            <Label>Code PIN actuel</Label>
+            <div className="mt-1 flex items-center gap-2">
+              <div className="flex-1 rounded-sm border border-paper-border bg-paper px-3 py-2 font-registre-mono text-sm tracking-widest text-ink">
                 {pinVisible ? pin : '••••••'}
               </div>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="icon"
                 onClick={() => setPinVisible((v) => !v)}
-                className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
                 title={pinVisible ? 'Masquer' : 'Afficher'}
               >
                 {pinVisible ? (
@@ -395,17 +399,12 @@ export default function ParametresOrganisationPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
                 )}
-              </button>
+              </Button>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleRegeneratePin}
-              disabled={pinLoading}
-              className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-            >
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" variant="secondary" onClick={handleRegeneratePin} disabled={pinLoading}>
               {pinLoading ? (
                 <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -417,16 +416,16 @@ export default function ParametresOrganisationPage() {
                 </svg>
               )}
               Régénérer le PIN
-            </button>
+            </Button>
             {pinSuccess && (
-              <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+              <span className="flex items-center gap-1.5 text-sm text-success">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
                 Nouveau PIN généré — pensez à le communiquer à vos bénévoles
               </span>
             )}
-            {pinError && <span className="text-sm text-red-600">{pinError}</span>}
+            {pinError && <span className="text-sm text-stamp">{pinError}</span>}
           </div>
         </div>
       </ParametresSection>
@@ -438,69 +437,67 @@ export default function ParametresOrganisationPage() {
         <form onSubmit={handleSaveIdentite} className="max-w-lg space-y-2">
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Nom du président</label>
-              <input
+              <Label htmlFor="president-nom">Nom du président</Label>
+              <Input
+                id="president-nom"
                 type="text"
                 value={modele.president_nom}
                 onChange={(e) => setModele((m) => ({ ...m, president_nom: e.target.value }))}
                 placeholder="Ex : Jean Dupont"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1"
               />
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Titre</label>
-              <input
+              <Label htmlFor="president-titre">Titre</Label>
+              <Input
+                id="president-titre"
                 type="text"
                 value={modele.president_titre}
                 onChange={(e) => setModele((m) => ({ ...m, president_titre: e.target.value }))}
                 placeholder="Ex : Président"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1"
               />
             </div>
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-ink-faint">
             Disponibles comme placeholders <code>{'{{president_nom}}'}</code> et <code>{'{{president_titre}}'}</code> dans vos templates.
           </p>
 
-          <div className="flex items-center gap-3 pt-1">
-            <button
-              type="submit"
-              disabled={modeleSaving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <Button type="submit" disabled={modeleSaving}>
               {modeleSaving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
+            </Button>
             {modeleSuccess && (
-              <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+              <span className="flex items-center gap-1.5 text-sm text-success">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
                 Enregistré
               </span>
             )}
-            {modeleError && <span className="text-sm text-red-600">{modeleError}</span>}
+            {modeleError && <span className="text-sm text-stamp">{modeleError}</span>}
           </div>
         </form>
 
         <div className="mt-6 max-w-lg">
-          <p className="mb-2 text-sm font-medium text-slate-700">Assets</p>
-          <p className="mb-3 text-xs text-slate-500">
+          <p className="mb-2 text-sm font-medium text-ink-muted">Assets</p>
+          <p className="mb-3 text-xs text-ink-faint">
             Logo, tampon, signature ou tout autre visuel — chaque asset ajouté devient utilisable comme placeholder{' '}
             <code>{'{{asset_<identifiant>}}'}</code> dans vos templates. PNG ou JPEG, 2 Mo max. Enregistré immédiatement à l'upload.
           </p>
           {assetsLoading ? (
-            <p className="text-xs text-slate-500">Chargement…</p>
+            <p className="text-xs text-ink-faint">Chargement…</p>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {assets.map((asset) => (
-                <div key={asset.id} className="rounded-lg border border-slate-200 p-3">
-                  <p className="mb-2 text-xs font-medium text-slate-600">{asset.libelle}</p>
-                  <div className="mb-2 flex h-20 items-center justify-center overflow-hidden rounded-md bg-slate-50">
+                <div key={asset.id} className="rounded-sm border border-paper-border p-3">
+                  <p className="mb-2 text-xs font-medium text-ink-muted">{asset.libelle}</p>
+                  <div className="mb-2 flex h-20 items-center justify-center overflow-hidden rounded-sm bg-paper-border/20">
                     <img src={asset.url} alt={asset.libelle} className="max-h-full max-w-full object-contain" />
                   </div>
-                  <p className="mb-2 truncate font-mono text-[11px] text-indigo-600">{`{{asset_${asset.identifiant}}}`}</p>
+                  <p className="mb-2 truncate font-registre-mono text-[11px] text-stamp">{`{{asset_${asset.identifiant}}}`}</p>
                   <div className="flex items-center gap-2">
-                    <label className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                    <label className="cursor-pointer rounded-sm border border-paper-border px-3 py-1.5 font-registre text-xs font-medium text-ink-muted hover:bg-paper">
                       {assetActionLoading[asset.id] ? 'Envoi…' : 'Remplacer'}
                       <input
                         type="file"
@@ -517,30 +514,34 @@ export default function ParametresOrganisationPage() {
                       type="button"
                       onClick={() => handleDeleteAsset(asset)}
                       disabled={assetActionLoading[asset.id]}
-                      className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-60"
+                      className="font-registre text-xs font-medium text-stamp hover:underline disabled:opacity-60"
                     >
                       Supprimer
                     </button>
                   </div>
-                  {assetError[asset.id] && <p className="mt-1.5 text-xs text-red-600">{assetError[asset.id]}</p>}
+                  {assetError[asset.id] && <p className="mt-1.5 text-xs text-stamp">{assetError[asset.id]}</p>}
                 </div>
               ))}
 
-              <div className="rounded-lg border border-dashed border-slate-300 p-3">
-                <label className="mb-1 block text-xs font-medium text-slate-600">Libellé</label>
-                <input
+              <div className="rounded-sm border border-dashed border-paper-border p-3">
+                <Label htmlFor="new-asset-libelle" className="mb-1 block text-xs">
+                  Libellé
+                </Label>
+                <Input
+                  id="new-asset-libelle"
                   type="text"
                   value={newAssetLibelle}
                   onChange={(e) => setNewAssetLibelle(e.target.value)}
                   placeholder="Ex : Logo, Tampon, Photo"
-                  className="mb-2 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="mb-2 h-8 text-xs"
                 />
                 <label
-                  className={`block rounded-lg border px-3 py-1.5 text-center text-xs font-medium ${
+                  className={cn(
+                    'block rounded-sm border px-3 py-1.5 text-center font-registre text-xs font-medium',
                     newAssetLibelle.trim()
-                      ? 'cursor-pointer border-slate-300 text-slate-700 hover:bg-slate-50'
-                      : 'cursor-not-allowed border-slate-200 text-slate-300'
-                  }`}
+                      ? 'cursor-pointer border-paper-border text-ink-muted hover:bg-paper'
+                      : 'cursor-not-allowed border-paper-border/60 text-ink-faint/60'
+                  )}
                 >
                   {assetActionLoading.new ? 'Envoi…' : 'Choisir un fichier'}
                   <input
@@ -554,7 +555,7 @@ export default function ParametresOrganisationPage() {
                     }}
                   />
                 </label>
-                {assetError.new && <p className="mt-1.5 text-xs text-red-600">{assetError.new}</p>}
+                {assetError.new && <p className="mt-1.5 text-xs text-stamp">{assetError.new}</p>}
               </div>
             </div>
           )}
