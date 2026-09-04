@@ -3,6 +3,8 @@ import { Outlet } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import type { User } from '@supabase/supabase-js'
 import RecetteBanner from '../components/RecetteBanner'
+import { Button } from '../components/ui/button'
+import { Badge } from '../components/ui/badge'
 
 export default function SuperAdminLayout() {
   const { auth, logout } = useAuth()
@@ -16,27 +18,22 @@ export default function SuperAdminLayout() {
   }
 
   return (
-    <div className="min-h-dvh bg-slate-100">
+    <div className="min-h-dvh bg-paper">
       <RecetteBanner />
 
       {/* Top bar */}
-      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
+      <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-paper-border bg-white px-6 font-registre">
         <div className="flex items-center gap-3">
-          <span className="text-lg font-bold tracking-tight text-slate-900">Samakan</span>
-          <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
-            Super Admin
-          </span>
+          <span className="text-lg font-bold tracking-tight text-ink">Samakan</span>
+          <Badge variant="stamp">Super Admin</Badge>
         </div>
         <div className="flex items-center gap-4">
           {user?.email && (
-            <span className="hidden text-sm text-slate-500 sm:block">{user.email}</span>
+            <span className="hidden text-sm text-ink-faint sm:block">{user.email}</span>
           )}
-          <button
-            onClick={handleLogout}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
+          <Button variant="secondary" size="sm" onClick={handleLogout}>
             Se déconnecter
-          </button>
+          </Button>
         </div>
       </header>
 
