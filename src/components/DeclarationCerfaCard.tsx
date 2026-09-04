@@ -1,5 +1,7 @@
 import { downloadCsv } from '../lib/csvExport'
 import { copyTextToClipboard } from '../lib/clipboard'
+import { Button } from './ui/button'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table'
 
 function formatEur(n: number): string {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
@@ -35,65 +37,57 @@ function exportDeclarationCsv(rows: DeclarationCerfaRow[]) {
 
 export default function DeclarationCerfaCard({ rows, loading }: DeclarationCerfaCardProps) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-sm border border-paper-border bg-white p-5 font-registre">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-semibold text-slate-900">Récapitulatif déclaratif (article 222 bis CGI)</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <h2 className="font-semibold text-ink">Récapitulatif déclaratif (article 222 bis CGI)</h2>
+          <p className="mt-1 text-sm text-ink-faint">
             Chiffres à recopier manuellement dans la télédéclaration annuelle — aucune donnée nominative.
           </p>
         </div>
         {rows.length > 0 && (
-          <button
-            type="button"
-            onClick={() => exportDeclarationCsv(rows)}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
+          <Button type="button" variant="secondary" size="sm" onClick={() => exportDeclarationCsv(rows)}>
             Exporter en CSV
-          </button>
+          </Button>
         )}
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-8">
-          <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+          <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
         </div>
       ) : rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-500">Aucun reçu fiscal généré pour le moment</p>
+        <p className="py-8 text-center text-sm text-ink-faint">Aucun reçu fiscal généré pour le moment</p>
       ) : (
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-500">
-                <th className="py-2 pr-4 font-medium">Année</th>
-                <th className="py-2 pr-4 font-medium">Nombre de reçus émis</th>
-                <th className="py-2 pr-4 font-medium">Montant total des dons</th>
-                <th className="py-2 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Année</TableHead>
+                <TableHead>Nombre de reçus émis</TableHead>
+                <TableHead>Montant total des dons</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((row) => (
-                <tr key={row.annee} className="border-b border-slate-100 last:border-0">
-                  <td className="py-2 pr-4 font-medium text-slate-900">{row.annee}</td>
-                  <td className="py-2 pr-4 text-slate-700">{row.nbRecus}</td>
-                  <td className="py-2 pr-4 text-slate-700">{formatEur(row.montant)}</td>
-                  <td className="py-2 text-right">
-                    <button
-                      type="button"
-                      onClick={() => copyDeclarationRow(row)}
-                      className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    >
+                <TableRow key={row.annee}>
+                  <TableCell className="font-medium text-ink">{row.annee}</TableCell>
+                  <TableCell className="text-ink-muted">{row.nbRecus}</TableCell>
+                  <TableCell className="text-ink-muted">{formatEur(row.montant)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button type="button" variant="secondary" size="sm" onClick={() => copyDeclarationRow(row)}>
                       Copier
-                    </button>
-                  </td>
-                </tr>
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
-      <p className="mt-4 text-xs text-slate-500">
+      <p className="mt-4 text-xs text-ink-faint">
         Déclaration à effectuer avant le 2ᵉ jour ouvré suivant le 1ᵉʳ mai N+1 (ou dans les 3 mois suivant
         la clôture de l'exercice pour les organismes n'étant pas sur l'année civile), directement sur
         impots.gouv.fr ou demarches-simplifiees.fr selon le statut de l'organisme. Samakan ne soumet rien

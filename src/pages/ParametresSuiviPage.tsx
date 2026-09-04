@@ -6,11 +6,11 @@ export default function ParametresSuiviPage() {
   const organisationId = useOrganisationId()
 
   return (
-    <div className="space-y-6">
+    <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Paramètres — Historique</h1>
-        <p className="mt-1 text-sm text-slate-600">Journal des actions effectuées sur les adhérents et les demandes d'adhésion.</p>
+        <h1 className="text-2xl font-bold text-ink md:text-3xl">Paramètres — Historique</h1>
+        <p className="mt-1 text-sm text-ink-muted">Journal des actions effectuées sur les adhérents et les demandes d'adhésion.</p>
       </div>
 
       <ParametresSection

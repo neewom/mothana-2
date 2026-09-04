@@ -4,7 +4,6 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { ProfilParticipant, Don, Activite } from '../types'
 import ParticipantModal from '../components/ParticipantModal'
 import DonModal from '../components/DonModal'
-import Modal from '../components/Modal'
 import { CIVILITE_LABELS } from '../lib/civilite'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { participantFullName, filterParticipants } from '../lib/participantSearch'
@@ -12,7 +11,15 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import ImportWizard from '../components/import/ImportWizard'
 import { participantsImportConfig } from '../lib/import/configs'
-import { MODE_PAIEMENT_LABELS, MODE_PAIEMENT_BADGE_CLASSES } from '../lib/modePaiement'
+import { MODE_PAIEMENT_LABELS } from '../lib/modePaiement'
+import { cn } from '../lib/utils'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Select } from '../components/ui/select'
+import { Badge } from '../components/ui/badge'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import { Dialog, DialogContent } from '../components/ui/dialog'
+import ScrollShadowX from '../components/ScrollShadowX'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -146,6 +153,31 @@ function useParticipants(organisationId: string): ParticipantsData {
 }
 
 // ---------------------------------------------------------------------------
+// SortableHead
+// ---------------------------------------------------------------------------
+
+interface SortableHeadProps {
+  field: SortField
+  label: string
+  sortField: SortField
+  sortDirection: 'asc' | 'desc'
+  onSort: (field: SortField) => void
+  align?: 'left' | 'right'
+}
+
+function SortableHead({ field, label, sortField, sortDirection, onSort, align = 'left' }: SortableHeadProps) {
+  return (
+    <TableHead
+      onClick={() => onSort(field)}
+      className={cn('cursor-pointer select-none hover:text-ink', align === 'right' && 'text-right')}
+    >
+      {label}
+      {sortField === field && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+    </TableHead>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // DetailPanel
 // ---------------------------------------------------------------------------
 
@@ -171,13 +203,13 @@ function DetailPanel({
   const p = participant.personnes
 
   return (
-    <>
+    <div className="flex h-full flex-col font-registre">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-        <h2 className="text-lg font-semibold text-slate-900">Détail du participant</h2>
+      <div className="flex items-center justify-between border-b border-paper-border px-6 py-4">
+        <h2 className="text-lg font-semibold text-ink">Détail du participant</h2>
         <button
           onClick={onClose}
-          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600"
+          className="rounded-sm p-1.5 text-ink-faint transition-colors hover:text-stamp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -185,34 +217,33 @@ function DetailPanel({
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden">
       {/* Body */}
-      <div className="flex-1 overflow-y-auto space-y-5 px-6 py-5">
+      <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
         {/* Identity */}
         <div>
           {p.civilite && (
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">
               {CIVILITE_LABELS[p.civilite]}
             </p>
           )}
-          <p className="text-xl font-bold text-slate-900">{participantFullName(participant)}</p>
-          {p.email && <p className="mt-1 text-sm text-slate-600">{p.email}</p>}
-          {p.telephone && <p className="text-sm text-slate-500">{p.telephone}</p>}
+          <p className="mt-1 font-semibold text-ink">{participantFullName(participant)}</p>
+          {p.email && <p className="text-sm text-ink-muted">{p.email}</p>}
+          {p.telephone && <p className="font-registre-mono text-sm text-ink-muted">{p.telephone}</p>}
         </div>
 
         {/* Co-signataire */}
         {(p.nom2 || p.prenom2) && (
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Co-signataire</p>
-            <p className="mt-1 text-sm text-slate-700">{[p.prenom2, p.nom2].filter(Boolean).join(' ')}</p>
+            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Co-signataire</p>
+            <p className="mt-1 text-sm text-ink">{[p.prenom2, p.nom2].filter(Boolean).join(' ')}</p>
           </div>
         )}
 
         {/* Adresse */}
         {(p.adresse || p.code_postal || p.ville || p.pays) && (
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Adresse</p>
-            <div className="mt-1 text-sm text-slate-700">
+            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Adresse</p>
+            <div className="mt-1 text-sm text-ink">
               {p.adresse && <p>{p.adresse}</p>}
               {(p.code_postal || p.ville) && <p>{[p.code_postal, p.ville].filter(Boolean).join(' ')}</p>}
               {p.pays && <p>{p.pays}</p>}
@@ -223,43 +254,41 @@ function DetailPanel({
         {/* Notes */}
         {participant.notes && (
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Notes</p>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{participant.notes}</p>
+            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Notes</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{participant.notes}</p>
           </div>
         )}
 
         {/* Identifiant externe */}
         {participant.id_externe && (
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Identifiant externe</p>
-            <p className="mt-1 text-sm text-slate-700">{participant.id_externe}</p>
+            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Identifiant externe</p>
+            <p className="mt-1 text-sm text-ink">{participant.id_externe}</p>
           </div>
         )}
 
         {/* Total */}
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total des dons</p>
-          <p className="mt-1 text-xl font-bold text-indigo-600">{formatEur(totalDons)}</p>
+          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Total des dons</p>
+          <p className="mt-1 font-registre-mono text-xl font-bold text-ink">{formatEur(totalDons)}</p>
         </div>
 
         {/* Donation history */}
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-2">Historique des dons</p>
+          <p className="mb-2 font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Historique des dons</p>
           {participantDons.length === 0 ? (
-            <p className="text-sm text-slate-500">Aucun don</p>
+            <p className="font-registre text-sm text-ink-faint">Aucun don</p>
           ) : (
             <div className="space-y-2">
               {participantDons.map((don) => (
-                <div key={don.id} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+                <div key={don.id} className="rounded-sm border border-paper-border bg-paper px-4 py-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-900">{formatEur(don.montant)}</span>
-                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_PAIEMENT_BADGE_CLASSES[don.mode_paiement]}`}>
-                      {MODE_PAIEMENT_LABELS[don.mode_paiement]}
-                    </span>
+                    <span className="font-registre-mono text-sm font-medium text-ink">{formatEur(don.montant)}</span>
+                    <Badge variant="neutral">{MODE_PAIEMENT_LABELS[don.mode_paiement]}</Badge>
                   </div>
-                  <p className="mt-0.5 text-xs text-slate-500">{formatDate(don.date)}</p>
+                  <p className="mt-0.5 text-xs text-ink-faint">{formatDate(don.date)}</p>
                   {don.activites && (
-                    <p className="mt-0.5 text-xs text-slate-500">{don.activites.nom}</p>
+                    <p className="mt-0.5 text-xs text-ink-faint">{don.activites.nom}</p>
                   )}
                 </div>
               ))}
@@ -269,30 +298,16 @@ function DetailPanel({
       </div>
 
       {/* Actions */}
-      <div className="shrink-0 border-t border-slate-200 px-6 py-4">
+      <div className="space-y-2 border-t border-paper-border px-6 py-4">
         <div className="flex gap-2">
-          <button
-            onClick={onEdit}
-            className="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            Modifier
-          </button>
-          <button
-            onClick={onAddDon}
-            className="flex-1 rounded-lg border border-indigo-200 px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-          >
-            Ajouter un don
-          </button>
+          <Button onClick={onEdit} className="flex-1">Modifier</Button>
+          <Button variant="secondary" onClick={onAddDon} className="flex-1">Ajouter un don</Button>
         </div>
-        <button
-          onClick={onDelete}
-          className="mt-2 w-full rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-        >
+        <Button variant="danger" onClick={onDelete} className="w-full">
           Supprimer le participant
-        </button>
+        </Button>
       </div>
-      </div>
-    </>
+    </div>
   )
 }
 
@@ -325,6 +340,15 @@ export default function ParticipantsPage() {
 
   // Selected participant for detail panel
   const [selectedParticipant, setSelectedParticipant] = useState<ProfilParticipant | null>(null)
+  const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
+
+  useEffect(() => {
+    if (selectedParticipant) {
+      const timer = setTimeout(() => setMobilePanelVisible(true), 10)
+      return () => clearTimeout(timer)
+    }
+    setMobilePanelVisible(false)
+  }, [selectedParticipant])
 
   // Participant modal (add/edit)
   const [participantModalOpen, setParticipantModalOpen] = useState(false)
@@ -503,213 +527,196 @@ export default function ParticipantsPage() {
 
   return (
     <>
-    <div className="space-y-6">
-      {/* Page title */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Participants</h1>
-        <p className="mt-1 text-sm text-slate-600">Gestion des participants et de leurs dons</p>
-      </div>
-
-      {/* Error */}
-      {error && (
-        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-          Erreur : {error}
+      {/*
+        THESIS: le registre des participants reste lisible même dense — même famille que
+        DonsPage (panneau de détail latéral desktop, plein écran glissant sur mobile), avec
+        une variation assumée : le panneau plafonne sa hauteur dynamiquement (historique de
+        dons de longueur variable, contrairement au détail d'un don qui est de taille fixe).
+        OWN-WORLD: papier clair (paper), stamp (marque/danger), badge neutre unique pour le
+        mode de paiement dans l'historique — même réserve sémantique que DonsPage, un mode
+        de paiement n'est pas un signal d'état.
+        STORY: l'admin recherche/trie la liste, clique une ligne pour voir l'identité, le
+        total des dons et l'historique complet, peut modifier, ajouter un don ou supprimer
+        directement depuis le panneau.
+        FIRST VIEWPORT: recherche + tableau trié, panneau de détail à droite en desktop.
+        FORM: 7e page du rollout "carnet tamponné x registre".
+        FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
+        review, the verdict, and DESIGN.md.
+      */}
+      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
+        {/* Page title */}
+        <div>
+          <h1 className="text-2xl font-bold text-ink md:text-3xl">Participants</h1>
+          <p className="mt-1 text-sm text-ink-muted">Gestion des participants et de leurs dons</p>
         </div>
-      )}
 
-      {/* Table + Detail panel */}
-      <div className={`flex gap-6 ${selectedParticipant ? 'items-start' : ''}`}>
-        {/* Table card */}
-        <div className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
-            {/* Search */}
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
-              placeholder="Rechercher par nom et prénom…"
-              className="w-full min-w-[12rem] max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <div className="flex flex-shrink-0 items-center gap-2">
-              <button
-                onClick={() => setImportOpen(true)}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                </svg>
-                Importer
-              </button>
-              <button
-                onClick={openAdd}
-                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Ajouter
-              </button>
+        {/* Error */}
+        {error && (
+          <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">
+            Erreur : {error}
+          </div>
+        )}
+
+        {/* Table + Detail panel */}
+        <div className={cn('flex gap-6', selectedParticipant && 'items-start')}>
+          {/* Table card */}
+          <div className="min-w-0 flex-1 rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-paper-border px-4 py-4 md:px-6">
+              <Input
+                type="text"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
+                placeholder="Rechercher par nom et prénom…"
+                className="w-full max-w-xs"
+              />
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                <Button variant="secondary" onClick={() => setImportOpen(true)}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  Importer
+                </Button>
+                <Button onClick={openAdd}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Ajouter
+                </Button>
+              </div>
             </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
+              </div>
+            ) : filteredParticipants.length === 0 ? (
+              <div className="flex items-center justify-center py-16">
+                <p className="font-registre text-sm text-ink-faint">Aucun participant trouvé</p>
+              </div>
+            ) : (
+              <ScrollShadowX>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <SortableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedParticipants.map((p) => (
+                      <TableRow
+                        key={p.id}
+                        onClick={() => setSelectedParticipant(p.id === selectedParticipant?.id ? null : p)}
+                        className={cn(
+                          'cursor-pointer hover:bg-paper-border/20',
+                          p.id === selectedParticipant?.id && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]'
+                        )}
+                      >
+                        <TableCell className="text-ink-faint">
+                          {p.personnes.civilite ? CIVILITE_LABELS[p.personnes.civilite] : '—'}
+                        </TableCell>
+                        <TableCell className="font-medium text-ink">
+                          {p.personnes.nom}
+                        </TableCell>
+                        <TableCell className="text-ink-muted">
+                          {p.personnes.prenom ?? '—'}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
+                          {formatEur(totalDonsByParticipant.get(p.id) ?? 0)}
+                        </TableCell>
+                        <TableCell className="text-right text-ink-faint">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollShadowX>
+            )}
+
+            {/* Pagination */}
+            {!loading && filteredParticipants.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-paper-border px-4 py-3 md:px-6">
+                <div className="flex items-center gap-2 font-registre-mono text-xs text-ink-faint">
+                  <span>Lignes par page</span>
+                  <Select
+                    aria-label="Lignes par page"
+                    value={pageSize}
+                    onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
+                    className="py-1 pl-2 pr-7 text-xs"
+                  >
+                    {[25, 50, 100, 250].map((size) => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </Select>
+                  <span>
+                    {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, sortedParticipants.length)} sur {sortedParticipants.length}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage(1)} disabled={safePage === 1}>«</Button>
+                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
+                    ‹ Précédent
+                  </Button>
+                  <span className="font-registre-mono text-xs text-ink-faint">Page {safePage} / {pageCount}</span>
+                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))} disabled={safePage === pageCount}>
+                    Suivant ›
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage(pageCount)} disabled={safePage === pageCount}>»</Button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-            </div>
-          ) : filteredParticipants.length === 0 ? (
-            <div className="flex items-center justify-center py-16">
-              <p className="text-slate-500">Aucun participant trouvé</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                    <th className="cursor-pointer select-none px-6 py-3 hover:text-slate-700" onClick={() => toggleSort('civilite')}>
-                      Civilité{sortField === 'civilite' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
-                    </th>
-                    <th className="cursor-pointer select-none px-6 py-3 hover:text-slate-700" onClick={() => toggleSort('nom')}>
-                      Nom{sortField === 'nom' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
-                    </th>
-                    <th className="cursor-pointer select-none px-6 py-3 hover:text-slate-700" onClick={() => toggleSort('prenom')}>
-                      Prénom{sortField === 'prenom' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
-                    </th>
-                    <th className="cursor-pointer select-none px-6 py-3 text-right hover:text-slate-700" onClick={() => toggleSort('total')}>
-                      Total dons{sortField === 'total' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
-                    </th>
-                    <th className="px-6 py-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginatedParticipants.map((p) => (
-                    <tr
-                      key={p.id}
-                      onClick={() => setSelectedParticipant(p.id === selectedParticipant?.id ? null : p)}
-                      className={`cursor-pointer transition-colors hover:bg-slate-50 ${
-                        p.id === selectedParticipant?.id ? 'bg-indigo-50' : ''
-                      }`}
-                    >
-                      <td className="px-6 py-3 text-slate-500">
-                        {p.personnes.civilite ? CIVILITE_LABELS[p.personnes.civilite] : '—'}
-                      </td>
-                      <td className="px-6 py-3 font-medium text-indigo-600 hover:underline">
-                        {p.personnes.nom}
-                      </td>
-                      <td className="px-6 py-3 text-slate-700">
-                        {p.personnes.prenom ?? '—'}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-3 text-right font-medium text-slate-900">
-                        {formatEur(totalDonsByParticipant.get(p.id) ?? 0)}
-                      </td>
-                      <td className="px-6 py-3 text-right text-slate-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {!loading && filteredParticipants.length > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-3">
-              <div className="flex items-center gap-2 text-sm text-slate-500">
-                <span>Lignes par page</span>
-                <select
-                  aria-label="Lignes par page"
-                  value={pageSize}
-                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
-                  className="select-field rounded-lg border border-slate-300 py-1 pl-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {[25, 50, 100, 250].map((size) => (
-                    <option key={size} value={size}>{size}</option>
-                  ))}
-                </select>
-                <span>
-                  {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, sortedParticipants.length)} sur {sortedParticipants.length}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={safePage === 1}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  «
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={safePage === 1}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  ‹ Précédent
-                </button>
-                <span className="text-sm text-slate-500">Page {safePage} / {pageCount}</span>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
-                  disabled={safePage === pageCount}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Suivant ›
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage(pageCount)}
-                  disabled={safePage === pageCount}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  »
-                </button>
-              </div>
+          {/* Detail panel (desktop) */}
+          {selectedParticipant && (
+            <div
+              ref={desktopPanelRef}
+              className="hidden w-80 flex-shrink-0 rounded-sm border border-paper-border bg-white lg:sticky lg:top-6 lg:flex lg:max-h-[calc(100vh-3rem)] lg:flex-col"
+              style={{ minHeight: '400px', ...(desktopPanelMaxHeight ? { maxHeight: desktopPanelMaxHeight } : {}) }}
+            >
+              {loadingDons ? (
+                <div className="flex flex-1 items-center justify-center py-16">
+                  <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
+                </div>
+              ) : (
+                <DetailPanel
+                  participant={selectedParticipant}
+                  totalDons={totalDonsByParticipant.get(selectedParticipant.id) ?? 0}
+                  participantDons={participantDons}
+                  onClose={() => setSelectedParticipant(null)}
+                  onEdit={() => openEdit(selectedParticipant)}
+                  onAddDon={() => openAddDon(selectedParticipant.id)}
+                  onDelete={() => openDelete(selectedParticipant)}
+                />
+              )}
             </div>
           )}
         </div>
+      </div>
 
-        {/* Detail panel — desktop */}
-        {selectedParticipant && (
+      {/* Mobile detail panel (slides over) — même animation que DonsPage (PR #111) */}
+      {selectedParticipant && (
+        <div className="fixed inset-0 z-30 lg:hidden">
           <div
-            ref={desktopPanelRef}
-            className="hidden w-80 flex-shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm md:sticky md:top-6 md:flex md:max-h-[calc(100vh-3rem)] md:flex-col"
-            style={{ minHeight: '400px', ...(desktopPanelMaxHeight ? { maxHeight: desktopPanelMaxHeight } : {}) }}
+            className="absolute inset-0 bg-ink/40"
+            onClick={() => setSelectedParticipant(null)}
+          />
+          <div
+            className={cn(
+              'absolute inset-y-0 right-0 flex w-full max-w-sm flex-col bg-white shadow-xl transition-transform duration-200',
+              mobilePanelVisible ? 'translate-x-0' : 'translate-x-full'
+            )}
           >
             {loadingDons ? (
               <div className="flex flex-1 items-center justify-center py-16">
-                <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-              </div>
-            ) : (
-              <DetailPanel
-                participant={selectedParticipant}
-                totalDons={totalDonsByParticipant.get(selectedParticipant.id) ?? 0}
-                participantDons={participantDons}
-                onClose={() => setSelectedParticipant(null)}
-                onEdit={() => openEdit(selectedParticipant)}
-                onAddDon={() => openAddDon(selectedParticipant.id)}
-                onDelete={() => openDelete(selectedParticipant)}
-              />
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-
-      {/* Mobile detail panel */}
-      {selectedParticipant && (
-        <div className="fixed inset-0 z-30 md:hidden">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setSelectedParticipant(null)}
-          />
-          <div className="absolute inset-y-0 right-0 w-full max-w-sm bg-white shadow-xl flex flex-col">
-            {loadingDons ? (
-              <div className="flex flex-1 items-center justify-center py-16">
-                <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+                <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
               </div>
             ) : (
               <DetailPanel
@@ -758,38 +765,31 @@ export default function ParticipantsPage() {
       />
 
       {/* Delete confirmation */}
-      {deleteConfirm && (
-        <Modal open onClose={() => setDeleteConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="delete-participant-title">
-            <div className="p-6">
-              <h2 id="delete-participant-title" className="text-lg font-semibold text-slate-900">Supprimer le participant</h2>
-              <p className="mt-2 text-sm text-slate-600">
+      <Dialog open={!!deleteConfirm} onOpenChange={(next) => { if (!next) setDeleteConfirm(null) }}>
+        <DialogContent aria-describedby={undefined}>
+          {deleteConfirm && (
+            <div className="overflow-y-auto p-6">
+              <h2 className="font-registre text-lg font-semibold text-ink">Supprimer le participant</h2>
+              <p className="mt-2 font-registre text-sm text-ink-muted">
                 Êtes-vous sûr de vouloir supprimer{' '}
-                <span className="font-medium">« {participantFullName(deleteConfirm)} »</span> ?
+                <span className="font-medium text-ink">« {participantFullName(deleteConfirm)} »</span> ?
                 Cette action est irréversible.
               </p>
               {deleteError && (
-                <div className="mt-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div className="mt-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">
                   {deleteError}
                 </div>
               )}
               <div className="mt-5 flex justify-end gap-3">
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-                >
+                <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
+                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
                   {deleting ? 'Suppression…' : 'Supprimer'}
-                </button>
+                </Button>
               </div>
             </div>
-        </Modal>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Toast */}
       {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}

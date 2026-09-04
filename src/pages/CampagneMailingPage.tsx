@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -6,10 +6,14 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
-import Modal from '../components/Modal'
-import ParametresSection from '../components/ParametresSection'
 import ScrollShadowX from '../components/ScrollShadowX'
 import BrevoConfigModal, { type BrevoConfigValues } from '../components/BrevoConfigModal'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Select } from '../components/ui/select'
+import { Badge } from '../components/ui/badge'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import { Dialog, DialogContent } from '../components/ui/dialog'
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
 const MAX_ATTACHMENTS = 3
@@ -71,12 +75,27 @@ function EditorToolbarButton({ active, onClick, children, label }: { active: boo
       onClick={onClick}
       aria-label={label}
       aria-pressed={active}
-      className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
-        active ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+      className={`rounded-sm px-2.5 py-1.5 font-registre text-sm font-medium transition-colors ${
+        active ? 'bg-stamp text-white' : 'text-ink-muted hover:bg-paper-border/40'
       }`}
     >
       {children}
     </button>
+  )
+}
+
+// Carte titre + description + contenu, propre à cette page (pas la ParametresSection
+// partagée : les 4 autres sous-pages de Paramètres ne sont pas encore migrées vers les
+// tokens paper/ink/stamp, la leur laisser intacte évite un changement visuel non désiré).
+function SectionCard({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+  return (
+    <div className="rounded-sm border border-paper-border bg-white">
+      <div className="border-b border-paper-border px-6 py-4">
+        <h2 className="text-lg font-semibold text-ink">{title}</h2>
+        {description && <p className="mt-0.5 text-sm text-ink-muted">{description}</p>}
+      </div>
+      <div className="p-6">{children}</div>
+    </div>
   )
 }
 
@@ -353,65 +372,57 @@ export default function CampagneMailingPage() {
 
   if (configLoading) {
     return (
-      <div className="flex items-center justify-center py-24 text-sm text-slate-500">
+      <div className="-m-6 flex min-h-[calc(100%+3rem)] items-center justify-center bg-paper p-6 font-registre text-sm text-ink-faint">
         Chargement…
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Mailing</h1>
-        <p className="mt-1 text-sm text-slate-600">Envoyez une campagne d'information à vos adhérents via Brevo.</p>
+        <h1 className="text-2xl font-bold text-ink md:text-3xl">Mailing</h1>
+        <p className="mt-1 text-sm text-ink-muted">Envoyez une campagne d'information à vos adhérents via Brevo.</p>
       </div>
 
-      <ParametresSection
+      <SectionCard
         title="Configuration Brevo"
         description="Compte Brevo de votre organisation, utilisé pour l'envoi des campagnes."
       >
         <div className="flex items-center gap-3">
-          <span
-            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
-              configured ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
+          <Badge variant={configured ? 'success' : 'neutral'}>
             {configured ? 'Configuré' : 'Non configuré'}
-          </span>
-          <button
-            type="button"
-            onClick={() => setBrevoModalOpen(true)}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
+          </Badge>
+          <Button type="button" variant="secondary" onClick={() => setBrevoModalOpen(true)}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             Configurer
-          </button>
+          </Button>
         </div>
-      </ParametresSection>
+      </SectionCard>
 
-      <ParametresSection
+      <SectionCard
         title="Nouvelle campagne"
         description="Composez le message envoyé à vos adhérents."
       >
         <div className="max-w-2xl space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Sujet</label>
-            <input
+          <div className="space-y-1.5">
+            <label htmlFor="mailing-sujet" className="block text-sm font-medium text-ink-muted">Sujet</label>
+            <Input
+              id="mailing-sujet"
               type="text"
               value={sujet}
               onChange={(e) => setSujet(e.target.value)}
               placeholder="Objet de l'email"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Message</label>
-            <div className="rounded-lg border border-slate-300">
-              <div className="flex items-center gap-1 border-b border-slate-200 px-2 py-1.5">
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-ink-muted">Message</label>
+            <div className="rounded-sm border border-paper-border bg-white">
+              <div className="flex items-center gap-1 border-b border-paper-border px-2 py-1.5">
                 <EditorToolbarButton
                   label="Gras"
                   active={editor?.isActive('bold') ?? false}
@@ -438,7 +449,7 @@ export default function CampagneMailingPage() {
                     {'{{ }}'}
                   </EditorToolbarButton>
                   {placeholdersOpen && (
-                    <div className="absolute left-0 top-full z-10 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                    <div className="absolute left-0 top-full z-10 mt-1 w-40 rounded-sm border border-paper-border bg-white py-1 shadow-lg">
                       {PLACEHOLDERS.map((p) => (
                         <button
                           key={p.key}
@@ -448,11 +459,11 @@ export default function CampagneMailingPage() {
                               ?.chain()
                               .focus()
                               .insertContent({ type: 'text', text: `{{params.${p.key}}}` })
-                              .insertContent({ type: 'text', text: ' ' })
+                              .insertContent({ type: 'text', text: ' ' })
                               .run()
                             setPlaceholdersOpen(false)
                           }}
-                          className="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                          className="block w-full px-3 py-1.5 text-left font-registre text-sm text-ink hover:bg-paper"
                         >
                           {p.label}
                         </button>
@@ -461,18 +472,18 @@ export default function CampagneMailingPage() {
                   )}
                 </div>
               </div>
-              <EditorContent editor={editor} className="prose prose-sm max-w-none px-3 py-2 [&_.ProseMirror]:min-h-[150px] [&_.ProseMirror]:outline-none" />
+              <EditorContent editor={editor} className="prose prose-sm max-w-none px-3 py-2 font-registre text-ink [&_.ProseMirror]:min-h-[150px] [&_.ProseMirror]:outline-none" />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Pièces jointes (facultatif, {MAX_ATTACHMENTS} max)</label>
+            <label className="mb-1 block text-sm font-medium text-ink-muted">Pièces jointes (facultatif, {MAX_ATTACHMENTS} max)</label>
             {piecesJointes.length > 0 && (
               <ul className="mb-2 space-y-1">
                 {piecesJointes.map((p, i) => (
-                  <li key={`${p.fichier.name}-${i}`} className="flex items-center gap-2 text-sm text-slate-600">
+                  <li key={`${p.fichier.name}-${i}`} className="flex items-center gap-2 text-sm text-ink-muted">
                     <span>{p.fichier.name}</span>
-                    <button type="button" onClick={() => removeAttachment(i)} className="text-xs font-medium text-red-600 hover:underline">
+                    <button type="button" onClick={() => removeAttachment(i)} className="text-xs font-medium text-stamp hover:underline">
                       Retirer
                     </button>
                   </li>
@@ -480,7 +491,7 @@ export default function CampagneMailingPage() {
               </ul>
             )}
             {piecesJointes.length < MAX_ATTACHMENTS && (
-              <label className="inline-block cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+              <label className="inline-flex h-8 cursor-pointer items-center rounded-sm border border-paper-border bg-white px-3 font-registre text-xs font-medium text-ink-muted hover:bg-paper">
                 Choisir un ou plusieurs fichiers
                 <input
                   type="file"
@@ -494,14 +505,14 @@ export default function CampagneMailingPage() {
                 />
               </label>
             )}
-            <p className="mt-1 text-xs text-slate-500">PDF ou image, 10 Mo max par fichier, mêmes fichiers envoyés à tous les destinataires.</p>
-            {attachmentError && <p className="mt-1 text-xs text-red-600">{attachmentError}</p>}
+            <p className="mt-1 text-xs text-ink-faint">PDF ou image, 10 Mo max par fichier, mêmes fichiers envoyés à tous les destinataires.</p>
+            {attachmentError && <p className="mt-1 text-xs text-stamp">{attachmentError}</p>}
           </div>
 
           <div className="flex flex-wrap items-start gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Envoyer à</label>
-              <select
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-ink-muted">Envoyer à</label>
+              <Select
                 value={envoyerA}
                 onChange={(e) => {
                   if (e.target.value === '__create__') {
@@ -510,7 +521,7 @@ export default function CampagneMailingPage() {
                   }
                   setEnvoyerA(e.target.value)
                 }}
-                className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full"
               >
                 <optgroup label="Statut">
                   <option value="statut:actif">Adhérents actifs</option>
@@ -525,114 +536,108 @@ export default function CampagneMailingPage() {
                   </optgroup>
                 )}
                 <option value="__create__">+ Créer une nouvelle liste</option>
-              </select>
+              </Select>
             </div>
 
             {availableTags.length > 0 && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Exclure la liste</label>
-                <select
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-ink-muted">Exclure la liste</label>
+                <Select
                   value={excludeTag}
                   onChange={(e) => setExcludeTag(e.target.value)}
-                  className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full"
                 >
                   <option value="">Aucune</option>
                   {availableTags.map((tag) => (
                     <option key={tag} value={tag}>{tag}</option>
                   ))}
-                </select>
+                </Select>
               </div>
             )}
           </div>
 
           {destinatairesCount && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-ink-faint">
               {destinatairesCount.avecEmail} destinataire{destinatairesCount.avecEmail > 1 ? 's' : ''} avec email
               {destinatairesCount.exclus > 0 && ` — ${destinatairesCount.exclus} exclu${destinatairesCount.exclus > 1 ? 's' : ''} (email manquant)`}
             </p>
           )}
 
           {!configured && (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="rounded-sm border border-warning-border bg-warning-tint px-4 py-3 text-sm text-warning">
               Configurez d'abord la clé API Brevo et l'expéditeur ci-dessus.
             </p>
           )}
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setConfirmOpen(true)}
-              disabled={!canSend}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
+            <Button type="button" onClick={() => setConfirmOpen(true)} disabled={!canSend}>
               Envoyer la campagne
-            </button>
-            {sendError && <span className="text-sm text-red-600">{sendError}</span>}
+            </Button>
           </div>
         </div>
-      </ParametresSection>
+      </SectionCard>
 
-      <ParametresSection title="Historique" description="20 dernières campagnes envoyées.">
+      <SectionCard title="Historique" description="20 dernières campagnes envoyées.">
         {historiqueLoading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="h-6 w-6 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+            <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
           </div>
         ) : historique.length === 0 ? (
-          <p className="text-sm text-slate-500">Aucune campagne envoyée pour le moment.</p>
+          <p className="text-sm text-ink-faint">Aucune campagne envoyée pour le moment.</p>
         ) : (
           <ScrollShadowX>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Sujet</th>
-                  <th className="py-2 pr-4">Destinataires</th>
-                  <th className="py-2">Exclus</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Sujet</TableHead>
+                  <TableHead>Destinataires</TableHead>
+                  <TableHead>Exclus</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {historique.map((c) => (
-                  <tr key={c.id}>
-                    <td className="py-2 pr-4 text-slate-500">{formatDateTime(c.created_at)}</td>
-                    <td className="py-2 pr-4 font-medium text-slate-900">{c.sujet}</td>
-                    <td className="py-2 pr-4 text-slate-700">{c.nombre_destinataires}</td>
-                    <td className="py-2 text-slate-700">{c.nombre_exclus}</td>
-                  </tr>
+                  <TableRow key={c.id}>
+                    <TableCell className="whitespace-nowrap text-ink-muted">{formatDateTime(c.created_at)}</TableCell>
+                    <TableCell className="font-medium text-ink">{c.sujet}</TableCell>
+                    <TableCell className="text-ink-muted">{c.nombre_destinataires}</TableCell>
+                    <TableCell className="text-ink-muted">{c.nombre_exclus}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </ScrollShadowX>
         )}
-      </ParametresSection>
+      </SectionCard>
 
-      {confirmOpen && (
-        <Modal open onClose={() => setConfirmOpen(false)} maxWidthClassName="max-w-sm" labelledBy="confirm-send-title">
+      {/* Confirmation d'envoi — l'erreur d'envoi est affichée dans la modale elle-même
+          (pas derrière l'overlay comme dans l'ancien Modal, invisible tant que la modale
+          était ouverte : bug trouvé en migrant, corrigé au passage). */}
+      <Dialog open={confirmOpen} onOpenChange={(next) => { if (!next && !sending) setConfirmOpen(false) }}>
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
           <div className="p-6">
-            <h2 id="confirm-send-title" className="text-lg font-semibold text-slate-900">Envoyer la campagne</h2>
-            <p className="mt-2 text-sm text-slate-600">
+            <h2 className="font-registre text-lg font-semibold text-ink">Envoyer la campagne</h2>
+            <p className="mt-2 font-registre text-sm text-ink-muted">
               Vous êtes sur le point d'envoyer cet email à{' '}
-              <span className="font-medium">{destinatairesCount?.avecEmail ?? 0} destinataire{(destinatairesCount?.avecEmail ?? 0) > 1 ? 's' : ''}</span>.
+              <span className="font-medium text-ink">{destinatairesCount?.avecEmail ?? 0} destinataire{(destinatairesCount?.avecEmail ?? 0) > 1 ? 's' : ''}</span>.
               Cette action est irréversible.
             </p>
+            {sendError && (
+              <div className="mt-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
+                {sendError}
+              </div>
+            )}
             <div className="mt-5 flex justify-end gap-3">
-              <button
-                onClick={() => setConfirmOpen(false)}
-                disabled={sending}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
+              <Button type="button" variant="secondary" onClick={() => setConfirmOpen(false)} disabled={sending}>
                 Annuler
-              </button>
-              <button
-                onClick={handleSend}
-                disabled={sending}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-              >
+              </Button>
+              <Button type="button" onClick={handleSend} disabled={sending}>
                 {sending ? 'Envoi…' : 'Envoyer'}
-              </button>
+              </Button>
             </div>
           </div>
-        </Modal>
-      )}
+        </DialogContent>
+      </Dialog>
 
       <BrevoConfigModal
         open={brevoModalOpen}

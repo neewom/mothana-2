@@ -12,10 +12,15 @@ import {
   type OrganisationFiscale,
   type ParticipantValidation,
 } from '../lib/cerfaValidation'
-import Modal from '../components/Modal'
 import ParticipantModal from '../components/ParticipantModal'
 import Toast from '../components/Toast'
 import ScrollShadowX from '../components/ScrollShadowX'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Select } from '../components/ui/select'
+import { Badge } from '../components/ui/badge'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import { Dialog, DialogContent } from '../components/ui/dialog'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -367,12 +372,12 @@ export default function RecusFiscauxPage() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="space-y-6">
+    <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Reçus fiscaux</h1>
-          <p className="mt-1 text-sm text-slate-600">
+          <h1 className="text-2xl font-bold text-ink md:text-3xl">Reçus fiscaux</h1>
+          <p className="mt-1 text-sm text-ink-muted">
             {rows.length} participant{rows.length !== 1 ? 's' : ''} avec des dons en {annee}
             {totalGeneres > 0 && ` · ${totalGeneres} reçu${totalGeneres !== 1 ? 's' : ''} généré${totalGeneres !== 1 ? 's' : ''}`}
           </p>
@@ -380,24 +385,22 @@ export default function RecusFiscauxPage() {
 
         <div className="flex items-center gap-3">
           {/* Year selector */}
-          <select
+          <Select
             aria-label="Année"
             value={annee}
             onChange={(e) => { setAnnee(Number(e.target.value)); setCurrentPage(1) }}
-            className="select-field rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             {yearOptions().map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
-          </select>
+          </Select>
 
           {/* Generate all */}
           {rows.length > 0 && (
-            <button
+            <Button
               onClick={generateAll}
               disabled={generateAllLoading || orgMissing.length > 0}
               title={orgMissing.length > 0 ? "Complétez les paramètres de l'organisation pour générer des reçus" : undefined}
-              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:hover:bg-slate-300"
             >
               {generateAllLoading ? (
                 <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -410,14 +413,14 @@ export default function RecusFiscauxPage() {
                 </svg>
               )}
               Générer tous
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Bannière organisation incomplète */}
       {orgFiscal && orgMissing.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="rounded-sm border border-warning-border bg-warning-tint px-4 py-3 text-sm text-warning">
           <p>
             <span className="font-medium">Complétez les paramètres de votre organisation</span> pour pouvoir générer des reçus fiscaux
             {' '}— champs manquants : {orgMissing.join(', ')}.
@@ -430,303 +433,265 @@ export default function RecusFiscauxPage() {
 
       {/* Error banner */}
       {error && (
-        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{error}</div>
       )}
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="rounded-sm border border-paper-border bg-white">
         {!loading && rows.length > 0 && (
-          <div className="border-b border-slate-200 px-6 py-4">
-            <input
+          <div className="border-b border-paper-border px-6 py-4">
+            <Input
               type="text"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
               placeholder="Rechercher par nom…"
-              className="w-full min-w-[12rem] max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full min-w-[12rem] max-w-xs"
             />
           </div>
         )}
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-sm text-slate-500">
+          <div className="flex items-center justify-center py-16 font-registre text-sm text-ink-faint">
             Chargement…
           </div>
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="mb-3 h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="mb-3 h-10 w-10 text-ink-faint/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
             </svg>
-            <p className="text-sm font-medium text-slate-500">Aucun don enregistré en {annee}</p>
-            <p className="mt-1 text-xs text-slate-500">Sélectionnez une autre année ou ajoutez des dons.</p>
+            <p className="font-registre text-sm font-medium text-ink-faint">Aucun don enregistré en {annee}</p>
+            <p className="mt-1 font-registre text-xs text-ink-faint">Sélectionnez une autre année ou ajoutez des dons.</p>
           </div>
         ) : filteredRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm font-medium text-slate-500">Aucun résultat pour votre recherche</p>
+            <p className="font-registre text-sm font-medium text-ink-faint">Aucun résultat pour votre recherche</p>
           </div>
         ) : (
           <ScrollShadowX>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left">
-                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Participant</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Total dons</th>
-                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">N° reçu</th>
-                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Type</th>
-                <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Statut</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {paginatedRows.map((row) => {
-                const fullName = participantFullName(row.profil)
-                const profilId = row.profil.id
-                const isGenLoading = genLoading[profilId]
-                const genErr = genError[profilId]
-                const isDlLoading = dlLoading[profilId]
-                const dlErr = dlError[profilId]
-                const isSendLoading = sendLoading[profilId]
-                const sendErr = sendError[profilId]
-                const hasRecu = row.recu !== null
-                const isBlocked = orgMissing.length > 0 || row.validation.blocking || row.validation.missing.length > 0
-                const validationMessage = row.validation.message
-                  ?? (row.validation.missing.length > 0 ? `Champs manquants : ${row.validation.missing.join(', ')}` : null)
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Participant</TableHead>
+                  <TableHead className="text-right">Total dons</TableHead>
+                  <TableHead>N° reçu</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedRows.map((row) => {
+                  const fullName = participantFullName(row.profil)
+                  const profilId = row.profil.id
+                  const isGenLoading = genLoading[profilId]
+                  const genErr = genError[profilId]
+                  const isDlLoading = dlLoading[profilId]
+                  const dlErr = dlError[profilId]
+                  const isSendLoading = sendLoading[profilId]
+                  const sendErr = sendError[profilId]
+                  const hasRecu = row.recu !== null
+                  const isBlocked = orgMissing.length > 0 || row.validation.blocking || row.validation.missing.length > 0
+                  const validationMessage = row.validation.message
+                    ?? (row.validation.missing.length > 0 ? `Champs manquants : ${row.validation.missing.join(', ')}` : null)
 
-                return (
-                  <tr key={profilId} className="hover:bg-slate-50">
-                    {/* Participant */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-slate-900">{fullName}</span>
-                        {validationMessage && (
-                          <span title={validationMessage} className="cursor-help text-amber-500">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l6.28 11.18c.75 1.334-.213 2.987-1.742 2.987H3.72c-1.53 0-2.493-1.653-1.743-2.987l6.28-11.18zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                          </span>
-                        )}
-                      </div>
-                      {row.profil.personnes.email && <div className="text-xs text-slate-500">{row.profil.personnes.email}</div>}
-                    </td>
-
-                    {/* Total */}
-                    <td className="px-6 py-4 text-right font-medium text-slate-900">
-                      {formatMontant(row.total_dons)}
-                    </td>
-
-                    {/* N° reçu */}
-                    <td className="px-6 py-4 text-slate-600">{row.recu?.numero_ordre ?? '—'}</td>
-
-                    {/* Type */}
-                    <td className="px-6 py-4 text-slate-600">
-                      {row.recu?.type_cerfa ? TYPE_CERFA_LABELS[row.recu.type_cerfa] ?? row.recu.type_cerfa : '—'}
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-6 py-4">
-                      {hasRecu ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          Généré
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                          Non généré
-                        </span>
-                      )}
-                      {validationMessage && (
-                        <div className="mt-1">
-                          <p className="text-xs text-amber-700">{validationMessage}</p>
-                          <button
-                            type="button"
-                            onClick={() => openEditParticipant(row)}
-                            className="mt-0.5 text-xs font-medium text-indigo-600 underline hover:no-underline"
-                          >
-                            Modifier le participant
-                          </button>
-                        </div>
-                      )}
-                      {row.recu?.email_envoye_at && (
-                        <p className="mt-1 text-xs text-slate-500">Envoyé le {formatDateHeure(row.recu.email_envoye_at)}</p>
-                      )}
-                      {genErr && (
-                        <p className="mt-1 text-xs text-red-600">{genErr}</p>
-                      )}
-                      {dlErr && (
-                        <p className="mt-1 text-xs text-red-600">{dlErr}</p>
-                      )}
-                      {sendErr && (
-                        <p className="mt-1 text-xs text-red-600">{sendErr}</p>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        {/* Download (only if recu exists) */}
-                        {hasRecu && (
-                          <button
-                            onClick={() => downloadRecu(row)}
-                            disabled={isDlLoading}
-                            title="Télécharger le reçu PDF"
-                            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
-                          >
-                            {isDlLoading ? (
-                              <svg className="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  return (
+                    <TableRow key={profilId}>
+                      {/* Participant */}
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-ink">{fullName}</span>
+                          {validationMessage && (
+                            <span title={validationMessage} className="cursor-help text-warning">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l6.28 11.18c.75 1.334-.213 2.987-1.742 2.987H3.72c-1.53 0-2.493-1.653-1.743-2.987l6.28-11.18zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                               </svg>
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                              </svg>
-                            )}
-                            PDF
-                          </button>
-                        )}
-
-                        {/* Send by email (only if recu exists and participant has an email) */}
-                        {hasRecu && row.profil.personnes.email && (
-                          <button
-                            onClick={() => sendRecuEmail(row)}
-                            disabled={isSendLoading}
-                            title="Envoyer le reçu par email"
-                            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
-                          >
-                            {isSendLoading ? (
-                              <svg className="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                              </svg>
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                              </svg>
-                            )}
-                            Email
-                          </button>
-                        )}
-
-                        {/* Generate / Regenerate */}
-                        <button
-                          onClick={() => handleGenerateClick(row)}
-                          disabled={isGenLoading || generateAllLoading || isBlocked}
-                          title={isBlocked ? (orgMissing.length > 0 ? "Complétez les paramètres de l'organisation" : validationMessage ?? undefined) : undefined}
-                          className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:hover:bg-slate-300"
-                        >
-                          {isGenLoading ? (
-                            <svg className="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                            </svg>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                            </svg>
+                            </span>
                           )}
-                          {hasRecu ? 'Regénérer' : 'Générer'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                        </div>
+                        {row.profil.personnes.email && <div className="text-xs text-ink-faint">{row.profil.personnes.email}</div>}
+                      </TableCell>
+
+                      {/* Total */}
+                      <TableCell className="text-right font-medium text-ink">
+                        {formatMontant(row.total_dons)}
+                      </TableCell>
+
+                      {/* N° reçu */}
+                      <TableCell className="text-ink-muted">{row.recu?.numero_ordre ?? '—'}</TableCell>
+
+                      {/* Type */}
+                      <TableCell className="text-ink-muted">
+                        {row.recu?.type_cerfa ? TYPE_CERFA_LABELS[row.recu.type_cerfa] ?? row.recu.type_cerfa : '—'}
+                      </TableCell>
+
+                      {/* Status */}
+                      <TableCell>
+                        <Badge variant={hasRecu ? 'success' : 'neutral'}>
+                          {hasRecu ? 'Généré' : 'Non généré'}
+                        </Badge>
+                        {validationMessage && (
+                          <div className="mt-1">
+                            <p className="text-xs text-warning">{validationMessage}</p>
+                            <button
+                              type="button"
+                              onClick={() => openEditParticipant(row)}
+                              className="mt-0.5 text-xs font-medium text-stamp underline hover:no-underline"
+                            >
+                              Modifier le participant
+                            </button>
+                          </div>
+                        )}
+                        {row.recu?.email_envoye_at && (
+                          <p className="mt-1 text-xs text-ink-faint">Envoyé le {formatDateHeure(row.recu.email_envoye_at)}</p>
+                        )}
+                        {genErr && <p className="mt-1 text-xs text-stamp">{genErr}</p>}
+                        {dlErr && <p className="mt-1 text-xs text-stamp">{dlErr}</p>}
+                        {sendErr && <p className="mt-1 text-xs text-stamp">{sendErr}</p>}
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          {/* Download (only if recu exists) */}
+                          {hasRecu && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => downloadRecu(row)}
+                              disabled={isDlLoading}
+                              title="Télécharger le reçu PDF"
+                            >
+                              {isDlLoading ? (
+                                <svg className="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                              )}
+                              PDF
+                            </Button>
+                          )}
+
+                          {/* Send by email (only if recu exists and participant has an email) */}
+                          {hasRecu && row.profil.personnes.email && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => sendRecuEmail(row)}
+                              disabled={isSendLoading}
+                              title="Envoyer le reçu par email"
+                            >
+                              {isSendLoading ? (
+                                <svg className="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                                </svg>
+                              )}
+                              Email
+                            </Button>
+                          )}
+
+                          {/* Generate / Regenerate */}
+                          <Button
+                            size="sm"
+                            onClick={() => handleGenerateClick(row)}
+                            disabled={isGenLoading || generateAllLoading || isBlocked}
+                            title={isBlocked ? (orgMissing.length > 0 ? "Complétez les paramètres de l'organisation" : validationMessage ?? undefined) : undefined}
+                          >
+                            {isGenLoading ? (
+                              <svg className="h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                              </svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                              </svg>
+                            )}
+                            {hasRecu ? 'Regénérer' : 'Générer'}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
           </ScrollShadowX>
         )}
 
         {/* Pagination */}
         {!loading && filteredRows.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-3">
-            <div className="flex items-center gap-2 text-sm text-slate-500">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-paper-border px-6 py-3">
+            <div className="flex items-center gap-2 font-registre-mono text-xs text-ink-faint">
               <span>Lignes par page</span>
-              <select
+              <Select
                 aria-label="Lignes par page"
                 value={pageSize}
                 onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
-                className="select-field rounded-lg border border-slate-300 py-1 pl-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="py-1 pl-2 pr-7 text-xs"
               >
                 {[25, 50, 100, 250].map((size) => (
                   <option key={size} value={size}>{size}</option>
                 ))}
-              </select>
+              </Select>
               <span>
                 {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filteredRows.length)} sur {filteredRows.length}
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setCurrentPage(1)}
-                disabled={safePage === 1}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                «
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={safePage === 1}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              >
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setCurrentPage(1)} disabled={safePage === 1}>«</Button>
+              <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
                 ‹ Précédent
-              </button>
-              <span className="text-sm text-slate-500">Page {safePage} / {pageCount}</span>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
-                disabled={safePage === pageCount}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              >
+              </Button>
+              <span className="font-registre-mono text-xs text-ink-faint">Page {safePage} / {pageCount}</span>
+              <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))} disabled={safePage === pageCount}>
                 Suivant ›
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentPage(pageCount)}
-                disabled={safePage === pageCount}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                »
-              </button>
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setCurrentPage(pageCount)} disabled={safePage === pageCount}>»</Button>
             </div>
           </div>
         )}
       </div>
 
       {/* Regenerate confirmation */}
-      {regenerateConfirm && (
-        <Modal open onClose={() => setRegenerateConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="regenerate-title">
-          <div className="p-6">
-            <h2 id="regenerate-title" className="text-lg font-semibold text-slate-900">Regénérer le reçu</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Un reçu a déjà été généré pour{' '}
-              <span className="font-medium">« {participantFullName(regenerateConfirm.profil)} »</span> en {annee}
-              {regenerateConfirm.recu?.numero_ordre && <> (n° {regenerateConfirm.recu.numero_ordre})</>}.
-              Le fichier PDF sera remplacé, mais le numéro d'ordre est conservé.
-            </p>
-            <div className="mt-5 flex justify-end gap-3">
-              <button
-                onClick={() => setRegenerateConfirm(null)}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={() => {
-                  const row = regenerateConfirm
-                  setRegenerateConfirm(null)
-                  generateRecu(row)
-                }}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-              >
-                Regénérer
-              </button>
+      <Dialog open={!!regenerateConfirm} onOpenChange={(next) => { if (!next) setRegenerateConfirm(null) }}>
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
+          {regenerateConfirm && (
+            <div className="p-6">
+              <h2 className="font-registre text-lg font-semibold text-ink">Regénérer le reçu</h2>
+              <p className="mt-2 font-registre text-sm text-ink-muted">
+                Un reçu a déjà été généré pour{' '}
+                <span className="font-medium text-ink">« {participantFullName(regenerateConfirm.profil)} »</span> en {annee}
+                {regenerateConfirm.recu?.numero_ordre && <> (n° {regenerateConfirm.recu.numero_ordre})</>}.
+                Le fichier PDF sera remplacé, mais le numéro d'ordre est conservé.
+              </p>
+              <div className="mt-5 flex justify-end gap-3">
+                <Button type="button" variant="secondary" onClick={() => setRegenerateConfirm(null)}>
+                  Annuler
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    const row = regenerateConfirm
+                    setRegenerateConfirm(null)
+                    generateRecu(row)
+                  }}
+                >
+                  Regénérer
+                </Button>
+              </div>
             </div>
-          </div>
-        </Modal>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Participant edit modal */}
       {organisationId && (

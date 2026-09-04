@@ -43,7 +43,7 @@ export default function SignaturePad({ onChange }: SignaturePadProps) {
     const { x, y } = pointFromEvent(e)
     ctx.lineWidth = 2
     ctx.lineCap = 'round'
-    ctx.strokeStyle = '#1e293b'
+    ctx.strokeStyle = '#241f19'
     ctx.lineTo(x, y)
     ctx.stroke()
     if (isEmpty) setIsEmpty(false)
@@ -70,18 +70,18 @@ export default function SignaturePad({ onChange }: SignaturePadProps) {
         ref={canvasRef}
         width={CANVAS_WIDTH}
         height={CANVAS_HEIGHT}
-        className="w-full touch-none rounded-lg border border-slate-300 bg-white"
+        className="w-full touch-none rounded-sm border border-paper-border bg-white"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       />
       <div className="mt-2 flex items-center justify-between">
-        <p className="text-xs text-slate-500">Signez avec la souris ou le doigt</p>
+        <p className="font-registre text-xs text-ink-faint">Signez avec la souris ou le doigt</p>
         <button
           type="button"
           onClick={handleClear}
           disabled={isEmpty}
-          className="text-xs font-medium text-slate-500 hover:text-slate-700 disabled:opacity-40"
+          className="font-registre text-xs font-medium text-ink-faint hover:text-ink-muted disabled:opacity-40"
         >
           Effacer
         </button>

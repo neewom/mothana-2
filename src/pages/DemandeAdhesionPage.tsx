@@ -9,6 +9,11 @@ import { substituteFormulaireAdhesionPlaceholders } from '../lib/formulaireAdhes
 import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '../lib/textFormat'
 import { COUNTRIES } from '../lib/countries'
 import { maxDateNaissance, isAnneeNaissanceValide } from '../lib/dateNaissance'
+import { cn } from '../lib/utils'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
+import { Select } from '../components/ui/select'
 
 interface OrganisationAssetPublic {
   identifiant: string
@@ -132,7 +137,7 @@ export default function DemandeAdhesionPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-50 text-sm text-slate-500">
+      <div className="flex min-h-dvh items-center justify-center bg-paper font-registre text-sm text-ink-faint">
         Chargement…
       </div>
     )
@@ -140,10 +145,10 @@ export default function DemandeAdhesionPage() {
 
   if (notFound || !organisation) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-50 px-4">
-        <div className="max-w-md rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-          <h1 className="text-lg font-semibold text-slate-900">Formulaire introuvable</h1>
-          <p className="mt-2 text-sm text-slate-500">Ce lien n'est pas valide ou n'existe plus.</p>
+      <div className="flex min-h-dvh items-center justify-center bg-paper px-4 font-registre">
+        <div className="max-w-md rounded-sm border border-paper-border bg-white p-6 text-center">
+          <h1 className="text-lg font-semibold text-ink">Formulaire introuvable</h1>
+          <p className="mt-2 text-sm text-ink-faint">Ce lien n'est pas valide ou n'existe plus.</p>
         </div>
       </div>
     )
@@ -151,10 +156,10 @@ export default function DemandeAdhesionPage() {
 
   if (submitted) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-50 px-4">
-        <div className="max-w-md rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-          <h1 className="text-lg font-semibold text-slate-900">Demande envoyée</h1>
-          <p className="mt-2 whitespace-pre-line text-sm text-slate-500">
+      <div className="flex min-h-dvh items-center justify-center bg-paper px-4 font-registre">
+        <div className="max-w-md rounded-sm border border-paper-border bg-white p-6 text-center">
+          <h1 className="text-lg font-semibold text-ink">Demande envoyée</h1>
+          <p className="mt-2 whitespace-pre-line text-sm text-ink-faint">
             {organisation.formulaire_adhesion_message_succes ||
               `Votre demande d'adhésion à ${organisation.nom} a bien été enregistrée. Elle sera examinée par le conseil d'administration.`}
           </p>
@@ -169,7 +174,7 @@ export default function DemandeAdhesionPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-slate-50 px-4 py-10">
+    <div className="min-h-dvh bg-paper px-4 py-10 font-registre">
       <div className="mx-auto max-w-xl">
         {organisation.formulaire_adhesion_header_html ? (
           <ShadowHtmlBlock
@@ -179,13 +184,13 @@ export default function DemandeAdhesionPage() {
           />
         ) : (
           <div className="mb-6 text-center">
-            <h1 className="text-2xl font-bold text-slate-900">Demande d'adhésion</h1>
-            <p className="mt-1 text-sm text-slate-600">{organisation.nom}</p>
+            <h1 className="text-2xl font-bold text-ink">Demande d'adhésion</h1>
+            <p className="mt-1 text-sm text-ink-muted">{organisation.nom}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          {submitError && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{submitError}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4 rounded-sm border border-paper-border bg-white p-6">
+          {submitError && <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{submitError}</div>}
 
           <input
             type="text"
@@ -198,93 +203,94 @@ export default function DemandeAdhesionPage() {
           />
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Civilité <span className="text-red-500">*</span>
-            </label>
-            <select
+            <Label>
+              Civilité <span className="text-stamp">*</span>
+            </Label>
+            <Select
               required
               value={civilite === 0 ? '' : civilite}
               onChange={(e) => setCivilite(e.target.value ? (Number(e.target.value) as CiviliteAdherent) : 0)}
-              className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="mt-1 w-full"
             >
               <option value="" disabled>Sélectionner…</option>
               {CIVILITE_ADHERENT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Nom <span className="text-red-500">*</span>
-            </label>
-            <input
+            <Label htmlFor="nom">
+              Nom <span className="text-stamp">*</span>
+            </Label>
+            <Input
+              id="nom"
               type="text"
               required
               value={nom}
               onChange={(e) => setNom(toUpperName(e.target.value))}
               placeholder="DUPONT"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="mt-1"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Prénom <span className="text-red-500">*</span>
-            </label>
-            <input
+            <Label htmlFor="prenom">
+              Prénom <span className="text-stamp">*</span>
+            </Label>
+            <Input
+              id="prenom"
               type="text"
               required
               value={prenom}
               onChange={(e) => setPrenom(toCapitalizedName(e.target.value))}
               placeholder="Jean"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="mt-1"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Date de naissance <span className="text-red-500">*</span>
-            </label>
-            <input
+            <Label htmlFor="date-naissance">
+              Date de naissance <span className="text-stamp">*</span>
+            </Label>
+            <Input
+              id="date-naissance"
               type="date"
               required
               value={dateNaissance}
               onChange={(e) => setDateNaissance(e.target.value)}
               aria-invalid={dateNaissanceInvalid}
-              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                dateNaissanceInvalid
-                  ? 'border-red-400 focus:ring-red-500'
-                  : 'border-slate-300 focus:ring-indigo-500'
-              }`}
+              className={cn('mt-1', dateNaissanceInvalid && 'border-stamp focus-visible:ring-stamp/70')}
             />
             {dateNaissanceInvalid && (
-              <p className="mt-1 text-xs text-red-600">
+              <p className="mt-1 text-xs text-stamp">
                 L'année de naissance doit être {maxDateNaissance().slice(0, 4)} ou antérieure.
               </p>
             )}
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Adresse <span className="text-red-500">*</span>
-            </label>
-            <input
+            <Label htmlFor="adresse">
+              Adresse <span className="text-stamp">*</span>
+            </Label>
+            <Input
+              id="adresse"
               type="text"
               required
               value={adresse}
               onChange={(e) => setAdresse(e.target.value)}
               placeholder="12 rue des Lilas"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="mt-1"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Code postal <span className="text-red-500">*</span>
-              </label>
-              <input
+              <Label htmlFor="code-postal">
+                Code postal <span className="text-stamp">*</span>
+              </Label>
+              <Input
+                id="code-postal"
                 type="text"
                 required
                 inputMode="numeric"
@@ -292,40 +298,38 @@ export default function DemandeAdhesionPage() {
                 value={codePostal}
                 onChange={(e) => setCodePostal(sanitizeDigits(e.target.value))}
                 placeholder="75000"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Ville <span className="text-red-500">*</span>
-              </label>
-              <input
+              <Label htmlFor="ville">
+                Ville <span className="text-stamp">*</span>
+              </Label>
+              <Input
+                id="ville"
                 type="text"
                 required
                 value={ville}
                 onChange={(e) => setVille(e.target.value)}
                 placeholder="Paris"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-1"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Pays</label>
-            <select
-              value={pays}
-              onChange={(e) => setPays(e.target.value)}
-              className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
+            <Label>Pays</Label>
+            <Select value={pays} onChange={(e) => setPays(e.target.value)} className="mt-1 w-full">
               {COUNTRIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Téléphone</label>
-            <input
+            <Label htmlFor="telephone">Téléphone</Label>
+            <Input
+              id="telephone"
               type="tel"
               inputMode="numeric"
               minLength={10}
@@ -333,35 +337,32 @@ export default function DemandeAdhesionPage() {
               value={telephone}
               onChange={(e) => setTelephone(sanitizeDigits(e.target.value))}
               placeholder="0600000000"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="mt-1"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Courriel</label>
-            <input
+            <Label htmlFor="courriel">Courriel</Label>
+            <Input
+              id="courriel"
               type="email"
               value={courriel}
               onChange={(e) => setCourriel(e.target.value)}
               placeholder="jean.dupont@exemple.fr"
               aria-invalid={courrielInvalid}
-              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                courrielInvalid
-                  ? 'border-red-400 focus:ring-red-500'
-                  : 'border-slate-300 focus:ring-indigo-500'
-              }`}
+              className={cn('mt-1', courrielInvalid && 'border-stamp focus-visible:ring-stamp/70')}
             />
-            {courrielInvalid && <p className="mt-1 text-xs text-red-600">Format d'email invalide.</p>}
+            {courrielInvalid && <p className="mt-1 text-xs text-stamp">Format d'email invalide.</p>}
           </div>
 
-          <div className="border-t border-slate-200 pt-4">
-            <label className="flex items-start gap-2 text-sm text-slate-700">
+          <div className="border-t border-paper-border pt-4">
+            <label className="flex items-start gap-2 text-sm text-ink-muted">
               <input
                 type="checkbox"
                 required
                 checked={accepteStatuts}
                 onChange={(e) => setAccepteStatuts(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="mt-0.5 h-4 w-4 rounded-sm border-paper-border text-stamp focus:ring-stamp/70"
               />
               <span>
                 J'ai pris connaissance{' '}
@@ -370,46 +371,44 @@ export default function DemandeAdhesionPage() {
                     href={organisation.statuts_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-medium text-indigo-600 hover:underline"
+                    className="font-medium text-stamp hover:underline"
                   >
                     des statuts de l'association
                   </a>
                 ) : (
                   "des statuts de l'association"
                 )}{' '}
-                et les approuve. <span className="text-red-500">*</span>
+                et les approuve. <span className="text-stamp">*</span>
               </span>
             </label>
 
-            <label className="mt-3 flex items-start gap-2 text-sm text-slate-700">
+            <label className="mt-3 flex items-start gap-2 text-sm text-ink-muted">
               <input
                 type="checkbox"
                 required
                 checked={consentRgpd}
                 onChange={(e) => setConsentRgpd(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="mt-0.5 h-4 w-4 rounded-sm border-paper-border text-stamp focus:ring-stamp/70"
               />
               <span>
                 J'accepte que les informations saisies dans ce formulaire soient utilisées par l'association dans le
-                cadre du traitement de ma demande d'adhésion. <span className="text-red-500">*</span>
+                cadre du traitement de ma demande d'adhésion. <span className="text-stamp">*</span>
               </span>
             </label>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Signature <span className="text-red-500">*</span>
-            </label>
-            <SignaturePad onChange={setSignature} />
+            <Label>
+              Signature <span className="text-stamp">*</span>
+            </Label>
+            <div className="mt-1">
+              <SignaturePad onChange={setSignature} />
+            </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-          >
+          <Button type="submit" disabled={submitting} className="w-full">
             {submitting ? 'Envoi…' : 'Envoyer ma demande'}
-          </button>
+          </Button>
         </form>
 
         {organisation.formulaire_adhesion_footer_html && (

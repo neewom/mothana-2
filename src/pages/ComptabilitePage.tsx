@@ -11,6 +11,7 @@ import { fetchAllRows } from '../lib/fetchAllRows'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import DeclarationCerfaCard from '../components/DeclarationCerfaCard'
 import type { Don, ModePaiement } from '../types'
+import { Button } from '../components/ui/button'
 
 // ---------------------------------------------------------------------------
 // Palette — voir le skill dataviz (references/palette.md), instance validée
@@ -144,11 +145,11 @@ function StatCard({ label, value, delta }: { label: string; value: string; delta
     ? (delta.pct >= 0) === delta.goodUp ? GOOD : CRITICAL
     : undefined
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
+    <div className="rounded-sm border border-paper-border bg-white p-5">
+      <p className="font-registre text-sm font-medium text-ink-faint">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-ink">{value}</p>
       {delta && (
-        <p className="mt-1 text-sm font-medium" style={{ color: deltaColor }}>
+        <p className="mt-1 font-registre text-sm font-medium" style={{ color: deltaColor }}>
           {delta.pct >= 0 ? '↑' : '↓'} {Math.abs(delta.pct).toFixed(1)}% vs année précédente
         </p>
       )}
@@ -170,13 +171,13 @@ interface TooltipPayloadItem {
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipPayloadItem[]; label?: string }) {
   if (!active || !payload || payload.length === 0) return null
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-lg">
-      {label && <p className="mb-1 font-medium text-slate-500">{label}</p>}
+    <div className="rounded-sm border border-paper-border bg-white px-3 py-2 font-registre text-sm shadow-lg">
+      {label && <p className="mb-1 font-medium text-ink-faint">{label}</p>}
       {payload.map((entry, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="inline-block h-0.5 w-3" style={{ backgroundColor: entry.color }} />
-          <span className="font-semibold text-slate-900">{formatEur(entry.value ?? 0)}</span>
-          <span className="text-slate-500">{entry.name}</span>
+          <span className="font-semibold text-ink">{formatEur(entry.value ?? 0)}</span>
+          <span className="text-ink-faint">{entry.name}</span>
         </div>
       ))}
     </div>
@@ -258,41 +259,31 @@ export default function ComptabilitePage() {
   }, [recus])
 
   return (
-    <div className="space-y-6">
+    <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       {/* Page title + sélecteur d'année */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Comptabilité</h1>
-          <p className="mt-1 text-sm text-slate-600">Vue d'ensemble des dons collectés</p>
+          <h1 className="text-2xl font-bold text-ink md:text-3xl">Comptabilité</h1>
+          <p className="mt-1 text-sm text-ink-muted">Vue d'ensemble des dons collectés</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setYear((y) => y - 1)}
-            disabled={year <= minYear}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          <Button type="button" variant="secondary" size="sm" onClick={() => setYear((y) => y - 1)} disabled={year <= minYear}>
             ‹
-          </button>
-          <span className="min-w-[4rem] text-center text-sm font-semibold text-slate-900">{year}</span>
-          <button
-            type="button"
-            onClick={() => setYear((y) => y + 1)}
-            disabled={year >= maxYear}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          </Button>
+          <span className="min-w-[4rem] text-center font-registre-mono text-sm font-semibold text-ink">{year}</span>
+          <Button type="button" variant="secondary" size="sm" onClick={() => setYear((y) => y + 1)} disabled={year >= maxYear}>
             ›
-          </button>
+          </Button>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">Erreur : {error}</div>
+        <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur : {error}</div>
       )}
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
         </div>
       ) : (
         <>
@@ -308,8 +299,8 @@ export default function ComptabilitePage() {
           </div>
 
           {/* Courbe mensuelle N vs N-1 */}
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 font-semibold text-slate-900">Dons par mois — {year} vs {year - 1}</h2>
+          <div className="rounded-sm border border-paper-border bg-white p-5">
+            <h2 className="mb-4 font-registre font-semibold text-ink">Dons par mois — {year} vs {year - 1}</h2>
             <ResponsiveContainer width="100%" height={320}>
               <LineChart data={monthlyData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke={GRID_STROKE} vertical={false} />
@@ -325,10 +316,10 @@ export default function ComptabilitePage() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Répartition par activité */}
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-4 font-semibold text-slate-900">Répartition par activité — {year}</h2>
+            <div className="rounded-sm border border-paper-border bg-white p-5">
+              <h2 className="mb-4 font-registre font-semibold text-ink">Répartition par activité — {year}</h2>
               {activiteBreakdown.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-500">Aucun don sur cette année</p>
+                <p className="py-8 text-center font-registre text-sm text-ink-faint">Aucun don sur cette année</p>
               ) : (
                 <ResponsiveContainer width="100%" height={Math.max(160, activiteBreakdown.length * 44)}>
                   <BarChart data={activiteBreakdown} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
@@ -345,8 +336,8 @@ export default function ComptabilitePage() {
             </div>
 
             {/* Répartition par mode de paiement */}
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-4 font-semibold text-slate-900">Répartition par mode de paiement — {year}</h2>
+            <div className="rounded-sm border border-paper-border bg-white p-5">
+              <h2 className="mb-4 font-registre font-semibold text-ink">Répartition par mode de paiement — {year}</h2>
               <ResponsiveContainer width="100%" height={140}>
                 <BarChart data={modeBreakdown} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
                   <XAxis type="number" hide />
@@ -358,7 +349,7 @@ export default function ComptabilitePage() {
                         {MODE_PAIEMENT_OPTIONS.map((o, i) => (
                           <li key={o.value} className="flex items-center gap-1.5">
                             <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: CATEGORICAL[i] }} />
-                            <span className="text-slate-600">{o.label}</span>
+                            <span className="font-registre text-ink-muted">{o.label}</span>
                           </li>
                         ))}
                       </ul>

@@ -2,14 +2,80 @@ import { useState, useEffect, useMemo, useCallback, type FormEvent } from 'react
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Activite } from '../types'
-import Modal from '../components/Modal'
 import ImportWizard from '../components/import/ImportWizard'
 import { activitesImportConfig } from '../lib/import/configs'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { filterActivites } from '../lib/activiteSearch'
+import { cn } from '../lib/utils'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog'
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+// ---------------------------------------------------------------------------
+// Statut d'une activité — dérivé des dates réelles, jamais saisi manuellement.
+// Le cachet du carnet marque le temps qui passe, pas une validation admin.
+// ---------------------------------------------------------------------------
+
+type ActiviteStatut = 'a_venir' | 'en_cours' | 'terminee' | 'sans_date'
+
+function getStatut(a: Activite, todayIso: string): ActiviteStatut {
+  if (!a.date_debut && !a.date_fin) return 'sans_date'
+  if (a.date_fin && a.date_fin < todayIso) return 'terminee'
+  if (a.date_debut && a.date_debut > todayIso) return 'a_venir'
+  return 'en_cours'
+}
+
+function formatShort(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+}
+
+function postmarkParts(iso: string): { day: string; month: string } {
+  const d = new Date(iso)
+  return {
+    day: d.toLocaleDateString('fr-FR', { day: '2-digit' }),
+    month: d.toLocaleDateString('fr-FR', { month: 'short' }),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cachet — marque automatiquement le temps qui passe sur une activité.
+// ---------------------------------------------------------------------------
+
+function Postmark({ statut, dateIso }: { statut: ActiviteStatut; dateIso: string | null }) {
+  if (statut === 'a_venir' || statut === 'sans_date' || !dateIso) {
+    return (
+      <div
+        className="h-[52px] w-[52px] shrink-0 animate-in zoom-in-75 fade-in duration-300 rounded-full border-[1.5px] border-dashed border-paper-border"
+        aria-hidden
+      />
+    )
+  }
+
+  const { day, month } = postmarkParts(dateIso)
+  const isLive = statut === 'en_cours'
+  // Le cachet rétrécit une fois l'activité classée — hiérarchie active > terminée,
+  // pas seulement une histoire d'opacité (repris du comp validé par l'utilisateur).
+  const size = isLive ? 'h-[52px] w-[52px]' : 'h-10 w-10'
+
+  return (
+    <div
+      className={cn(
+        'flex shrink-0 -rotate-3 flex-col items-center justify-center animate-in zoom-in-75 fade-in duration-300 rounded-full border-stamp font-registre-mono text-stamp',
+        size,
+        isLive ? 'border-[2.5px] shadow-[0_0_0_3px_rgba(168,40,31,0.06)]' : 'border-[1.5px] opacity-50'
+      )}
+      aria-hidden
+    >
+      <span className={cn('font-bold leading-none', isLive ? 'text-[13px]' : 'text-[11px]')}>{day}</span>
+      <span className="text-[8px] uppercase leading-tight tracking-wide">{month}</span>
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -41,8 +107,6 @@ function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: Act
     }
   }, [open, activite])
 
-  if (!open) return null
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
@@ -73,71 +137,133 @@ function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: Act
   }
 
   return (
-    <Modal open={open} onClose={onClose} maxWidthClassName="max-w-sm" labelledBy="activite-modal-title">
-        <div className="border-b border-slate-200 px-6 py-4">
-          <h2 id="activite-modal-title" className="text-lg font-semibold text-slate-900">
-            {isEdit ? "Modifier l'activité" : 'Nouvelle activité'}
-          </h2>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogContent aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Modifier l'activité" : 'Nouvelle activité'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto p-6">
           {error && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+            <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
+              {error}
+            </div>
           )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Nom <span className="text-red-500">*</span>
-            </label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="activite-nom">
+              Nom <span className="text-stamp">*</span>
+            </Label>
+            <Input
+              id="activite-nom"
               type="text"
               required
               value={nom}
               onChange={(e) => setNom(e.target.value)}
               placeholder="Ex : Nouvel An Lao 2026"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Date de début
-              </label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="activite-debut">Date de début</Label>
+              <Input
+                id="activite-debut"
                 type="date"
                 value={dateDebut}
                 onChange={(e) => setDateDebut(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Date de fin
-              </label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="activite-fin">Date de fin</Label>
+              <Input
+                id="activite-fin"
                 type="date"
                 value={dateFin}
                 onChange={(e) => setDateFin(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-            >
+            <Button type="button" variant="secondary" onClick={onClose}>
               Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
+            </Button>
+            <Button type="submit" disabled={saving}>
               {saving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
+            </Button>
           </div>
         </form>
-    </Modal>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Ligne d'activité (carnet)
+// ---------------------------------------------------------------------------
+
+interface ActiviteCounts {
+  dons: number
+  participants: number
+}
+
+function ActiviteRow({
+  activite,
+  statut,
+  counts,
+  onEdit,
+  onDelete,
+}: {
+  activite: Activite
+  statut: ActiviteStatut
+  counts: ActiviteCounts | undefined
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const postmarkDate = statut === 'terminee' ? activite.date_fin ?? activite.date_debut : activite.date_debut
+  const isTerminee = statut === 'terminee'
+
+  const statutText =
+    statut === 'en_cours'
+      ? activite.date_fin
+        ? `En cours · jusqu'au ${formatShort(activite.date_fin)}`
+        : 'En cours'
+      : statut === 'a_venir'
+        ? activite.date_debut
+          ? `À venir · ${formatShort(activite.date_debut)}`
+          : 'À venir'
+        : statut === 'sans_date'
+          ? 'Sans date'
+          : null
+
+  const countsText = counts && counts.dons > 0
+    ? `${counts.dons} don${counts.dons > 1 ? 's' : ''} · ${counts.participants} participant${counts.participants > 1 ? 's' : ''}`
+    : 'Aucun don pour l\'instant'
+
+  return (
+    <li
+      className={cn(
+        'flex flex-col gap-3 border-t border-paper-border-muted px-4 py-4 first:border-t-0 sm:flex-row sm:items-center md:px-6',
+        isTerminee && 'py-3'
+      )}
+    >
+      <div className="flex flex-1 items-center gap-4 min-w-0">
+        <Postmark statut={statut} dateIso={postmarkDate} />
+        <div className="min-w-0 flex-1">
+          <p className={cn('truncate font-registre font-semibold', isTerminee ? 'text-sm text-ink-muted' : 'text-base text-ink md:text-lg')}>
+            {activite.nom}
+          </p>
+          {statutText && <p className="mt-0.5 font-registre text-sm text-ink-muted">{statutText}</p>}
+          <p className={cn('mt-1 font-registre-mono text-xs', isTerminee ? 'text-ink-faint' : counts && counts.dons > 0 ? 'font-medium text-stamp' : 'text-ink-faint')}>
+            {countsText}
+          </p>
+          {activite.id_externe && (
+            <p className="mt-0.5 font-registre-mono text-[11px] text-ink-faint">Réf. import : {activite.id_externe}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1 pl-[68px] sm:pl-0">
+        <Button variant="secondary" size="sm" onClick={onEdit}>Modifier</Button>
+        <Button variant="danger" size="sm" onClick={onDelete}>Supprimer</Button>
+      </div>
+    </li>
   )
 }
 
@@ -149,6 +275,7 @@ export default function ActivitesPage() {
   const organisationId = useOrganisationId()
 
   const [activites, setActivites] = useState<Activite[]>([])
+  const [donsByActivite, setDonsByActivite] = useState<Map<string, ActiviteCounts>>(new Map())
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Activite | undefined>(undefined)
@@ -174,9 +301,37 @@ export default function ActivitesPage() {
     setLoading(false)
   }, [organisationId])
 
+  const fetchCounts = useCallback(async () => {
+    const { data } = await fetchAllRows<{ id: string; activite_id: string | null; profil_participant_id: string }>(
+      (from, to) =>
+        supabase
+          .from('dons')
+          .select('id, activite_id, profil_participant_id')
+          .eq('organisation_id', organisationId)
+          .not('activite_id', 'is', null)
+          .range(from, to)
+    )
+    const map = new Map<string, { dons: number; participants: Set<string> }>()
+    for (const don of data) {
+      if (!don.activite_id) continue
+      const entry = map.get(don.activite_id) ?? { dons: 0, participants: new Set<string>() }
+      entry.dons += 1
+      entry.participants.add(don.profil_participant_id)
+      map.set(don.activite_id, entry)
+    }
+    const counts = new Map<string, ActiviteCounts>()
+    for (const [activiteId, entry] of map) {
+      counts.set(activiteId, { dons: entry.dons, participants: entry.participants.size })
+    }
+    setDonsByActivite(counts)
+  }, [organisationId])
+
   useEffect(() => {
-    if (organisationId) fetchActivites()
-  }, [organisationId, fetchActivites])
+    if (organisationId) {
+      fetchActivites()
+      fetchCounts()
+    }
+  }, [organisationId, fetchActivites, fetchCounts])
 
   const filteredActivites = useMemo(
     () => filterActivites(activites, search),
@@ -190,6 +345,23 @@ export default function ActivitesPage() {
     const start = (safePage - 1) * pageSize
     return filteredActivites.slice(start, start + pageSize)
   }, [filteredActivites, safePage, pageSize])
+
+  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), [])
+
+  const { actives, terminees } = useMemo(() => {
+    const actives: { activite: Activite; statut: ActiviteStatut }[] = []
+    const terminees: { activite: Activite; statut: ActiviteStatut }[] = []
+    for (const activite of paginatedActivites) {
+      const statut = getStatut(activite, todayIso)
+      if (statut === 'terminee') terminees.push({ activite, statut })
+      else actives.push({ activite, statut })
+    }
+    actives.sort((a, b) => (a.activite.date_debut ?? '9999').localeCompare(b.activite.date_debut ?? '9999'))
+    terminees.sort((a, b) =>
+      (b.activite.date_fin ?? b.activite.date_debut ?? '').localeCompare(a.activite.date_fin ?? a.activite.date_debut ?? '')
+    )
+    return { actives, terminees }
+  }, [paginatedActivites, todayIso])
 
   function openAdd() {
     setEditing(undefined)
@@ -239,155 +411,174 @@ export default function ActivitesPage() {
     setDeleting(false)
     setDeleteConfirm(null)
     fetchActivites()
+    fetchCounts()
   }
 
   return (
     <>
-    <div className="space-y-6">
-      {/* Page title */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Activités</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          {activites.length} activité{activites.length !== 1 ? 's' : ''}
-        </p>
-      </div>
+      {/*
+        THESIS: une activité est un objet du registre marqué par le temps qui passe (cachet
+        automatique dérivé des dates), jamais un statut validé manuellement — refuse le
+        tableau SaaS générique et la fausse promesse d'un workflow d'approbation inexistant.
+        OWN-WORLD: papier clair (paper #fdfcfa/#e8e4dc), encre vermillon unique (stamp #a8281f,
+        contour = action de marque, plein = danger), Inter (texte) + IBM Plex Mono (dates/
+        compteurs), radius plat (rounded-sm), pas de card flottante ni d'ombre décorative.
+        STORY: l'admin distingue en un coup d'œil ce qui est actif/à venir de ce qui est clos.
+        FIRST VIEWPORT: deux blocs de registre côte à côte en desktop (actives | terminées),
+        empilés en mobile ; cachet à gauche de chaque ligne, actions à droite.
+        FORM: direction "carnet tamponné x registre" (fusion E), choisie via AskUserQuestion
+        (concept-seed/serve-question non exécutable ici — pas de génération d'image dans cette
+        session), validée par l'utilisateur après 2 itérations (compteurs réels dons/
+        participants au lieu d'un statut inventé, séparation actives/terminées).
+        FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
+        review, the verdict, and DESIGN.md.
+      */}
+      {/*
+        Canvas papier en pleine page : AdminLayout.tsx (partagé par les 23 autres pages,
+        hors scope de ce pilote) impose bg-slate-100 + main.p-6 — on déborde de cette marge
+        (-m-6/p-6) pour que le ton papier de la direction couvre tout le viewport, pas
+        seulement l'intérieur des cartes (trouvé en revue de finition).
+      */}
+      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
+        {/* Page title */}
+        <div className="flex items-baseline justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-ink md:text-3xl">Activités</h1>
+            <p className="mt-1 font-registre-mono text-sm text-ink-faint">
+              {activites.length} activité{activites.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
 
-      {/* List card */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
-          {/* Search */}
-          <input
+        {/* Search + actions */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Input
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
             placeholder="Rechercher par nom…"
-            className="w-full min-w-[12rem] max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full min-w-[12rem] max-w-xs"
           />
-          <div className="flex flex-shrink-0 items-center gap-2">
-            <button
-              onClick={() => setImportOpen(true)}
-              className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
+          <div className="flex shrink-0 items-center gap-2">
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
               </svg>
               Importer
-            </button>
-            <button
-              onClick={openAdd}
-              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
+            </Button>
+            <Button onClick={openAdd}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
-              Ajouter
-            </button>
+              Nouvelle
+            </Button>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-sm text-slate-500">
+          <div className="flex items-center justify-center rounded-sm border border-paper-border bg-white py-16 font-registre text-sm text-ink-faint">
             Chargement…
           </div>
         ) : filteredActivites.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="mb-3 h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <div className="flex flex-col items-center justify-center rounded-sm border border-paper-border bg-white py-16 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="mb-3 h-10 w-10 text-paper-border" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
             </svg>
-            <p className="text-sm font-medium text-slate-500">
+            <p className="font-registre text-sm font-medium text-ink-muted">
               {activites.length === 0 ? 'Aucune activité' : 'Aucune activité trouvée'}
             </p>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 font-registre text-xs text-ink-faint">
               {activites.length === 0 ? 'Créez votre première activité pour commencer.' : 'Essayez une autre recherche.'}
             </p>
           </div>
         ) : (
           <>
-          <ul className="divide-y divide-slate-100">
-            {paginatedActivites.map((a) => (
-              <li key={a.id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
-                    </svg>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-slate-900">{a.nom}</span>
-                    {(a.date_debut || a.date_fin) && (
-                      <p className="text-xs text-slate-500">
-                        {a.date_debut ? formatDate(a.date_debut) : '?'}
-                        {' → '}
-                        {a.date_fin ? formatDate(a.date_fin) : '?'}
-                      </p>
-                    )}
-                    {a.id_externe && (
-                      <p className="text-xs text-slate-500">Réf. import : {a.id_externe}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openEdit(a)}
-                    className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
-                  >
-                    Modifier
-                  </button>
-                  <button
-                    onClick={() => openDelete(a)}
-                    className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
-                  >
-                    Supprimer
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          {pageCount > 1 && (
-            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
-              <span className="text-sm text-slate-500">
-                {filteredActivites.length} activité{filteredActivites.length !== 1 ? 's' : ''}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={safePage === 1}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  ‹ Précédent
-                </button>
-                <span className="text-sm text-slate-500">Page {safePage} / {pageCount}</span>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
-                  disabled={safePage === pageCount}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Suivant ›
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage(pageCount)}
-                  disabled={safePage === pageCount}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  »
-                </button>
+            <div className="lg:flex lg:items-start lg:gap-6">
+              {/* Actives / à venir */}
+              <div className="mb-6 min-w-0 lg:mb-0 lg:flex-1">
+                {actives.length > 0 ? (
+                  <ul className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+                    {actives.map(({ activite, statut }) => (
+                      <ActiviteRow
+                        key={activite.id}
+                        activite={activite}
+                        statut={statut}
+                        counts={donsByActivite.get(activite.id)}
+                        onEdit={() => openEdit(activite)}
+                        onDelete={() => openDelete(activite)}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="rounded-sm border border-paper-border bg-white px-6 py-8 text-center font-registre text-sm text-ink-faint">
+                    Aucune activité active ou à venir.
+                  </p>
+                )}
               </div>
+
+              {/* Terminées */}
+              {terminees.length > 0 && (
+                <div className="min-w-0 lg:flex-1">
+                  <p className="mb-2 px-1 font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">
+                    Terminées
+                  </p>
+                  {/* Le statut "terminée" se lit déjà via la taille/le poids du cachet et
+                      ink-faint sur le texte — un opacity-90 supplémentaire ici cassait le
+                      contraste AA du texte, sans rien ajouter à la hiérarchie (revue de
+                      finition, 2e passe). */}
+                  <ul className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+                    {terminees.map(({ activite, statut }) => (
+                      <ActiviteRow
+                        key={activite.id}
+                        activite={activite}
+                        statut={statut}
+                        counts={donsByActivite.get(activite.id)}
+                        onEdit={() => openEdit(activite)}
+                        onDelete={() => openDelete(activite)}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-          )}
+
+            {pageCount > 1 && (
+              <div className="flex items-center justify-between rounded-sm border border-paper-border bg-white px-4 py-3 md:px-6">
+                <span className="font-registre-mono text-xs text-ink-faint">
+                  {filteredActivites.length} activité{filteredActivites.length !== 1 ? 's' : ''}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage === 1}
+                  >
+                    ‹ Précédent
+                  </Button>
+                  <span className="font-registre-mono text-xs text-ink-faint">Page {safePage} / {pageCount}</span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
+                    disabled={safePage === pageCount}
+                  >
+                    Suivant ›
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
-    </div>
 
       {/* Add / Edit modal */}
       <ActiviteModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSaved={fetchActivites}
+        onSaved={() => { fetchActivites(); fetchCounts() }}
         activite={editing}
         organisationId={organisationId}
       />
@@ -399,43 +590,38 @@ export default function ActivitesPage() {
           onClose={() => setImportOpen(false)}
           config={activitesImportConfig}
           organisationId={organisationId}
-          onImported={fetchActivites}
+          onImported={() => { fetchActivites(); fetchCounts() }}
         />
       )}
 
       {/* Delete confirmation */}
-      {deleteConfirm && (
-        <Modal open onClose={() => setDeleteConfirm(null)} maxWidthClassName="max-w-sm" labelledBy="delete-activite-title">
-            <div className="p-6">
-              <h2 id="delete-activite-title" className="text-lg font-semibold text-slate-900">Supprimer l'activité</h2>
-              <p className="mt-2 text-sm text-slate-600">
+      <Dialog open={!!deleteConfirm} onOpenChange={(next) => { if (!next) setDeleteConfirm(null) }}>
+        <DialogContent aria-describedby={undefined}>
+          {deleteConfirm && (
+            <div className="overflow-y-auto p-6">
+              <h2 className="font-registre text-lg font-semibold text-ink">Supprimer l'activité</h2>
+              <p className="mt-2 font-registre text-sm text-ink-muted">
                 Êtes-vous sûr de vouloir supprimer{' '}
-                <span className="font-medium">« {deleteConfirm.nom} »</span> ?
+                <span className="font-medium text-ink">« {deleteConfirm.nom} »</span> ?
                 Cette action est irréversible.
               </p>
               {deleteError && (
-                <div className="mt-3 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div className="mt-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
                   {deleteError}
                 </div>
               )}
               <div className="mt-5 flex justify-end gap-3">
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                >
+                <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>
                   Annuler
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-                >
+                </Button>
+                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
                   {deleting ? 'Suppression…' : 'Supprimer'}
-                </button>
+                </Button>
               </div>
             </div>
-        </Modal>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

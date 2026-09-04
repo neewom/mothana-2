@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import type { JournalModification } from '../types'
 import { fetchJournalModifications } from '../lib/journalModifications'
 import { getErrorMessage } from '../lib/errors'
-import Modal from './Modal'
 import JournalActionLabel from './JournalActionLabel'
+import { Button } from './ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 
 interface HistoriqueModificationsModalProps {
   open: boolean
@@ -52,73 +53,73 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
     if (open) setCurrentPage(1)
   }, [open])
 
-  if (!open) return null
-
   return (
-    <Modal open={open} onClose={onClose} maxWidthClassName="max-w-2xl" labelledBy="historique-modifications-title">
-      <div className="border-b border-slate-200 px-6 py-4">
-        <h2 id="historique-modifications-title" className="text-lg font-semibold text-slate-900">
-          Historique des modifications
-        </h2>
-      </div>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogContent className="max-w-2xl" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>Historique des modifications</DialogTitle>
+        </DialogHeader>
 
-      <div className="flex-1 overflow-y-auto p-6">
-        {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">Erreur : {error}</div>}
+        <div className="flex-1 overflow-y-auto p-6">
+          {error && <div className="mb-4 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">Erreur : {error}</div>}
 
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-          </div>
-        ) : entries.length === 0 ? (
-          <div className="flex items-center justify-center py-16">
-            <p className="text-slate-500">Aucune entrée</p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {entries.map((entry) => (
-              <li key={entry.id} className="py-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <JournalActionLabel entry={entry} />
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="flex items-center justify-center py-16">
+              <p className="font-registre text-ink-faint">Aucune entrée</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-paper-border-muted">
+              {entries.map((entry) => (
+                <li key={entry.id} className="py-3 font-registre text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <JournalActionLabel entry={entry} />
+                    </div>
+                    <span className="shrink-0 text-xs text-ink-faint">{formatDateTime(entry.created_at)}</span>
                   </div>
-                  <span className="shrink-0 text-xs text-slate-500">{formatDateTime(entry.created_at)}</span>
-                </div>
-                {entry.action === 'refus' && typeof entry.details?.motif_refus === 'string' && entry.details.motif_refus && (
-                  <p className="mt-1 text-xs text-slate-500">Motif : {entry.details.motif_refus}</p>
-                )}
-                <p className="mt-0.5 text-xs text-slate-500">Par {entry.auteur_nom ?? '—'}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {totalCount > PAGE_SIZE && (
-        <div className="flex shrink-0 items-center justify-between gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-3">
-          <span className="text-sm text-slate-500">
-            {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, totalCount)} sur {totalCount}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              ‹ Précédent
-            </button>
-            <span className="text-sm text-slate-500">Page {currentPage} / {pageCount}</span>
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
-              disabled={currentPage === pageCount}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Suivant ›
-            </button>
-          </div>
+                  {entry.action === 'refus' && typeof entry.details?.motif_refus === 'string' && entry.details.motif_refus && (
+                    <p className="mt-1 text-xs text-ink-faint">Motif : {entry.details.motif_refus}</p>
+                  )}
+                  <p className="mt-0.5 text-xs text-ink-faint">Par {entry.auteur_nom ?? '—'}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      )}
-    </Modal>
+
+        {totalCount > PAGE_SIZE && (
+          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-paper-border bg-white px-6 py-3 font-registre">
+            <span className="text-sm text-ink-faint">
+              {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, totalCount)} sur {totalCount}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                ‹ Précédent
+              </Button>
+              <span className="text-sm text-ink-faint">Page {currentPage} / {pageCount}</span>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
+                disabled={currentPage === pageCount}
+              >
+                Suivant ›
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }

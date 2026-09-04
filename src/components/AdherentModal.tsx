@@ -11,8 +11,13 @@ import { maxDateNaissance, isAnneeNaissanceValide } from '../lib/dateNaissance'
 import type { DuplicateMatch } from '../lib/adherentDuplicateCheck'
 import { logModification, computeAdherentDiff } from '../lib/journalModifications'
 import AdherentHistoriqueSection from './AdherentHistoriqueSection'
-import Modal from './Modal'
 import TagsInput from './TagsInput'
+import { cn } from '../lib/utils'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
+import { Select } from './ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 
 interface IdentitePrefill {
   civilite: CiviliteAdherent
@@ -131,8 +136,6 @@ export default function AdherentModal({
 
   const courrielInvalid = courriel.length > 0 && !isValidEmail(courriel)
   const dateNaissanceInvalid = dateNaissance !== '' && !isAnneeNaissanceValide(dateNaissance)
-
-  if (!open) return null
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -279,315 +282,303 @@ export default function AdherentModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} labelledBy="adherent-modal-title">
-      <div className="border-b border-slate-200 px-6 py-4">
-        <h2 id="adherent-modal-title" className="text-lg font-semibold text-slate-900">
-          {isEdit ? "Modifier l'adhérent" : 'Ajouter un adhérent'}
-        </h2>
-      </div>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogContent className="max-w-lg" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Modifier l'adhérent" : 'Ajouter un adhérent'}</DialogTitle>
+        </DialogHeader>
 
-      <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
-        <div className="space-y-4 overflow-y-auto p-6">
-          {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-1 space-y-4 overflow-y-auto p-6">
+            {error && (
+              <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
+                {error}
+              </div>
+            )}
 
-          {prefill && duplicateWarningsLoading && (
-            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
-              Recherche de doublons en cours…
-            </div>
-          )}
+            {prefill && duplicateWarningsLoading && (
+              <div className="flex items-center gap-2 rounded-sm border border-warning-border bg-warning-tint px-4 py-3 font-registre text-sm text-warning">
+                <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-warning border-t-transparent" />
+                Recherche de doublons en cours…
+              </div>
+            )}
 
-          {prefill && !duplicateWarningsLoading && duplicateWarnings && duplicateWarnings.length > 0 && (
-            <div className="rounded-lg border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              <p className="font-semibold">⚠️ Adhérent(s) potentiellement déjà existant(s)</p>
-              <ul className="mt-1.5 list-disc space-y-1 pl-4">
-                {duplicateWarnings.map(({ adherent: existing, raisons }) => (
-                  <li key={existing.id}>
-                    <span className="font-medium">{[existing.prenom, existing.nom].filter(Boolean).join(' ')}</span>
-                    {' '}— {raisons.join(', ')}
-                    {existing.statut === 'archive' && ' (archivé)'}
-                  </li>
+            {prefill && !duplicateWarningsLoading && duplicateWarnings && duplicateWarnings.length > 0 && (
+              <div className="rounded-sm border-2 border-warning-border bg-warning-tint px-4 py-3 font-registre text-sm text-warning">
+                <p className="font-semibold">Adhérent(s) potentiellement déjà existant(s)</p>
+                <ul className="mt-1.5 list-disc space-y-1 pl-4">
+                  {duplicateWarnings.map(({ adherent: existing, raisons }) => (
+                    <li key={existing.id}>
+                      <span className="font-medium">{[existing.prenom, existing.nom].filter(Boolean).join(' ')}</span>
+                      {' '}— {raisons.join(', ')}
+                      {existing.statut === 'archive' && ' (archivé)'}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="am-civilite">
+                Civilité <span className="text-stamp">*</span>
+              </Label>
+              <Select
+                id="am-civilite"
+                required
+                value={civilite === 0 ? '' : civilite}
+                onChange={(e) => setCivilite(e.target.value ? (Number(e.target.value) as CiviliteAdherent) : 0)}
+                className="w-full"
+              >
+                <option value="" disabled>Sélectionner…</option>
+                {CIVILITE_ADHERENT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
-              </ul>
+              </Select>
             </div>
-          )}
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Civilité <span className="text-red-500">*</span>
-            </label>
-            <select
-              required
-              value={civilite === 0 ? '' : civilite}
-              onChange={(e) => setCivilite(e.target.value ? (Number(e.target.value) as CiviliteAdherent) : 0)}
-              className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="" disabled>Sélectionner…</option>
-              {CIVILITE_ADHERENT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="am-nom">
+                Nom <span className="text-stamp">*</span>
+              </Label>
+              <Input
+                id="am-nom"
+                type="text"
+                required
+                value={nom}
+                onChange={(e) => setNom(toUpperName(e.target.value))}
+                placeholder="DUPONT"
+              />
+            </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Nom <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={nom}
-              onChange={(e) => setNom(toUpperName(e.target.value))}
-              placeholder="DUPONT"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="am-prenom">
+                Prénom <span className="text-stamp">*</span>
+              </Label>
+              <Input
+                id="am-prenom"
+                type="text"
+                required
+                value={prenom}
+                onChange={(e) => setPrenom(toCapitalizedName(e.target.value))}
+                placeholder="Jean"
+              />
+            </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Prénom <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={prenom}
-              onChange={(e) => setPrenom(toCapitalizedName(e.target.value))}
-              placeholder="Jean"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="am-naissance">
+                Date de naissance <span className="text-stamp">*</span>
+              </Label>
+              <Input
+                id="am-naissance"
+                type="date"
+                required
+                value={dateNaissance}
+                onChange={(e) => setDateNaissance(e.target.value)}
+                aria-invalid={dateNaissanceInvalid}
+                className={cn(dateNaissanceInvalid && 'border-stamp focus-visible:ring-stamp/70')}
+              />
+              {dateNaissanceInvalid && (
+                <p className="font-registre-mono text-[11px] text-stamp">
+                  L'année de naissance doit être {maxDateNaissance().slice(0, 4)} ou antérieure.
+                </p>
+              )}
+            </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Date de naissance <span className="text-red-500">*</span>
+            <div className="space-y-1.5">
+              <Label htmlFor="am-adresse">
+                Adresse <span className="text-stamp">*</span>
+              </Label>
+              <Input
+                id="am-adresse"
+                type="text"
+                required
+                value={adresse}
+                onChange={(e) => setAdresse(e.target.value)}
+                placeholder="12 rue des Lilas"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="am-cp">
+                  Code postal <span className="text-stamp">*</span>
+                </Label>
+                <Input
+                  id="am-cp"
+                  type="text"
+                  required
+                  inputMode="numeric"
+                  maxLength={5}
+                  value={codePostal}
+                  onChange={(e) => setCodePostal(sanitizeDigits(e.target.value))}
+                  placeholder="75000"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="am-ville">
+                  Ville <span className="text-stamp">*</span>
+                </Label>
+                <Input
+                  id="am-ville"
+                  type="text"
+                  required
+                  value={ville}
+                  onChange={(e) => setVille(e.target.value)}
+                  placeholder="Paris"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="am-pays">Pays</Label>
+              <Select id="am-pays" value={pays} onChange={(e) => setPays(e.target.value)} className="w-full">
+                {COUNTRIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="am-tel">Téléphone</Label>
+              <Input
+                id="am-tel"
+                type="tel"
+                inputMode="numeric"
+                minLength={10}
+                maxLength={25}
+                value={telephone}
+                onChange={(e) => setTelephone(sanitizeDigits(e.target.value))}
+                placeholder="0600000000"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="am-email">Courriel</Label>
+              <Input
+                id="am-email"
+                type="email"
+                value={courriel}
+                onChange={(e) => setCourriel(e.target.value)}
+                placeholder="jean.dupont@exemple.fr"
+                aria-invalid={courrielInvalid}
+                className={cn(courrielInvalid && 'border-stamp focus-visible:ring-stamp/70')}
+              />
+              {courrielInvalid && <p className="font-registre-mono text-[11px] text-stamp">Format d'email invalide.</p>}
+            </div>
+
+            <label className="flex items-center gap-2 font-registre text-sm text-ink-muted">
+              <input
+                type="checkbox"
+                checked={mailingOptOut}
+                onChange={(e) => setMailingOptOut(e.target.checked)}
+                className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+              />
+              Ne pas contacter par email (campagnes mailing)
             </label>
-            <input
-              type="date"
-              required
-              value={dateNaissance}
-              onChange={(e) => setDateNaissance(e.target.value)}
-              aria-invalid={dateNaissanceInvalid}
-              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                dateNaissanceInvalid
-                  ? 'border-red-400 focus:ring-red-500'
-                  : 'border-slate-300 focus:ring-indigo-500'
-              }`}
-            />
-            {dateNaissanceInvalid && (
-              <p className="mt-1 text-xs text-red-600">
-                L'année de naissance doit être {maxDateNaissance().slice(0, 4)} ou antérieure.
-              </p>
+
+            <div className="space-y-1.5">
+              <Label>Listes de diffusion</Label>
+              <TagsInput tags={tags} onChange={setTags} availableTags={availableTags} />
+            </div>
+
+            {!isEdit && (
+              <>
+                <div className="border-t border-paper-border pt-4">
+                  <p className="mb-3 font-registre text-sm font-medium text-ink-muted">Première adhésion</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="am-date-adhesion">
+                    Date d'adhésion <span className="text-stamp">*</span>
+                  </Label>
+                  <Input
+                    id="am-date-adhesion"
+                    type="date"
+                    required
+                    value={dateDebut}
+                    onChange={(e) => setDateDebut(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="am-cotisation">Cotisation</Label>
+                    <Input
+                      id="am-cotisation"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={montantCotisation}
+                      onChange={(e) => setMontantCotisation(e.target.value)}
+                      placeholder="Optionnel"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="am-mode-paiement">Mode de paiement</Label>
+                    <Select
+                      id="am-mode-paiement"
+                      value={modePaiement}
+                      onChange={(e) => setModePaiement(e.target.value ? (Number(e.target.value) as ModePaiement) : '')}
+                      className="w-full"
+                    >
+                      <option value="">Non renseigné</option>
+                      {MODE_PAIEMENT_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="am-date-paiement">Date de paiement</Label>
+                  <Input
+                    id="am-date-paiement"
+                    type="date"
+                    value={datePaiementCotisation}
+                    onChange={(e) => setDatePaiementCotisation(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 font-registre text-sm text-ink-muted">
+                    <input
+                      type="checkbox"
+                      checked={droitVoteAg}
+                      onChange={(e) => setDroitVoteAg(e.target.checked)}
+                      className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+                    />
+                    Droit de vote AG
+                  </label>
+                  <label className="flex items-center gap-2 font-registre text-sm text-ink-muted">
+                    <input
+                      type="checkbox"
+                      checked={bulletinSigne}
+                      onChange={(e) => setBulletinSigne(e.target.checked)}
+                      className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+                    />
+                    Bulletin signé
+                  </label>
+                </div>
+              </>
+            )}
+
+            {isEdit && adherent && (
+              <div className="border-t border-paper-border pt-4">
+                <AdherentHistoriqueSection organisationId={organisationId} adherentId={adherent.id} />
+              </div>
             )}
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Adresse <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={adresse}
-              onChange={(e) => setAdresse(e.target.value)}
-              placeholder="12 rue des Lilas"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+          <div className="flex shrink-0 justify-end gap-3 border-t border-paper-border bg-white px-6 py-4">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Annuler
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Enregistrement…' : 'Enregistrer'}
+            </Button>
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Code postal <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                inputMode="numeric"
-                maxLength={5}
-                value={codePostal}
-                onChange={(e) => setCodePostal(sanitizeDigits(e.target.value))}
-                placeholder="75000"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Ville <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={ville}
-                onChange={(e) => setVille(e.target.value)}
-                placeholder="Paris"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Pays</label>
-            <select
-              value={pays}
-              onChange={(e) => setPays(e.target.value)}
-              className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {COUNTRIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Téléphone</label>
-            <input
-              type="tel"
-              inputMode="numeric"
-              minLength={10}
-              maxLength={25}
-              value={telephone}
-              onChange={(e) => setTelephone(sanitizeDigits(e.target.value))}
-              placeholder="0600000000"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Courriel</label>
-            <input
-              type="email"
-              value={courriel}
-              onChange={(e) => setCourriel(e.target.value)}
-              placeholder="jean.dupont@exemple.fr"
-              aria-invalid={courrielInvalid}
-              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                courrielInvalid
-                  ? 'border-red-400 focus:ring-red-500'
-                  : 'border-slate-300 focus:ring-indigo-500'
-              }`}
-            />
-            {courrielInvalid && <p className="mt-1 text-xs text-red-600">Format d'email invalide.</p>}
-          </div>
-
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={mailingOptOut}
-              onChange={(e) => setMailingOptOut(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            Ne pas contacter par email (campagnes mailing)
-          </label>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Listes de diffusion</label>
-            <TagsInput tags={tags} onChange={setTags} availableTags={availableTags} />
-          </div>
-
-          {!isEdit && (
-            <>
-              <div className="border-t border-slate-200 pt-4">
-                <p className="mb-3 text-sm font-medium text-slate-700">Première adhésion</p>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Date d'adhésion <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={dateDebut}
-                  onChange={(e) => setDateDebut(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Cotisation</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={montantCotisation}
-                    onChange={(e) => setMontantCotisation(e.target.value)}
-                    placeholder="Optionnel"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Mode de paiement</label>
-                  <select
-                    value={modePaiement}
-                    onChange={(e) => setModePaiement(e.target.value ? (Number(e.target.value) as ModePaiement) : '')}
-                    className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Non renseigné</option>
-                    {MODE_PAIEMENT_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Date de paiement</label>
-                <input
-                  type="date"
-                  value={datePaiementCotisation}
-                  onChange={(e) => setDatePaiementCotisation(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="flex gap-6">
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={droitVoteAg}
-                    onChange={(e) => setDroitVoteAg(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  Droit de vote AG
-                </label>
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={bulletinSigne}
-                    onChange={(e) => setBulletinSigne(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  Bulletin signé
-                </label>
-              </div>
-            </>
-          )}
-
-          {isEdit && adherent && (
-            <div className="border-t border-slate-200 pt-4">
-              <AdherentHistoriqueSection organisationId={organisationId} adherentId={adherent.id} />
-            </div>
-          )}
-        </div>
-
-        <div className="flex shrink-0 justify-end gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)]">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
-            Annuler
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-          >
-            {saving ? 'Enregistrement…' : 'Enregistrer'}
-          </button>
-        </div>
-      </form>
-    </Modal>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

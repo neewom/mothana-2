@@ -3,14 +3,19 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Don, ProfilParticipant, Activite } from '../types'
 import DonModal from '../components/DonModal'
-import SectionHeader from '../components/SectionHeader'
 import ParticipantAutocomplete from '../components/ParticipantAutocomplete'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import ImportWizard from '../components/import/ImportWizard'
 import { donsImportConfig } from '../lib/import/configs'
-import { MODE_PAIEMENT_LABELS, MODE_PAIEMENT_BADGE_CLASSES, MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
+import { MODE_PAIEMENT_LABELS, MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { downloadCsv } from '../lib/csvExport'
+import { cn } from '../lib/utils'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Select } from '../components/ui/select'
+import { Badge } from '../components/ui/badge'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -150,9 +155,9 @@ function useDons(organisationId: string): DonsData {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
+    <div className="rounded-sm border border-paper-border bg-white p-5">
+      <p className="font-registre text-sm text-ink-muted">{label}</p>
+      <p className="mt-1 font-registre-mono text-2xl font-bold text-ink">{value}</p>
     </div>
   )
 }
@@ -182,13 +187,13 @@ function DetailPanel({ don, onClose, onEdit, onDeleted }: DetailPanelProps) {
   const p = don.profils_participant?.personnes
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col font-registre">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-        <h2 className="text-lg font-semibold text-slate-900">Détail du don</h2>
+      <div className="flex items-center justify-between border-b border-paper-border px-6 py-4">
+        <h2 className="text-lg font-semibold text-ink">Détail du don</h2>
         <button
           onClick={onClose}
-          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600"
+          className="rounded-sm p-1.5 text-ink-faint transition-colors hover:text-stamp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -197,80 +202,63 @@ function DetailPanel({ don, onClose, onEdit, onDeleted }: DetailPanelProps) {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto space-y-5 px-6 py-5">
+      <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Participant</p>
-          <p className="mt-1 font-semibold text-slate-900">
+          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Participant</p>
+          <p className="mt-1 font-semibold text-ink">
             {p ? (p.prenom ? `${p.prenom} ${p.nom}` : p.nom) : '—'}
           </p>
-          {p?.email && <p className="text-sm text-slate-500">{p.email}</p>}
-          {p?.telephone && <p className="text-sm text-slate-500">{p.telephone}</p>}
+          {p?.email && <p className="text-sm text-ink-muted">{p.email}</p>}
+          {p?.telephone && <p className="font-registre-mono text-sm text-ink-muted">{p.telephone}</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Montant</p>
-            <p className="mt-1 text-xl font-bold text-slate-900">{formatEur(don.montant)}</p>
+            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Montant</p>
+            <p className="mt-1 font-registre-mono text-xl font-bold text-ink">{formatEur(don.montant)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Date</p>
-            <p className="mt-1 text-sm text-slate-900">{formatDate(don.date)}</p>
+            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Date</p>
+            <p className="mt-1 text-sm text-ink">{formatDate(don.date)}</p>
           </div>
         </div>
 
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Mode de paiement</p>
-          <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_PAIEMENT_BADGE_CLASSES[don.mode_paiement]}`}>
-            {MODE_PAIEMENT_LABELS[don.mode_paiement]}
-          </span>
+          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Mode de paiement</p>
+          <Badge variant="neutral" className="mt-1">{MODE_PAIEMENT_LABELS[don.mode_paiement]}</Badge>
         </div>
 
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Activité</p>
-          <p className="mt-1 text-sm text-slate-900">{don.activites?.nom ?? '—'}</p>
+          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Activité</p>
+          <p className="mt-1 text-sm text-ink">{don.activites?.nom ?? '—'}</p>
         </div>
 
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Saisi par</p>
-          <p className="mt-1 text-sm capitalize text-slate-900">{don.created_by_role}</p>
+          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Saisi par</p>
+          <p className="mt-1 text-sm capitalize text-ink">{don.created_by_role}</p>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="border-t border-slate-200 px-6 py-4 space-y-2">
+      <div className="space-y-2 border-t border-paper-border px-6 py-4">
         {confirming ? (
           <div className="space-y-2">
-            <p className="text-sm font-medium text-red-700">Confirmer la suppression ?</p>
+            <p className="font-registre text-sm font-medium text-stamp">Confirmer la suppression ?</p>
             <div className="flex gap-2">
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
-              >
+              <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="flex-1">
                 {deleting ? 'Suppression…' : 'Supprimer'}
-              </button>
-              <button
-                onClick={() => setConfirming(false)}
-                className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
+              </Button>
+              <Button variant="secondary" onClick={() => setConfirming(false)} className="flex-1">
                 Annuler
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
           <div className="flex gap-2">
-            <button
-              onClick={onEdit}
-              className="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-              Modifier
-            </button>
-            <button
-              onClick={() => setConfirming(true)}
-              className="flex-1 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-            >
+            <Button onClick={onEdit} className="flex-1">Modifier</Button>
+            <Button variant="danger" onClick={() => setConfirming(true)} className="flex-1">
               Supprimer
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -298,9 +286,18 @@ export default function DonsPage() {
 
   // Detail & modal
   const [selectedDon, setSelectedDon] = useState<Don | null>(null)
+  const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingDon, setEditingDon] = useState<Don | undefined>(undefined)
   const [importOpen, setImportOpen] = useState(false)
+
+  useEffect(() => {
+    if (selectedDon) {
+      const timer = setTimeout(() => setMobilePanelVisible(true), 10)
+      return () => clearTimeout(timer)
+    }
+    setMobilePanelVisible(false)
+  }, [selectedDon])
 
   function applyShortcut(s: Shortcut) {
     setShortcut(s)
@@ -417,284 +414,267 @@ export default function DonsPage() {
 
   return (
     <>
-    <div className="space-y-6">
-      {/* Page title */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dons</h1>
-        <p className="mt-1 text-sm text-slate-600">Gestion et suivi des donations</p>
-      </div>
-
-      {/* Error */}
-      {error && (
-        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-          Erreur : {error}
-        </div>
-      )}
-
-      {/* Filters card */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-        {/* Period shortcuts */}
-        <div className="flex flex-wrap gap-2">
-          {SHORTCUTS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => applyShortcut(key)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                shortcut === key
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+      {/*
+        THESIS: le registre des dons reste lisible même dense — les 4 modes de paiement ne
+        méritent pas 4 couleurs (catégorisation décorative, pas un signal d'état), une seule
+        pastille neutre suffit ; l'encre reste réservée à la marque et aux vrais signaux.
+        OWN-WORLD: papier clair (paper), stamp (marque/danger), warning/success réservés
+        (non utilisés ici, aucun état à signaler sur cette page). La marge stamp (spine)
+        reste sur le tableau uniquement — pas sur les cartes filtres/stats, qui ne sont pas
+        le registre lui-même.
+        STORY: l'admin filtre par période/participant/activité/mode, scanne les stats,
+        clique une ligne pour le détail (panneau latéral desktop, plein écran glissant sur
+        mobile — animation existante préservée à l'identique, PR #111).
+        FIRST VIEWPORT: filtres + stats + tableau, panneau de détail à droite en desktop.
+        FORM: 6e page du rollout "carnet tamponné x registre".
+        FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
+        review, the verdict, and DESIGN.md.
+      */}
+      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
+        {/* Page title */}
+        <div>
+          <h1 className="text-2xl font-bold text-ink md:text-3xl">Dons</h1>
+          <p className="mt-1 text-sm text-ink-muted">Gestion et suivi des donations</p>
         </div>
 
-        {/* Date range + dropdowns */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <div>
-            <label htmlFor="dons-date-debut" className="mb-1 block text-xs font-medium text-slate-500">Début</label>
-            <input
-              id="dons-date-debut"
-              type="date"
-              value={dateDebut}
-              onChange={(e) => handleDateDebutChange(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+        {/* Error */}
+        {error && (
+          <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">
+            Erreur : {error}
           </div>
-          <div>
-            <label htmlFor="dons-date-fin" className="mb-1 block text-xs font-medium text-slate-500">Fin</label>
-            <input
-              id="dons-date-fin"
-              type="date"
-              value={dateFin}
-              onChange={(e) => handleDateFinChange(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+        )}
+
+        {/* Filters card */}
+        <div className="space-y-4 rounded-sm border border-paper-border bg-white p-5">
+          {/* Period shortcuts */}
+          <div className="flex flex-wrap gap-2">
+            {SHORTCUTS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => applyShortcut(key)}
+                className={cn(
+                  'rounded-full px-3 py-1.5 font-registre text-sm font-medium transition-colors',
+                  shortcut === key
+                    ? 'bg-stamp text-white'
+                    : 'bg-paper-border/30 text-ink-muted hover:bg-paper-border/50'
+                )}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Participant</label>
-            <ParticipantAutocomplete
-              participants={participants}
-              value={filterParticipant}
-              onChange={(id) => { setFilterParticipant(id); setCurrentPage(1) }}
-              placeholder="Tous les participants"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Activité</label>
-            <ActiviteAutocomplete
-              activites={activites}
-              value={filterActivite}
-              onChange={(id) => { setFilterActivite(id); setCurrentPage(1) }}
-              placeholder="Toutes les activités"
-            />
-          </div>
-          <div>
-            <label htmlFor="dons-mode-paiement" className="mb-1 block text-xs font-medium text-slate-500">Mode de paiement</label>
-            <select
-              id="dons-mode-paiement"
-              value={filterMode}
-              onChange={(e) => { setFilterMode(e.target.value); setCurrentPage(1) }}
-              className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">Tous les modes</option>
-              {MODE_PAIEMENT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+
+          {/* Date range + dropdowns */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="space-y-1.5">
+              <label htmlFor="dons-date-debut" className="block font-registre-mono text-[11px] font-medium text-ink-faint">Début</label>
+              <Input
+                id="dons-date-debut"
+                type="date"
+                value={dateDebut}
+                onChange={(e) => handleDateDebutChange(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="dons-date-fin" className="block font-registre-mono text-[11px] font-medium text-ink-faint">Fin</label>
+              <Input
+                id="dons-date-fin"
+                type="date"
+                value={dateFin}
+                onChange={(e) => handleDateFinChange(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block font-registre-mono text-[11px] font-medium text-ink-faint">Participant</label>
+              <ParticipantAutocomplete
+                participants={participants}
+                value={filterParticipant}
+                onChange={(id) => { setFilterParticipant(id); setCurrentPage(1) }}
+                placeholder="Tous les participants"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block font-registre-mono text-[11px] font-medium text-ink-faint">Activité</label>
+              <ActiviteAutocomplete
+                activites={activites}
+                value={filterActivite}
+                onChange={(id) => { setFilterActivite(id); setCurrentPage(1) }}
+                placeholder="Toutes les activités"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="dons-mode-paiement" className="block font-registre-mono text-[11px] font-medium text-ink-faint">Mode de paiement</label>
+              <Select
+                id="dons-mode-paiement"
+                value={filterMode}
+                onChange={(e) => { setFilterMode(e.target.value); setCurrentPage(1) }}
+                className="w-full"
+              >
+                <option value="">Tous les modes</option>
+                {MODE_PAIEMENT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </Select>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total collecté" value={formatEur(stats.total)} />
-        <StatCard label="Nombre de dons" value={String(stats.count)} />
-        <StatCard label="Don moyen" value={stats.count > 0 ? formatEur(stats.avg) : '—'} />
-        <StatCard label="Participants distincts" value={String(stats.distinctParticipants)} />
-      </div>
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard label="Total collecté" value={formatEur(stats.total)} />
+          <StatCard label="Nombre de dons" value={String(stats.count)} />
+          <StatCard label="Don moyen" value={stats.count > 0 ? formatEur(stats.avg) : '—'} />
+          <StatCard label="Participants distincts" value={String(stats.distinctParticipants)} />
+        </div>
 
-      {/* Table + Detail panel */}
-      <div className={`flex gap-6 ${selectedDon ? 'items-start' : ''}`}>
-        {/* Table card */}
-        <div className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <SectionHeader
-            title="Liste des dons"
-            actions={
-              <>
-                <button
-                  onClick={handleExport}
-                  disabled={filteredDons.length === 0}
-                  className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
+        {/* Table + Detail panel */}
+        <div className={cn('flex gap-6', selectedDon && 'items-start')}>
+          {/* Table card */}
+          <div className="min-w-0 flex-1 rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-paper-border px-4 py-4 md:px-6">
+              <h2 className="text-lg font-semibold text-ink">Liste des dons</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="secondary" onClick={handleExport} disabled={filteredDons.length === 0}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
                   </svg>
                   Exporter
-                </button>
-                <button
-                  onClick={() => setImportOpen(true)}
-                  className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
+                </Button>
+                <Button variant="secondary" onClick={() => setImportOpen(true)}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                   </svg>
                   Importer
-                </button>
-                <button
-                  onClick={openAdd}
-                  className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-                >
+                </Button>
+                <Button onClick={openAdd}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
                   Ajouter
-                </button>
-              </>
-            }
-          />
-
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-            </div>
-          ) : filteredDons.length === 0 ? (
-            <div className="flex items-center justify-center py-16">
-              <p className="text-slate-500">Aucun don trouvé</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                    <th className="px-6 py-3">Date</th>
-                    <th className="px-6 py-3">Participant</th>
-                    <th className="px-6 py-3">Activité</th>
-                    <th className="px-6 py-3 text-right">Montant</th>
-                    <th className="px-6 py-3">Mode</th>
-                    <th className="px-6 py-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginatedDons.map((don) => (
-                    <tr
-                      key={don.id}
-                      onClick={() => setSelectedDon(don.id === selectedDon?.id ? null : don)}
-                      className={`cursor-pointer transition-colors hover:bg-slate-50 ${
-                        don.id === selectedDon?.id ? 'bg-indigo-50' : ''
-                      }`}
-                    >
-                      <td className="whitespace-nowrap px-6 py-3 text-slate-700">
-                        {formatDate(don.date)}
-                      </td>
-                      <td className="px-6 py-3 font-medium text-slate-900">
-                        {participantName(don)}
-                      </td>
-                      <td className="px-6 py-3 text-slate-500">
-                        {don.activites?.nom ?? '—'}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-3 text-right font-medium text-slate-900">
-                        {formatEur(don.montant)}
-                      </td>
-                      <td className="px-6 py-3">
-                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${MODE_PAIEMENT_BADGE_CLASSES[don.mode_paiement]}`}>
-                          {MODE_PAIEMENT_LABELS[don.mode_paiement]}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3 text-right text-slate-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {!loading && filteredDons.length > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-3">
-              <div className="flex items-center gap-2 text-sm text-slate-500">
-                <span>Lignes par page</span>
-                <select
-                  aria-label="Lignes par page"
-                  value={pageSize}
-                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
-                  className="select-field rounded-lg border border-slate-300 py-1 pl-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {[25, 50, 100, 250].map((size) => (
-                    <option key={size} value={size}>{size}</option>
-                  ))}
-                </select>
-                <span>
-                  {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filteredDons.length)} sur {filteredDons.length}
-                </span>
+                </Button>
               </div>
+            </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={safePage === 1}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  «
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={safePage === 1}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  ‹ Précédent
-                </button>
-                <span className="text-sm text-slate-500">Page {safePage} / {pageCount}</span>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
-                  disabled={safePage === pageCount}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Suivant ›
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage(pageCount)}
-                  disabled={safePage === pageCount}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  »
-                </button>
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
               </div>
+            ) : filteredDons.length === 0 ? (
+              <div className="flex items-center justify-center py-16">
+                <p className="font-registre text-sm text-ink-faint">Aucun don trouvé</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Participant</TableHead>
+                      <TableHead>Activité</TableHead>
+                      <TableHead className="text-right">Montant</TableHead>
+                      <TableHead>Mode</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedDons.map((don) => (
+                      <TableRow
+                        key={don.id}
+                        onClick={() => setSelectedDon(don.id === selectedDon?.id ? null : don)}
+                        className={cn(
+                          'cursor-pointer hover:bg-paper-border/20',
+                          don.id === selectedDon?.id && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]'
+                        )}
+                      >
+                        <TableCell className="whitespace-nowrap text-ink-muted">
+                          {formatDate(don.date)}
+                        </TableCell>
+                        <TableCell className="font-medium text-ink">
+                          {participantName(don)}
+                        </TableCell>
+                        <TableCell className="text-ink-faint">
+                          {don.activites?.nom ?? '—'}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
+                          {formatEur(don.montant)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="neutral">{MODE_PAIEMENT_LABELS[don.mode_paiement]}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right text-ink-faint">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {!loading && filteredDons.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-paper-border px-4 py-3 md:px-6">
+                <div className="flex items-center gap-2 font-registre-mono text-xs text-ink-faint">
+                  <span>Lignes par page</span>
+                  <Select
+                    aria-label="Lignes par page"
+                    value={pageSize}
+                    onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
+                    className="py-1 pl-2 pr-7 text-xs"
+                  >
+                    {[25, 50, 100, 250].map((size) => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </Select>
+                  <span>
+                    {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filteredDons.length)} sur {filteredDons.length}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage(1)} disabled={safePage === 1}>«</Button>
+                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
+                    ‹ Précédent
+                  </Button>
+                  <span className="font-registre-mono text-xs text-ink-faint">Page {safePage} / {pageCount}</span>
+                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))} disabled={safePage === pageCount}>
+                    Suivant ›
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage(pageCount)} disabled={safePage === pageCount}>»</Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Detail panel (desktop) */}
+          {selectedDon && (
+            <div className="hidden w-80 flex-shrink-0 rounded-sm border border-paper-border bg-white lg:flex lg:flex-col" style={{ minHeight: '400px' }}>
+              <DetailPanel
+                don={selectedDon}
+                onClose={() => setSelectedDon(null)}
+                onEdit={() => openEdit(selectedDon)}
+                onDeleted={handleDeleted}
+              />
             </div>
           )}
         </div>
-
-        {/* Detail panel */}
-        {selectedDon && (
-          <div className="hidden w-80 flex-shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm lg:flex lg:flex-col" style={{ minHeight: '400px' }}>
-            <DetailPanel
-              don={selectedDon}
-              onClose={() => setSelectedDon(null)}
-              onEdit={() => openEdit(selectedDon)}
-              onDeleted={handleDeleted}
-            />
-          </div>
-        )}
       </div>
-    </div>
 
-      {/* Mobile detail panel (slides over) */}
+      {/* Mobile detail panel (slides over) — animation inchangée (PR #111) */}
       {selectedDon && (
         <div className="fixed inset-0 z-30 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-ink/40"
             onClick={() => setSelectedDon(null)}
           />
-          <div className="absolute inset-y-0 right-0 w-full max-w-sm bg-white shadow-xl flex flex-col">
+          <div
+            className={cn(
+              'absolute inset-y-0 right-0 flex w-full max-w-sm flex-col bg-white shadow-xl transition-transform duration-200',
+              mobilePanelVisible ? 'translate-x-0' : 'translate-x-full'
+            )}
+          >
             <DetailPanel
               don={selectedDon}
               onClose={() => setSelectedDon(null)}
