@@ -34,9 +34,9 @@ function formatDate(iso: string): string {
 
 function Card({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+    <div className="rounded-sm border border-paper-border bg-white">
+      <div className="flex items-center justify-between border-b border-paper-border px-5 py-3">
+        <h2 className="font-registre text-sm font-semibold text-ink">{title}</h2>
         {action}
       </div>
       <div className="p-5">{children}</div>
@@ -141,38 +141,40 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-sm text-slate-500">
+      <div className="flex items-center justify-center py-24 font-registre text-sm text-ink-faint">
         Chargement…
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Tableau de bord</h1>
-        <p className="mt-1 text-sm text-slate-600">Vue d'ensemble de votre organisation.</p>
+        <h1 className="text-2xl font-bold text-ink md:text-3xl">Tableau de bord</h1>
+        <p className="mt-1 text-sm text-ink-muted">Vue d'ensemble de votre organisation.</p>
       </div>
 
       {demandesEnAttente > 0 && (
         <Link
           to="/admin/adherents/demandes"
-          className="flex items-center gap-4 rounded-xl border-2 border-amber-300 bg-amber-50 px-6 py-5 shadow-sm transition-colors hover:bg-amber-100"
+          className="flex flex-col gap-4 rounded-sm border-2 border-warning-border bg-warning-tint px-6 py-5 transition-colors hover:bg-warning-tint/70 sm:flex-row sm:items-center"
         >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-400 text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-8.25 3h.008v.008h-.008V12.75z" />
-            </svg>
+          <div className="flex items-center gap-4 sm:min-w-0 sm:flex-1">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-warning text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-8.25 3h.008v.008h-.008V12.75z" />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-bold text-warning">
+                {demandesEnAttente} demande{demandesEnAttente > 1 ? 's' : ''} d'adhésion en attente de ratification
+              </p>
+              <p className="mt-0.5 text-sm text-warning">
+                Soumises via le formulaire public, à examiner par le conseil d'administration.
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-base font-bold text-amber-900">
-              {demandesEnAttente} demande{demandesEnAttente > 1 ? 's' : ''} d'adhésion en attente de ratification
-            </p>
-            <p className="mt-0.5 text-sm text-amber-700">
-              Soumises via le formulaire public, à examiner par le conseil d'administration.
-            </p>
-          </div>
-          <span className="shrink-0 rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white">
+          <span className="w-full shrink-0 rounded-sm bg-warning px-4 py-2 text-center text-sm font-semibold text-white sm:w-auto">
             Examiner →
           </span>
         </Link>
@@ -181,22 +183,24 @@ export default function DashboardPage() {
       {donsReguliersAConfirmer > 0 && (
         <Link
           to="/admin/dons-reguliers"
-          className="flex items-center gap-4 rounded-xl border-2 border-amber-300 bg-amber-50 px-6 py-5 shadow-sm transition-colors hover:bg-amber-100"
+          className="flex flex-col gap-4 rounded-sm border-2 border-warning-border bg-warning-tint px-6 py-5 transition-colors hover:bg-warning-tint/70 sm:flex-row sm:items-center"
         >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-400 text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3M3.75 6h16.5a1.5 1.5 0 011.5 1.5v9a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5v-9a1.5 1.5 0 011.5-1.5z" />
-            </svg>
+          <div className="flex items-center gap-4 sm:min-w-0 sm:flex-1">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-warning text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3M3.75 6h16.5a1.5 1.5 0 011.5 1.5v9a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5v-9a1.5 1.5 0 011.5-1.5z" />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-bold text-warning">
+                {donsReguliersAConfirmer} don{donsReguliersAConfirmer > 1 ? 's' : ''} régulier{donsReguliersAConfirmer > 1 ? 's' : ''} en attente de confirmation
+              </p>
+              <p className="mt-0.5 text-sm text-warning">
+                Prélèvements mensuels à valider avant enregistrement définitif.
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-base font-bold text-amber-900">
-              {donsReguliersAConfirmer} don{donsReguliersAConfirmer > 1 ? 's' : ''} régulier{donsReguliersAConfirmer > 1 ? 's' : ''} en attente de confirmation
-            </p>
-            <p className="mt-0.5 text-sm text-amber-700">
-              Prélèvements mensuels à valider avant enregistrement définitif.
-            </p>
-          </div>
-          <span className="shrink-0 rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white">
+          <span className="w-full shrink-0 rounded-sm bg-warning px-4 py-2 text-center text-sm font-semibold text-white sm:w-auto">
             Confirmer →
           </span>
         </Link>
@@ -204,48 +208,48 @@ export default function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Dons ce mois-ci</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{formatEur(montantMois)}</p>
-          <p className="mt-1 text-xs text-slate-500">{nombreDonsMois} don{nombreDonsMois > 1 ? 's' : ''}</p>
+        <div className="rounded-sm border border-paper-border bg-white p-5">
+          <p className="text-sm text-ink-faint">Dons ce mois-ci</p>
+          <p className="mt-1 text-2xl font-bold text-ink">{formatEur(montantMois)}</p>
+          <p className="mt-1 text-xs text-ink-faint">{nombreDonsMois} don{nombreDonsMois > 1 ? 's' : ''}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Adhérents proches d'expiration (30 jours)</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{adherentsExpiration.length}</p>
-          <p className="mt-1 text-xs text-slate-500">
+        <div className="rounded-sm border border-paper-border bg-white p-5">
+          <p className="text-sm text-ink-faint">Adhérents proches d'expiration (30 jours)</p>
+          <p className="mt-1 text-2xl font-bold text-ink">{adherentsExpiration.length}</p>
+          <p className="mt-1 text-xs text-ink-faint">
             {adherentsExpiration.length === 0 ? 'Aucun renouvellement à prévoir' : 'À relancer pour renouvellement'}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card title="Dons récents" action={<Link to="/admin/dons" className="text-xs font-medium text-indigo-600 hover:text-indigo-700">Voir tout</Link>}>
+        <Card title="Dons récents" action={<Link to="/admin/dons" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
           {recentDons.length === 0 ? (
-            <p className="text-sm text-slate-500">Aucun don enregistré.</p>
+            <p className="text-sm text-ink-faint">Aucun don enregistré.</p>
           ) : (
             <ul className="space-y-3">
               {recentDons.map((don) => (
                 <li key={don.id} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-700">
+                  <span className="text-ink-muted">
                     {don.profils_participant?.personnes.prenom} {don.profils_participant?.personnes.nom}
                   </span>
-                  <span className="font-medium text-slate-900">{formatEur(don.montant)}</span>
+                  <span className="font-medium text-ink">{formatEur(don.montant)}</span>
                 </li>
               ))}
             </ul>
           )}
         </Card>
 
-        <Card title="Activités récentes" action={<Link to="/admin/activites" className="text-xs font-medium text-indigo-600 hover:text-indigo-700">Voir tout</Link>}>
+        <Card title="Activités récentes" action={<Link to="/admin/activites" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
           {recentActivites.length === 0 ? (
-            <p className="text-sm text-slate-500">Aucune activité enregistrée.</p>
+            <p className="text-sm text-ink-faint">Aucune activité enregistrée.</p>
           ) : (
             <ul className="space-y-3">
               {recentActivites.map((activite) => (
                 <li key={activite.id} className="text-sm">
-                  <p className="text-slate-700">{activite.nom}</p>
+                  <p className="text-ink-muted">{activite.nom}</p>
                   {activite.date_debut && (
-                    <p className="text-xs text-slate-500">{formatDate(activite.date_debut)}</p>
+                    <p className="text-xs text-ink-faint">{formatDate(activite.date_debut)}</p>
                   )}
                 </li>
               ))}
@@ -253,17 +257,17 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        <Card title="Adhérents proches d'expiration" action={<Link to="/admin/adherents" className="text-xs font-medium text-indigo-600 hover:text-indigo-700">Voir tout</Link>}>
+        <Card title="Adhérents proches d'expiration" action={<Link to="/admin/adherents" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
           {adherentsExpiration.length === 0 ? (
-            <p className="text-sm text-slate-500">Aucun adhérent proche d'expiration.</p>
+            <p className="text-sm text-ink-faint">Aucun adhérent proche d'expiration.</p>
           ) : (
             <ul className="space-y-3">
               {adherentsExpiration.map((adhesion) => (
                 <li key={adhesion.id} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-700">
+                  <span className="text-ink-muted">
                     {adhesion.adherents?.prenom} {adhesion.adherents?.nom}
                   </span>
-                  <span className="text-xs text-slate-500">{formatDate(adhesion.date_fin)}</span>
+                  <span className="text-xs text-ink-faint">{formatDate(adhesion.date_fin)}</span>
                 </li>
               ))}
             </ul>
