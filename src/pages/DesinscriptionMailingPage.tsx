@@ -55,24 +55,24 @@ export default function DesinscriptionMailingPage() {
   }, [token])
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-slate-50 px-4 py-12">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-paper px-4 py-12 font-registre">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Samakan</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-ink">Samakan</h1>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <div className="rounded-sm border border-paper-border bg-white p-8 text-center">
           {status === 'loading' ? (
             <div className="flex justify-center py-4">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
             </div>
           ) : (
             <>
-              <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white">
+              <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-sm bg-stamp text-white">
                 <MailIcon />
               </div>
-              <h2 className="text-xl font-semibold text-slate-900">Désinscription prise en compte</h2>
-              <p className="mt-2 text-sm text-slate-600">
+              <h2 className="text-xl font-semibold text-ink">Désinscription prise en compte</h2>
+              <p className="mt-2 text-sm text-ink-muted">
                 Vous ne recevrez plus d'emails de campagnes d'information de la part de cette association. Cela n'affecte pas les emails liés à votre compte ou à votre adhésion.
               </p>
             </>
