@@ -4,6 +4,8 @@ import { useAuth } from '../hooks/useAuth'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { supabase } from '../lib/supabaseClient'
 import RecetteBanner from '../components/RecetteBanner'
+import { cn } from '../lib/utils'
+import { Button } from '../components/ui/button'
 
 interface NavLinkItem {
   type: 'link'
@@ -42,7 +44,7 @@ function ChevronDownIcon({ open }: { open: boolean }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`}
+      className={cn('h-4 w-4 transition-transform', open && 'rotate-180')}
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -133,9 +135,10 @@ const NAV_ITEMS: NavEntry[] = [
 ]
 
 function navLinkClasses({ isActive }: { isActive: boolean }): string {
-  return `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-    isActive ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-  }`
+  return cn(
+    'flex items-center gap-3 rounded-sm px-3 py-2 font-registre text-sm font-medium transition-colors',
+    isActive ? 'bg-stamp text-white' : 'text-paper/70 hover:bg-white/10 hover:text-paper'
+  )
 }
 
 function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => void }) {
@@ -151,9 +154,10 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
       <button
         type="button"
         onClick={() => setManualOpen(!open)}
-        className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-          isGroupActive ? 'text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-        }`}
+        className={cn(
+          'flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2 font-registre text-sm font-medium transition-colors',
+          isGroupActive ? 'text-paper' : 'text-paper/70 hover:bg-white/10 hover:text-paper'
+        )}
       >
         <span className="flex items-center gap-3">
           {group.icon}
@@ -162,7 +166,7 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
         <ChevronDownIcon open={open} />
       </button>
       {open && (
-        <div className="ml-4 mt-1 space-y-1 border-l border-slate-700 pl-4">
+        <div className="ml-4 mt-1 space-y-1 border-l border-white/10 pl-4">
           {group.items.map((item) => (
             <NavLink
               key={item.to}
@@ -170,9 +174,10 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
               end={item.end}
               onClick={onClose}
               className={({ isActive }) =>
-                `block rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  isActive ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                }`
+                cn(
+                  'block rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors',
+                  isActive ? 'bg-stamp text-white' : 'text-paper/70 hover:bg-white/10 hover:text-paper'
+                )
               }
             >
               {item.label}
@@ -186,12 +191,12 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
 
 function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
-    <div className="flex h-full flex-col bg-slate-900 text-white">
+    <div className="flex h-full flex-col bg-ink text-paper">
       {/* Logo */}
       <div className="flex h-16 items-center justify-between px-6">
         <span className="text-lg font-bold tracking-tight">Samakan</span>
         {onClose && (
-          <button onClick={onClose} className="rounded p-1 hover:bg-slate-700 lg:hidden">
+          <button onClick={onClose} className="rounded-sm p-1 hover:bg-white/10 lg:hidden">
             <XIcon />
           </button>
         )}
@@ -246,7 +251,7 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-slate-100">
+    <div className="flex h-dvh overflow-hidden bg-paper font-registre">
       {/* Desktop sidebar */}
       <aside className="hidden w-64 flex-shrink-0 lg:block">
         <Sidebar />
@@ -256,10 +261,10 @@ export default function AdminLayout() {
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-ink/40"
             onClick={() => setSidebarOpen(false)}
           />
-          <aside className="relative z-50 w-64 h-full">
+          <aside className="relative z-50 h-full w-64">
             <Sidebar onClose={() => setSidebarOpen(false)} />
           </aside>
         </div>
@@ -271,14 +276,14 @@ export default function AdminLayout() {
 
         {/* Super-admin banner */}
         {isSuperAdminViewing && (
-          <div className="flex items-center justify-between bg-indigo-600 px-4 py-2 text-sm text-white">
+          <div className="flex items-center justify-between bg-stamp px-4 py-2 text-sm text-white">
             <span>
               Mode consultation super-admin —{' '}
               <span className="font-semibold">{organisationNom ?? '…'}</span>
             </span>
             <button
               onClick={handleBackToSuperAdmin}
-              className="flex items-center gap-1.5 rounded-md bg-white/20 px-3 py-1 text-xs font-medium hover:bg-white/30"
+              className="flex items-center gap-1.5 rounded-sm bg-white/20 px-3 py-1 text-xs font-medium hover:bg-white/30"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -289,26 +294,23 @@ export default function AdminLayout() {
         )}
 
         {/* Top bar */}
-        <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm">
+        <header className="flex h-16 items-center justify-between border-b border-paper-border bg-white px-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="rounded p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden"
+              className="rounded-sm p-1.5 text-ink-faint hover:bg-paper lg:hidden"
             >
               <MenuIcon />
             </button>
-            <span className="text-sm font-medium text-slate-500">
+            <span className="text-sm font-medium text-ink-faint">
               Organisation:{' '}
-              <span className="font-semibold text-slate-900">{organisationNom ?? organisationId ?? '—'}</span>
+              <span className="font-semibold text-ink">{organisationNom ?? organisationId ?? '—'}</span>
             </span>
           </div>
           {!isSuperAdminViewing && (
-            <button
-              onClick={handleLogout}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
-            >
+            <Button variant="secondary" size="sm" onClick={handleLogout}>
               Se déconnecter
-            </button>
+            </Button>
           )}
         </header>
 
