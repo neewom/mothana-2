@@ -5,8 +5,9 @@ import ParticipantAutocomplete from './ParticipantAutocomplete'
 import ActiviteAutocomplete from './ActiviteAutocomplete'
 import ParticipantModal from './ParticipantModal'
 import DonFichiers, { type DonFichiersHandle } from './DonFichiers'
+import AdherentFallbackSuggestions from './AdherentFallbackSuggestions'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
-import { participantFullName } from '../lib/participantSearch'
+import { participantFullName, filterParticipants } from '../lib/participantSearch'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -63,11 +64,21 @@ export default function DonModal({
   // the parent list until its next refetch.
   const [fullModalOpen, setFullModalOpen] = useState(false)
   const [extraParticipants, setExtraParticipants] = useState<ProfilParticipant[]>([])
+  const [participantSearch, setParticipantSearch] = useState('')
 
   const allParticipants = useMemo(
     () => (extraParticipants.length ? [...participants, ...extraParticipants] : participants),
     [participants, extraParticipants]
   )
+
+  // Repli adhérents : uniquement si aucun participant existant ne correspond
+  // déjà au texte tapé (cf. cadrage "Sélection d'un adhérent à la saisie d'un
+  // don" — la recherche participant reste le premier réflexe, inchangée).
+  const showAdherentFallback =
+    !isEdit &&
+    !profilParticipantId &&
+    participantSearch.trim().length >= 2 &&
+    filterParticipants(allParticipants, participantSearch).length === 0
 
   useEffect(() => {
     if (open) {
@@ -86,6 +97,7 @@ export default function DonModal({
       }
       setFullModalOpen(false)
       setExtraParticipants([])
+      setParticipantSearch('')
       setError(null)
     }
     // defaultParticipantId lu seulement à l'ouverture — l'exclure évite de réinitialiser
@@ -240,8 +252,21 @@ export default function DonModal({
                   participants={allParticipants}
                   value={profilParticipantId}
                   onChange={setProfilParticipantId}
+                  onSearchChange={setParticipantSearch}
                   placeholder="Rechercher par nom et prénom…"
                 />
+                {showAdherentFallback && (
+                  <AdherentFallbackSuggestions
+                    organisationId={organisationId}
+                    search={participantSearch}
+                    role="admin"
+                    onCreated={(p) => {
+                      setExtraParticipants((prev) => [...prev, p])
+                      setProfilParticipantId(p.id)
+                      setParticipantSearch('')
+                    }}
+                  />
+                )}
                 {isEdit && (
                   <p className="font-registre-mono text-[11px] text-ink-faint">
                     Changer le participant réaffecte ce don — bloqué si un reçu fiscal a déjà été émis pour l'année concernée.

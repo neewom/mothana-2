@@ -6,6 +6,7 @@ import type { ProfilParticipant, Activite, ModePaiement } from '../types'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
 import DonFichiers, { type DonFichiersHandle } from '../components/DonFichiers'
+import AdherentFallbackSuggestions from '../components/AdherentFallbackSuggestions'
 import BenevoleVerificationAdherent from '../components/BenevoleVerificationAdherent'
 import RecetteBanner from '../components/RecetteBanner'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
@@ -216,6 +217,9 @@ export default function BenevolePage() {
         participantLabel(p).toLowerCase().includes(search.toLowerCase()),
       )
     : participants
+
+  const showAdherentFallback =
+    !showNew && !selectedParticipant && search.trim().length >= 2 && filtered.length === 0
 
   function selectParticipant(p: ProfilParticipant) {
     setSelectedParticipant(p)
@@ -519,6 +523,18 @@ export default function BenevolePage() {
                     </div>
                   )}
                 </div>
+
+                {showAdherentFallback && (
+                  <AdherentFallbackSuggestions
+                    organisationId={organisationId}
+                    search={search}
+                    role="benevole"
+                    onCreated={(p) => {
+                      setParticipants((prev) => [p, ...prev])
+                      selectParticipant(p)
+                    }}
+                  />
+                )}
 
                 <button
                   type="button"
