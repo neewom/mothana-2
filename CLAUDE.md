@@ -170,5 +170,6 @@ Le board Trello est la source de vérité unique du backlog (hors cartes "Action
 6. **Ne jamais sauter d'étape** sans validation explicite
 7. **Demander confirmation** en cas de doute fonctionnel ou technique
 8. **Demander confirmation explicite avant de démarrer le dev** d'une carte ou d'un sujet, même déjà cadré — ne pas enchaîner automatiquement après le merge d'une PR précédente (règle renforcée par rapport au défaut global, sur ce projet on redemande systématiquement, pas seulement en cas de doute sur la fraîcheur de l'accord)
+   - **Exception "batch dev" (depuis le 2026-09-07)** : pour les cartes groupées dans une liste Trello "Batch — ..." (cf. mémoire persistante), la confirmation se donne une fois pour tout le batch — pas de nouvelle confirmation ni d'attente du merge entre deux cartes du batch. Chaque nouvelle branche part de la précédente (empilée), chaque PR ouverte cible `dev` directement (diff cumulatif tant que les PR précédentes du batch ne sont pas mergées — tradeoff accepté). Ce qui ne change pas : le merge de chaque PR reste manuel et explicite, jamais automatique (règle globale `~/.claude/CLAUDE.md`), et l'utilisateur teste chaque PR à son rythme.
 
 Règles génériques valables sur tous les projets ("un sujet à la fois", ne pas présumer qu'un accord ancien tient toujours, continuité entre sessions) : voir `~/.claude/CLAUDE.md`.
