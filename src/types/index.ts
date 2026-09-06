@@ -182,6 +182,18 @@ export interface Don {
   activites: Activite | null
 }
 
+export interface DonFichier {
+  id: string
+  don_id: string
+  organisation_id: string
+  chemin_storage: string
+  nom_original: string
+  type_mime: string
+  taille: number
+  uploaded_by: string | null
+  created_at: string
+}
+
 export interface DonRegulier {
   id: string
   organisation_id: string
