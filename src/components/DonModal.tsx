@@ -17,11 +17,19 @@ interface DonModalProps {
   open: boolean
   onClose: () => void
   onSaved: () => void
+  // Message prêt à afficher dans un toast par le parent (montant formaté,
+  // et détail des éventuelles pièces jointes en échec) — le parent décide
+  // comment/où l'afficher, DonModal ne connaît pas son système de toast.
+  onDonSaved?: (message: string, durationMs?: number) => void
   don?: Don
   participants: ProfilParticipant[]
   activites: Activite[]
   organisationId: string
   defaultParticipantId?: string
+}
+
+function formatEur(montant: number): string {
+  return montant.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' €'
 }
 
 function todayISO(): string {
@@ -32,6 +40,7 @@ export default function DonModal({
   open,
   onClose,
   onSaved,
+  onDonSaved,
   don,
   participants,
   activites,
@@ -148,6 +157,7 @@ export default function DonModal({
       }
 
       onSaved()
+      onDonSaved?.(`Don de ${formatEur(payload.montant)} modifié`)
       onClose()
       return
     }
@@ -169,16 +179,24 @@ export default function DonModal({
     }
 
     // Le don est déjà enregistré à ce stade — un échec d'upload des pièces
-    // jointes en attente ne doit pas être présenté comme un échec de
-    // l'enregistrement du don lui-même.
+    // jointes en attente ne doit pas bloquer la fermeture de la modale ni être
+    // présenté comme un échec de l'enregistrement du don lui-même. Le message
+    // (succès ou avertissement) est délégué à un toast côté parent, qui
+    // persiste après la fermeture — contrairement au bandeau d'erreur de la
+    // modale, coupé net si l'utilisateur clique en dehors pour essayer de le
+    // lire (cf. retour utilisateur du 2026-09-07).
     const uploadErrors = (await donFichiersRef.current?.uploadStaged(created.id)) ?? []
 
     setSaving(false)
     onSaved()
 
     if (uploadErrors.length > 0) {
-      setError(`Don enregistré, mais erreur sur certains fichiers : ${uploadErrors.join(' ; ')}`)
-      return
+      onDonSaved?.(
+        `Don de ${formatEur(payload.montant)} enregistré, mais pièce(s) jointe(s) en échec : ${uploadErrors.join(' ; ')}`,
+        8000
+      )
+    } else {
+      onDonSaved?.(`Don de ${formatEur(payload.montant)} enregistré`)
     }
 
     onClose()

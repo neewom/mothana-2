@@ -5,6 +5,8 @@ import type { Don, ProfilParticipant, Activite } from '../types'
 import DonModal from '../components/DonModal'
 import ParticipantAutocomplete from '../components/ParticipantAutocomplete'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
+import Toast from '../components/Toast'
+import { useToast } from '../hooks/useToast'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import ImportWizard from '../components/import/ImportWizard'
 import { donsImportConfig } from '../lib/import/configs'
@@ -272,6 +274,7 @@ function DetailPanel({ don, onClose, onEdit, onDeleted }: DetailPanelProps) {
 
 export default function DonsPage() {
   const organisationId = useOrganisationId()
+  const { toast, showToast, dismissToast } = useToast()
 
   const { dons, participants, activites, loading, error, refetch } = useDons(organisationId)
 
@@ -714,11 +717,16 @@ export default function DonsPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
+        onDonSaved={showToast}
         don={editingDon}
         participants={participants}
         activites={activites}
         organisationId={organisationId}
       />
+
+      {toast && (
+        <Toast key={toast.id} message={toast.message} durationMs={toast.durationMs} onDismiss={dismissToast} />
+      )}
 
       {/* Import CSV/Excel */}
       {importOpen && (
