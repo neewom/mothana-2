@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { Don, ProfilParticipant, Activite, ModePaiement } from '../types'
 import ParticipantAutocomplete from './ParticipantAutocomplete'
 import ActiviteAutocomplete from './ActiviteAutocomplete'
 import ParticipantModal from './ParticipantModal'
-import DonFichiers from './DonFichiers'
+import DonFichiers, { type DonFichiersHandle } from './DonFichiers'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { participantFullName } from '../lib/participantSearch'
 import { Button } from './ui/button'
@@ -47,9 +47,7 @@ export default function DonModal({
   const [modePaiement, setModePaiement] = useState<ModePaiement>(3)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [attachDonId, setAttachDonId] = useState<string | null>(null)
-
-  const donCreated = !isEdit && attachDonId !== null
+  const donFichiersRef = useRef<DonFichiersHandle>(null)
 
   // Participant created via the full ParticipantModal (opened from "+
   // Nouveau participant"), not yet present in the `participants` prop from
@@ -70,14 +68,12 @@ export default function DonModal({
         setMontant(String(don.montant))
         setDate(don.date)
         setModePaiement(don.mode_paiement)
-        setAttachDonId(don.id)
       } else {
         setProfilParticipantId(defaultParticipantId ?? '')
         setActiviteId('')
         setMontant('')
         setDate(todayISO())
         setModePaiement(3)
-        setAttachDonId(null)
       }
       setFullModalOpen(false)
       setExtraParticipants([])
@@ -166,18 +162,26 @@ export default function DonModal({
       .select('id')
       .single()
 
-    setSaving(false)
-
     if (insertErr || !created) {
+      setSaving(false)
       setError(insertErr?.message ?? 'Erreur lors de la création du don.')
       return
     }
 
-    // Le don est déjà enregistré à ce stade — la modale reste ouverte pour permettre
-    // d'ajouter des pièces jointes tout de suite, sans avoir à la rouvrir (cf. cadrage
-    // "Pièces jointes sur un don" : upload possible à la saisie).
-    setAttachDonId(created.id)
+    // Le don est déjà enregistré à ce stade — un échec d'upload des pièces
+    // jointes en attente ne doit pas être présenté comme un échec de
+    // l'enregistrement du don lui-même.
+    const uploadErrors = (await donFichiersRef.current?.uploadStaged(created.id)) ?? []
+
+    setSaving(false)
     onSaved()
+
+    if (uploadErrors.length > 0) {
+      setError(`Don enregistré, mais erreur sur certains fichiers : ${uploadErrors.join(' ; ')}`)
+      return
+    }
+
+    onClose()
   }
 
   return (
@@ -208,7 +212,6 @@ export default function DonModal({
                 </div>
               )}
 
-              <fieldset disabled={donCreated} className="space-y-4">
               {/* Participant */}
               <div className="space-y-1.5">
                 <Label>
@@ -300,29 +303,23 @@ export default function DonModal({
                   ))}
                 </Select>
               </div>
-              </fieldset>
 
-              {attachDonId && (
-                <DonFichiers donId={attachDonId} organisationId={organisationId} canDelete />
-              )}
+              <DonFichiers
+                ref={donFichiersRef}
+                donId={isEdit && don ? don.id : null}
+                organisationId={organisationId}
+                canDelete
+              />
             </div>
 
             {/* Actions */}
             <div className="flex shrink-0 justify-end gap-3 border-t border-paper-border bg-white px-6 py-4">
-              {donCreated ? (
-                <Button type="button" onClick={onClose}>
-                  Terminer
-                </Button>
-              ) : (
-                <>
-                  <Button type="button" variant="secondary" onClick={onClose}>
-                    Annuler
-                  </Button>
-                  <Button type="submit" disabled={saving}>
-                    {saving ? 'Enregistrement…' : 'Enregistrer'}
-                  </Button>
-                </>
-              )}
+              <Button type="button" variant="secondary" onClick={onClose}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </Button>
             </div>
           </form>
         </DialogContent>

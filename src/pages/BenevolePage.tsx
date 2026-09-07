@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient'
 import type { ProfilParticipant, Activite, ModePaiement } from '../types'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
-import DonFichiers from '../components/DonFichiers'
+import DonFichiers, { type DonFichiersHandle } from '../components/DonFichiers'
 import BenevoleVerificationAdherent from '../components/BenevoleVerificationAdherent'
 import RecetteBanner from '../components/RecetteBanner'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
@@ -134,6 +134,8 @@ export default function BenevolePage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [createdDonId, setCreatedDonId] = useState<string | null>(null)
+  const [uploadWarning, setUploadWarning] = useState<string | null>(null)
+  const donFichiersRef = useRef<DonFichiersHandle>(null)
   const [sessionExpired, setSessionExpired] = useState(false)
 
   // Close dropdown on outside click
@@ -245,6 +247,7 @@ export default function BenevolePage() {
     setError(null)
     setSuccess(false)
     setCreatedDonId(null)
+    setUploadWarning(null)
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -317,13 +320,23 @@ export default function BenevolePage() {
       created_by_role: 'benevole',
     })
 
-    setSaving(false)
-
     if (donErr) {
+      setSaving(false)
       setError(donErr.message)
       return
     }
 
+    // Le don est déjà enregistré à ce stade — un échec d'upload des pièces
+    // jointes en attente ne doit pas être présenté comme un échec de
+    // l'enregistrement du don lui-même.
+    const uploadErrors = (await donFichiersRef.current?.uploadStaged(donId)) ?? []
+    setUploadWarning(
+      uploadErrors.length > 0
+        ? `Certains fichiers n'ont pas pu être joints : ${uploadErrors.join(' ; ')}`
+        : null
+    )
+
+    setSaving(false)
     setCreatedDonId(donId)
     setSuccess(true)
     await loadData()
@@ -426,6 +439,12 @@ export default function BenevolePage() {
                 </span>{' '}
                 a bien été enregistré.
               </p>
+
+              {uploadWarning && (
+                <div className="mt-6 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-left text-sm text-stamp">
+                  {uploadWarning}
+                </div>
+              )}
 
               {createdDonId && (
                 <div className="mt-6 rounded-sm border border-paper-border bg-white p-4 text-left">
@@ -636,6 +655,8 @@ export default function BenevolePage() {
                   ))}
                 </div>
               </div>
+
+              <DonFichiers ref={donFichiersRef} donId={null} organisationId={organisationId} canDelete={false} />
 
               <Button type="submit" disabled={saving || (!selectedParticipant && !showNew)} className="w-full">
                 {saving ? 'Enregistrement…' : 'Enregistrer le don'}

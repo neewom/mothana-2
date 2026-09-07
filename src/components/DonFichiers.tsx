@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { DonFichier } from '../types'
 import { Button } from './ui/button'
@@ -17,21 +17,62 @@ function sanitizeNomFichier(nom: string): string {
   return nom.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_')
 }
 
+async function uploadUnFichier(file: File, donId: string, organisationId: string): Promise<string | null> {
+  const path = `${organisationId}/${donId}/${Date.now()}-${sanitizeNomFichier(file.name)}`
+
+  const { error: uploadErr } = await supabase.storage
+    .from('dons-fichiers')
+    .upload(path, file, { contentType: file.type })
+
+  if (uploadErr) return uploadErr.message
+
+  const { data: userData } = await supabase.auth.getUser()
+
+  const { error: insertErr } = await supabase.from('dons_fichiers').insert({
+    don_id: donId,
+    organisation_id: organisationId,
+    chemin_storage: path,
+    nom_original: file.name,
+    type_mime: file.type,
+    taille: file.size,
+    uploaded_by: userData.user?.id ?? null,
+  })
+
+  return insertErr ? insertErr.message : null
+}
+
 interface DonFichiersProps {
-  donId: string
+  // null = pas encore de don en base (saisie en cours) : les fichiers choisis
+  // sont mis en attente côté client, uploadés d'un coup via uploadStaged() une
+  // fois le don créé. Une fois un id fourni (édition, ou juste après création),
+  // comportement classique : upload immédiat à la sélection.
+  donId: string | null
   organisationId: string
   canDelete: boolean
 }
 
-export default function DonFichiers({ donId, organisationId, canDelete }: DonFichiersProps) {
+export interface DonFichiersHandle {
+  // Upload tous les fichiers mis en attente pour le don donId — appelé par le
+  // parent juste après la création du don. Retourne les messages d'erreur
+  // éventuels (le don lui-même est déjà enregistré à ce stade, un échec
+  // d'upload ne doit pas être traité comme un échec de l'enregistrement).
+  uploadStaged: (donId: string) => Promise<string[]>
+}
+
+const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function DonFichiers(
+  { donId, organisationId, canDelete },
+  ref
+) {
   const [fichiers, setFichiers] = useState<DonFichier[]>([])
-  const [loading, setLoading] = useState(true)
+  const [stagedFiles, setStagedFiles] = useState<File[]>([])
+  const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [openingId, setOpeningId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadFichiers = useCallback(async () => {
+    if (!donId) return
     setLoading(true)
     const { data, error: err } = await supabase
       .from('dons_fichiers')
@@ -48,16 +89,29 @@ export default function DonFichiers({ donId, organisationId, canDelete }: DonFic
   }, [donId])
 
   useEffect(() => {
-    loadFichiers()
-  }, [loadFichiers])
+    if (donId) loadFichiers()
+  }, [donId, loadFichiers])
 
-  async function handleFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
+  useImperativeHandle(ref, () => ({
+    async uploadStaged(newDonId: string) {
+      const errors: string[] = []
+      for (const file of stagedFiles) {
+        const err = await uploadUnFichier(file, newDonId, organisationId)
+        if (err) errors.push(`${file.name} : ${err}`)
+      }
+      setStagedFiles([])
+      return errors
+    },
+  }))
+
+  function handleFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
     e.target.value = ''
     if (files.length === 0) return
 
     setError(null)
 
+    const valid: File[] = []
     for (const file of files) {
       if (!TYPES_ACCEPTES.includes(file.type)) {
         setError(`${file.name} : type de fichier non accepté (images ou PDF uniquement).`)
@@ -67,41 +121,26 @@ export default function DonFichiers({ donId, organisationId, canDelete }: DonFic
         setError(`${file.name} : dépasse la taille maximale de 10 Mo.`)
         continue
       }
-
-      setUploading(true)
-
-      const path = `${organisationId}/${donId}/${Date.now()}-${sanitizeNomFichier(file.name)}`
-
-      const { error: uploadErr } = await supabase.storage
-        .from('dons-fichiers')
-        .upload(path, file, { contentType: file.type })
-
-      if (uploadErr) {
-        setError(uploadErr.message)
-        setUploading(false)
-        continue
-      }
-
-      const { data: userData } = await supabase.auth.getUser()
-
-      const { error: insertErr } = await supabase.from('dons_fichiers').insert({
-        don_id: donId,
-        organisation_id: organisationId,
-        chemin_storage: path,
-        nom_original: file.name,
-        type_mime: file.type,
-        taille: file.size,
-        uploaded_by: userData.user?.id ?? null,
-      })
-
-      if (insertErr) {
-        setError(insertErr.message)
-      }
-
-      setUploading(false)
+      valid.push(file)
     }
 
-    await loadFichiers()
+    if (donId) {
+      void (async () => {
+        setUploading(true)
+        for (const file of valid) {
+          const err = await uploadUnFichier(file, donId, organisationId)
+          if (err) setError(err)
+        }
+        setUploading(false)
+        await loadFichiers()
+      })()
+    } else {
+      setStagedFiles((prev) => [...prev, ...valid])
+    }
+  }
+
+  function handleRemoveStaged(index: number) {
+    setStagedFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   async function handleOpen(fichier: DonFichier) {
@@ -142,6 +181,8 @@ export default function DonFichiers({ donId, organisationId, canDelete }: DonFic
     await loadFichiers()
   }
 
+  const displayedStaged = donId ? [] : stagedFiles
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -173,38 +214,64 @@ export default function DonFichiers({ donId, organisationId, canDelete }: DonFic
         </div>
       )}
 
-      {loading ? (
-        <p className="font-registre-mono text-[11px] text-ink-faint">Chargement…</p>
-      ) : fichiers.length === 0 ? (
+      {!donId && displayedStaged.length === 0 && fichiers.length === 0 && (
         <p className="font-registre-mono text-[11px] text-ink-faint">Aucun fichier joint.</p>
-      ) : (
+      )}
+
+      {displayedStaged.length > 0 && (
         <ul className="divide-y divide-paper-border rounded-sm border border-paper-border">
-          {fichiers.map((f) => (
-            <li key={f.id} className="flex items-center justify-between gap-2 px-3 py-2">
+          {displayedStaged.map((f, i) => (
+            <li key={i} className="flex items-center justify-between gap-2 px-3 py-2">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-ink">{f.nom_original}</p>
-                <p className="font-registre-mono text-[10px] text-ink-faint">{formatTaille(f.taille)}</p>
+                <p className="truncate text-xs font-medium text-ink">{f.name}</p>
+                <p className="font-registre-mono text-[10px] text-ink-faint">
+                  {formatTaille(f.size)} · en attente d'enregistrement
+                </p>
               </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={openingId === f.id}
-                  onClick={() => handleOpen(f)}
-                >
-                  {openingId === f.id ? '…' : 'Ouvrir'}
-                </Button>
-                {canDelete && (
-                  <Button type="button" variant="danger" size="sm" onClick={() => handleDelete(f)}>
-                    Supprimer
-                  </Button>
-                )}
-              </div>
+              <Button type="button" variant="danger" size="sm" onClick={() => handleRemoveStaged(i)}>
+                Retirer
+              </Button>
             </li>
           ))}
         </ul>
       )}
+
+      {donId && (
+        loading ? (
+          <p className="font-registre-mono text-[11px] text-ink-faint">Chargement…</p>
+        ) : fichiers.length === 0 ? (
+          <p className="font-registre-mono text-[11px] text-ink-faint">Aucun fichier joint.</p>
+        ) : (
+          <ul className="divide-y divide-paper-border rounded-sm border border-paper-border">
+            {fichiers.map((f) => (
+              <li key={f.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-ink">{f.nom_original}</p>
+                  <p className="font-registre-mono text-[10px] text-ink-faint">{formatTaille(f.taille)}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={openingId === f.id}
+                    onClick={() => handleOpen(f)}
+                  >
+                    {openingId === f.id ? '…' : 'Ouvrir'}
+                  </Button>
+                  {canDelete && (
+                    <Button type="button" variant="danger" size="sm" onClick={() => handleDelete(f)}>
+                      Supprimer
+                    </Button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )
+      )}
     </div>
   )
-}
+})
+
+export default DonFichiers
