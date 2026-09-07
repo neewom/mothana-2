@@ -283,6 +283,7 @@ export default function DonsPage() {
   const [filterParticipant, setFilterParticipant] = useState('')
   const [filterActivite, setFilterActivite] = useState('')
   const [filterMode, setFilterMode] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   // Detail & modal
   const [selectedDon, setSelectedDon] = useState<Don | null>(null)
@@ -444,87 +445,110 @@ export default function DonsPage() {
           </div>
         )}
 
-        {/* Filters card */}
-        <div className="space-y-4 rounded-sm border border-paper-border bg-white p-5">
-          {/* Period shortcuts */}
-          <div className="flex flex-wrap gap-2">
-            {SHORTCUTS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => applyShortcut(key)}
-                className={cn(
-                  'rounded-full px-3 py-1.5 font-registre text-sm font-medium transition-colors',
-                  shortcut === key
-                    ? 'bg-stamp text-white'
-                    : 'bg-paper-border/30 text-ink-muted hover:bg-paper-border/50'
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Date range + dropdowns */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-1.5">
-              <label htmlFor="dons-date-debut" className="block font-registre-mono text-[11px] font-medium text-ink-faint">Début</label>
-              <Input
-                id="dons-date-debut"
-                type="date"
-                value={dateDebut}
-                onChange={(e) => handleDateDebutChange(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="dons-date-fin" className="block font-registre-mono text-[11px] font-medium text-ink-faint">Fin</label>
-              <Input
-                id="dons-date-fin"
-                type="date"
-                value={dateFin}
-                onChange={(e) => handleDateFinChange(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="block font-registre-mono text-[11px] font-medium text-ink-faint">Participant</label>
-              <ParticipantAutocomplete
-                participants={participants}
-                value={filterParticipant}
-                onChange={(id) => { setFilterParticipant(id); setCurrentPage(1) }}
-                placeholder="Tous les participants"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="block font-registre-mono text-[11px] font-medium text-ink-faint">Activité</label>
-              <ActiviteAutocomplete
-                activites={activites}
-                value={filterActivite}
-                onChange={(id) => { setFilterActivite(id); setCurrentPage(1) }}
-                placeholder="Toutes les activités"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="dons-mode-paiement" className="block font-registre-mono text-[11px] font-medium text-ink-faint">Mode de paiement</label>
-              <Select
-                id="dons-mode-paiement"
-                value={filterMode}
-                onChange={(e) => { setFilterMode(e.target.value); setCurrentPage(1) }}
-                className="w-full"
-              >
-                <option value="">Tous les modes</option>
-                {MODE_PAIEMENT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </Select>
-            </div>
-          </div>
-        </div>
-
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard label="Total collecté" value={formatEur(stats.total)} />
           <StatCard label="Nombre de dons" value={String(stats.count)} />
           <StatCard label="Don moyen" value={stats.count > 0 ? formatEur(stats.avg) : '—'} />
           <StatCard label="Participants distincts" value={String(stats.distinctParticipants)} />
+        </div>
+
+        {/* Filters card (expandable) */}
+        <div className="rounded-sm border border-paper-border bg-white">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((prev) => !prev)}
+            className="flex w-full items-center justify-between px-5 py-4 text-left"
+            aria-expanded={filtersOpen}
+          >
+            <span className="font-registre text-sm font-medium text-ink">Filtres</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className={cn('h-4 w-4 text-ink-faint transition-transform', filtersOpen && 'rotate-180')}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          {filtersOpen && (
+            <div className="space-y-4 border-t border-paper-border p-5">
+              {/* Period shortcuts */}
+              <div className="flex flex-wrap gap-2">
+                {SHORTCUTS.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => applyShortcut(key)}
+                    className={cn(
+                      'rounded-full px-3 py-1.5 font-registre text-sm font-medium transition-colors',
+                      shortcut === key
+                        ? 'bg-stamp text-white'
+                        : 'bg-paper-border/30 text-ink-muted hover:bg-paper-border/50'
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Date range + dropdowns */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="space-y-1.5">
+                  <label htmlFor="dons-date-debut" className="block font-registre-mono text-[11px] font-medium text-ink-faint">Début</label>
+                  <Input
+                    id="dons-date-debut"
+                    type="date"
+                    value={dateDebut}
+                    onChange={(e) => handleDateDebutChange(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="dons-date-fin" className="block font-registre-mono text-[11px] font-medium text-ink-faint">Fin</label>
+                  <Input
+                    id="dons-date-fin"
+                    type="date"
+                    value={dateFin}
+                    onChange={(e) => handleDateFinChange(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block font-registre-mono text-[11px] font-medium text-ink-faint">Participant</label>
+                  <ParticipantAutocomplete
+                    participants={participants}
+                    value={filterParticipant}
+                    onChange={(id) => { setFilterParticipant(id); setCurrentPage(1) }}
+                    placeholder="Tous les participants"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block font-registre-mono text-[11px] font-medium text-ink-faint">Activité</label>
+                  <ActiviteAutocomplete
+                    activites={activites}
+                    value={filterActivite}
+                    onChange={(id) => { setFilterActivite(id); setCurrentPage(1) }}
+                    placeholder="Toutes les activités"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="dons-mode-paiement" className="block font-registre-mono text-[11px] font-medium text-ink-faint">Mode de paiement</label>
+                  <Select
+                    id="dons-mode-paiement"
+                    value={filterMode}
+                    onChange={(e) => { setFilterMode(e.target.value); setCurrentPage(1) }}
+                    className="w-full"
+                  >
+                    <option value="">Tous les modes</option>
+                    {MODE_PAIEMENT_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Table + Detail panel */}
