@@ -3,9 +3,14 @@ import { supabase } from '../lib/supabaseClient'
 import type { DonFichier } from '../types'
 import { Button } from './ui/button'
 import { Label } from './ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 
 const MAX_TAILLE = 10 * 1024 * 1024 // 10 Mo, même limite que le bucket
 const TYPES_ACCEPTES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf']
+
+function isImage(mime: string): boolean {
+  return mime.startsWith('image/')
+}
 
 function formatTaille(octets: number): string {
   if (octets < 1024) return `${octets} o`
@@ -41,6 +46,14 @@ async function uploadUnFichier(file: File, donId: string, organisationId: string
   return insertErr ? insertErr.message : null
 }
 
+function PdfIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-ink-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+    </svg>
+  )
+}
+
 interface DonFichiersProps {
   // null = pas encore de don en base (saisie en cours) : les fichiers choisis
   // sont mis en attente côté client, uploadés d'un coup via uploadStaged() une
@@ -68,8 +81,10 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [openingId, setOpeningId] = useState<string | null>(null)
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({})
+  const [lightbox, setLightbox] = useState<{ url: string; nom: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const stagedThumbUrls = useRef<Map<File, string>>(new Map())
 
   const loadFichiers = useCallback(async () => {
     if (!donId) return
@@ -91,6 +106,51 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
   useEffect(() => {
     if (donId) loadFichiers()
   }, [donId, loadFichiers])
+
+  // Miniatures : une URL signée par image persistée, chargée dès l'affichage
+  // de la liste (pas seulement au clic) pour pouvoir afficher un aperçu réel.
+  useEffect(() => {
+    const manquantes = fichiers.filter((f) => isImage(f.type_mime) && !thumbnails[f.id])
+    if (manquantes.length === 0) return
+    let annule = false
+    ;(async () => {
+      const entrees = await Promise.all(
+        manquantes.map(async (f) => {
+          const { data } = await supabase.storage.from('dons-fichiers').createSignedUrl(f.chemin_storage, 3600)
+          return [f.id, data?.signedUrl] as const
+        })
+      )
+      if (annule) return
+      setThumbnails((prev) => {
+        const next = { ...prev }
+        for (const [id, url] of entrees) if (url) next[id] = url
+        return next
+      })
+    })()
+    return () => { annule = true }
+    // thumbnails volontairement absent des deps : ne réagit qu'aux changements
+    // de la liste de fichiers, pas à chaque miniature déjà résolue.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fichiers])
+
+  // Miniatures des fichiers en attente (pas encore uploadés) : aperçu local
+  // via URL.createObjectURL, révoquées au démontage pour éviter les fuites.
+  useEffect(() => {
+    return () => {
+      stagedThumbUrls.current.forEach((url) => URL.revokeObjectURL(url))
+      stagedThumbUrls.current.clear()
+    }
+  }, [])
+
+  function getStagedThumbUrl(file: File): string | null {
+    if (!isImage(file.type)) return null
+    let url = stagedThumbUrls.current.get(file)
+    if (!url) {
+      url = URL.createObjectURL(file)
+      stagedThumbUrls.current.set(file, url)
+    }
+    return url
+  }
 
   useImperativeHandle(ref, () => ({
     async uploadStaged(newDonId: string) {
@@ -143,13 +203,10 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
     setStagedFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  async function handleOpen(fichier: DonFichier) {
-    setOpeningId(fichier.id)
+  async function handleOpenNewTab(fichier: DonFichier) {
     const { data, error: urlErr } = await supabase.storage
       .from('dons-fichiers')
       .createSignedUrl(fichier.chemin_storage, 3600)
-
-    setOpeningId(null)
 
     if (urlErr || !data?.signedUrl) {
       setError('Impossible de générer le lien pour ce fichier.')
@@ -157,6 +214,24 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
     }
 
     window.open(data.signedUrl, '_blank')
+  }
+
+  async function handleConsulter(fichier: DonFichier) {
+    if (!isImage(fichier.type_mime)) {
+      await handleOpenNewTab(fichier)
+      return
+    }
+    const url = thumbnails[fichier.id]
+    if (url) {
+      setLightbox({ url, nom: fichier.nom_original })
+    } else {
+      await handleOpenNewTab(fichier)
+    }
+  }
+
+  function handleConsulterStaged(file: File) {
+    const url = getStagedThumbUrl(file)
+    if (url) setLightbox({ url, nom: file.name })
   }
 
   async function handleDelete(fichier: DonFichier) {
@@ -220,17 +295,33 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
 
       {displayedStaged.length > 0 && (
         <ul className="divide-y divide-paper-border rounded-sm border border-paper-border">
-          {displayedStaged.map((f, i) => (
-            <li key={i} className="flex items-center justify-between gap-2 px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-ink">{f.name}</p>
-                <p className="font-registre-mono text-[10px] text-ink-faint">{formatTaille(f.size)}</p>
-              </div>
-              <Button type="button" variant="danger" size="sm" onClick={() => handleRemoveStaged(i)}>
-                Retirer
-              </Button>
-            </li>
-          ))}
+          {displayedStaged.map((f, i) => {
+            const thumbUrl = getStagedThumbUrl(f)
+            return (
+              <li key={i} className="flex items-center gap-3 px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => handleConsulterStaged(f)}
+                  disabled={!thumbUrl}
+                  title={thumbUrl ? 'Voir en grand' : undefined}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-paper-border bg-paper disabled:cursor-default"
+                >
+                  {thumbUrl ? (
+                    <img src={thumbUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <PdfIcon />
+                  )}
+                </button>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-ink">{f.name}</p>
+                  <p className="font-registre-mono text-[10px] text-ink-faint">{formatTaille(f.size)}</p>
+                </div>
+                <Button type="button" variant="danger" size="sm" onClick={() => handleRemoveStaged(i)}>
+                  Retirer
+                </Button>
+              </li>
+            )
+          })}
         </ul>
       )}
 
@@ -242,32 +333,47 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
         ) : (
           <ul className="divide-y divide-paper-border rounded-sm border border-paper-border">
             {fichiers.map((f) => (
-              <li key={f.id} className="flex items-center justify-between gap-2 px-3 py-2">
+              <li key={f.id} className="flex items-center gap-3 px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => handleConsulter(f)}
+                  title="Voir en grand"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-paper-border bg-paper"
+                >
+                  {isImage(f.type_mime) && thumbnails[f.id] ? (
+                    <img src={thumbnails[f.id]} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <PdfIcon />
+                  )}
+                </button>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-ink">{f.nom_original}</p>
                   <p className="font-registre-mono text-[10px] text-ink-faint">{formatTaille(f.taille)}</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={openingId === f.id}
-                    onClick={() => handleOpen(f)}
-                  >
-                    {openingId === f.id ? '…' : 'Ouvrir'}
+                {canDelete && (
+                  <Button type="button" variant="danger" size="sm" onClick={() => handleDelete(f)}>
+                    Supprimer
                   </Button>
-                  {canDelete && (
-                    <Button type="button" variant="danger" size="sm" onClick={() => handleDelete(f)}>
-                      Supprimer
-                    </Button>
-                  )}
-                </div>
+                )}
               </li>
             ))}
           </ul>
         )
       )}
+
+      <Dialog open={!!lightbox} onOpenChange={(next) => { if (!next) setLightbox(null) }}>
+        <DialogContent className="max-w-3xl" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle className="truncate pr-8">{lightbox?.nom}</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center bg-paper p-4">
+            {lightbox && (
+              // eslint-disable-next-line jsx-a11y/img-redundant-alt
+              <img src={lightbox.url} alt={lightbox.nom} className="max-h-[70vh] w-auto max-w-full object-contain" />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 })

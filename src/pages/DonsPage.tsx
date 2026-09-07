@@ -5,6 +5,7 @@ import type { Don, ProfilParticipant, Activite } from '../types'
 import DonModal from '../components/DonModal'
 import ParticipantAutocomplete from '../components/ParticipantAutocomplete'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
+import DonFichiers from '../components/DonFichiers'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { fetchAllRows } from '../lib/fetchAllRows'
@@ -170,12 +171,13 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 interface DetailPanelProps {
   don: Don
+  organisationId: string
   onClose: () => void
   onEdit: () => void
   onDeleted: () => void
 }
 
-function DetailPanel({ don, onClose, onEdit, onDeleted }: DetailPanelProps) {
+function DetailPanel({ don, organisationId, onClose, onEdit, onDeleted }: DetailPanelProps) {
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -239,6 +241,8 @@ function DetailPanel({ don, onClose, onEdit, onDeleted }: DetailPanelProps) {
           <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Saisi par</p>
           <p className="mt-1 text-sm capitalize text-ink">{don.created_by_role}</p>
         </div>
+
+        <DonFichiers donId={don.id} organisationId={organisationId} canDelete />
       </div>
 
       {/* Actions */}
@@ -680,6 +684,7 @@ export default function DonsPage() {
             <div className="hidden w-80 flex-shrink-0 rounded-sm border border-paper-border bg-white lg:flex lg:flex-col" style={{ minHeight: '400px' }}>
               <DetailPanel
                 don={selectedDon}
+                organisationId={organisationId}
                 onClose={() => setSelectedDon(null)}
                 onEdit={() => openEdit(selectedDon)}
                 onDeleted={handleDeleted}
@@ -704,6 +709,7 @@ export default function DonsPage() {
           >
             <DetailPanel
               don={selectedDon}
+              organisationId={organisationId}
               onClose={() => setSelectedDon(null)}
               onEdit={() => openEdit(selectedDon)}
               onDeleted={handleDeleted}
