@@ -224,9 +224,7 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
             <li key={i} className="flex items-center justify-between gap-2 px-3 py-2">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-ink">{f.name}</p>
-                <p className="font-registre-mono text-[10px] text-ink-faint">
-                  {formatTaille(f.size)} · en attente d'enregistrement
-                </p>
+                <p className="font-registre-mono text-[10px] text-ink-faint">{formatTaille(f.size)}</p>
               </div>
               <Button type="button" variant="danger" size="sm" onClick={() => handleRemoveStaged(i)}>
                 Retirer
