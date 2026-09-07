@@ -8,6 +8,10 @@ interface ParticipantAutocompleteProps {
   onChange: (id: string) => void
   disabled?: boolean
   placeholder?: string
+  // Texte de recherche courant, remonté au parent (ex. pour déclencher une
+  // recherche de repli côté adhérents quand aucun participant ne correspond —
+  // cf. AdherentFallbackSuggestions). Optionnel, rétrocompatible.
+  onSearchChange?: (search: string) => void
 }
 
 const MAX_RESULTS = 20
@@ -18,6 +22,7 @@ export default function ParticipantAutocomplete({
   onChange,
   disabled,
   placeholder = 'Rechercher un participant…',
+  onSearchChange,
 }: ParticipantAutocompleteProps) {
   // null = not actively editing: the displayed text is derived from `value`.
   // A string once the user starts typing, until a pick or blur resolves it.
@@ -31,6 +36,7 @@ export default function ParticipantAutocomplete({
     onChange(p.id)
     setDraft(null)
     setOpen(false)
+    onSearchChange?.('')
   }
 
   function handleBlur() {
@@ -50,7 +56,7 @@ export default function ParticipantAutocomplete({
         type="text"
         value={displayValue}
         disabled={disabled}
-        onChange={(e) => { setDraft(e.target.value); setOpen(true) }}
+        onChange={(e) => { setDraft(e.target.value); setOpen(true); onSearchChange?.(e.target.value) }}
         onFocus={() => setOpen(true)}
         onBlur={handleBlur}
         onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}

@@ -1,11 +1,14 @@
-import { useState, useEffect, useMemo, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import type { Don, ProfilParticipant, Activite, ModePaiement } from '../types'
 import ParticipantAutocomplete from './ParticipantAutocomplete'
 import ActiviteAutocomplete from './ActiviteAutocomplete'
 import ParticipantModal from './ParticipantModal'
+import DonFichiers, { type DonFichiersHandle } from './DonFichiers'
+import AdherentFallbackSuggestions from './AdherentFallbackSuggestions'
+import type { ParticipantEnAttente } from '../lib/adherentTranspose'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
-import { participantFullName } from '../lib/participantSearch'
+import { participantFullName, filterParticipants } from '../lib/participantSearch'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -16,11 +19,19 @@ interface DonModalProps {
   open: boolean
   onClose: () => void
   onSaved: () => void
+  // Message prêt à afficher dans un toast par le parent (montant formaté,
+  // et détail des éventuelles pièces jointes en échec) — le parent décide
+  // comment/où l'afficher, DonModal ne connaît pas son système de toast.
+  onDonSaved?: (message: string, durationMs?: number) => void
   don?: Don
   participants: ProfilParticipant[]
   activites: Activite[]
   organisationId: string
   defaultParticipantId?: string
+}
+
+function formatEur(montant: number): string {
+  return montant.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' €'
 }
 
 function todayISO(): string {
@@ -31,6 +42,7 @@ export default function DonModal({
   open,
   onClose,
   onSaved,
+  onDonSaved,
   don,
   participants,
   activites,
@@ -46,17 +58,33 @@ export default function DonModal({
   const [modePaiement, setModePaiement] = useState<ModePaiement>(3)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const donFichiersRef = useRef<DonFichiersHandle>(null)
+  // Portée ici (pas dans AdherentFallbackSuggestions) car ce composant se
+  // démonte dès que profilParticipantId devient non-vide (showAdherentFallback
+  // ci-dessous) — un état interne à ce composant ne survivrait pas jusqu'à la
+  // validation du don.
+  const pendingTransposeRef = useRef<{ participantId: string; persist: ParticipantEnAttente['persist'] } | null>(null)
 
   // Participant created via the full ParticipantModal (opened from "+
   // Nouveau participant"), not yet present in the `participants` prop from
   // the parent list until its next refetch.
   const [fullModalOpen, setFullModalOpen] = useState(false)
   const [extraParticipants, setExtraParticipants] = useState<ProfilParticipant[]>([])
+  const [participantSearch, setParticipantSearch] = useState('')
 
   const allParticipants = useMemo(
     () => (extraParticipants.length ? [...participants, ...extraParticipants] : participants),
     [participants, extraParticipants]
   )
+
+  // Repli adhérents : uniquement si aucun participant existant ne correspond
+  // déjà au texte tapé (cf. cadrage "Sélection d'un adhérent à la saisie d'un
+  // don" — la recherche participant reste le premier réflexe, inchangée).
+  const showAdherentFallback =
+    !isEdit &&
+    !profilParticipantId &&
+    participantSearch.trim().length >= 2 &&
+    filterParticipants(allParticipants, participantSearch).length === 0
 
   useEffect(() => {
     if (open) {
@@ -75,7 +103,9 @@ export default function DonModal({
       }
       setFullModalOpen(false)
       setExtraParticipants([])
+      setParticipantSearch('')
       setError(null)
+      pendingTransposeRef.current = null
     }
     // defaultParticipantId lu seulement à l'ouverture — l'exclure évite de réinitialiser
     // la sélection en cours si la prop change pendant que la modale est déjà ouverte.
@@ -135,28 +165,76 @@ export default function DonModal({
       mode_paiement: modePaiement,
     }
 
-    let err: { message: string } | null
-
     if (isEdit && don) {
-      const result = await supabase.from('dons').update(payload).eq('id', don.id)
-      err = result.error
-    } else {
-      const result = await supabase.from('dons').insert({
+      const { error: updateErr } = await supabase.from('dons').update(payload).eq('id', don.id)
+
+      setSaving(false)
+
+      if (updateErr) {
+        setError(updateErr.message)
+        return
+      }
+
+      onSaved()
+      onDonSaved?.(`Don de ${formatEur(payload.montant)} modifié`)
+      onClose()
+      return
+    }
+
+    // Si un adhérent a été transposé en donateur (AdherentFallbackSuggestions),
+    // rien n'a encore été écrit en base à ce stade — seulement préparé. Ce
+    // n'est qu'ici, à la validation effective de la saisie du don, que le
+    // donateur est réellement créé (cf. cadrage : le doublonnement ne doit
+    // être effectif qu'à la validation du don, pas avant).
+    const pendingTranspose = pendingTransposeRef.current
+    const transposeErr =
+      pendingTranspose && pendingTranspose.participantId === profilParticipantId
+        ? await pendingTranspose.persist()
+        : null
+    pendingTransposeRef.current = null
+    if (transposeErr) {
+      setSaving(false)
+      setError(`Impossible de créer le donateur à partir de l'adhérent : ${transposeErr}`)
+      return
+    }
+
+    const { data: created, error: insertErr } = await supabase
+      .from('dons')
+      .insert({
         ...payload,
         organisation_id: organisationId,
         created_by_role: 'admin',
       })
-      err = result.error
-    }
+      .select('id')
+      .single()
 
-    setSaving(false)
-
-    if (err) {
-      setError(err.message)
+    if (insertErr || !created) {
+      setSaving(false)
+      setError(insertErr?.message ?? 'Erreur lors de la création du don.')
       return
     }
 
+    // Le don est déjà enregistré à ce stade — un échec d'upload des pièces
+    // jointes en attente ne doit pas bloquer la fermeture de la modale ni être
+    // présenté comme un échec de l'enregistrement du don lui-même. Le message
+    // (succès ou avertissement) est délégué à un toast côté parent, qui
+    // persiste après la fermeture — contrairement au bandeau d'erreur de la
+    // modale, coupé net si l'utilisateur clique en dehors pour essayer de le
+    // lire (cf. retour utilisateur du 2026-09-07).
+    const uploadErrors = (await donFichiersRef.current?.uploadStaged(created.id)) ?? []
+
+    setSaving(false)
     onSaved()
+
+    if (uploadErrors.length > 0) {
+      onDonSaved?.(
+        `Don de ${formatEur(payload.montant)} enregistré, mais pièce(s) jointe(s) en échec : ${uploadErrors.join(' ; ')}`,
+        8000
+      )
+    } else {
+      onDonSaved?.(`Don de ${formatEur(payload.montant)} enregistré`)
+    }
+
     onClose()
   }
 
@@ -198,8 +276,22 @@ export default function DonModal({
                   participants={allParticipants}
                   value={profilParticipantId}
                   onChange={setProfilParticipantId}
+                  onSearchChange={setParticipantSearch}
                   placeholder="Rechercher par nom et prénom…"
                 />
+                {showAdherentFallback && (
+                  <AdherentFallbackSuggestions
+                    organisationId={organisationId}
+                    search={participantSearch}
+                    role="admin"
+                    onCreated={(p, persist) => {
+                      setExtraParticipants((prev) => [...prev, p])
+                      setProfilParticipantId(p.id)
+                      setParticipantSearch('')
+                      pendingTransposeRef.current = { participantId: p.id, persist }
+                    }}
+                  />
+                )}
                 {isEdit && (
                   <p className="font-registre-mono text-[11px] text-ink-faint">
                     Changer le participant réaffecte ce don — bloqué si un reçu fiscal a déjà été émis pour l'année concernée.
@@ -279,6 +371,13 @@ export default function DonModal({
                   ))}
                 </Select>
               </div>
+
+              <DonFichiers
+                ref={donFichiersRef}
+                donId={isEdit && don ? don.id : null}
+                organisationId={organisationId}
+                canDelete
+              />
             </div>
 
             {/* Actions */}

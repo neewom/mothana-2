@@ -64,23 +64,53 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     })
 
-    const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({
+    let signInData = await anonClient.auth.signInWithPassword({
       email: benevoleEmail,
       password: pin,
     })
 
-    if (signInError || !signInData.session) {
-      console.error('signInWithPassword:', signInError?.message)
+    if (signInData.error || !signInData.data.session) {
+      console.error('signInWithPassword:', signInData.error?.message)
       return new Response(
         JSON.stringify({ error: 'Erreur de connexion bénévole' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
+    // The account may already have existed before app_metadata was introduced
+    // (or with a stale organisation_id/role) — createUser above silently no-ops
+    // on "already registered", so app_metadata never gets fixed up on its own.
+    // Self-heal here: if it's wrong, correct it and re-sign-in so the returned
+    // token actually carries the right claims (a JWT's claims are fixed at
+    // issuance — updating the user record after the fact doesn't change a
+    // token already handed out).
+    const currentMetadata = signInData.data.user.app_metadata
+    const metadataStale =
+      currentMetadata?.role !== 'benevole' || currentMetadata?.organisation_id !== org.id
+
+    if (metadataStale) {
+      await adminClient.auth.admin.updateUserById(signInData.data.user.id, {
+        app_metadata: appMetadata,
+      })
+
+      signInData = await anonClient.auth.signInWithPassword({
+        email: benevoleEmail,
+        password: pin,
+      })
+
+      if (signInData.error || !signInData.data.session) {
+        console.error('signInWithPassword (post-fixup):', signInData.error?.message)
+        return new Response(
+          JSON.stringify({ error: 'Erreur de connexion bénévole' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+    }
+
     return new Response(
       JSON.stringify({
-        access_token: signInData.session.access_token,
-        refresh_token: signInData.session.refresh_token,
+        access_token: signInData.data.session.access_token,
+        refresh_token: signInData.data.session.refresh_token,
         organisation_id: org.id,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

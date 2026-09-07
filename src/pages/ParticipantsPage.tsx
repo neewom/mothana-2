@@ -758,6 +758,7 @@ export default function ParticipantsPage() {
         open={donModalOpen}
         onClose={() => { setDonModalOpen(false); setDefaultParticipantId(undefined) }}
         onSaved={handleDonSaved}
+        onDonSaved={showToast}
         participants={participants}
         activites={allActivites}
         organisationId={organisationId}
@@ -792,7 +793,9 @@ export default function ParticipantsPage() {
       </Dialog>
 
       {/* Toast */}
-      {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
+      {toast && (
+        <Toast key={toast.id} message={toast.message} durationMs={toast.durationMs} onDismiss={dismissToast} />
+      )}
     </>
   )
 }
