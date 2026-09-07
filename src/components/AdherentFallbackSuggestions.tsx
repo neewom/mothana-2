@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { creerParticipantDepuisAdherent } from '../lib/adherentTranspose'
+import { preparerParticipantDepuisAdherent, type ParticipantEnAttente } from '../lib/adherentTranspose'
 import type { ProfilParticipant } from '../types'
 import { Button } from './ui/button'
 
@@ -40,7 +40,14 @@ interface AdherentFallbackSuggestionsProps {
   organisationId: string
   search: string
   role: 'admin' | 'benevole'
-  onCreated: (participant: ProfilParticipant) => void
+  // Le composant se démonte dès qu'un participant est sélectionné (cf.
+  // showAdherentFallback dans DonModal/BenevolePage) — l'état "en attente"
+  // ne peut donc pas vivre ici, il doit remonter au parent, qui seul
+  // survit jusqu'à la validation du don. onCreated fournit l'objet
+  // ProfilParticipant virtuel pour l'UI (autocomplete) ET la fonction qui
+  // écrira réellement personnes/profils_participant en base, à appeler par
+  // le parent à la validation du don, jamais avant.
+  onCreated: (participant: ProfilParticipant, persist: ParticipantEnAttente['persist']) => void
 }
 
 export default function AdherentFallbackSuggestions({
@@ -52,7 +59,6 @@ export default function AdherentFallbackSuggestions({
   const [matches, setMatches] = useState<AdherentMatch[]>([])
   const [loading, setLoading] = useState(false)
   const [verifying, setVerifying] = useState<AdherentMatch | null>(null)
-  const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -88,11 +94,14 @@ export default function AdherentFallbackSuggestions({
     return () => clearTimeout(timeout)
   }, [search, organisationId, role])
 
-  async function handleConfirm(m: AdherentMatch) {
-    setCreating(true)
+  function handleConfirm(m: AdherentMatch) {
     setError(null)
 
-    const result = await creerParticipantDepuisAdherent(
+    // Rien n'est écrit en base ici — seulement préparé (ids réservés,
+    // objet prêt pour l'UI). L'écriture réelle attend la validation de la
+    // saisie du don (persist, appelé par le parent), pour qu'un don annulé
+    // ne laisse jamais de donateur fantôme en base.
+    const prepared = preparerParticipantDepuisAdherent(
       isAdminMatch(m)
         ? {
             nom: m.nom,
@@ -108,14 +117,7 @@ export default function AdherentFallbackSuggestions({
       organisationId
     )
 
-    setCreating(false)
-
-    if ('error' in result) {
-      setError(result.error)
-      return
-    }
-
-    onCreated(result.participant)
+    onCreated(prepared.participant, prepared.persist)
     setVerifying(null)
     setMatches([])
   }
@@ -154,11 +156,12 @@ export default function AdherentFallbackSuggestions({
             </div>
           )}
           <p className="font-registre-mono text-[11px] text-ink-faint">
-            Vérifiez qu'il s'agit bien de la personne qui fait ce don avant de confirmer.
+            Vérifiez qu'il s'agit bien de la personne qui fait ce don avant de confirmer. Le donateur ne sera
+            réellement créé qu'à l'enregistrement du don.
           </p>
           <div className="flex gap-2 pt-1">
-            <Button type="button" size="sm" disabled={creating} onClick={() => handleConfirm(verifying)}>
-              {creating ? 'Création…' : 'Confirmer et créer le donateur'}
+            <Button type="button" size="sm" onClick={() => handleConfirm(verifying)}>
+              Confirmer et créer le donateur
             </Button>
             <Button type="button" size="sm" variant="secondary" onClick={() => setVerifying(null)}>
               Annuler

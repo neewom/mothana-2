@@ -6,6 +6,7 @@ import ActiviteAutocomplete from './ActiviteAutocomplete'
 import ParticipantModal from './ParticipantModal'
 import DonFichiers, { type DonFichiersHandle } from './DonFichiers'
 import AdherentFallbackSuggestions from './AdherentFallbackSuggestions'
+import type { ParticipantEnAttente } from '../lib/adherentTranspose'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { participantFullName, filterParticipants } from '../lib/participantSearch'
 import { Button } from './ui/button'
@@ -58,6 +59,11 @@ export default function DonModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const donFichiersRef = useRef<DonFichiersHandle>(null)
+  // Portée ici (pas dans AdherentFallbackSuggestions) car ce composant se
+  // démonte dès que profilParticipantId devient non-vide (showAdherentFallback
+  // ci-dessous) — un état interne à ce composant ne survivrait pas jusqu'à la
+  // validation du don.
+  const pendingTransposeRef = useRef<{ participantId: string; persist: ParticipantEnAttente['persist'] } | null>(null)
 
   // Participant created via the full ParticipantModal (opened from "+
   // Nouveau participant"), not yet present in the `participants` prop from
@@ -99,6 +105,7 @@ export default function DonModal({
       setExtraParticipants([])
       setParticipantSearch('')
       setError(null)
+      pendingTransposeRef.current = null
     }
     // defaultParticipantId lu seulement à l'ouverture — l'exclure évite de réinitialiser
     // la sélection en cours si la prop change pendant que la modale est déjà ouverte.
@@ -171,6 +178,23 @@ export default function DonModal({
       onSaved()
       onDonSaved?.(`Don de ${formatEur(payload.montant)} modifié`)
       onClose()
+      return
+    }
+
+    // Si un adhérent a été transposé en donateur (AdherentFallbackSuggestions),
+    // rien n'a encore été écrit en base à ce stade — seulement préparé. Ce
+    // n'est qu'ici, à la validation effective de la saisie du don, que le
+    // donateur est réellement créé (cf. cadrage : le doublonnement ne doit
+    // être effectif qu'à la validation du don, pas avant).
+    const pendingTranspose = pendingTransposeRef.current
+    const transposeErr =
+      pendingTranspose && pendingTranspose.participantId === profilParticipantId
+        ? await pendingTranspose.persist()
+        : null
+    pendingTransposeRef.current = null
+    if (transposeErr) {
+      setSaving(false)
+      setError(`Impossible de créer le donateur à partir de l'adhérent : ${transposeErr}`)
       return
     }
 
@@ -260,10 +284,11 @@ export default function DonModal({
                     organisationId={organisationId}
                     search={participantSearch}
                     role="admin"
-                    onCreated={(p) => {
+                    onCreated={(p, persist) => {
                       setExtraParticipants((prev) => [...prev, p])
                       setProfilParticipantId(p.id)
                       setParticipantSearch('')
+                      pendingTransposeRef.current = { participantId: p.id, persist }
                     }}
                   />
                 )}

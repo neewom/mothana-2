@@ -7,6 +7,7 @@ import { useFocusTrap } from '../hooks/useFocusTrap'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
 import DonFichiers, { type DonFichiersHandle } from '../components/DonFichiers'
 import AdherentFallbackSuggestions from '../components/AdherentFallbackSuggestions'
+import type { ParticipantEnAttente } from '../lib/adherentTranspose'
 import BenevoleVerificationAdherent from '../components/BenevoleVerificationAdherent'
 import RecetteBanner from '../components/RecetteBanner'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
@@ -137,6 +138,11 @@ export default function BenevolePage() {
   const [createdDonId, setCreatedDonId] = useState<string | null>(null)
   const [uploadWarning, setUploadWarning] = useState<string | null>(null)
   const donFichiersRef = useRef<DonFichiersHandle>(null)
+  // Portée ici (pas dans AdherentFallbackSuggestions) car ce composant se
+  // démonte dès que selectedParticipant devient non-vide (showAdherentFallback
+  // plus bas) — un état interne à ce composant ne survivrait pas jusqu'à la
+  // validation du don.
+  const pendingTransposeRef = useRef<{ participantId: string; persist: ParticipantEnAttente['persist'] } | null>(null)
   const [sessionExpired, setSessionExpired] = useState(false)
 
   // Close dropdown on outside click
@@ -252,6 +258,7 @@ export default function BenevolePage() {
     setSuccess(false)
     setCreatedDonId(null)
     setUploadWarning(null)
+    pendingTransposeRef.current = null
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -303,6 +310,22 @@ export default function BenevolePage() {
     if (!profilParticipantId) {
       setError('Veuillez sélectionner ou créer un participant.')
       setSaving(false)
+      return
+    }
+
+    // Si un adhérent a été transposé en donateur (AdherentFallbackSuggestions),
+    // rien n'a encore été écrit en base à ce stade — seulement préparé. Ce
+    // n'est qu'ici, à la validation effective de la saisie du don, que le
+    // donateur est réellement créé.
+    const pendingTranspose = pendingTransposeRef.current
+    const transposeErr =
+      pendingTranspose && pendingTranspose.participantId === profilParticipantId
+        ? await pendingTranspose.persist()
+        : null
+    pendingTransposeRef.current = null
+    if (transposeErr) {
+      setSaving(false)
+      setError(`Impossible de créer le donateur à partir de l'adhérent : ${transposeErr}`)
       return
     }
 
@@ -529,9 +552,10 @@ export default function BenevolePage() {
                     organisationId={organisationId}
                     search={search}
                     role="benevole"
-                    onCreated={(p) => {
+                    onCreated={(p, persist) => {
                       setParticipants((prev) => [p, ...prev])
                       selectParticipant(p)
+                      pendingTransposeRef.current = { participantId: p.id, persist }
                     }}
                   />
                 )}
