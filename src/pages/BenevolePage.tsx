@@ -2,11 +2,13 @@ import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabaseClient'
-import type { ProfilParticipant, Activite } from '../types'
+import type { ProfilParticipant, Activite, ModePaiement } from '../types'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
+import DonFichiers, { type DonFichiersHandle } from '../components/DonFichiers'
 import BenevoleVerificationAdherent from '../components/BenevoleVerificationAdherent'
 import RecetteBanner from '../components/RecetteBanner'
+import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -125,12 +127,15 @@ export default function BenevolePage() {
   const [activiteId, setActiviteId] = useState('')
   const [montant, setMontant] = useState('')
   const [date, setDate] = useState(todayISO())
-  const [modePaiement, setModePaiement] = useState<'virement' | 'cheque' | 'especes'>('virement')
+  const [modePaiement, setModePaiement] = useState<ModePaiement>(3)
 
   // UI state
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [createdDonId, setCreatedDonId] = useState<string | null>(null)
+  const [uploadWarning, setUploadWarning] = useState<string | null>(null)
+  const donFichiersRef = useRef<DonFichiersHandle>(null)
   const [sessionExpired, setSessionExpired] = useState(false)
 
   // Close dropdown on outside click
@@ -238,9 +243,11 @@ export default function BenevolePage() {
     setActiviteId('')
     setMontant('')
     setDate(todayISO())
-    setModePaiement('virement')
+    setModePaiement(3)
     setError(null)
     setSuccess(false)
+    setCreatedDonId(null)
+    setUploadWarning(null)
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -295,7 +302,15 @@ export default function BenevolePage() {
       return
     }
 
+    // Un bénévole ne peut pas relire la table dons (RLS : "le bénévole ne consulte
+    // pas la liste", cf. schema-mothana.sql) — `INSERT ... RETURNING` exige que la
+    // ligne soit visible via la policy SELECT, donc `.select()` échouerait toujours
+    // ici. Id généré côté client à la place (même pattern que personnes/
+    // profils_participant plus haut dans ce fichier).
+    const donId = generateUUID()
+
     const { error: donErr } = await supabase.from('dons').insert({
+      id: donId,
       profil_participant_id: profilParticipantId,
       organisation_id: organisationId,
       activite_id: activiteId || null,
@@ -305,13 +320,24 @@ export default function BenevolePage() {
       created_by_role: 'benevole',
     })
 
-    setSaving(false)
-
     if (donErr) {
+      setSaving(false)
       setError(donErr.message)
       return
     }
 
+    // Le don est déjà enregistré à ce stade — un échec d'upload des pièces
+    // jointes en attente ne doit pas être présenté comme un échec de
+    // l'enregistrement du don lui-même.
+    const uploadErrors = (await donFichiersRef.current?.uploadStaged(donId)) ?? []
+    setUploadWarning(
+      uploadErrors.length > 0
+        ? `Certains fichiers n'ont pas pu être joints : ${uploadErrors.join(' ; ')}`
+        : null
+    )
+
+    setSaving(false)
+    setCreatedDonId(donId)
     setSuccess(true)
     await loadData()
   }
@@ -413,6 +439,19 @@ export default function BenevolePage() {
                 </span>{' '}
                 a bien été enregistré.
               </p>
+
+              {uploadWarning && (
+                <div className="mt-6 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-left text-sm text-stamp">
+                  {uploadWarning}
+                </div>
+              )}
+
+              {createdDonId && (
+                <div className="mt-6 rounded-sm border border-paper-border bg-white p-4 text-left">
+                  <DonFichiers donId={createdDonId} organisationId={organisationId} canDelete={false} />
+                </div>
+              )}
+
               <Button variant="success" onClick={resetForm} className="mt-6">
                 Saisir un nouveau don
               </Button>
@@ -598,24 +637,26 @@ export default function BenevolePage() {
                 <Label>
                   Mode de paiement <span className="text-stamp">*</span>
                 </Label>
-                <div className="mt-1 grid grid-cols-3 gap-2">
-                  {(['virement', 'cheque', 'especes'] as const).map((mode) => (
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  {MODE_PAIEMENT_OPTIONS.map((o) => (
                     <button
-                      key={mode}
+                      key={o.value}
                       type="button"
-                      onClick={() => setModePaiement(mode)}
+                      onClick={() => setModePaiement(o.value)}
                       className={cn(
                         'rounded-sm border px-3 py-2 text-sm font-medium transition-colors',
-                        modePaiement === mode
+                        modePaiement === o.value
                           ? 'border-stamp bg-stamp text-white'
                           : 'border-paper-border bg-white text-ink-muted hover:bg-paper'
                       )}
                     >
-                      {mode === 'virement' ? 'Virement' : mode === 'cheque' ? 'Chèque' : 'Espèces'}
+                      {o.label}
                     </button>
                   ))}
                 </div>
               </div>
+
+              <DonFichiers ref={donFichiersRef} donId={null} organisationId={organisationId} canDelete={false} />
 
               <Button type="submit" disabled={saving || (!selectedParticipant && !showNew)} className="w-full">
                 {saving ? 'Enregistrement…' : 'Enregistrer le don'}
