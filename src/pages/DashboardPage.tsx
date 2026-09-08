@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
+import { useAdminOutletContext } from '../hooks/useAdminOutletContext'
 import { moisManquants, anneeMoisDeDate } from '../lib/donsReguliers'
+import { cn } from '../lib/utils'
 
 interface RecentDon {
   id: string
@@ -46,6 +48,9 @@ function Card({ title, children, action }: { title: string; children: React.Reac
 
 export default function DashboardPage() {
   const organisationId = useOrganisationId()
+  const { fonctionnalitesActivees } = useAdminOutletContext()
+  const donsActifs = fonctionnalitesActivees?.dons ?? true
+  const adherentsActifs = fonctionnalitesActivees?.adherents ?? true
 
   const [loading, setLoading] = useState(true)
   const [montantMois, setMontantMois] = useState(0)
@@ -154,7 +159,7 @@ export default function DashboardPage() {
         <p className="mt-1 text-sm text-ink-muted">Vue d'ensemble de votre organisation.</p>
       </div>
 
-      {demandesEnAttente > 0 && (
+      {adherentsActifs && demandesEnAttente > 0 && (
         <Link
           to="/admin/adherents/demandes"
           className="flex flex-col gap-4 rounded-sm border-2 border-warning-border bg-warning-tint px-6 py-5 transition-colors hover:bg-warning-tint/70 sm:flex-row sm:items-center"
@@ -180,7 +185,7 @@ export default function DashboardPage() {
         </Link>
       )}
 
-      {donsReguliersAConfirmer > 0 && (
+      {donsActifs && donsReguliersAConfirmer > 0 && (
         <Link
           to="/admin/dons-reguliers"
           className="flex flex-col gap-4 rounded-sm border-2 border-warning-border bg-warning-tint px-6 py-5 transition-colors hover:bg-warning-tint/70 sm:flex-row sm:items-center"
@@ -207,73 +212,87 @@ export default function DashboardPage() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-sm border border-paper-border bg-white p-5">
-          <p className="text-sm text-ink-faint">Dons ce mois-ci</p>
-          <p className="mt-1 text-2xl font-bold text-ink">{formatEur(montantMois)}</p>
-          <p className="mt-1 text-xs text-ink-faint">{nombreDonsMois} don{nombreDonsMois > 1 ? 's' : ''}</p>
+      {(donsActifs || adherentsActifs) && (
+        <div className={cn('grid grid-cols-1 gap-4', donsActifs && adherentsActifs && 'sm:grid-cols-2')}>
+          {donsActifs && (
+            <div className="rounded-sm border border-paper-border bg-white p-5">
+              <p className="text-sm text-ink-faint">Dons ce mois-ci</p>
+              <p className="mt-1 text-2xl font-bold text-ink">{formatEur(montantMois)}</p>
+              <p className="mt-1 text-xs text-ink-faint">{nombreDonsMois} don{nombreDonsMois > 1 ? 's' : ''}</p>
+            </div>
+          )}
+          {adherentsActifs && (
+            <div className="rounded-sm border border-paper-border bg-white p-5">
+              <p className="text-sm text-ink-faint">Adhérents proches d'expiration (30 jours)</p>
+              <p className="mt-1 text-2xl font-bold text-ink">{adherentsExpiration.length}</p>
+              <p className="mt-1 text-xs text-ink-faint">
+                {adherentsExpiration.length === 0 ? 'Aucun renouvellement à prévoir' : 'À relancer pour renouvellement'}
+              </p>
+            </div>
+          )}
         </div>
-        <div className="rounded-sm border border-paper-border bg-white p-5">
-          <p className="text-sm text-ink-faint">Adhérents proches d'expiration (30 jours)</p>
-          <p className="mt-1 text-2xl font-bold text-ink">{adherentsExpiration.length}</p>
-          <p className="mt-1 text-xs text-ink-faint">
-            {adherentsExpiration.length === 0 ? 'Aucun renouvellement à prévoir' : 'À relancer pour renouvellement'}
-          </p>
+      )}
+
+      {(donsActifs || adherentsActifs) && (
+        <div className={cn('grid grid-cols-1 gap-4', donsActifs && adherentsActifs ? 'lg:grid-cols-3' : 'lg:grid-cols-2')}>
+          {donsActifs && (
+            <Card title="Dons récents" action={<Link to="/admin/dons" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
+              {recentDons.length === 0 ? (
+                <p className="text-sm text-ink-faint">Aucun don enregistré.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {recentDons.map((don) => (
+                    <li key={don.id} className="flex items-center justify-between text-sm">
+                      <span className="text-ink-muted">
+                        {don.profils_participant?.personnes.prenom} {don.profils_participant?.personnes.nom}
+                      </span>
+                      <span className="font-medium text-ink">{formatEur(don.montant)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
+
+          {donsActifs && (
+            <Card title="Activités récentes" action={<Link to="/admin/activites" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
+              {recentActivites.length === 0 ? (
+                <p className="text-sm text-ink-faint">Aucune activité enregistrée.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {recentActivites.map((activite) => (
+                    <li key={activite.id} className="text-sm">
+                      <p className="text-ink-muted">{activite.nom}</p>
+                      {activite.date_debut && (
+                        <p className="text-xs text-ink-faint">{formatDate(activite.date_debut)}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
+
+          {adherentsActifs && (
+            <Card title="Adhérents proches d'expiration" action={<Link to="/admin/adherents" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
+              {adherentsExpiration.length === 0 ? (
+                <p className="text-sm text-ink-faint">Aucun adhérent proche d'expiration.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {adherentsExpiration.map((adhesion) => (
+                    <li key={adhesion.id} className="flex items-center justify-between text-sm">
+                      <span className="text-ink-muted">
+                        {adhesion.adherents?.prenom} {adhesion.adherents?.nom}
+                      </span>
+                      <span className="text-xs text-ink-faint">{formatDate(adhesion.date_fin)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card title="Dons récents" action={<Link to="/admin/dons" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
-          {recentDons.length === 0 ? (
-            <p className="text-sm text-ink-faint">Aucun don enregistré.</p>
-          ) : (
-            <ul className="space-y-3">
-              {recentDons.map((don) => (
-                <li key={don.id} className="flex items-center justify-between text-sm">
-                  <span className="text-ink-muted">
-                    {don.profils_participant?.personnes.prenom} {don.profils_participant?.personnes.nom}
-                  </span>
-                  <span className="font-medium text-ink">{formatEur(don.montant)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <Card title="Activités récentes" action={<Link to="/admin/activites" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
-          {recentActivites.length === 0 ? (
-            <p className="text-sm text-ink-faint">Aucune activité enregistrée.</p>
-          ) : (
-            <ul className="space-y-3">
-              {recentActivites.map((activite) => (
-                <li key={activite.id} className="text-sm">
-                  <p className="text-ink-muted">{activite.nom}</p>
-                  {activite.date_debut && (
-                    <p className="text-xs text-ink-faint">{formatDate(activite.date_debut)}</p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <Card title="Adhérents proches d'expiration" action={<Link to="/admin/adherents" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
-          {adherentsExpiration.length === 0 ? (
-            <p className="text-sm text-ink-faint">Aucun adhérent proche d'expiration.</p>
-          ) : (
-            <ul className="space-y-3">
-              {adherentsExpiration.map((adhesion) => (
-                <li key={adhesion.id} className="flex items-center justify-between text-sm">
-                  <span className="text-ink-muted">
-                    {adhesion.adherents?.prenom} {adhesion.adherents?.nom}
-                  </span>
-                  <span className="text-xs text-ink-faint">{formatDate(adhesion.date_fin)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+      )}
     </div>
   )
 }

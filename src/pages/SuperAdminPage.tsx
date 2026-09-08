@@ -25,11 +25,17 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 // Types
 // ---------------------------------------------------------------------------
 
+interface FonctionnalitesActivees {
+  dons: boolean
+  adherents: boolean
+}
+
 interface OrgRow {
   id: string
   nom: string
   code_pin_benevole: string | null
   created_at: string
+  fonctionnalites_activees: FonctionnalitesActivees
   nb_participants: number
   nb_adherents: number
   nb_dons: number
@@ -91,6 +97,8 @@ interface OrgModalProps {
 function OrgModal({ open, onClose, onSaved, onDeleteRequest, onAdminAdded, org }: OrgModalProps) {
   const isEdit = !!org
   const [nom, setNom] = useState('')
+  const [donsActifs, setDonsActifs] = useState(true)
+  const [adherentsActifs, setAdherentsActifs] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -108,6 +116,8 @@ function OrgModal({ open, onClose, onSaved, onDeleteRequest, onAdminAdded, org }
   useEffect(() => {
     if (open) {
       setNom(org?.nom ?? '')
+      setDonsActifs(org?.fonctionnalites_activees.dons ?? true)
+      setAdherentsActifs(org?.fonctionnalites_activees.adherents ?? true)
       setError(null)
       setShowAddForm(false)
       setNewNom('')
@@ -198,7 +208,7 @@ function OrgModal({ open, onClose, onSaved, onDeleteRequest, onAdminAdded, org }
     if (isEdit && org) {
       const { error: err } = await supabase
         .from('organisations')
-        .update({ nom })
+        .update({ nom, fonctionnalites_activees: { dons: donsActifs, adherents: adherentsActifs } })
         .eq('id', org.id)
       if (err) { setError(err.message); setSaving(false); return }
     } else {
@@ -282,6 +292,31 @@ function OrgModal({ open, onClose, onSaved, onDeleteRequest, onAdminAdded, org }
               <p className="text-xs text-ink-faint">
                 Un code PIN bénévole aléatoire sera généré automatiquement. Il pourra être modifié depuis les paramètres de l'organisation.
               </p>
+            )}
+            {isEdit && (
+              <div className="space-y-1.5">
+                <Label>Fonctionnalités activées</Label>
+                <div className="space-y-2 rounded-sm border border-paper-border bg-paper px-4 py-3">
+                  <label className="flex items-center gap-2 font-registre text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={donsActifs}
+                      onChange={(e) => setDonsActifs(e.target.checked)}
+                      className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+                    />
+                    Dons
+                  </label>
+                  <label className="flex items-center gap-2 font-registre text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={adherentsActifs}
+                      onChange={(e) => setAdherentsActifs(e.target.checked)}
+                      className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+                    />
+                    Adhérents
+                  </label>
+                </div>
+              </div>
             )}
           </form>
 
@@ -447,7 +482,7 @@ export default function SuperAdminPage() {
     // 1. All organisations
     const { data: orgsData, error: orgsErr } = await supabase
       .from('organisations')
-      .select('id, nom, code_pin_benevole, created_at')
+      .select('id, nom, code_pin_benevole, created_at, fonctionnalites_activees')
       .order('created_at', { ascending: false })
 
     if (orgsErr || !orgsData) {
@@ -506,6 +541,10 @@ export default function SuperAdminPage() {
       nom: o.nom,
       code_pin_benevole: o.code_pin_benevole,
       created_at: o.created_at,
+      fonctionnalites_activees: {
+        dons: (o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null)?.dons ?? true,
+        adherents: (o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null)?.adherents ?? true,
+      },
       nb_participants: participantsByOrg[o.id] ?? 0,
       nb_adherents: adherentsByOrg[o.id] ?? 0,
       nb_dons: donsByOrg[o.id]?.count ?? 0,
