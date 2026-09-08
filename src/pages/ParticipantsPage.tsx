@@ -223,7 +223,7 @@ function DetailPanel({
         {/* Identity */}
         <div>
           {p.civilite && (
-            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+            <p className="font-registre-mono text-xs font-medium uppercase tracking-wide text-ink-faint">
               {CIVILITE_LABELS[p.civilite]}
             </p>
           )}
@@ -235,7 +235,7 @@ function DetailPanel({
         {/* Co-signataire */}
         {(p.nom2 || p.prenom2) && (
           <div>
-            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Co-signataire</p>
+            <p className="font-registre-mono text-xs font-medium uppercase tracking-wide text-ink-faint">Co-signataire</p>
             <p className="mt-1 text-sm text-ink">{[p.prenom2, p.nom2].filter(Boolean).join(' ')}</p>
           </div>
         )}
@@ -243,7 +243,7 @@ function DetailPanel({
         {/* Adresse */}
         {(p.adresse || p.code_postal || p.ville || p.pays) && (
           <div>
-            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Adresse</p>
+            <p className="font-registre-mono text-xs font-medium uppercase tracking-wide text-ink-faint">Adresse</p>
             <div className="mt-1 text-sm text-ink">
               {p.adresse && <p>{p.adresse}</p>}
               {(p.code_postal || p.ville) && <p>{[p.code_postal, p.ville].filter(Boolean).join(' ')}</p>}
@@ -255,7 +255,7 @@ function DetailPanel({
         {/* Notes */}
         {participant.notes && (
           <div>
-            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Notes</p>
+            <p className="font-registre-mono text-xs font-medium uppercase tracking-wide text-ink-faint">Notes</p>
             <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{participant.notes}</p>
           </div>
         )}
@@ -263,20 +263,20 @@ function DetailPanel({
         {/* Identifiant externe */}
         {participant.id_externe && (
           <div>
-            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Identifiant externe</p>
+            <p className="font-registre-mono text-xs font-medium uppercase tracking-wide text-ink-faint">Identifiant externe</p>
             <p className="mt-1 text-sm text-ink">{participant.id_externe}</p>
           </div>
         )}
 
         {/* Total */}
         <div>
-          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Total des dons</p>
+          <p className="font-registre-mono text-xs font-medium uppercase tracking-wide text-ink-faint">Total des dons</p>
           <p className="mt-1 font-registre-mono text-xl font-bold text-ink">{formatEur(totalDons)}</p>
         </div>
 
         {/* Donation history */}
         <div>
-          <p className="mb-2 font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Historique des dons</p>
+          <p className="mb-2 font-registre-mono text-xs font-medium uppercase tracking-wide text-ink-faint">Historique des dons</p>
           {participantDons.length === 0 ? (
             <p className="font-registre text-sm text-ink-faint">Aucun don</p>
           ) : (
