@@ -2,6 +2,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react'
 import type { User } from '@supabase/supabase-js'
@@ -25,6 +26,15 @@ async function fetchOrganisationId(userId: string): Promise<string | null> {
   return (data as { organisation_id: string }).organisation_id
 }
 
+async function isOrganisationArchived(organisationId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('organisations')
+    .select('archived_at')
+    .eq('id', organisationId)
+    .single()
+  return !!(data as { archived_at: string | null } | null)?.archived_at
+}
+
 function isSuperAdmin(user: User): boolean {
   const appMeta = user.app_metadata as Record<string, unknown> | undefined
   return appMeta?.is_super_admin === true
@@ -42,6 +52,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [viewingOrgId, setViewingOrgId] = useState<string | null>(
     () => sessionStorage.getItem('viewingOrgId')
   )
+  // loginAdmin gère elle-même la résolution complète de l'état (y compris le
+  // check archived_at) sur signInWithPassword — le listener onAuthStateChange
+  // réagit au même événement SIGNED_IN en parallèle et court-circuiterait ce
+  // flux explicite avec sa propre résolution (race : deux signOut() concurrents
+  // pouvaient se corrompre mutuellement, cf. bug constaté 2026-09-08 où le
+  // mauvais message d'erreur s'affichait). Suppression du double traitement le
+  // temps que loginAdmin/loginBenevole pilotent explicitement l'état.
+  const suppressListenerRef = useRef(false)
 
   const setViewingOrg = useCallback((orgId: string | null) => {
     setViewingOrgId(orgId)
@@ -99,6 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (session.user) {
+        if (suppressListenerRef.current) return
+
         const benevoleOrgId = getBenevoleOrgFromUser(session.user)
         if (benevoleOrgId) {
           setAuth({ type: 'benevole', organisationId: benevoleOrgId })
@@ -127,24 +147,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginAdmin = useCallback(
     async (email: string, password: string): Promise<{ error: string | null; authType?: 'super_admin' | 'admin' }> => {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error || !data.user) {
-        return { error: error?.message ?? 'Erreur de connexion' }
-      }
+      suppressListenerRef.current = true
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error || !data.user) {
+          return { error: error?.message ?? 'Erreur de connexion' }
+        }
 
-      // Super-admin: no profils_organisation needed
-      if (isSuperAdmin(data.user)) {
-        setAuth({ type: 'super_admin', user: data.user })
-        return { error: null, authType: 'super_admin' }
-      }
+        // Super-admin: no profils_organisation needed
+        if (isSuperAdmin(data.user)) {
+          setAuth({ type: 'super_admin', user: data.user })
+          return { error: null, authType: 'super_admin' }
+        }
 
-      const organisationId = await fetchOrganisationId(data.user.id)
-      if (!organisationId) {
-        await supabase.auth.signOut()
-        return { error: 'Aucune organisation associée à ce compte.' }
+        const organisationId = await fetchOrganisationId(data.user.id)
+        if (!organisationId) {
+          await supabase.auth.signOut()
+          return { error: 'Aucune organisation associée à ce compte.' }
+        }
+        if (await isOrganisationArchived(organisationId)) {
+          await supabase.auth.signOut()
+          return { error: 'Cette organisation a été archivée.' }
+        }
+        setAuth({ type: 'admin', user: data.user, organisationId })
+        return { error: null, authType: 'admin' }
+      } finally {
+        suppressListenerRef.current = false
       }
-      setAuth({ type: 'admin', user: data.user, organisationId })
-      return { error: null, authType: 'admin' }
     },
     []
   )
