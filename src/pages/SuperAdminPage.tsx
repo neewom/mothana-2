@@ -829,15 +829,15 @@ export default function SuperAdminPage() {
             <Table>
               <TableBody>
                 {archivedOrgs.map((org) => (
-                  <TableRow key={org.id}>
-                    <TableCell>
+                  <TableRow key={org.id} className="block md:table-row">
+                    <TableCell className="block md:table-cell">
                       <div className="font-medium text-ink">{org.nom}</div>
                       <div className="font-registre-mono text-xs text-ink-faint">
                         Archivée le {org.archived_at ? formatDate(org.archived_at) : '—'}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-2">
+                    <TableCell className="block pt-0 md:table-cell md:pt-3">
+                      <div className="flex flex-wrap gap-2 md:flex-nowrap md:justify-end">
                         <Button type="button" variant="secondary" size="sm" onClick={() => handleExtract(org)} disabled={extractingId === org.id}>
                           {extractingId === org.id ? 'Extraction…' : 'Extraire les données'}
                         </Button>
