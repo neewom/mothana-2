@@ -832,10 +832,9 @@ export default function SuperAdminPage() {
                   <TableRow key={org.id}>
                     <TableCell>
                       <div className="font-medium text-ink">{org.nom}</div>
-                      <div className="font-registre-mono text-xs text-ink-faint">PIN : {org.code_pin_benevole ?? '—'}</div>
-                    </TableCell>
-                    <TableCell className="text-ink-faint">
-                      Archivée le {org.archived_at ? formatDate(org.archived_at) : '—'}
+                      <div className="font-registre-mono text-xs text-ink-faint">
+                        Archivée le {org.archived_at ? formatDate(org.archived_at) : '—'}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-2">

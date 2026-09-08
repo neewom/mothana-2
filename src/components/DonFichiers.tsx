@@ -271,7 +271,7 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="flex items-center gap-1 font-registre-mono text-[11px] font-medium text-stamp hover:text-stamp/80 disabled:opacity-50"
+              className="flex items-center gap-1 font-registre-mono text-xs font-medium text-stamp hover:text-stamp/80 disabled:opacity-50"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -291,13 +291,13 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
       </div>
 
       {error && (
-        <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-3 py-2 font-registre-mono text-[11px] text-stamp">
+        <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-3 py-2 font-registre-mono text-xs text-stamp">
           {error}
         </div>
       )}
 
       {!donId && displayedStaged.length === 0 && fichiers.length === 0 && (
-        <p className="font-registre-mono text-[11px] text-ink-faint">Aucun fichier joint.</p>
+        <p className="font-registre-mono text-xs text-ink-faint">Aucun fichier joint.</p>
       )}
 
       {displayedStaged.length > 0 && (
@@ -321,7 +321,7 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
                 </button>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-ink">{f.name}</p>
-                  <p className="font-registre-mono text-[10px] text-ink-faint">{formatTaille(f.size)}</p>
+                  <p className="font-registre-mono text-xs text-ink-faint">{formatTaille(f.size)}</p>
                 </div>
                 <Button type="button" variant="danger" size="sm" onClick={() => handleRemoveStaged(i)}>
                   Retirer
@@ -334,9 +334,9 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
 
       {donId && (
         loading ? (
-          <p className="font-registre-mono text-[11px] text-ink-faint">Chargement…</p>
+          <p className="font-registre-mono text-xs text-ink-faint">Chargement…</p>
         ) : fichiers.length === 0 ? (
-          <p className="font-registre-mono text-[11px] text-ink-faint">Aucun fichier joint.</p>
+          <p className="font-registre-mono text-xs text-ink-faint">Aucun fichier joint.</p>
         ) : (
           <ul className="divide-y divide-paper-border rounded-sm border border-paper-border">
             {fichiers.map((f) => (
@@ -355,7 +355,7 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
                 </button>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-ink">{f.nom_original}</p>
-                  <p className="font-registre-mono text-[10px] text-ink-faint">{formatTaille(f.taille)}</p>
+                  <p className="font-registre-mono text-xs text-ink-faint">{formatTaille(f.taille)}</p>
                 </div>
                 {canDelete && (
                   <Button type="button" variant="danger" size="sm" onClick={() => handleDelete(f)}>
