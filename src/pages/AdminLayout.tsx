@@ -2,6 +2,7 @@ import { useState, useEffect, type ReactElement } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useOrganisationId } from '../hooks/useOrganisationId'
+import { useFonctionnalitesActivees, type FonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
 import { supabase } from '../lib/supabaseClient'
 import RecetteBanner from '../components/RecetteBanner'
 import { cn } from '../lib/utils'
@@ -96,43 +97,57 @@ function XIcon() {
   )
 }
 
-const NAV_ITEMS: NavEntry[] = [
-  { type: 'link', label: 'Accueil', to: '/admin', icon: <HomeIcon />, end: true },
-  {
-    type: 'group',
-    label: 'Dons',
-    icon: <DonIcon />,
-    items: [
-      { label: 'Dons', to: '/admin/dons' },
-      { label: 'Dons réguliers', to: '/admin/dons-reguliers' },
-      { label: 'Participants', to: '/admin/participants' },
-      { label: 'Activités', to: '/admin/activites' },
-      { label: 'Reçus fiscaux', to: '/admin/recus' },
-    ],
-  },
-  {
-    type: 'group',
-    label: 'Adhérents',
-    icon: <IdCardIcon />,
-    items: [
-      { label: 'Adhérents', to: '/admin/adherents', end: true },
-      { label: "Demandes d'adhésion", to: '/admin/adherents/demandes' },
-      { label: 'Mailing', to: '/admin/adherents/mailing' },
-    ],
-  },
-  { type: 'link', label: 'Comptabilité', to: '/admin/comptabilite', icon: <ChartIcon /> },
-  {
+function buildNavItems(flags: FonctionnalitesActivees): NavEntry[] {
+  const items: NavEntry[] = [
+    { type: 'link', label: 'Accueil', to: '/admin', icon: <HomeIcon />, end: true },
+  ]
+
+  if (flags.dons) {
+    items.push({
+      type: 'group',
+      label: 'Dons',
+      icon: <DonIcon />,
+      items: [
+        { label: 'Dons', to: '/admin/dons' },
+        { label: 'Dons réguliers', to: '/admin/dons-reguliers' },
+        { label: 'Participants', to: '/admin/participants' },
+        { label: 'Activités', to: '/admin/activites' },
+        { label: 'Reçus fiscaux', to: '/admin/recus' },
+      ],
+    })
+  }
+
+  if (flags.adherents) {
+    items.push({
+      type: 'group',
+      label: 'Adhérents',
+      icon: <IdCardIcon />,
+      items: [
+        { label: 'Adhérents', to: '/admin/adherents', end: true },
+        { label: "Demandes d'adhésion", to: '/admin/adherents/demandes' },
+        { label: 'Mailing', to: '/admin/adherents/mailing' },
+      ],
+    })
+  }
+
+  if (flags.dons) {
+    items.push({ type: 'link', label: 'Comptabilité', to: '/admin/comptabilite', icon: <ChartIcon /> })
+  }
+
+  items.push({
     type: 'group',
     label: 'Paramètres',
     icon: <CogIcon />,
     items: [
       { label: 'Organisation', to: '/admin/parametres', end: true },
       { label: 'Fiscalité', to: '/admin/parametres/fiscal' },
-      { label: 'Adhérents', to: '/admin/parametres/adherents' },
+      ...(flags.adherents ? [{ label: 'Adhérents', to: '/admin/parametres/adherents' }] : []),
       { label: 'Historique', to: '/admin/parametres/suivi' },
     ],
-  },
-]
+  })
+
+  return items
+}
 
 function navLinkClasses({ isActive }: { isActive: boolean }): string {
   return cn(
@@ -189,7 +204,7 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
   )
 }
 
-function Sidebar({ onClose }: { onClose?: () => void }) {
+function Sidebar({ navItems, onClose }: { navItems: NavEntry[]; onClose?: () => void }) {
   return (
     <div className="flex h-full flex-col bg-ink text-paper">
       {/* Logo */}
@@ -204,7 +219,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* Nav */}
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {NAV_ITEMS.map((entry) =>
+        {navItems.map((entry) =>
           entry.type === 'group' ? (
             <NavGroupItem key={entry.label} group={entry} onClose={onClose} />
           ) : (
@@ -222,11 +237,13 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
 export default function AdminLayout() {
   const { auth, logout, setViewingOrg } = useAuth()
   const organisationId = useOrganisationId()
+  const fonctionnalitesActivees = useFonctionnalitesActivees(organisationId)
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [organisationNom, setOrganisationNom] = useState<string | null>(null)
 
   const isSuperAdminViewing = auth.type === 'super_admin'
+  const navItems = buildNavItems(fonctionnalitesActivees ?? { dons: true, adherents: true })
 
   useEffect(() => {
     if (!organisationId) return
@@ -254,7 +271,7 @@ export default function AdminLayout() {
     <div className="flex h-dvh overflow-hidden bg-paper font-registre">
       {/* Desktop sidebar */}
       <aside className="hidden w-64 flex-shrink-0 lg:block">
-        <Sidebar />
+        <Sidebar navItems={navItems} />
       </aside>
 
       {/* Mobile sidebar overlay */}
@@ -265,7 +282,7 @@ export default function AdminLayout() {
             onClick={() => setSidebarOpen(false)}
           />
           <aside className="relative z-50 h-full w-64">
-            <Sidebar onClose={() => setSidebarOpen(false)} />
+            <Sidebar navItems={navItems} onClose={() => setSidebarOpen(false)} />
           </aside>
         </div>
       )}
@@ -316,7 +333,7 @@ export default function AdminLayout() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
+          <Outlet context={{ fonctionnalitesActivees }} />
         </main>
       </div>
     </div>

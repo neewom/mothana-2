@@ -10,6 +10,7 @@ import AdherentFallbackSuggestions from '../components/AdherentFallbackSuggestio
 import type { ParticipantEnAttente } from '../lib/adherentTranspose'
 import BenevoleVerificationAdherent from '../components/BenevoleVerificationAdherent'
 import RecetteBanner from '../components/RecetteBanner'
+import { useFonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
@@ -101,11 +102,21 @@ export default function BenevolePage() {
   const navigate = useNavigate()
 
   const organisationId = auth.type === 'benevole' ? auth.organisationId : ''
+  const fonctionnalitesActivees = useFonctionnalitesActivees(organisationId)
+  const donsActifs = fonctionnalitesActivees?.dons ?? true
+  const adherentsActifs = fonctionnalitesActivees?.adherents ?? true
 
   const [organisationNom, setOrganisationNom] = useState<string | null>(null)
 
   // Onglets
   const [activeTab, setActiveTab] = useState<'don' | 'verification'>('don')
+
+  // Bascule automatiquement sur l'onglet encore actif si l'onglet courant
+  // devient indisponible (switch désactivé pendant la session).
+  useEffect(() => {
+    if (activeTab === 'don' && !donsActifs && adherentsActifs) setActiveTab('verification')
+    else if (activeTab === 'verification' && !adherentsActifs && donsActifs) setActiveTab('don')
+  }, [donsActifs, adherentsActifs, activeTab])
 
   // Data
   const [participants, setParticipants] = useState<ProfilParticipant[]>([])
@@ -406,30 +417,34 @@ export default function BenevolePage() {
       {/* Content */}
       <main className="flex flex-1 items-start justify-center px-4 py-8">
         <div className="w-full max-w-lg">
-          <div className="mb-6 flex gap-2 rounded-sm bg-paper-border/40 p-1">
-            <button
-              type="button"
-              onClick={() => setActiveTab('don')}
-              className={cn(
-                'flex-1 rounded-sm px-3 py-2 text-sm font-medium transition-colors',
-                activeTab === 'don' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
-              )}
-            >
-              Saisir un don
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('verification')}
-              className={cn(
-                'flex-1 rounded-sm px-3 py-2 text-sm font-medium transition-colors',
-                activeTab === 'verification' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
-              )}
-            >
-              Vérifier un adhérent
-            </button>
-          </div>
+          {donsActifs && adherentsActifs && (
+            <div className="mb-6 flex gap-2 rounded-sm bg-paper-border/40 p-1">
+              <button
+                type="button"
+                onClick={() => setActiveTab('don')}
+                className={cn(
+                  'flex-1 rounded-sm px-3 py-2 text-sm font-medium transition-colors',
+                  activeTab === 'don' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
+                )}
+              >
+                Saisir un don
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('verification')}
+                className={cn(
+                  'flex-1 rounded-sm px-3 py-2 text-sm font-medium transition-colors',
+                  activeTab === 'verification' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
+                )}
+              >
+                Vérifier un adhérent
+              </button>
+            </div>
+          )}
 
-          {activeTab === 'verification' ? (
+          {!donsActifs && !adherentsActifs ? (
+            <p className="py-16 text-center text-sm text-ink-faint">Aucune fonctionnalité active pour cette organisation.</p>
+          ) : activeTab === 'verification' ? (
             <BenevoleVerificationAdherent organisationId={organisationId} />
           ) : (
             <>

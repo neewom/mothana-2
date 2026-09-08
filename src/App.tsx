@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
+import FeatureGuard from './components/FeatureGuard'
 
 import HomePage from './pages/HomePage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
@@ -44,18 +45,22 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
-            <Route path="dons" element={<DonsPage />} />
-            <Route path="dons-reguliers" element={<DonsReguliersPage />} />
-            <Route path="participants" element={<ParticipantsPage />} />
-            <Route path="activites" element={<ActivitesPage />} />
-            <Route path="recus" element={<RecusFiscauxPage />} />
-            <Route path="adherents" element={<AdherentsPage />} />
-            <Route path="adherents/demandes" element={<DemandesAdhesionPage />} />
-            <Route path="adherents/mailing" element={<CampagneMailingPage />} />
-            <Route path="comptabilite" element={<ComptabilitePage />} />
+            <Route element={<FeatureGuard feature="dons" />}>
+              <Route path="dons" element={<DonsPage />} />
+              <Route path="dons-reguliers" element={<DonsReguliersPage />} />
+              <Route path="participants" element={<ParticipantsPage />} />
+              <Route path="activites" element={<ActivitesPage />} />
+              <Route path="recus" element={<RecusFiscauxPage />} />
+              <Route path="comptabilite" element={<ComptabilitePage />} />
+            </Route>
+            <Route element={<FeatureGuard feature="adherents" />}>
+              <Route path="adherents" element={<AdherentsPage />} />
+              <Route path="adherents/demandes" element={<DemandesAdhesionPage />} />
+              <Route path="adherents/mailing" element={<CampagneMailingPage />} />
+              <Route path="parametres/adherents" element={<ParametresAdherentsPage />} />
+            </Route>
             <Route path="parametres" element={<ParametresOrganisationPage />} />
             <Route path="parametres/fiscal" element={<ParametresFiscalPage />} />
-            <Route path="parametres/adherents" element={<ParametresAdherentsPage />} />
             <Route path="parametres/suivi" element={<ParametresSuiviPage />} />
           </Route>
         </Route>
