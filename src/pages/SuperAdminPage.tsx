@@ -42,6 +42,7 @@ interface OrgRow {
   nb_participants: number
   nb_adherents: number
   nb_dons: number
+  nb_admins: number
   total_dons: number
 }
 
@@ -551,6 +552,15 @@ export default function SuperAdminPage() {
         .range(from, to)
     )
 
+    // 5. All admin accounts (for count per org)
+    const { data: adminsData } = await fetchAllRows<{ organisation_id: string }>((from, to) =>
+      supabase
+        .from('profils_organisation')
+        .select('organisation_id')
+        .order('id', { ascending: true })
+        .range(from, to)
+    )
+
     // Aggregate
     const donsByOrg: Record<string, { count: number; total: number }> = {}
     for (const d of donsData) {
@@ -569,6 +579,11 @@ export default function SuperAdminPage() {
       adherentsByOrg[a.organisation_id] = (adherentsByOrg[a.organisation_id] ?? 0) + 1
     }
 
+    const adminsByOrg: Record<string, number> = {}
+    for (const a of adminsData) {
+      adminsByOrg[a.organisation_id] = (adminsByOrg[a.organisation_id] ?? 0) + 1
+    }
+
     const rows: OrgRow[] = orgsData.map((o) => ({
       id: o.id,
       nom: o.nom,
@@ -582,6 +597,7 @@ export default function SuperAdminPage() {
       nb_participants: participantsByOrg[o.id] ?? 0,
       nb_adherents: adherentsByOrg[o.id] ?? 0,
       nb_dons: donsByOrg[o.id]?.count ?? 0,
+      nb_admins: adminsByOrg[o.id] ?? 0,
       total_dons: donsByOrg[o.id]?.total ?? 0,
     }))
 
@@ -600,6 +616,30 @@ export default function SuperAdminPage() {
     setDeleting(true)
     setDeleteError(null)
 
+    // Supprimer d'abord les comptes admin de l'organisation : la suppression
+    // de l'organisation cascade profils_organisation, mais pas les comptes
+    // auth.users eux-mêmes (cascade FK uniquement users -> profils_organisation,
+    // pas l'inverse) — sans ça ils restent orphelins, incapables de se
+    // connecter mais aussi impossibles à gérer/rattacher depuis l'UI.
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token ?? ''
+
+    const adminsRes = await fetch(`${SUPABASE_URL}/functions/v1/delete-org-admins`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ organisation_id: deleteConfirm.id }),
+    })
+    if (!adminsRes.ok) {
+      const json = await adminsRes.json().catch(() => ({}))
+      setDeleteError(json.error ?? 'Erreur lors de la suppression des comptes admin')
+      setDeleting(false)
+      return
+    }
+
     const { error: err } = await supabase
       .from('organisations')
       .delete()
@@ -612,7 +652,7 @@ export default function SuperAdminPage() {
     }
 
     setDeleting(false)
-    showToast(`« ${deleteConfirm.nom} » supprimée`)
+    showToast(`« ${deleteConfirm.nom} » supprimée (comptes admin inclus)`)
     setDeleteConfirm(null)
     setDeleteConfirmText('')
     fetchAll()
@@ -878,6 +918,7 @@ export default function SuperAdminPage() {
                 <li>{deleteConfirm.nb_adherents} adhérent{deleteConfirm.nb_adherents !== 1 ? 's' : ''}</li>
                 <li>{deleteConfirm.nb_participants} donateur{deleteConfirm.nb_participants !== 1 ? 's' : ''}</li>
                 <li>{deleteConfirm.nb_dons} don{deleteConfirm.nb_dons !== 1 ? 's' : ''}</li>
+                <li>{deleteConfirm.nb_admins} compte{deleteConfirm.nb_admins !== 1 ? 's' : ''} admin{deleteConfirm.nb_admins !== 1 ? 's' : ''}</li>
               </ul>
               <Label htmlFor="delete-org-confirm" className="mt-4 block">
                 Pour confirmer, saisissez le nom de l'organisation : <span className="font-medium text-ink">{deleteConfirm.nom}</span>
