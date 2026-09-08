@@ -141,16 +141,13 @@ Le board Trello est la source de vérité unique du backlog (hors cartes "Action
 3. **Vraie documentation utilisateur (guides / FAQ)** — pas encore cadré. [Trello](https://trello.com/c/5pwUxgqA)
 4. **`agents.md` calqués sur `CLAUDE.md`** (switch Codex ↔ Claude Code) — pas encore cadré. [Trello](https://trello.com/c/0XmhK0iv)
 5. **Mire de connexion personnalisée par organisation** (admin + bénévole) — cadré. [Trello](https://trello.com/c/gkOuH3uh)
-6. **Pièces jointes sur un don** (justificatifs) — cadré. [Trello](https://trello.com/c/G1MFP7Ao)
+6. **DecouvrirPage : rafraîchir les 15 captures (nouvelle UI) + ajouter Dons réguliers et Modèles de reçus personnalisables** — cadré, non urgent (page prospects). [Trello](https://trello.com/c/6e0mb8n3)
 7. **Double opt-in email** avant ratification d'une demande d'adhésion — cadré. [Trello](https://trello.com/c/0gt0LIVU)
 8. **Modèles réutilisables pour les campagnes mailing** — cadré. [Trello](https://trello.com/c/BfHOUb3v)
-9. **Switches d'activation de fonctionnalités par organisation** (Dons / Adhérents) — cadré, pas urgent. [Trello](https://trello.com/c/1tNWFQr9)
-10. **Suppression d'organisation : étape d'archivage intermédiaire** — cadré. [Trello](https://trello.com/c/Z0kThckV)
-11. **Sélection d'un adhérent à la saisie d'un don + doublonnement** — prio basse (explicite), cadrage volontairement léger. [Trello](https://trello.com/c/RtRY8ltX)
-12. **OCR scan de carte adhérent** — pas encore cadré. [Trello](https://trello.com/c/zVBOjAWk)
-13. **Priorité 5 — Export comptable enrichi** — recadré, roadmap lointaine. [Trello](https://trello.com/c/W3GCYUOt)
-14. **Priorité 5 — Brique événements/coupons + portefeuille virtuel** (Pagode Coupon) — clarifié, prérequis (inspection projet Supabase "pagode-coupon") avant cadrage technique. [Trello](https://trello.com/c/C9A5B9jr)
-15. **Priorité 5 — Gestion abonnements/plans** (facturation Samakan) — clarifié, roadmap lointaine. [Trello](https://trello.com/c/cfKF8BNw)
+9. **OCR scan de carte adhérent** — pas encore cadré. [Trello](https://trello.com/c/zVBOjAWk)
+10. **Priorité 5 — Export comptable enrichi** — recadré, roadmap lointaine. [Trello](https://trello.com/c/W3GCYUOt)
+11. **Priorité 5 — Brique événements/coupons + portefeuille virtuel** (Pagode Coupon) — clarifié, prérequis (inspection projet Supabase "pagode-coupon") avant cadrage technique. [Trello](https://trello.com/c/C9A5B9jr)
+12. **Priorité 5 — Gestion abonnements/plans** (facturation Samakan) — clarifié, roadmap lointaine. [Trello](https://trello.com/c/cfKF8BNw)
 
 **Carte supprimée du board le 2026-08-26** (constatée disparue en début de session, hors session Claude Code, décision utilisateur de ne pas la recréer) : "Ajouter des contraintes de saisie de mot de passe dans la page reset password".
 
