@@ -163,13 +163,14 @@ interface SortableHeadProps {
   sortDirection: 'asc' | 'desc'
   onSort: (field: SortField) => void
   align?: 'left' | 'right'
+  className?: string
 }
 
-function SortableHead({ field, label, sortField, sortDirection, onSort, align = 'left' }: SortableHeadProps) {
+function SortableHead({ field, label, sortField, sortDirection, onSort, align = 'left', className }: SortableHeadProps) {
   return (
     <TableHead
       onClick={() => onSort(field)}
-      className={cn('cursor-pointer select-none hover:text-ink', align === 'right' && 'text-right')}
+      className={cn('cursor-pointer select-none hover:text-ink', align === 'right' && 'text-right', className)}
     >
       {label}
       {sortField === field && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
@@ -598,7 +599,7 @@ export default function ParticipantsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <SortableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
                       <SortableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                       <SortableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                       <SortableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
@@ -615,7 +616,7 @@ export default function ParticipantsPage() {
                           p.id === selectedParticipant?.id && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]'
                         )}
                       >
-                        <TableCell className="text-ink-faint">
+                        <TableCell className="hidden text-ink-faint md:table-cell">
                           {p.personnes.civilite ? CIVILITE_LABELS[p.personnes.civilite] : '—'}
                         </TableCell>
                         <TableCell className="font-medium text-ink">
