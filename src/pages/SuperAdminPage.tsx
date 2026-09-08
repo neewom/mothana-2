@@ -8,6 +8,8 @@ import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS, DEFAULT_CARTE_ADHERENT_NOM } f
 import { slugifyUrl } from '../lib/organisationAssets'
 import { isRecette, isStagingSupabaseProject } from '../lib/environment'
 import { seedDemoOrganisationData } from '../lib/demoOrgSeed'
+import { downloadCsv } from '../lib/csvExport'
+import { cn } from '../lib/utils'
 import ScrollShadowX from '../components/ScrollShadowX'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
@@ -36,6 +38,7 @@ interface OrgRow {
   code_pin_benevole: string | null
   created_at: string
   fonctionnalites_activees: FonctionnalitesActivees
+  archived_at: string | null
   nb_participants: number
   nb_adherents: number
   nb_dons: number
@@ -67,6 +70,20 @@ function generatePin(): string {
   return String(Math.floor(100000 + Math.random() * 900000))
 }
 
+function sanitizeForCsv(rows: Record<string, unknown>[]): Record<string, string | number>[] {
+  return rows.map((row) => {
+    const out: Record<string, string | number> = {}
+    for (const [key, value] of Object.entries(row)) {
+      if (value === null || value === undefined) out[key] = ''
+      else if (typeof value === 'number') out[key] = value
+      else if (typeof value === 'string') out[key] = value
+      else if (typeof value === 'boolean') out[key] = value ? 'oui' : 'non'
+      else out[key] = JSON.stringify(value)
+    }
+    return out
+  })
+}
+
 // ---------------------------------------------------------------------------
 // StatCard
 // ---------------------------------------------------------------------------
@@ -89,12 +106,12 @@ interface OrgModalProps {
   open: boolean
   onClose: () => void
   onSaved: () => void
-  onDeleteRequest: (org: OrgRow) => void
+  onArchiveRequest: (org: OrgRow) => void
   onAdminAdded: (email: string) => void
   org?: OrgRow
 }
 
-function OrgModal({ open, onClose, onSaved, onDeleteRequest, onAdminAdded, org }: OrgModalProps) {
+function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, org }: OrgModalProps) {
   const isEdit = !!org
   const [nom, setNom] = useState('')
   const [donsActifs, setDonsActifs] = useState(true)
@@ -428,8 +445,8 @@ function OrgModal({ open, onClose, onSaved, onDeleteRequest, onAdminAdded, org }
 
         <div className={`flex shrink-0 items-center border-t border-paper-border bg-white px-6 py-4 ${isEdit ? 'justify-between' : 'justify-end'}`}>
           {isEdit && org && (
-            <Button type="button" variant="danger" onClick={() => onDeleteRequest(org)}>
-              Supprimer
+            <Button type="button" variant="secondary" onClick={() => onArchiveRequest(org)}>
+              Archiver
             </Button>
           )}
           <div className="flex gap-3">
@@ -466,6 +483,12 @@ export default function SuperAdminPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  const [tab, setTab] = useState<'actives' | 'archivees'>('actives')
+  const [extractingId, setExtractingId] = useState<string | null>(null)
+
+  const activeOrgs = orgs.filter((o) => !o.archived_at)
+  const archivedOrgs = orgs.filter((o) => o.archived_at)
+
   function handleConsulter(org: OrgRow) {
     setViewingOrg(org.id)
     navigate('/admin')
@@ -482,7 +505,7 @@ export default function SuperAdminPage() {
     // 1. All organisations
     const { data: orgsData, error: orgsErr } = await supabase
       .from('organisations')
-      .select('id, nom, code_pin_benevole, created_at, fonctionnalites_activees')
+      .select('id, nom, code_pin_benevole, created_at, fonctionnalites_activees, archived_at')
       .order('created_at', { ascending: false })
 
     if (orgsErr || !orgsData) {
@@ -541,6 +564,7 @@ export default function SuperAdminPage() {
       nom: o.nom,
       code_pin_benevole: o.code_pin_benevole,
       created_at: o.created_at,
+      archived_at: o.archived_at,
       fonctionnalites_activees: {
         dons: (o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null)?.dons ?? true,
         adherents: (o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null)?.adherents ?? true,
@@ -585,10 +609,63 @@ export default function SuperAdminPage() {
   }
 
   // ---------------------------------------------------------------------------
+  // Archivage
+  // ---------------------------------------------------------------------------
+
+  async function handleArchive(org: OrgRow) {
+    if (!window.confirm(`Archiver « ${org.nom} » ? Ses admins et bénévoles ne pourront plus se connecter. Réversible depuis l'onglet "Archivées".`)) return
+
+    const { error: err } = await supabase
+      .from('organisations')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', org.id)
+
+    if (err) { showToast(`Erreur : ${err.message}`); return }
+
+    setModalOpen(false)
+    showToast(`« ${org.nom} » archivée`)
+    fetchAll()
+  }
+
+  async function handleReactivate(org: OrgRow) {
+    if (!window.confirm(`Réactiver « ${org.nom} » ? Ses admins et bénévoles pourront à nouveau se connecter.`)) return
+
+    const { error: err } = await supabase
+      .from('organisations')
+      .update({ archived_at: null })
+      .eq('id', org.id)
+
+    if (err) { showToast(`Erreur : ${err.message}`); return }
+
+    showToast(`« ${org.nom} » réactivée`)
+    fetchAll()
+  }
+
+  async function handleExtract(org: OrgRow) {
+    setExtractingId(org.id)
+    const slug = slugifyUrl(org.nom) || org.id
+
+    const [adherentsRes, donsRes, participantsRes, activitesRes] = await Promise.all([
+      supabase.from('adherents').select('*').eq('organisation_id', org.id),
+      supabase.from('dons').select('*').eq('organisation_id', org.id),
+      supabase.from('profils_participant').select('*, personnes(*)').eq('organisation_id', org.id),
+      supabase.from('activites').select('*').eq('organisation_id', org.id),
+    ])
+
+    if (adherentsRes.data?.length) downloadCsv(`${slug}-adherents.csv`, sanitizeForCsv(adherentsRes.data))
+    if (donsRes.data?.length) downloadCsv(`${slug}-dons.csv`, sanitizeForCsv(donsRes.data))
+    if (participantsRes.data?.length) downloadCsv(`${slug}-participants.csv`, sanitizeForCsv(participantsRes.data))
+    if (activitesRes.data?.length) downloadCsv(`${slug}-activites.csv`, sanitizeForCsv(activitesRes.data))
+
+    setExtractingId(null)
+    showToast(`Données de « ${org.nom} » extraites (CSV par table)`)
+  }
+
+  // ---------------------------------------------------------------------------
   // Global stats
   // ---------------------------------------------------------------------------
 
-  const totalOrgs = orgs.length
+  const totalOrgs = activeOrgs.length
   const totalDons = orgs.reduce((s, o) => s + o.total_dons, 0)
   const totalParticipants = orgs.reduce((s, o) => s + o.nb_participants, 0)
 
@@ -628,18 +705,96 @@ export default function SuperAdminPage() {
 
       {/* Organisations table */}
       <div className="rounded-sm border border-paper-border bg-white">
-        <div className="border-b border-paper-border px-6 py-4">
+        <div className="flex items-center justify-between border-b border-paper-border px-6 py-4">
           <h2 className="text-lg font-semibold text-ink">Organisations</h2>
+          <div className="flex gap-2 rounded-sm bg-paper-border/40 p-1">
+            <button
+              type="button"
+              onClick={() => setTab('actives')}
+              className={cn(
+                'rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors',
+                tab === 'actives' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
+              )}
+            >
+              Actives
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('archivees')}
+              className={cn(
+                'rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors',
+                tab === 'archivees' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
+              )}
+            >
+              Archivées{archivedOrgs.length > 0 ? ` (${archivedOrgs.length})` : ''}
+            </button>
+          </div>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-16 font-registre text-sm text-ink-faint">
             Chargement…
           </div>
-        ) : orgs.length === 0 ? (
+        ) : tab === 'actives' ? (
+          activeOrgs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="font-registre text-sm font-medium text-ink-faint">Aucune organisation active</p>
+              <p className="mt-1 font-registre text-xs text-ink-faint">Créez la première organisation pour commencer.</p>
+            </div>
+          ) : (
+            <ScrollShadowX>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Organisation</TableHead>
+                    <TableHead className="text-right">Participants</TableHead>
+                    <TableHead className="text-right">Dons</TableHead>
+                    <TableHead className="text-right">Total collecté</TableHead>
+                    <TableHead>Créée le</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activeOrgs.map((org) => (
+                    <TableRow
+                      key={org.id}
+                      onClick={() => { setEditing(org); setModalOpen(true) }}
+                      className="cursor-pointer hover:bg-paper-border/20"
+                    >
+                      <TableCell>
+                        <div className="font-medium text-ink">{org.nom}</div>
+                        <div className="font-registre-mono text-xs text-ink-faint">PIN : {org.code_pin_benevole ?? '—'}</div>
+                      </TableCell>
+                      <TableCell className="text-right text-ink-muted">{org.nb_participants}</TableCell>
+                      <TableCell className="text-right text-ink-muted">{org.nb_dons}</TableCell>
+                      <TableCell className="text-right font-medium text-ink">{formatMontant(org.total_dons)}</TableCell>
+                      <TableCell className="text-ink-faint">{formatDate(org.created_at)}</TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleConsulter(org)}
+                            aria-label={`Consulter ${org.nom}`}
+                            title="Consulter"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollShadowX>
+          )
+        ) : archivedOrgs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="font-registre text-sm font-medium text-ink-faint">Aucune organisation</p>
-            <p className="mt-1 font-registre text-xs text-ink-faint">Créez la première organisation pour commencer.</p>
+            <p className="font-registre text-sm font-medium text-ink-faint">Aucune organisation archivée</p>
           </div>
         ) : (
           <ScrollShadowX>
@@ -648,41 +803,36 @@ export default function SuperAdminPage() {
                 <TableRow>
                   <TableHead>Organisation</TableHead>
                   <TableHead className="text-right">Participants</TableHead>
-                  <TableHead className="text-right">Dons</TableHead>
                   <TableHead className="text-right">Total collecté</TableHead>
-                  <TableHead>Créée le</TableHead>
+                  <TableHead>Archivée le</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orgs.map((org) => (
-                  <TableRow
-                    key={org.id}
-                    onClick={() => { setEditing(org); setModalOpen(true) }}
-                    className="cursor-pointer hover:bg-paper-border/20"
-                  >
+                {archivedOrgs.map((org) => (
+                  <TableRow key={org.id}>
                     <TableCell>
                       <div className="font-medium text-ink">{org.nom}</div>
                       <div className="font-registre-mono text-xs text-ink-faint">PIN : {org.code_pin_benevole ?? '—'}</div>
                     </TableCell>
                     <TableCell className="text-right text-ink-muted">{org.nb_participants}</TableCell>
-                    <TableCell className="text-right text-ink-muted">{org.nb_dons}</TableCell>
                     <TableCell className="text-right font-medium text-ink">{formatMontant(org.total_dons)}</TableCell>
-                    <TableCell className="text-ink-faint">{formatDate(org.created_at)}</TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className="flex justify-end">
+                    <TableCell className="text-ink-faint">{org.archived_at ? formatDate(org.archived_at) : '—'}</TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="secondary" size="sm" onClick={() => handleExtract(org)} disabled={extractingId === org.id}>
+                          {extractingId === org.id ? 'Extraction…' : 'Extraire les données'}
+                        </Button>
+                        <Button type="button" variant="secondary" size="sm" onClick={() => handleReactivate(org)}>
+                          Réactiver
+                        </Button>
                         <Button
                           type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleConsulter(org)}
-                          aria-label={`Consulter ${org.nom}`}
-                          title="Consulter"
+                          variant="danger"
+                          size="sm"
+                          onClick={() => { setDeleteConfirm(org); setDeleteError(null); setDeleteConfirmText('') }}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
+                          Supprimer
                         </Button>
                       </div>
                     </TableCell>
@@ -699,12 +849,7 @@ export default function SuperAdminPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSaved={fetchAll}
-        onDeleteRequest={(org) => {
-          setModalOpen(false)
-          setDeleteConfirm(org)
-          setDeleteError(null)
-          setDeleteConfirmText('')
-        }}
+        onArchiveRequest={handleArchive}
         onAdminAdded={(email) => showToast(`Invitation envoyée à ${email}`)}
         org={editing}
       />

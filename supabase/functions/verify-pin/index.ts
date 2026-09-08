@@ -31,13 +31,20 @@ Deno.serve(async (req) => {
     // 1. Verify PIN → resolve organisation
     const { data: org, error: orgError } = await adminClient
       .from('organisations')
-      .select('id')
+      .select('id, archived_at')
       .eq('code_pin_benevole', pin)
       .single()
 
     if (orgError || !org) {
       return new Response(
         JSON.stringify({ error: 'Code PIN invalide' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    if (org.archived_at) {
+      return new Response(
+        JSON.stringify({ error: 'Cette organisation a été archivée' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
