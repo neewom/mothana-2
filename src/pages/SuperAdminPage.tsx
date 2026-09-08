@@ -17,7 +17,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Badge } from '../components/ui/badge'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import { Table, TableBody, TableRow, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
@@ -114,6 +114,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
   const [admins, setAdmins] = useState<AdminRow[]>([])
   const [adminsLoading, setAdminsLoading] = useState(false)
   const [adminsError, setAdminsError] = useState<string | null>(null)
+  const [showDisabledAdmins, setShowDisabledAdmins] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newNom, setNewNom] = useState('')
   const [newEmail, setNewEmail] = useState('')
@@ -135,6 +136,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
       setNewEmail('')
       setAddError(null)
       setAdminsError(null)
+      setShowDisabledAdmins(false)
       if (org) fetchAdmins(org.id)
     }
   }, [open, org])
@@ -274,11 +276,14 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
     onClose()
   }
 
+  const disabledAdminsCount = admins.filter((a) => a.is_banned).length
+  const visibleAdmins = showDisabledAdmins ? admins : admins.filter((a) => !a.is_banned)
+
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
       <DialogContent className="max-w-lg" aria-describedby={undefined}>
         <DialogHeader>
-          <div className="flex items-center justify-between gap-3 pr-8">
+          <div className="flex items-start justify-between gap-3 pr-8">
             <div>
               <DialogTitle>{isEdit ? "Modifier l'organisation" : 'Nouvelle organisation'}</DialogTitle>
               {isEdit && org && (
@@ -290,6 +295,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="-mt-2"
                 onClick={() => onConsult(org)}
                 aria-label={`Consulter ${org.nom}`}
                 title="Consulter"
@@ -366,34 +372,51 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
               ) : admins.length === 0 ? (
                 <div className="py-6 text-center font-registre text-sm text-ink-faint">Aucun compte admin pour cette organisation.</div>
               ) : (
-                <ul className="divide-y divide-paper-border-muted rounded-sm border border-paper-border">
-                  {admins.map((admin) => (
-                    <li key={admin.utilisateur_id} className="flex items-center justify-between px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-registre text-sm font-medium text-ink">
-                          {admin.nom_affiche ?? '—'}
-                        </p>
-                        <p className="truncate font-registre text-xs text-ink-faint">{admin.email}</p>
-                      </div>
-                      <div className="ml-4 flex flex-shrink-0 items-center gap-3">
-                        {admin.is_banned && <Badge variant="stamp">Désactivé</Badge>}
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleToggleBan(admin)}
-                          disabled={banningId === admin.utilisateur_id}
-                        >
-                          {banningId === admin.utilisateur_id
-                            ? '…'
-                            : admin.is_banned
-                            ? 'Réactiver'
-                            : 'Désactiver'}
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  {visibleAdmins.length === 0 ? (
+                    <div className="py-6 text-center font-registre text-sm text-ink-faint">Tous les comptes sont désactivés.</div>
+                  ) : (
+                    <ul className="divide-y divide-paper-border-muted rounded-sm border border-paper-border">
+                      {visibleAdmins.map((admin) => (
+                        <li key={admin.utilisateur_id} className="flex items-center justify-between px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-registre text-sm font-medium text-ink">
+                              {admin.nom_affiche ?? '—'}
+                            </p>
+                            <p className="truncate font-registre text-xs text-ink-faint">{admin.email}</p>
+                          </div>
+                          <div className="ml-4 flex flex-shrink-0 items-center gap-3">
+                            {admin.is_banned && <Badge variant="stamp">Désactivé</Badge>}
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleToggleBan(admin)}
+                              disabled={banningId === admin.utilisateur_id}
+                            >
+                              {banningId === admin.utilisateur_id
+                                ? '…'
+                                : admin.is_banned
+                                ? 'Réactiver'
+                                : 'Désactiver'}
+                            </Button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {disabledAdminsCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowDisabledAdmins((prev) => !prev)}
+                      className="font-registre-mono text-xs font-medium text-stamp hover:text-stamp/80"
+                    >
+                      {showDisabledAdmins
+                        ? 'Masquer les comptes désactivés'
+                        : `Afficher les comptes désactivés (${disabledAdminsCount})`}
+                    </button>
+                  )}
+                </>
               )}
 
               {showAddForm ? (
@@ -804,13 +827,6 @@ export default function SuperAdminPage() {
         ) : (
           <ScrollShadowX>
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Organisation</TableHead>
-                  <TableHead>Archivée le</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
               <TableBody>
                 {archivedOrgs.map((org) => (
                   <TableRow key={org.id}>
@@ -818,7 +834,9 @@ export default function SuperAdminPage() {
                       <div className="font-medium text-ink">{org.nom}</div>
                       <div className="font-registre-mono text-xs text-ink-faint">PIN : {org.code_pin_benevole ?? '—'}</div>
                     </TableCell>
-                    <TableCell className="text-ink-faint">{org.archived_at ? formatDate(org.archived_at) : '—'}</TableCell>
+                    <TableCell className="text-ink-faint">
+                      Archivée le {org.archived_at ? formatDate(org.archived_at) : '—'}
+                    </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-2">
                         <Button type="button" variant="secondary" size="sm" onClick={() => handleExtract(org)} disabled={extractingId === org.id}>
