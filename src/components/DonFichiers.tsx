@@ -62,6 +62,9 @@ interface DonFichiersProps {
   donId: string | null
   organisationId: string
   canDelete: boolean
+  // false pour une vue lecture seule (ex. side panel de détail) : n'affiche
+  // que les fichiers déjà ajoutés, l'ajout se fait depuis la modale d'édition.
+  canAdd?: boolean
 }
 
 export interface DonFichiersHandle {
@@ -73,7 +76,7 @@ export interface DonFichiersHandle {
 }
 
 const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function DonFichiers(
-  { donId, organisationId, canDelete },
+  { donId, organisationId, canDelete, canAdd = true },
   ref
 ) {
   const [fichiers, setFichiers] = useState<DonFichier[]>([])
@@ -262,25 +265,29 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label>Pièces jointes</Label>
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="flex items-center gap-1 font-registre-mono text-[11px] font-medium text-stamp hover:text-stamp/80 disabled:opacity-50"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          {uploading ? 'Envoi…' : 'Ajouter un fichier'}
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={TYPES_ACCEPTES.join(',')}
-          multiple
-          className="hidden"
-          onChange={handleFilesSelected}
-        />
+        {canAdd && (
+          <>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-1 font-registre-mono text-[11px] font-medium text-stamp hover:text-stamp/80 disabled:opacity-50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              {uploading ? 'Envoi…' : 'Ajouter un fichier'}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={TYPES_ACCEPTES.join(',')}
+              multiple
+              className="hidden"
+              onChange={handleFilesSelected}
+            />
+          </>
+        )}
       </div>
 
       {error && (

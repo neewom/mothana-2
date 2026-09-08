@@ -242,7 +242,7 @@ function DetailPanel({ don, organisationId, onClose, onEdit, onDeleted }: Detail
           <p className="mt-1 text-sm capitalize text-ink">{don.created_by_role}</p>
         </div>
 
-        <DonFichiers donId={don.id} organisationId={organisationId} canDelete />
+        <DonFichiers donId={don.id} organisationId={organisationId} canDelete canAdd={false} />
       </div>
 
       {/* Actions */}

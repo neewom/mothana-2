@@ -602,7 +602,7 @@ export default function ParticipantsPage() {
                       <SortableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
                       <SortableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                       <SortableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <SortableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
+                      <SortableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="hidden md:table-cell" />
                       <TableHead />
                     </TableRow>
                   </TableHeader>
@@ -625,7 +625,7 @@ export default function ParticipantsPage() {
                         <TableCell className="text-ink-muted">
                           {p.personnes.prenom ?? '—'}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
+                        <TableCell className="hidden whitespace-nowrap text-right font-registre-mono font-medium text-ink md:table-cell">
                           {formatEur(totalDonsByParticipant.get(p.id) ?? 0)}
                         </TableCell>
                         <TableCell className="text-right text-ink-faint">
