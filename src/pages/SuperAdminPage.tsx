@@ -105,7 +105,7 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
 interface OrgModalProps {
   open: boolean
   onClose: () => void
-  onSaved: () => void
+  onSaved: (message: string) => void
   onArchiveRequest: (org: OrgRow) => void
   onAdminAdded: (email: string) => void
   org?: OrgRow
@@ -118,6 +118,13 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, org 
   const [adherentsActifs, setAdherentsActifs] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Valeurs initiales — comparées à l'état courant pour n'activer "Enregistrer"
+  // que si le formulaire a réellement changé (édition uniquement).
+  const [initialNom, setInitialNom] = useState('')
+  const [initialDonsActifs, setInitialDonsActifs] = useState(true)
+  const [initialAdherentsActifs, setInitialAdherentsActifs] = useState(true)
+  const isDirty = nom !== initialNom || donsActifs !== initialDonsActifs || adherentsActifs !== initialAdherentsActifs
 
   // Admins section (fusionnée depuis l'ex-AdminsModal)
   const [admins, setAdmins] = useState<AdminRow[]>([])
@@ -133,8 +140,11 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, org 
   useEffect(() => {
     if (open) {
       setNom(org?.nom ?? '')
+      setInitialNom(org?.nom ?? '')
       setDonsActifs(org?.fonctionnalites_activees.dons ?? true)
+      setInitialDonsActifs(org?.fonctionnalites_activees.dons ?? true)
       setAdherentsActifs(org?.fonctionnalites_activees.adherents ?? true)
+      setInitialAdherentsActifs(org?.fonctionnalites_activees.adherents ?? true)
       setError(null)
       setShowAddForm(false)
       setNewNom('')
@@ -276,7 +286,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, org 
     }
 
     setSaving(false)
-    onSaved()
+    onSaved(isEdit ? `« ${nom} » mise à jour` : `« ${nom} » créée`)
     onClose()
   }
 
@@ -453,7 +463,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, org 
             <Button type="button" variant="secondary" onClick={onClose}>
               Annuler
             </Button>
-            <Button type="submit" form="org-form" disabled={saving}>
+            <Button type="submit" form="org-form" disabled={saving || (isEdit && !isDirty)}>
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </div>
@@ -848,7 +858,7 @@ export default function SuperAdminPage() {
       <OrgModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSaved={fetchAll}
+        onSaved={(message) => { fetchAll(); showToast(message) }}
         onArchiveRequest={handleArchive}
         onAdminAdded={(email) => showToast(`Invitation envoyée à ${email}`)}
         org={editing}
