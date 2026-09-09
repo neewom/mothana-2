@@ -514,27 +514,11 @@ export default function CampagneMailingPage() {
         description="Composez le message envoyé à vos adhérents."
       >
         <div className="max-w-2xl space-y-4">
-          {templates.length > 0 && (
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1.5">
-                <label htmlFor="mailing-template" className="block text-sm font-medium text-ink-muted">Charger un modèle</label>
-                <Select
-                  id="mailing-template"
-                  value={selectedTemplateId}
-                  onChange={(e) => handleLoadTemplate(e.target.value)}
-                  className="w-full"
-                >
-                  <option value="">Partir d'un message vide</option>
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>{t.nom}</option>
-                  ))}
-                </Select>
-              </div>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setManageTemplatesOpen(true)}>
-                Gérer les modèles
-              </Button>
-            </div>
-          )}
+          <div>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setManageTemplatesOpen(true)}>
+              Modèles{templates.length > 0 ? ` (${templates.length})` : ''}
+            </Button>
+          </div>
 
           <div className="space-y-1.5">
             <label htmlFor="mailing-sujet" className="block text-sm font-medium text-ink-muted">Sujet</label>
@@ -820,7 +804,16 @@ export default function CampagneMailingPage() {
                     </>
                   ) : (
                     <>
-                      <span className="flex-1 truncate text-sm text-ink">{t.nom}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleLoadTemplate(t.id)
+                          setManageTemplatesOpen(false)
+                        }}
+                        className="flex-1 truncate text-left font-registre text-sm text-ink hover:text-stamp hover:underline"
+                      >
+                        {t.nom}
+                      </button>
                       <Button
                         type="button"
                         variant="ghost"
