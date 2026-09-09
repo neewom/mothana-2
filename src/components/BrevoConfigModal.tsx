@@ -72,6 +72,21 @@ export default function BrevoConfigModal({ open, onClose, onSaved, organisationI
       return
     }
 
+    // Enregistrement du webhook de bounce Brevo — non bloquant, la config
+    // Brevo est déjà enregistrée à ce stade même si cet appel échoue.
+    if (apiKey.trim()) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) return
+        fetch(`${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/register-brevo-webhook`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+          },
+        }).catch((e) => console.error('register-brevo-webhook error:', e))
+      })
+    }
+
     onSaved({ apiKey, expediteurNom, expediteurEmail })
     onClose()
   }

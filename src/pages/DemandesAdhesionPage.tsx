@@ -124,6 +124,11 @@ export default function DemandesAdhesionPage() {
       return
     }
 
+    // Reporté ensuite indépendamment par les bounces sur les campagnes mailing (brevo-bounce-webhook).
+    if (ratifyingDemande.email_bounced_at) {
+      await supabase.from('adherents').update({ email_invalide_at: ratifyingDemande.email_bounced_at }).eq('id', adherent.id)
+    }
+
     showToast(`${demandeFullName(ratifyingDemande)} ratifié et ajouté aux adhérents`)
     if (organisationId) {
       await logModification({
@@ -274,7 +279,17 @@ export default function DemandesAdhesionPage() {
                         </TableCell>
                         <TableCell className="text-ink-muted">{d.prenom ?? '—'}</TableCell>
                         <TableCell className="text-ink-faint">
-                          {d.courriel ?? '—'}
+                          <div className="flex items-center gap-1.5">
+                            {d.courriel ?? '—'}
+                            {d.email_bounced_at && (
+                              <span
+                                title="L'email de confirmation envoyé à cette adresse n'a pas pu être délivré"
+                                className="inline-flex items-center whitespace-nowrap rounded-full border border-warning-border bg-white px-2 py-0.5 font-registre-mono text-[11px] font-medium text-warning"
+                              >
+                                Email invalide
+                              </span>
+                            )}
+                          </div>
                           {d.telephone && <p className="font-registre-mono text-xs text-ink-faint">{d.telephone}</p>}
                         </TableCell>
                         <TableCell className="font-registre-mono text-xs text-ink-faint">
@@ -464,6 +479,9 @@ export default function DemandesAdhesionPage() {
                       </dd>
                       {courrielConflicts.length > 0 && (
                         <p className="mt-1 font-registre-mono text-[11px] text-warning">Déjà utilisé par {conflictLabel(courrielConflicts)}</p>
+                      )}
+                      {detailDemande.email_bounced_at && (
+                        <p className="mt-1 font-registre-mono text-[11px] text-warning">Email invalide — le message de confirmation n'a pas pu être délivré</p>
                       )}
                     </div>
                   </dl>

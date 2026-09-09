@@ -60,6 +60,7 @@ export default function DashboardPage() {
   const [adherentsExpiration, setAdherentsExpiration] = useState<AdherentProcheExpiration[]>([])
   const [demandesEnAttente, setDemandesEnAttente] = useState(0)
   const [donsReguliersAConfirmer, setDonsReguliersAConfirmer] = useState(0)
+  const [adherentsEmailInvalide, setAdherentsEmailInvalide] = useState(0)
 
   useEffect(() => {
     if (!organisationId) return
@@ -72,7 +73,7 @@ export default function DashboardPage() {
       const aujourdhui = now.toISOString().split('T')[0]
       const dans30Jours = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-      const [donsMoisRes, recentDonsRes, recentActivitesRes, adherentsExpirationRes, demandesRes, engagementsRes, donsGeneresRes] = await Promise.all([
+      const [donsMoisRes, recentDonsRes, recentActivitesRes, adherentsExpirationRes, demandesRes, engagementsRes, donsGeneresRes, emailInvalideRes] = await Promise.all([
         supabase
           .from('dons')
           .select('montant')
@@ -114,6 +115,12 @@ export default function DashboardPage() {
           .select('don_regulier_id, date')
           .eq('organisation_id', organisationId)
           .not('don_regulier_id', 'is', null),
+        supabase
+          .from('adherents')
+          .select('id', { count: 'exact', head: true })
+          .eq('organisation_id', organisationId)
+          .eq('statut', 'actif')
+          .not('email_invalide_at', 'is', null),
       ])
 
       const donsMois = (donsMoisRes.data ?? []) as { montant: number }[]
@@ -123,6 +130,7 @@ export default function DashboardPage() {
       setRecentActivites((recentActivitesRes.data ?? []) as RecentActivite[])
       setAdherentsExpiration((adherentsExpirationRes.data ?? []) as unknown as AdherentProcheExpiration[])
       setDemandesEnAttente(demandesRes.count ?? 0)
+      setAdherentsEmailInvalide(emailInvalideRes.count ?? 0)
 
       const engagements = (engagementsRes.data ?? []) as { id: string; jour_prelevement: number; date_debut: string; date_fin: string | null }[]
       const donsGeneres = (donsGeneresRes.data ?? []) as { don_regulier_id: string; date: string }[]
@@ -213,7 +221,7 @@ export default function DashboardPage() {
 
       {/* Stats */}
       {(donsActifs || adherentsActifs) && (
-        <div className={cn('grid grid-cols-1 gap-4', donsActifs && adherentsActifs && 'sm:grid-cols-2')}>
+        <div className={cn('grid grid-cols-1 gap-4 sm:grid-cols-2', donsActifs && adherentsActifs && 'lg:grid-cols-3')}>
           {donsActifs && (
             <div className="rounded-sm border border-paper-border bg-white p-5">
               <p className="text-sm text-ink-faint">Dons ce mois-ci</p>
@@ -227,6 +235,15 @@ export default function DashboardPage() {
               <p className="mt-1 text-2xl font-bold text-ink">{adherentsExpiration.length}</p>
               <p className="mt-1 text-xs text-ink-faint">
                 {adherentsExpiration.length === 0 ? 'Aucun renouvellement à prévoir' : 'À relancer pour renouvellement'}
+              </p>
+            </div>
+          )}
+          {adherentsActifs && (
+            <div className="rounded-sm border border-paper-border bg-white p-5">
+              <p className="text-sm text-ink-faint">Adresses email d'adhérents invalides</p>
+              <p className="mt-1 text-2xl font-bold text-ink">{adherentsEmailInvalide}</p>
+              <p className="mt-1 text-xs text-ink-faint">
+                {adherentsEmailInvalide === 0 ? 'Aucune adresse invalide détectée' : 'Email bouncé, à corriger'}
               </p>
             </div>
           )}
