@@ -697,7 +697,7 @@ export default function CampagneMailingPage() {
             </p>
           )}
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button type="button" onClick={() => setConfirmOpen(true)} disabled={!canSend}>
               Envoyer la campagne
             </Button>
