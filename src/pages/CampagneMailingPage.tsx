@@ -47,6 +47,13 @@ interface PieceJointeState {
   base64: string
 }
 
+interface MailingTemplate {
+  id: string
+  nom: string
+  sujet: string
+  corps_html: string
+}
+
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
@@ -127,6 +134,18 @@ export default function CampagneMailingPage() {
   // Historique
   const [historique, setHistorique] = useState<Campagne[]>([])
   const [historiqueLoading, setHistoriqueLoading] = useState(true)
+
+  // Modèles réutilisables
+  const [templates, setTemplates] = useState<MailingTemplate[]>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false)
+  const [saveTemplateName, setSaveTemplateName] = useState('')
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [saveTemplateError, setSaveTemplateError] = useState<string | null>(null)
+  const [manageTemplatesOpen, setManageTemplatesOpen] = useState(false)
+  const [renamingTemplateId, setRenamingTemplateId] = useState<string | null>(null)
+  const [renameTemplateValue, setRenameTemplateValue] = useState('')
+  const [templateActionError, setTemplateActionError] = useState<string | null>(null)
 
   const [corpsHtml, setCorpsHtml] = useState('')
   const [corpsVide, setCorpsVide] = useState(true)
@@ -223,6 +242,93 @@ export default function CampagneMailingPage() {
   useEffect(() => {
     fetchHistorique()
   }, [fetchHistorique])
+
+  const fetchTemplates = useCallback(async () => {
+    if (!organisationId) return
+    const { data } = await supabase
+      .from('mailing_templates')
+      .select('id, nom, sujet, corps_html')
+      .eq('organisation_id', organisationId)
+      .order('nom')
+    setTemplates((data ?? []) as MailingTemplate[])
+  }, [organisationId])
+
+  useEffect(() => {
+    fetchTemplates()
+  }, [fetchTemplates])
+
+  function handleLoadTemplate(templateId: string) {
+    setSelectedTemplateId(templateId)
+    if (!templateId) return
+    const template = templates.find((t) => t.id === templateId)
+    if (!template || !editor) return
+    setSujet(template.sujet)
+    editor.commands.setContent(template.corps_html)
+    setCorpsHtml(template.corps_html)
+    setCorpsVide(editor.getText().trim() === '')
+  }
+
+  const templateNameConflict = templates.find(
+    (t) => t.nom.trim().toLowerCase() === saveTemplateName.trim().toLowerCase()
+  )
+
+  function openSaveTemplateModal() {
+    setSaveTemplateError(null)
+    const current = templates.find((t) => t.id === selectedTemplateId)
+    setSaveTemplateName(current?.nom ?? '')
+    setSaveTemplateOpen(true)
+  }
+
+  async function handleSaveTemplate() {
+    const nom = saveTemplateName.trim()
+    if (!nom) {
+      setSaveTemplateError('Nom requis')
+      return
+    }
+    setSavingTemplate(true)
+    setSaveTemplateError(null)
+
+    const existing = templateNameConflict
+    const { error } = existing
+      ? await supabase.from('mailing_templates').update({ sujet, corps_html: corpsHtml }).eq('id', existing.id)
+      : await supabase.from('mailing_templates').insert({ organisation_id: organisationId, nom, sujet, corps_html: corpsHtml })
+
+    if (error) {
+      setSaveTemplateError(error.message)
+      setSavingTemplate(false)
+      return
+    }
+
+    setSavingTemplate(false)
+    setSaveTemplateOpen(false)
+    showToast('Modèle enregistré')
+    if (existing) setSelectedTemplateId(existing.id)
+    fetchTemplates()
+  }
+
+  async function handleRenameTemplate(id: string) {
+    const nom = renameTemplateValue.trim()
+    if (!nom) return
+    setTemplateActionError(null)
+    const { error } = await supabase.from('mailing_templates').update({ nom }).eq('id', id)
+    if (error) {
+      setTemplateActionError(error.message)
+      return
+    }
+    setRenamingTemplateId(null)
+    fetchTemplates()
+  }
+
+  async function handleDeleteTemplate(id: string) {
+    setTemplateActionError(null)
+    const { error } = await supabase.from('mailing_templates').delete().eq('id', id)
+    if (error) {
+      setTemplateActionError(error.message)
+      return
+    }
+    if (selectedTemplateId === id) setSelectedTemplateId('')
+    setTemplates((prev) => prev.filter((t) => t.id !== id))
+  }
 
   const { filtreStatut, tagEnvoi } = parseEnvoyerA(envoyerA)
 
@@ -408,6 +514,12 @@ export default function CampagneMailingPage() {
         description="Composez le message envoyé à vos adhérents."
       >
         <div className="max-w-2xl space-y-4">
+          <div>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setManageTemplatesOpen(true)}>
+              Modèles{templates.length > 0 ? ` (${templates.length})` : ''}
+            </Button>
+          </div>
+
           <div className="space-y-1.5">
             <label htmlFor="mailing-sujet" className="block text-sm font-medium text-ink-muted">Sujet</label>
             <Input
@@ -569,9 +681,17 @@ export default function CampagneMailingPage() {
             </p>
           )}
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button type="button" onClick={() => setConfirmOpen(true)} disabled={!canSend}>
               Envoyer la campagne
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={openSaveTemplateModal}
+              disabled={sujet.trim() === '' && corpsVide}
+            >
+              Enregistrer comme modèle
             </Button>
           </div>
         </div>
@@ -609,6 +729,118 @@ export default function CampagneMailingPage() {
           </ScrollShadowX>
         )}
       </SectionCard>
+
+      <Dialog open={saveTemplateOpen} onOpenChange={(next) => { if (!next && !savingTemplate) setSaveTemplateOpen(false) }}>
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
+          <div className="p-6">
+            <h2 className="font-registre text-lg font-semibold text-ink">Enregistrer comme modèle</h2>
+            <div className="mt-4 space-y-1.5">
+              <label htmlFor="template-name" className="block text-sm font-medium text-ink-muted">Nom du modèle</label>
+              <Input
+                id="template-name"
+                type="text"
+                value={saveTemplateName}
+                onChange={(e) => setSaveTemplateName(e.target.value)}
+                placeholder="Ex. Relance cotisation"
+                autoFocus
+              />
+            </div>
+            {templateNameConflict && saveTemplateName.trim() !== '' && (
+              <p className="mt-2 text-xs text-warning">
+                Un modèle « {templateNameConflict.nom} » existe déjà — l'enregistrer va le remplacer.
+              </p>
+            )}
+            {saveTemplateError && (
+              <div className="mt-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
+                {saveTemplateError}
+              </div>
+            )}
+            <div className="mt-5 flex justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={() => setSaveTemplateOpen(false)} disabled={savingTemplate}>
+                Annuler
+              </Button>
+              <Button type="button" onClick={handleSaveTemplate} disabled={savingTemplate}>
+                {savingTemplate ? 'Enregistrement…' : 'Enregistrer'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={manageTemplatesOpen}
+        onOpenChange={(next) => {
+          if (!next) {
+            setManageTemplatesOpen(false)
+            setRenamingTemplateId(null)
+            setTemplateActionError(null)
+          }
+        }}
+      >
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
+          <div className="p-6">
+            <h2 className="font-registre text-lg font-semibold text-ink">Gérer les modèles</h2>
+            {templateActionError && (
+              <div className="mt-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
+                {templateActionError}
+              </div>
+            )}
+            <ul className="mt-4 max-h-80 space-y-2 overflow-y-auto">
+              {templates.length === 0 && <p className="text-sm text-ink-faint">Aucun modèle enregistré.</p>}
+              {templates.map((t) => (
+                <li key={t.id} className="flex items-center gap-2 rounded-sm border border-paper-border px-3 py-2">
+                  {renamingTemplateId === t.id ? (
+                    <>
+                      <Input
+                        autoFocus
+                        value={renameTemplateValue}
+                        onChange={(e) => setRenameTemplateValue(e.target.value)}
+                        className="h-8 flex-1"
+                      />
+                      <Button type="button" size="sm" onClick={() => handleRenameTemplate(t.id)}>OK</Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setRenamingTemplateId(null)}>
+                        Annuler
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleLoadTemplate(t.id)
+                          setManageTemplatesOpen(false)
+                        }}
+                        className="flex-1 truncate text-left font-registre text-sm text-ink hover:text-stamp hover:underline"
+                      >
+                        {t.nom}
+                      </button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setRenamingTemplateId(t.id)
+                          setRenameTemplateValue(t.nom)
+                        }}
+                      >
+                        Renommer
+                      </Button>
+                      <Button type="button" variant="danger" size="sm" onClick={() => handleDeleteTemplate(t.id)}>
+                        Supprimer
+                      </Button>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-5 flex justify-end">
+              <Button type="button" variant="secondary" onClick={() => setManageTemplatesOpen(false)}>
+                Fermer
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmation d'envoi — l'erreur d'envoi est affichée dans la modale elle-même
           (pas derrière l'overlay comme dans l'ancien Modal, invisible tant que la modale
