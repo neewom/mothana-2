@@ -515,7 +515,7 @@ export default function CampagneMailingPage() {
       >
         <div className="max-w-2xl space-y-4">
           <div>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setManageTemplatesOpen(true)}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setManageTemplatesOpen(true)}>
               Modèles{templates.length > 0 ? ` (${templates.length})` : ''}
             </Button>
           </div>
