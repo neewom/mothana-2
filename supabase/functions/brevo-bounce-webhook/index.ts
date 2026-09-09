@@ -17,7 +17,11 @@ const corsHeaders = {
 
 // "invalid" et non "invalid_email" — nom d'événement confirmé côté API
 // Brevo en testant register-brevo-webhook (channel webhook transactionnel).
-const BOUNCE_EVENTS = ['hardBounce', 'invalid']
+// "blocked" ajouté après coup (constaté en conditions réelles, 2026-09-10) :
+// un domaine sans DNS/MX (ex. adresse de test @exemple.fr) est rejeté par
+// Brevo avant toute tentative de livraison et classé "blocked", jamais
+// "hardBounce" — 0 événement ne remontait avant cet ajout.
+const BOUNCE_EVENTS = ['hardBounce', 'invalid', 'blocked']
 
 interface BrevoEvent {
   event?: string

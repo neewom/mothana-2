@@ -24,6 +24,16 @@ interface BrevoWebhook {
   url: string
 }
 
+// "invalid_email" (cadrage initial) rejeté par l'API Brevo pour un webhook
+// transactionnel ("invalid event of transactional webhook email channel",
+// constaté en testant) — le nom correct pour ce channel est "invalid".
+// "blocked" ajouté après coup (constaté en testant en conditions réelles,
+// 2026-09-10) : un domaine sans aucun enregistrement DNS/MX (ex. adresse de
+// test @exemple.fr) est rejeté par Brevo avant toute tentative de livraison
+// et classé "blocked", jamais "hardBounce" — sans cet événement, ce cas très
+// courant en pratique (typo de domaine) ne remonte jamais.
+const WEBHOOK_EVENTS = ['hardBounce', 'invalid', 'blocked']
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -90,6 +100,25 @@ Deno.serve(async (req) => {
     const existing = (listData.webhooks ?? []).find((w) => w.url === webhookUrl)
 
     if (existing) {
+      // Idempotent aussi sur les événements souscrits : corrige un webhook
+      // déjà créé avec une liste d'événements devenue obsolète (ex. "blocked"
+      // ajouté après coup) sans demander à l'admin de le recréer à la main.
+      const updateRes = await fetch(`https://api.brevo.com/v3/webhooks/${existing.id}`, {
+        method: 'PUT',
+        headers: {
+          'api-key': org.brevo_api_key,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ events: WEBHOOK_EVENTS }),
+      })
+
+      if (!updateRes.ok) {
+        const detail = await updateRes.text()
+        console.error('Brevo update webhook error:', updateRes.status, detail)
+        return jsonResponse({ error: 'Erreur lors de la mise à jour du webhook Brevo', detail }, 502)
+      }
+
       return jsonResponse({ ok: true, already_registered: true })
     }
 
@@ -103,11 +132,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         url: webhookUrl,
         description: 'Mothana - détection adresses invalides',
-        // "invalid_email" (cadrage initial) rejeté par l'API Brevo pour un
-        // webhook transactionnel ("invalid event of transactional webhook
-        // email channel", constaté en testant) — le nom d'événement correct
-        // pour ce channel est "invalid".
-        events: ['hardBounce', 'invalid'],
+        events: WEBHOOK_EVENTS,
         type: 'transactional',
       }),
     })
