@@ -219,9 +219,35 @@ export default function DashboardPage() {
         </Link>
       )}
 
+      {adherentsActifs && adherentsEmailInvalide > 0 && (
+        <Link
+          to="/admin/adherents"
+          className="flex flex-col gap-4 rounded-sm border-2 border-warning-border bg-warning-tint px-6 py-5 transition-colors hover:bg-warning-tint/70 sm:flex-row sm:items-center"
+        >
+          <div className="flex items-center gap-4 sm:min-w-0 sm:flex-1">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-warning text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-bold text-warning">
+                {adherentsEmailInvalide} adresse{adherentsEmailInvalide > 1 ? 's' : ''} email d'adhérent{adherentsEmailInvalide > 1 ? 's' : ''} invalide{adherentsEmailInvalide > 1 ? 's' : ''}
+              </p>
+              <p className="mt-0.5 text-sm text-warning">
+                Un envoi précédent n'a pas pu être délivré — à corriger sur la fiche de l'adhérent.
+              </p>
+            </div>
+          </div>
+          <span className="w-full shrink-0 rounded-sm bg-warning px-4 py-2 text-center text-sm font-semibold text-white sm:w-auto">
+            Voir les adhérents →
+          </span>
+        </Link>
+      )}
+
       {/* Stats */}
       {(donsActifs || adherentsActifs) && (
-        <div className={cn('grid grid-cols-1 gap-4 sm:grid-cols-2', donsActifs && adherentsActifs && 'lg:grid-cols-3')}>
+        <div className={cn('grid grid-cols-1 gap-4', donsActifs && adherentsActifs && 'sm:grid-cols-2')}>
           {donsActifs && (
             <div className="rounded-sm border border-paper-border bg-white p-5">
               <p className="text-sm text-ink-faint">Dons ce mois-ci</p>
@@ -235,15 +261,6 @@ export default function DashboardPage() {
               <p className="mt-1 text-2xl font-bold text-ink">{adherentsExpiration.length}</p>
               <p className="mt-1 text-xs text-ink-faint">
                 {adherentsExpiration.length === 0 ? 'Aucun renouvellement à prévoir' : 'À relancer pour renouvellement'}
-              </p>
-            </div>
-          )}
-          {adherentsActifs && (
-            <div className="rounded-sm border border-paper-border bg-white p-5">
-              <p className="text-sm text-ink-faint">Adresses email d'adhérents invalides</p>
-              <p className="mt-1 text-2xl font-bold text-ink">{adherentsEmailInvalide}</p>
-              <p className="mt-1 text-xs text-ink-faint">
-                {adherentsEmailInvalide === 0 ? 'Aucune adresse invalide détectée' : 'Email bouncé, à corriger'}
               </p>
             </div>
           )}
