@@ -28,11 +28,13 @@ interface BrevoWebhook {
 // transactionnel ("invalid event of transactional webhook email channel",
 // constaté en testant) — le nom correct pour ce channel est "invalid".
 // "blocked" ajouté après coup (constaté en testant en conditions réelles,
-// 2026-09-10) : un domaine sans aucun enregistrement DNS/MX (ex. adresse de
-// test @exemple.fr) est rejeté par Brevo avant toute tentative de livraison
-// et classé "blocked", jamais "hardBounce" — sans cet événement, ce cas très
-// courant en pratique (typo de domaine) ne remonte jamais.
-const WEBHOOK_EVENTS = ['hardBounce', 'invalid', 'blocked']
+// 2026-09-10) sur l'hypothèse d'un domaine sans DNS/MX rejeté avant toute
+// tentative — hypothèse invalidée par un test réel ensuite : le journal
+// Transactionnel de Brevo montre l'événement réel "Erreur" (event "error")
+// pour ce cas précis, pas "blocked". Les 3 restent souscrits par prudence
+// (aucun des trois ne fait de mal à être activé), "error" ajouté comme le
+// vrai signal confirmé pour ce cas.
+const WEBHOOK_EVENTS = ['hardBounce', 'invalid', 'blocked', 'error']
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
