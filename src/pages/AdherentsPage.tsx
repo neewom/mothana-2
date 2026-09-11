@@ -30,6 +30,7 @@ function formatDate(iso: string): string {
 }
 
 type StatutFilter = 'actif' | 'archive' | 'all'
+type EmailFilter = '' | 'avec' | 'sans'
 type StatutCycle = 'actif' | 'expire' | 'aucune'
 
 function statutCycleFor(adhesion: Adhesion | undefined, today: string): StatutCycle {
@@ -80,6 +81,13 @@ export default function AdherentsPage() {
   const [statutFilter, setStatutFilter] = useState<StatutFilter>('actif')
   const [tagFilter, setTagFilter] = useState('')
   const [excludeTagFilter, setExcludeTagFilter] = useState('')
+  const [emailFilter, setEmailFilter] = useState<EmailFilter>('')
+  const [codePostalInput, setCodePostalInput] = useState('')
+  const [codePostalFilter, setCodePostalFilter] = useState('')
+  const [villeInput, setVilleInput] = useState('')
+  const [villeFilter, setVilleFilter] = useState('')
+  const [paysInput, setPaysInput] = useState('')
+  const [paysFilter, setPaysFilter] = useState('')
   const [pageSize, setPageSize] = useState(50)
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -110,6 +118,17 @@ export default function AdherentsPage() {
     return () => clearTimeout(timeout)
   }, [searchInput])
 
+  // Même debounce pour les 3 nouveaux filtres texte (code postal, ville, pays)
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setCodePostalFilter(codePostalInput)
+      setVilleFilter(villeInput)
+      setPaysFilter(paysInput)
+      setCurrentPage(1)
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [codePostalInput, villeInput, paysInput])
+
   const fetchAdherents = useCallback(async () => {
     if (!organisationId) return
     setLoading(true)
@@ -123,6 +142,10 @@ export default function AdherentsPage() {
       p_offset: (currentPage - 1) * pageSize,
       p_tag: tagFilter || null,
       p_exclude_tag: excludeTagFilter || null,
+      p_email_filter: emailFilter || null,
+      p_code_postal: codePostalFilter || null,
+      p_ville: villeFilter || null,
+      p_pays: paysFilter || null,
     })
 
     if (err) {
@@ -153,7 +176,7 @@ export default function AdherentsPage() {
     }
 
     setLoading(false)
-  }, [organisationId, search, statutFilter, tagFilter, excludeTagFilter, pageSize, currentPage])
+  }, [organisationId, search, statutFilter, tagFilter, excludeTagFilter, emailFilter, codePostalFilter, villeFilter, paysFilter, pageSize, currentPage])
 
   useEffect(() => {
     fetchAdherents()
@@ -177,7 +200,7 @@ export default function AdherentsPage() {
   // (les lignes affichées changent complètement, la garder n'aurait pas de sens).
   useEffect(() => {
     setSelectedIds(new Set())
-  }, [search, statutFilter, tagFilter, excludeTagFilter, pageSize, currentPage])
+  }, [search, statutFilter, tagFilter, excludeTagFilter, emailFilter, codePostalFilter, villeFilter, paysFilter, pageSize, currentPage])
 
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -425,6 +448,39 @@ export default function AdherentsPage() {
                   </svg>
                   Nouvelle liste
                 </Button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 sm:border-l sm:border-paper-border sm:pl-3">
+                <Select
+                  aria-label="Email"
+                  value={emailFilter}
+                  onChange={(e) => { setEmailFilter(e.target.value as EmailFilter); setCurrentPage(1) }}
+                >
+                  <option value="">Tous (email)</option>
+                  <option value="avec">Avec email</option>
+                  <option value="sans">Sans email</option>
+                </Select>
+                <Input
+                  type="text"
+                  value={codePostalInput}
+                  onChange={(e) => setCodePostalInput(e.target.value)}
+                  placeholder="Code postal…"
+                  className="w-32"
+                />
+                <Input
+                  type="text"
+                  value={villeInput}
+                  onChange={(e) => setVilleInput(e.target.value)}
+                  placeholder="Ville…"
+                  className="w-36"
+                />
+                <Input
+                  type="text"
+                  value={paysInput}
+                  onChange={(e) => setPaysInput(e.target.value)}
+                  placeholder="Pays…"
+                  className="w-32"
+                />
               </div>
             </div>
             {/* w-full (pas flex-shrink-0) sur mobile : flex-shrink-0 fige la largeur "naturelle" du groupe
