@@ -4,6 +4,9 @@ import qrcodeGenerator from 'https://esm.sh/qrcode-generator@1.4.4'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  // Sans ça, le navigateur masque ces en-têtes côté client (fetch) même en
+  // same-origin apparent — le frontend ne pouvait pas les lire jusqu'ici.
+  'Access-Control-Expose-Headers': 'Content-Disposition, X-Nombre-Destinataires, X-Nombre-Exclus',
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -107,6 +110,17 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
 
 function formatDateFr(d: Date): string {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+const COMBINING_MARKS_RE = new RegExp(`[${String.fromCodePoint(0x0300)}-${String.fromCodePoint(0x036f)}]`, 'g')
+
+function slugify(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(COMBINING_MARKS_RE, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 function selectionLabel(filtreStatut: string, tagEnvoi: string | null): string {
@@ -247,8 +261,10 @@ Deno.serve(async (req) => {
     //    identifie la campagne, pas le destinataire individuel)
     // ---------------------------------------------------------------------
 
-    const qrText = `${activite.nom} — ${formatDateFr(new Date())}`
+    const now = new Date()
+    const qrText = `${activite.nom} — ${formatDateFr(now)}`
     const qrSvg = buildQrSvg(qrText)
+    const filename = `campagne-courrier_${slugify(activite.nom)}_${now.toISOString().slice(0, 10)}.pdf`
 
     // ---------------------------------------------------------------------
     // 4. Rendu de chaque étiquette + assemblage en planche A4
@@ -320,7 +336,7 @@ Deno.serve(async (req) => {
       headers: {
         ...corsHeaders,
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="campagne-courrier.pdf"',
+        'Content-Disposition': `attachment; filename="${filename}"`,
         'X-Nombre-Destinataires': String(destinataires.length),
         'X-Nombre-Exclus': String(nombreExclus),
       },

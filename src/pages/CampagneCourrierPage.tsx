@@ -177,9 +177,10 @@ export default function CampagneCourrierPage() {
 
     const blob = await res.blob()
     const url = URL.createObjectURL(blob)
+    const dispositionFilename = res.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1]
     const link = document.createElement('a')
     link.href = url
-    link.download = 'campagne-courrier.pdf'
+    link.download = dispositionFilename ?? 'campagne-courrier.pdf'
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
