@@ -126,6 +126,7 @@ function buildNavItems(flags: FonctionnalitesActivees): NavEntry[] {
         { label: 'Adhérents', to: '/admin/adherents', end: true },
         { label: "Demandes d'adhésion", to: '/admin/adherents/demandes' },
         { label: 'Mailing', to: '/admin/adherents/mailing' },
+        { label: 'Campagne courrier', to: '/admin/adherents/campagne-courrier' },
       ],
     })
   }
