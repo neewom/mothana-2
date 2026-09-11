@@ -20,6 +20,7 @@ import RecusFiscauxPage from './pages/RecusFiscauxPage'
 import AdherentsPage from './pages/AdherentsPage'
 import DemandesAdhesionPage from './pages/DemandesAdhesionPage'
 import CampagneMailingPage from './pages/CampagneMailingPage'
+import CampagneCourrierPage from './pages/CampagneCourrierPage'
 import ComptabilitePage from './pages/ComptabilitePage'
 import ParametresOrganisationPage from './pages/ParametresOrganisationPage'
 import ParametresFiscalPage from './pages/ParametresFiscalPage'
@@ -57,6 +58,7 @@ function App() {
               <Route path="adherents" element={<AdherentsPage />} />
               <Route path="adherents/demandes" element={<DemandesAdhesionPage />} />
               <Route path="adherents/mailing" element={<CampagneMailingPage />} />
+              <Route path="adherents/campagne-courrier" element={<CampagneCourrierPage />} />
               <Route path="parametres/adherents" element={<ParametresAdherentsPage />} />
             </Route>
             <Route path="parametres" element={<ParametresOrganisationPage />} />
