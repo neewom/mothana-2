@@ -17,7 +17,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Badge } from '../components/ui/badge'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import { Table, TableBody, TableRow, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
@@ -59,10 +59,6 @@ interface AdminRow {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatMontant(n: number) {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n)
-}
-
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
@@ -86,20 +82,6 @@ function sanitizeForCsv(rows: Record<string, unknown>[]): Record<string, string 
 }
 
 // ---------------------------------------------------------------------------
-// StatCard
-// ---------------------------------------------------------------------------
-
-function StatCard({ label, value, sub }: { label: string; value: string | number; sub: string }) {
-  return (
-    <div className="rounded-sm border border-paper-border bg-white p-5">
-      <p className="font-registre text-sm text-ink-muted">{label}</p>
-      <p className="mt-1 font-registre-mono text-2xl font-bold text-ink">{value}</p>
-      <p className="mt-0.5 font-registre text-xs text-ink-faint">{sub}</p>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // OrgModal — create / edit
 // ---------------------------------------------------------------------------
 
@@ -109,10 +91,11 @@ interface OrgModalProps {
   onSaved: (message: string) => void
   onArchiveRequest: (org: OrgRow) => void
   onAdminAdded: (email: string) => void
+  onConsult: (org: OrgRow) => void
   org?: OrgRow
 }
 
-function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, org }: OrgModalProps) {
+function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onConsult, org }: OrgModalProps) {
   const isEdit = !!org
   const [nom, setNom] = useState('')
   const [donsActifs, setDonsActifs] = useState(true)
@@ -131,6 +114,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, org 
   const [admins, setAdmins] = useState<AdminRow[]>([])
   const [adminsLoading, setAdminsLoading] = useState(false)
   const [adminsError, setAdminsError] = useState<string | null>(null)
+  const [showDisabledAdmins, setShowDisabledAdmins] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newNom, setNewNom] = useState('')
   const [newEmail, setNewEmail] = useState('')
@@ -152,6 +136,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, org 
       setNewEmail('')
       setAddError(null)
       setAdminsError(null)
+      setShowDisabledAdmins(false)
       if (org) fetchAdmins(org.id)
     }
   }, [open, org])
@@ -291,11 +276,37 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, org 
     onClose()
   }
 
+  const disabledAdminsCount = admins.filter((a) => a.is_banned).length
+  const visibleAdmins = showDisabledAdmins ? admins : admins.filter((a) => !a.is_banned)
+
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
       <DialogContent className="max-w-lg" aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Modifier l'organisation" : 'Nouvelle organisation'}</DialogTitle>
+          <div className="flex items-start justify-between gap-3 pr-8">
+            <div>
+              <DialogTitle>{isEdit ? "Modifier l'organisation" : 'Nouvelle organisation'}</DialogTitle>
+              {isEdit && org && (
+                <p className="mt-0.5 font-registre text-xs text-ink-faint">Créée le {formatDate(org.created_at)}</p>
+              )}
+            </div>
+            {isEdit && org && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="-mt-2"
+                onClick={() => onConsult(org)}
+                aria-label={`Consulter ${org.nom}`}
+                title="Consulter"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto">
@@ -361,34 +372,51 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, org 
               ) : admins.length === 0 ? (
                 <div className="py-6 text-center font-registre text-sm text-ink-faint">Aucun compte admin pour cette organisation.</div>
               ) : (
-                <ul className="divide-y divide-paper-border-muted rounded-sm border border-paper-border">
-                  {admins.map((admin) => (
-                    <li key={admin.utilisateur_id} className="flex items-center justify-between px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-registre text-sm font-medium text-ink">
-                          {admin.nom_affiche ?? '—'}
-                        </p>
-                        <p className="truncate font-registre text-xs text-ink-faint">{admin.email}</p>
-                      </div>
-                      <div className="ml-4 flex flex-shrink-0 items-center gap-3">
-                        {admin.is_banned && <Badge variant="stamp">Désactivé</Badge>}
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleToggleBan(admin)}
-                          disabled={banningId === admin.utilisateur_id}
-                        >
-                          {banningId === admin.utilisateur_id
-                            ? '…'
-                            : admin.is_banned
-                            ? 'Réactiver'
-                            : 'Désactiver'}
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  {visibleAdmins.length === 0 ? (
+                    <div className="py-6 text-center font-registre text-sm text-ink-faint">Tous les comptes sont désactivés.</div>
+                  ) : (
+                    <ul className="divide-y divide-paper-border-muted rounded-sm border border-paper-border">
+                      {visibleAdmins.map((admin) => (
+                        <li key={admin.utilisateur_id} className="flex items-center justify-between px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-registre text-sm font-medium text-ink">
+                              {admin.nom_affiche ?? '—'}
+                            </p>
+                            <p className="truncate font-registre text-xs text-ink-faint">{admin.email}</p>
+                          </div>
+                          <div className="ml-4 flex flex-shrink-0 items-center gap-3">
+                            {admin.is_banned && <Badge variant="stamp">Désactivé</Badge>}
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleToggleBan(admin)}
+                              disabled={banningId === admin.utilisateur_id}
+                            >
+                              {banningId === admin.utilisateur_id
+                                ? '…'
+                                : admin.is_banned
+                                ? 'Réactiver'
+                                : 'Désactiver'}
+                            </Button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {disabledAdminsCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowDisabledAdmins((prev) => !prev)}
+                      className="font-registre-mono text-xs font-medium text-stamp hover:text-stamp/80"
+                    >
+                      {showDisabledAdmins
+                        ? 'Masquer les comptes désactivés'
+                        : `Afficher les comptes désactivés (${disabledAdminsCount})`}
+                    </button>
+                  )}
+                </>
               )}
 
               {showAddForm ? (
@@ -712,14 +740,6 @@ export default function SuperAdminPage() {
   }
 
   // ---------------------------------------------------------------------------
-  // Global stats
-  // ---------------------------------------------------------------------------
-
-  const totalOrgs = activeOrgs.length
-  const totalDons = orgs.reduce((s, o) => s + o.total_dons, 0)
-  const totalParticipants = orgs.reduce((s, o) => s + o.nb_participants, 0)
-
-  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -739,15 +759,6 @@ export default function SuperAdminPage() {
         </Button>
       </div>
 
-      {/* Stats cards */}
-      {!loading && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatCard label="Organisations" value={totalOrgs} sub="associations actives" />
-          <StatCard label="Total collecté" value={formatMontant(totalDons)} sub="toutes associations" />
-          <StatCard label="Participants" value={totalParticipants} sub="tous profils confondus" />
-        </div>
-      )}
-
       {/* Error */}
       {error && (
         <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{error}</div>
@@ -755,24 +766,24 @@ export default function SuperAdminPage() {
 
       {/* Organisations table */}
       <div className="rounded-sm border border-paper-border bg-white">
-        <div className="flex items-center justify-between border-b border-paper-border px-6 py-4">
+        <div className="flex flex-col gap-3 border-b border-paper-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold text-ink">Organisations</h2>
           <div className="flex gap-2 rounded-sm bg-paper-border/40 p-1">
             <button
               type="button"
               onClick={() => setTab('actives')}
               className={cn(
-                'rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors',
+                'flex-1 rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors sm:flex-initial',
                 tab === 'actives' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
               )}
             >
-              Actives
+              Actives{activeOrgs.length > 0 ? ` (${activeOrgs.length})` : ''}
             </button>
             <button
               type="button"
               onClick={() => setTab('archivees')}
               className={cn(
-                'rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors',
+                'flex-1 rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors sm:flex-initial',
                 tab === 'archivees' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
               )}
             >
@@ -792,55 +803,22 @@ export default function SuperAdminPage() {
               <p className="mt-1 font-registre text-xs text-ink-faint">Créez la première organisation pour commencer.</p>
             </div>
           ) : (
-            <ScrollShadowX>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Organisation</TableHead>
-                    <TableHead className="text-right">Participants</TableHead>
-                    <TableHead className="text-right">Dons</TableHead>
-                    <TableHead className="text-right">Total collecté</TableHead>
-                    <TableHead>Créée le</TableHead>
-                    <TableHead />
+            <Table>
+              <TableBody>
+                {activeOrgs.map((org) => (
+                  <TableRow
+                    key={org.id}
+                    onClick={() => { setEditing(org); setModalOpen(true) }}
+                    className="cursor-pointer hover:bg-paper-border/20"
+                  >
+                    <TableCell>
+                      <div className="font-medium text-ink">{org.nom}</div>
+                      <div className="font-registre-mono text-xs text-ink-faint">PIN : {org.code_pin_benevole ?? '—'}</div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {activeOrgs.map((org) => (
-                    <TableRow
-                      key={org.id}
-                      onClick={() => { setEditing(org); setModalOpen(true) }}
-                      className="cursor-pointer hover:bg-paper-border/20"
-                    >
-                      <TableCell>
-                        <div className="font-medium text-ink">{org.nom}</div>
-                        <div className="font-registre-mono text-xs text-ink-faint">PIN : {org.code_pin_benevole ?? '—'}</div>
-                      </TableCell>
-                      <TableCell className="text-right text-ink-muted">{org.nb_participants}</TableCell>
-                      <TableCell className="text-right text-ink-muted">{org.nb_dons}</TableCell>
-                      <TableCell className="text-right font-medium text-ink">{formatMontant(org.total_dons)}</TableCell>
-                      <TableCell className="text-ink-faint">{formatDate(org.created_at)}</TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <div className="flex justify-end">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleConsulter(org)}
-                            aria-label={`Consulter ${org.nom}`}
-                            title="Consulter"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollShadowX>
+                ))}
+              </TableBody>
+            </Table>
           )
         ) : archivedOrgs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -849,27 +827,17 @@ export default function SuperAdminPage() {
         ) : (
           <ScrollShadowX>
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Organisation</TableHead>
-                  <TableHead className="text-right">Participants</TableHead>
-                  <TableHead className="text-right">Total collecté</TableHead>
-                  <TableHead>Archivée le</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
               <TableBody>
                 {archivedOrgs.map((org) => (
-                  <TableRow key={org.id}>
-                    <TableCell>
+                  <TableRow key={org.id} className="block md:table-row">
+                    <TableCell className="block md:table-cell">
                       <div className="font-medium text-ink">{org.nom}</div>
-                      <div className="font-registre-mono text-xs text-ink-faint">PIN : {org.code_pin_benevole ?? '—'}</div>
+                      <div className="font-registre-mono text-xs text-ink-faint">
+                        Archivée le {org.archived_at ? formatDate(org.archived_at) : '—'}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-right text-ink-muted">{org.nb_participants}</TableCell>
-                    <TableCell className="text-right font-medium text-ink">{formatMontant(org.total_dons)}</TableCell>
-                    <TableCell className="text-ink-faint">{org.archived_at ? formatDate(org.archived_at) : '—'}</TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-2">
+                    <TableCell className="block pt-0 md:table-cell md:pt-3">
+                      <div className="flex flex-wrap gap-2 md:flex-nowrap md:justify-end">
                         <Button type="button" variant="secondary" size="sm" onClick={() => handleExtract(org)} disabled={extractingId === org.id}>
                           {extractingId === org.id ? 'Extraction…' : 'Extraire les données'}
                         </Button>
@@ -901,6 +869,7 @@ export default function SuperAdminPage() {
         onSaved={(message) => { fetchAll(); showToast(message) }}
         onArchiveRequest={handleArchive}
         onAdminAdded={(email) => showToast(`Invitation envoyée à ${email}`)}
+        onConsult={handleConsulter}
         org={editing}
       />
 
