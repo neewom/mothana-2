@@ -1,6 +1,6 @@
-# Promotion PR #151-156 : déblocage mode auto + backend prod
+# Promotion PR #151-156 + suite (données démo, filtres adhérents)
 
-**Statut : terminé.** Les 6 promotions `dev` → `main` mergées aujourd'hui (#145 à #150) ont désormais leur backend prod complètement appliqué.
+**Statut : terminé.** Les 6 promotions `dev` → `main` mergées aujourd'hui (#145 à #150) ont désormais leur backend prod complètement appliqué. Session prolongée ensuite sur 2 sujets rapides (PR #157, #158) et un rattrapage de synchro Trello.
 
 ## Réalisé
 
@@ -16,10 +16,21 @@
   - CLI relinkée sur `mothana-staging` à la fin, dumps temporaires supprimés.
 - Journal d'avancement mis à jour (`docs/journal-avancement.md`) : entrée "Campagne courrier" + entrée "Promotion PR #151-156" détaillant le blocage/déblocage et le détail des migrations/déploiements.
 
+- **Diagnostic wording sidemenu (test.samakan.fr)** : signalement utilisateur de libellés reformulés sur une autre machine ("Demandes d'adhésion" → "Exigences d'adhésion", etc.), jamais présents dans le code (vérifié `git log -S` sur tout l'historique). Cause probable identifiée : `index.html` déclare `<html lang="en">` alors que l'interface est 100% française — incohérence pouvant déclencher une traduction/reformulation automatique côté navigateur sur certaines machines. Carte Trello créée et cadrée : "Corriger lang=\"en\" en \"fr\" dans index.html" ([lien](https://trello.com/c/Ie9HnnBT)), pas encore développée.
+
+- **Données de démo staging + Wat Velouvanaram Test** (PR #157 dev, mergée) : `demoOrgSeed.ts` ne mélange plus noms lao/français (remplacés par des noms français classiques). Organisation de test "Wat Velouvanaram Test" (vide depuis l'incident de suppression du 2026-09-08) repeuplée : jeu de données de base + 50 adhérents/participants/dons supplémentaires (noms variés, montants/dates/modes de paiement variés), injectés directement en base (pas de carte Trello, demande ad hoc).
+
+- **Page Adhérents : nouveaux filtres** (PR #158 dev, mergée) : carte Trello cadrée en session (email présence/absence en select 3 états, code postal/ville/pays en texte libre "contient"), RPC `search_adherents` étendue, testé sur staging (Wat Velouvanaram Test) desktop + mobile. Carte déplacée en Done, journal mis à jour.
+
+- **Rattrapage synchro Trello** : carte "Campagne courrier" (PR #150) était restée en Todo malgré la promotion prod terminée — déplacée en Done a posteriori (oubli identifié par l'utilisateur, pas par moi). Un doublon de carte "lang=en" créé par erreur (échec de parsing JSON local sur une réponse Trello valide) a été archivé.
+
 ## Reste à faire
 
 - **Action utilisateur, pas CLI** : pour toute organisation prod utilisant déjà Brevo, resauvegarder la clé API dans la modale de configuration Brevo pour déclencher l'enregistrement du webhook `brevo-bounce-webhook` côté Brevo (`register-brevo-webhook` ne s'exécute qu'à la sauvegarde, pas rétroactivement pour les configs déjà en place).
 - Rien d'autre en attente côté promotion : `dev`/`main` alignés côté code et backend prod à jour sur les 6 promotions.
+- Carte Trello "Corriger lang=\"en\" en \"fr\" dans index.html" cadrée, en Todo, dev pas démarré.
+- **Nouvelle carte détectée en Backlog, pas encore cadrée** : "page adhérent : pouvoir configurer les champs à afficher dans le tableau" — à cadrer à la prochaine session (décision explicite : reporté).
+- Backlog contient aussi (non cadrées) : "page adhérent : pouvoir retirer en masse les adhérents d'une liste", "Revoir tous les CTAs pour appliquer le design adapté", "Appliquer la méthodologie des tableaux à tous les tableaux", "Renommer Participants en Donateurs", "il manque le lien vers les statuts sur la page de demande d'adhésion".
 
 ## Blockers
 
