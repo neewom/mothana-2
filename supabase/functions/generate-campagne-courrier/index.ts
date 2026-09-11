@@ -55,10 +55,13 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
   display: grid;
   grid-template-columns: repeat(2, 99.1mm);
   grid-auto-rows: 38.1mm;
-  column-gap: 2.5mm;
+  /* Écart entre colonnes et marges reproduits depuis les coordonnées
+     mesurées du PDF exemple fourni par l'utilisateur (pdftotext -bbox),
+     pas des valeurs standard génériques — l'écart standard supposé
+     (2,5mm) décalait la 2e colonne, l'écart réel mesuré est quasi nul. */
+  column-gap: 0.43mm;
   row-gap: 0mm;
-  justify-content: center;
-  padding-top: 15.1mm;
+  padding: 15.1mm 0 0 4.7mm;
   page-break-after: always;
 }
 .page:last-child { page-break-after: auto; }
@@ -273,6 +276,9 @@ Deno.serve(async (req) => {
 
     const gotenbergForm = new FormData()
     gotenbergForm.append('files', new Blob([fullHtml], { type: 'text/html' }), 'index.html')
+    // Sans ce flag, Gotenberg ignore le `@page { size: A4 }` du CSS et rend
+    // en Letter par défaut — décale toute la géométrie de la planche.
+    gotenbergForm.append('preferCssPageSize', 'true')
 
     const gotenbergRes = await fetch(`${gotenbergUrl}/forms/chromium/convert/html`, {
       method: 'POST',
