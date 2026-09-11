@@ -15,48 +15,48 @@ export async function seedDemoOrganisationData(organisationId: string): Promise<
   const { data: activites, error: activitesErr } = await supabase
     .from('activites')
     .insert([
-      { organisation_id: organisationId, nom: 'Cérémonie du Nouvel An Lao', date_debut: daysAgo(120) },
+      { organisation_id: organisationId, nom: 'Assemblée générale annuelle', date_debut: daysAgo(120) },
       { organisation_id: organisationId, nom: 'Collecte de dons trimestrielle', date_debut: daysAgo(30) },
     ])
     .select('id')
   if (activitesErr) throw activitesErr
-  const [activiteCeremonie, activiteCollecte] = activites
+  const [activiteAssemblee, activiteCollecte] = activites
 
   const { data: personnes, error: personnesErr } = await supabase
     .from('personnes')
     .insert([
-      { civilite: 1, nom: 'Keovongsa', prenom: 'Somchai', email: 'somchai.keovongsa@example.com', telephone: '0612345678' },
+      { civilite: 1, nom: 'Bernard', prenom: 'Jean', email: 'jean.bernard@example.com', telephone: '0612345678' },
       { civilite: 2, nom: 'Dubois', prenom: 'Marie', email: 'marie.dubois@example.com' },
-      { civilite: 1, nom: 'Sisavath', prenom: 'Bounmy', email: 'bounmy.sisavath@example.com' },
+      { civilite: 1, nom: 'Petit', prenom: 'Marc', email: 'marc.petit@example.com' },
     ])
     .select('id')
   if (personnesErr) throw personnesErr
-  const [personneSomchai, personneMarie, personneBounmy] = personnes
+  const [personneJean, personneMarie, personneMarc] = personnes
 
   const { data: participants, error: participantsErr } = await supabase
     .from('profils_participant')
     .insert([
-      { organisation_id: organisationId, personne_id: personneSomchai.id },
+      { organisation_id: organisationId, personne_id: personneJean.id },
       { organisation_id: organisationId, personne_id: personneMarie.id },
-      { organisation_id: organisationId, personne_id: personneBounmy.id },
+      { organisation_id: organisationId, personne_id: personneMarc.id },
     ])
     .select('id')
   if (participantsErr) throw participantsErr
-  const [participantSomchai, participantMarie, participantBounmy] = participants
+  const [participantJean, participantMarie, participantMarc] = participants
 
   const { error: donsErr } = await supabase.from('dons').insert([
-    { organisation_id: organisationId, profil_participant_id: participantSomchai.id, activite_id: activiteCeremonie.id, montant: 50, mode_paiement: 1, date: daysAgo(120) },
-    { organisation_id: organisationId, profil_participant_id: participantSomchai.id, montant: 30, mode_paiement: 2, date: daysAgo(60) },
+    { organisation_id: organisationId, profil_participant_id: participantJean.id, activite_id: activiteAssemblee.id, montant: 50, mode_paiement: 1, date: daysAgo(120) },
+    { organisation_id: organisationId, profil_participant_id: participantJean.id, montant: 30, mode_paiement: 2, date: daysAgo(60) },
     { organisation_id: organisationId, profil_participant_id: participantMarie.id, activite_id: activiteCollecte.id, montant: 100, mode_paiement: 3, date: daysAgo(30) },
     { organisation_id: organisationId, profil_participant_id: participantMarie.id, montant: 20, mode_paiement: 1, date: daysAgo(10) },
-    { organisation_id: organisationId, profil_participant_id: participantBounmy.id, activite_id: activiteCeremonie.id, montant: 75, mode_paiement: 4, date: daysAgo(120) },
+    { organisation_id: organisationId, profil_participant_id: participantMarc.id, activite_id: activiteAssemblee.id, montant: 75, mode_paiement: 4, date: daysAgo(120) },
   ])
   if (donsErr) throw donsErr
 
   const { error: adherentsErr } = await supabase.from('adherents').insert([
-    { organisation_id: organisationId, civilite: 1, nom: 'Phommachanh', prenom: 'Khamla', statut: 'actif', tags: ['Bénévoles'], date_naissance: '1978-04-12' },
+    { organisation_id: organisationId, civilite: 1, nom: 'Lefebvre', prenom: 'Thomas', statut: 'actif', tags: ['Bénévoles'], date_naissance: '1978-04-12' },
     { organisation_id: organisationId, civilite: 2, nom: 'Martin', prenom: 'Sophie', statut: 'actif', tags: [] },
-    { organisation_id: organisationId, civilite: 1, nom: 'Vongphakdy', prenom: 'Anousone', statut: 'actif', tags: ['Conseil'], date_naissance: '1965-09-03' },
+    { organisation_id: organisationId, civilite: 1, nom: 'Moreau', prenom: 'Michel', statut: 'actif', tags: ['Conseil'], date_naissance: '1965-09-03' },
     { organisation_id: organisationId, civilite: 2, nom: 'Leclerc', prenom: 'Anne', statut: 'archive', tags: [] },
   ])
   if (adherentsErr) throw adherentsErr
