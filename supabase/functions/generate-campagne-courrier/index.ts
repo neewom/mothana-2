@@ -83,7 +83,8 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
   padding: 1.5mm 2mm;
 }
 .label-header .expediteur {
-  font-size: 6.5pt;
+  font-size: 7.5pt;
+  font-weight: 700;
   line-height: 1.3;
   min-width: 0;
 }
@@ -98,6 +99,9 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
   text-transform: uppercase;
   font-size: 9.5pt;
   margin-bottom: 1mm;
+}
+.label-dest-adresse {
+  font-size: 9.5pt;
 }
 `
 
@@ -258,8 +262,8 @@ Deno.serve(async (req) => {
       return `<div class="label">
         <div class="label-header">${expediteurHtml}<div class="qr">${qrSvg}</div></div>
         <div class="label-dest-nom">${nomComplet}</div>
-        <div>${a.adresse}</div>
-        <div>${a.code_postal} ${a.ville}</div>
+        <div class="label-dest-adresse">${a.adresse}</div>
+        <div class="label-dest-adresse">${a.code_postal} ${a.ville}</div>
       </div>`
     })
 
