@@ -242,7 +242,7 @@ function DetailPanel({ don, organisationId, onClose, onEdit, onDeleted }: Detail
           <p className="mt-1 text-sm capitalize text-ink">{don.created_by_role}</p>
         </div>
 
-        <DonFichiers donId={don.id} organisationId={organisationId} canDelete />
+        <DonFichiers donId={don.id} organisationId={organisationId} canDelete canAdd={false} />
       </div>
 
       {/* Actions */}
@@ -601,9 +601,9 @@ export default function DonsPage() {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Participant</TableHead>
-                      <TableHead>Activité</TableHead>
+                      <TableHead className="hidden md:table-cell">Activité</TableHead>
                       <TableHead className="text-right">Montant</TableHead>
-                      <TableHead>Mode</TableHead>
+                      <TableHead className="hidden md:table-cell">Mode</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
@@ -623,13 +623,13 @@ export default function DonsPage() {
                         <TableCell className="font-medium text-ink">
                           {participantName(don)}
                         </TableCell>
-                        <TableCell className="text-ink-faint">
+                        <TableCell className="hidden text-ink-faint md:table-cell">
                           {don.activites?.nom ?? '—'}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
                           {formatEur(don.montant)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden md:table-cell">
                           <Badge variant="neutral">{MODE_PAIEMENT_LABELS[don.mode_paiement]}</Badge>
                         </TableCell>
                         <TableCell className="text-right text-ink-faint">
