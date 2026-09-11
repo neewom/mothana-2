@@ -260,6 +260,7 @@ export default function AdherentModal({
         statuts_acceptes: true,
         consent_rgpd: false,
         mailing_opt_out_at: null,
+        email_invalide_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         ...identite,
@@ -464,6 +465,11 @@ export default function AdherentModal({
                 className={cn(courrielInvalid && 'border-stamp focus-visible:ring-stamp/70')}
               />
               {courrielInvalid && <p className="font-registre-mono text-[11px] text-stamp">Format d'email invalide.</p>}
+              {!courrielInvalid && adherent?.email_invalide_at && (
+                <p className="font-registre-mono text-[11px] text-warning">
+                  Email invalide — un envoi précédent à cette adresse n'a pas pu être délivré (mis à jour si vous corrigez l'adresse).
+                </p>
+              )}
             </div>
 
             <label className="flex items-center gap-2 font-registre text-sm text-ink-muted">

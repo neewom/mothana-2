@@ -26,6 +26,7 @@ export interface Adherent {
   mailing_opt_out: boolean
   mailing_opt_out_at: string | null
   tags: string[]
+  email_invalide_at: string | null
   created_at: string
   updated_at: string
 }
@@ -65,6 +66,7 @@ export interface DemandeAdhesion {
   decided_by: string | null
   adherent_id: string | null
   motif_refus: string | null
+  email_bounced_at: string | null
   created_at: string
 }
 

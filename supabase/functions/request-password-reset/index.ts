@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { sendViaResend } from '../_shared/resend.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,26 +17,6 @@ function resetPasswordEmailHtml(actionLink: string): string {
     <p style="color: #94a3b8; font-size: 12px;">Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email — votre mot de passe actuel reste inchangé.</p>
   </div>
 </body></html>`
-}
-
-async function sendViaResend(to: string, subject: string, html: string): Promise<{ ok: boolean; detail?: string }> {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: 'Samakan <noreply@samakan.fr>',
-      to: [to],
-      subject,
-      html,
-    }),
-  })
-  if (!res.ok) {
-    return { ok: false, detail: await res.text() }
-  }
-  return { ok: true }
 }
 
 Deno.serve(async (req) => {
