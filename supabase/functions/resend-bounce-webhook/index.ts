@@ -48,7 +48,9 @@ async function verifySvixSignature(
 interface ResendBounceEvent {
   type: string
   data?: {
-    tags?: { name: string; value: string }[]
+    // Contrairement au format d'envoi ({name, value}[], cf. sendViaResend),
+    // le webhook Resend renvoie les tags comme un objet clé/valeur.
+    tags?: Record<string, string>
   }
 }
 
@@ -87,7 +89,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    const demandeId = event.data?.tags?.find((t) => t.name === 'demande_id')?.value
+    const demandeId = event.data?.tags?.demande_id
     if (!demandeId) {
       return new Response(JSON.stringify({ skipped: true, reason: 'Pas de tag demande_id' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
