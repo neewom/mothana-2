@@ -137,17 +137,17 @@ Historique complet déplacé dans `docs/journal-avancement.md` le 2026-09-02 (de
 Le board Trello est la source de vérité unique du backlog (hors cartes "Action admin", gérées par l'utilisateur lui-même) — description à jour sur chaque carte cadrée avec le détail complet des décisions, relue à chaque session. Liste ci-dessous volontairement réduite à titre + statut + lien depuis le 2026-09-02 (le détail dupliquait la description Trello sans plus-value — cf. la règle de cadrage en début de session qui alimente déjà la carte). Ordre = priorité/complexité (jugement agent), pas l'ordre d'ajout. Confirmation explicite à redemander avant de démarrer le dev de l'une d'entre elles, même déjà cadrée.
 
 1. **Bug mineur : tutoiement isolé sur DonsReguliersPage** — cadré (2026-09-13), très simple, fix trivial connu (ta → votre). [Trello](https://trello.com/c/yR7ZGoUc)
-2. **Support multi-organisation pour un compte admin** (rattachement + sélecteur) — cadré, dev reporté à plus tard (décision explicite utilisateur). [Trello](https://trello.com/c/WtLrSLGW)
-3. **Vraie documentation utilisateur (guides / FAQ)** — pas encore cadré. [Trello](https://trello.com/c/5pwUxgqA)
-4. **`agents.md` calqués sur `CLAUDE.md`** (switch Codex ↔ Claude Code) — pas encore cadré. [Trello](https://trello.com/c/0XmhK0iv)
-5. **Mire de connexion personnalisée par organisation** (admin + bénévole) — cadré. [Trello](https://trello.com/c/gkOuH3uh)
-6. **OCR scan de carte adhérent** — pas encore cadré. [Trello](https://trello.com/c/zVBOjAWk)
-7. **Priorité 5 — Export comptable enrichi** — recadré, roadmap lointaine. [Trello](https://trello.com/c/W3GCYUOt)
-8. **Priorité 5 — Brique événements/coupons + portefeuille virtuel** (Pagode Coupon) — clarifié, prérequis (inspection projet Supabase "pagode-coupon") avant cadrage technique. [Trello](https://trello.com/c/C9A5B9jr)
-9. **Priorité 5 — Gestion abonnements/plans** (facturation Samakan) — désormais rattachée à la liste Trello "Business plan — Commercialisation" (checklist commercialisation plus large créée le 2026-09-11 : pricing, juridique, marketing, support), roadmap lointaine. [Trello](https://trello.com/c/cfKF8BNw)
-10. **Revoir tous les CTAs pour appliquer le design adapté** — pas encore cadré. [Trello](https://trello.com/c/mWKDv05R)
-11. **Appliquer la méthodologie des tableaux à tous les tableaux** — pas encore cadré. [Trello](https://trello.com/c/wZaVqyIF)
-12. **Renommer Participants en Donateurs** — pas encore cadré. [Trello](https://trello.com/c/XpeENrtz)
+2. **Renommer Participants en Donateurs** — cadré (2026-09-13), libellés UI uniquement (~8 emplacements), code/base inchangés. [Trello](https://trello.com/c/XpeENrtz)
+3. **Support multi-organisation pour un compte admin** (rattachement + sélecteur) — cadré, dev reporté à plus tard (décision explicite utilisateur). [Trello](https://trello.com/c/WtLrSLGW)
+4. **Vraie documentation utilisateur (guides / FAQ)** — pas encore cadré. [Trello](https://trello.com/c/5pwUxgqA)
+5. **`agents.md` calqués sur `CLAUDE.md`** (switch Codex ↔ Claude Code) — pas encore cadré. [Trello](https://trello.com/c/0XmhK0iv)
+6. **Mire de connexion personnalisée par organisation** (admin + bénévole) — cadré. [Trello](https://trello.com/c/gkOuH3uh)
+7. **OCR scan de carte adhérent** — pas encore cadré. [Trello](https://trello.com/c/zVBOjAWk)
+8. **Priorité 5 — Export comptable enrichi** — recadré, roadmap lointaine. [Trello](https://trello.com/c/W3GCYUOt)
+9. **Priorité 5 — Brique événements/coupons + portefeuille virtuel** (Pagode Coupon) — clarifié, prérequis (inspection projet Supabase "pagode-coupon") avant cadrage technique. [Trello](https://trello.com/c/C9A5B9jr)
+10. **Priorité 5 — Gestion abonnements/plans** (facturation Samakan) — désormais rattachée à la liste Trello "Business plan — Commercialisation" (checklist commercialisation plus large créée le 2026-09-11 : pricing, juridique, marketing, support), roadmap lointaine. [Trello](https://trello.com/c/cfKF8BNw)
+11. **Revoir tous les CTAs pour appliquer le design adapté** — pas encore cadré. [Trello](https://trello.com/c/mWKDv05R)
+12. **Appliquer la méthodologie des tableaux à tous les tableaux** — pas encore cadré. [Trello](https://trello.com/c/wZaVqyIF)
 13. **Dette technique : factoriser CampagneCourrierPage / CampagneMailingPage** — pas encore cadré, repéré le 2026-09-12 pendant le cadrage de l'aperçu nominatif destinataires, traitement reporté volontairement. [Trello](https://trello.com/c/RBsb8fbs)
 
 **Carte supprimée du board le 2026-08-26** (constatée disparue en début de session, hors session Claude Code, décision utilisateur de ne pas la recréer) : "Ajouter des contraintes de saisie de mot de passe dans la page reset password".
