@@ -384,16 +384,14 @@ export default function CampagneCourrierPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nom</TableHead>
-                      <TableHead>Prénom</TableHead>
+                      <TableHead>Destinataire</TableHead>
                       <TableHead>Adresse</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {destinatairesApercu.map((a) => (
                       <TableRow key={a.id} onClick={() => handleApercuRowClick(a.id)} className="cursor-pointer hover:bg-paper-border/20">
-                        <TableCell className="font-medium text-ink">{a.nom}</TableCell>
-                        <TableCell className="text-ink-muted">{a.prenom ?? '—'}</TableCell>
+                        <TableCell className="font-medium text-ink">{a.prenom ? `${a.prenom} ${a.nom}` : a.nom}</TableCell>
                         <TableCell className="text-ink-muted">{a.adresse}, {a.code_postal} {a.ville}</TableCell>
                       </TableRow>
                     ))}

@@ -918,17 +918,15 @@ export default function CampagneMailingPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nom</TableHead>
-                      <TableHead>Prénom</TableHead>
+                      <TableHead>Destinataire</TableHead>
                       <TableHead>Email</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {destinatairesApercu.map((a) => (
                       <TableRow key={a.id} onClick={() => handleApercuRowClick(a.id)} className="cursor-pointer hover:bg-paper-border/20">
-                        <TableCell className="font-medium text-ink">{a.nom}</TableCell>
-                        <TableCell className="text-ink-muted">{a.prenom ?? '—'}</TableCell>
-                        <TableCell className="text-ink-muted">{a.courriel}</TableCell>
+                        <TableCell className="font-medium text-ink">{a.prenom ? `${a.prenom} ${a.nom}` : a.nom}</TableCell>
+                        <TableCell className="break-all text-ink-muted">{a.courriel}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
