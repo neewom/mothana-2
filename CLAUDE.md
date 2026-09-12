@@ -139,7 +139,7 @@ Le board Trello est la source de vérité unique du backlog (hors cartes "Action
 1. **Bug mineur : tutoiement isolé sur DonsReguliersPage** — cadré (2026-09-13), très simple, fix trivial connu (ta → votre). [Trello](https://trello.com/c/yR7ZGoUc)
 2. **Renommer Participants en Donateurs** — cadré (2026-09-13), libellés UI uniquement (~8 emplacements), code/base inchangés. [Trello](https://trello.com/c/XpeENrtz)
 3. **Support multi-organisation pour un compte admin** (rattachement + sélecteur) — cadré, dev reporté à plus tard (décision explicite utilisateur). [Trello](https://trello.com/c/WtLrSLGW)
-4. **Vraie documentation utilisateur (guides / FAQ)** — pas encore cadré. [Trello](https://trello.com/c/5pwUxgqA)
+4. **Vraie documentation utilisateur (guides / FAQ)** — cadré (2026-09-13) : route publique `/aide`, format FAQ par catégories, admin+bénévole, recherche client-side dès la V1, lien depuis `/decouvrir` + layout admin, contenu V1 limité aux fonctionnalités les plus utilisées puis complété itérativement. [Trello](https://trello.com/c/5pwUxgqA)
 5. **`agents.md` calqués sur `CLAUDE.md`** (switch Codex ↔ Claude Code) — pas encore cadré. [Trello](https://trello.com/c/0XmhK0iv)
 6. **Mire de connexion personnalisée par organisation** (admin + bénévole) — cadré. [Trello](https://trello.com/c/gkOuH3uh)
 7. **OCR scan de carte adhérent** — pas encore cadré. [Trello](https://trello.com/c/zVBOjAWk)
