@@ -234,7 +234,7 @@ function ActiviteRow({
           : null
 
   const countsText = counts && counts.dons > 0
-    ? `${counts.dons} don${counts.dons > 1 ? 's' : ''} · ${counts.participants} participant${counts.participants > 1 ? 's' : ''}`
+    ? `${counts.dons} don${counts.dons > 1 ? 's' : ''} · ${counts.participants} donateur${counts.participants > 1 ? 's' : ''}`
     : 'Aucun don pour l\'instant'
 
   return (

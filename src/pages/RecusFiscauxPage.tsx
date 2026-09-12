@@ -378,7 +378,7 @@ export default function RecusFiscauxPage() {
         <div>
           <h1 className="text-2xl font-bold text-ink md:text-3xl">Reçus fiscaux</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {rows.length} participant{rows.length !== 1 ? 's' : ''} avec des dons en {annee}
+            {rows.length} donateur{rows.length !== 1 ? 's' : ''} avec des dons en {annee}
             {totalGeneres > 0 && ` · ${totalGeneres} reçu${totalGeneres !== 1 ? 's' : ''} généré${totalGeneres !== 1 ? 's' : ''}`}
           </p>
         </div>
@@ -470,7 +470,7 @@ export default function RecusFiscauxPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Participant</TableHead>
+                  <TableHead>Donateur</TableHead>
                   <TableHead className="text-right">Total dons</TableHead>
                   <TableHead>N° reçu</TableHead>
                   <TableHead>Type</TableHead>
@@ -536,7 +536,7 @@ export default function RecusFiscauxPage() {
                               onClick={() => openEditParticipant(row)}
                               className="mt-0.5 text-xs font-medium text-stamp underline hover:no-underline"
                             >
-                              Modifier le participant
+                              Modifier le donateur
                             </button>
                           </div>
                         )}

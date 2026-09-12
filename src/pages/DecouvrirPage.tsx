@@ -154,14 +154,14 @@ export default function DecouvrirPage() {
             />
             <Feature
               title="Saisir un don en quelques secondes"
-              description="Un formulaire simple pour enregistrer un don : participant, activité, montant et mode de paiement. Le participant peut être retrouvé instantanément ou créé à la volée."
+              description="Un formulaire simple pour enregistrer un don : donateur, activité, montant et mode de paiement. Le donateur peut être retrouvé instantanément ou créé à la volée."
               image={imgDonModal}
               imageAlt="Formulaire d'ajout d'un don"
             />
             <Feature
               reverse
               title="Suivre tous les dons au même endroit"
-              description="Liste complète des dons avec filtres par période, participant, activité ou mode de paiement, et des indicateurs clés (total collecté, don moyen, participants distincts) toujours visibles."
+              description="Liste complète des dons avec filtres par période, donateur, activité ou mode de paiement, et des indicateurs clés (total collecté, don moyen, donateurs distincts) toujours visibles."
               image={imgDonsListe}
               imageAlt="Liste des dons avec indicateurs"
             />

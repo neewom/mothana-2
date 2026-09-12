@@ -117,7 +117,7 @@ export default function DonModal({
     setError(null)
 
     if (!profilParticipantId) {
-      setError('Veuillez sélectionner ou créer un participant.')
+      setError('Veuillez sélectionner ou créer un donateur.')
       return
     }
 
@@ -142,11 +142,11 @@ export default function DonModal({
         const names: string[] = []
         if (blockedIds.has(don.profil_participant_id)) {
           const source = allParticipants.find((p) => p.id === don.profil_participant_id)
-          names.push(source ? participantFullName(source) : 'le participant actuel')
+          names.push(source ? participantFullName(source) : 'le donateur actuel')
         }
         if (blockedIds.has(profilParticipantId)) {
           const dest = allParticipants.find((p) => p.id === profilParticipantId)
-          names.push(dest ? participantFullName(dest) : 'le nouveau participant')
+          names.push(dest ? participantFullName(dest) : 'le nouveau donateur')
         }
         setError(
           `Impossible de réaffecter ce don : un reçu fiscal ${annee} a déjà été émis pour ${names.join(' et ')}. Réaffecter désynchroniserait le montant du reçu déjà émis.`
@@ -266,10 +266,10 @@ export default function DonModal({
                 </div>
               )}
 
-              {/* Participant */}
+              {/* Donateur */}
               <div className="space-y-1.5">
                 <Label>
-                  Participant <span className="text-stamp">*</span>
+                  Donateur <span className="text-stamp">*</span>
                 </Label>
 
                 <ParticipantAutocomplete
@@ -294,7 +294,7 @@ export default function DonModal({
                 )}
                 {isEdit && (
                   <p className="font-registre-mono text-[11px] text-ink-faint">
-                    Changer le participant réaffecte ce don — bloqué si un reçu fiscal a déjà été émis pour l'année concernée.
+                    Changer le donateur réaffecte ce don — bloqué si un reçu fiscal a déjà été émis pour l'année concernée.
                   </p>
                 )}
 
@@ -307,7 +307,7 @@ export default function DonModal({
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                     </svg>
-                    Nouveau participant
+                    Nouveau donateur
                   </button>
                 )}
               </div>
