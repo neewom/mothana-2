@@ -103,6 +103,38 @@ export default function BrevoConfigModal({ open, onClose, onSaved, organisationI
           <div className="flex-1 space-y-4 overflow-y-auto p-6">
             {error && <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">{error}</div>}
 
+            <details className="rounded-sm border border-paper-border">
+              <summary className="cursor-pointer select-none rounded-sm px-3 py-2 font-registre text-sm font-medium text-ink-muted hover:bg-paper">
+                Comment récupérer ces informations ?
+              </summary>
+              <div className="space-y-2 border-t border-paper-border px-3 py-2 font-registre text-sm text-ink-muted">
+                <p>
+                  Clé API — dans votre compte Brevo, menu{' '}
+                  <a
+                    href="https://app.brevo.com/settings/keys/api"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-stamp hover:underline"
+                  >
+                    Paramètres SMTP &amp; API
+                  </a>{' '}
+                  (créez-en une si besoin).
+                </p>
+                <p>
+                  Nom et email de l'expéditeur — doivent correspondre à un expéditeur vérifié, visible dans{' '}
+                  <a
+                    href="https://app.brevo.com/senders/list"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-stamp hover:underline"
+                  >
+                    Expéditeurs, domaines &amp; dédié IP
+                  </a>
+                  .
+                </p>
+              </div>
+            </details>
+
             <div className="space-y-1.5">
               <Label htmlFor="brevo-api-key">Clé API</Label>
               <Input
