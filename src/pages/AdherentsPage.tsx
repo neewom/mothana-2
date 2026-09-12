@@ -8,6 +8,8 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import AdherentModal from '../components/AdherentModal'
 import AssignerListeModal from '../components/AssignerListeModal'
+import ConfigurerColonnesModal from '../components/ConfigurerColonnesModal'
+import { chargerColonnesVisibles, sauvegarderColonnesVisibles, type ColonneAdherent } from '../lib/adherentsColonnes'
 import AdhesionModal from '../components/AdhesionModal'
 import ImportWizard from '../components/import/ImportWizard'
 import { adherentsImportConfig } from '../lib/import/configs'
@@ -27,6 +29,10 @@ import { Dialog, DialogContent } from '../components/ui/dialog'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function formatLocalisation(a: Adherent): string {
+  return [[a.code_postal, a.ville].filter(Boolean).join(' '), a.pays].filter(Boolean).join(', ') || '—'
 }
 
 type StatutFilter = 'actif' | 'archive' | 'all'
@@ -108,6 +114,8 @@ export default function AdherentsPage() {
   const [printError, setPrintError] = useState<string | null>(null)
   const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string; count: number } | null>(null)
   const [assignListeOpen, setAssignListeOpen] = useState(false)
+  const [colonnesModalOpen, setColonnesModalOpen] = useState(false)
+  const [colonnesVisibles, setColonnesVisibles] = useState<ColonneAdherent[]>(() => chargerColonnesVisibles())
 
   // Debounce de la recherche pour éviter un appel serveur à chaque frappe
   useEffect(() => {
@@ -204,6 +212,14 @@ export default function AdherentsPage() {
 
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
+
+  function toggleColonne(key: ColonneAdherent) {
+    setColonnesVisibles((prev) => {
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+      sauvegarderColonnesVisibles(next)
+      return next
+    })
+  }
 
   function openAdd() {
     setEditingAdherent(undefined)
@@ -499,6 +515,12 @@ export default function AdherentsPage() {
                 </svg>
                 Sélectionner
               </Button>
+              <Button variant="secondary" onClick={() => setColonnesModalOpen(true)}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6zM9.75 4.5v15m4.5-15v15" />
+                </svg>
+                Colonnes
+              </Button>
               <Button variant="secondary" onClick={() => setImportOpen(true)}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
@@ -555,11 +577,16 @@ export default function AdherentsPage() {
                         aria-label="Tout sélectionner"
                       />
                     </TableHead>
-                    <TableHead>Civilité</TableHead>
+                    {colonnesVisibles.includes('civilite') && <TableHead>Civilité</TableHead>}
                     <TableHead>Nom</TableHead>
                     <TableHead>Prénom</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Adhésion</TableHead>
+                    {colonnesVisibles.includes('statut') && <TableHead>Statut</TableHead>}
+                    {colonnesVisibles.includes('adhesion') && <TableHead>Adhésion</TableHead>}
+                    {colonnesVisibles.includes('email') && <TableHead>Email</TableHead>}
+                    {colonnesVisibles.includes('telephone') && <TableHead>Téléphone</TableHead>}
+                    {colonnesVisibles.includes('localisation') && <TableHead>Localisation</TableHead>}
+                    {colonnesVisibles.includes('date_naissance') && <TableHead>Date de naissance</TableHead>}
+                    {colonnesVisibles.includes('listes') && <TableHead>Listes</TableHead>}
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -577,20 +604,41 @@ export default function AdherentsPage() {
                             aria-label={`Sélectionner ${adherentFullName(a)}`}
                           />
                         </TableCell>
-                        <TableCell className="text-ink-faint">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
+                        {colonnesVisibles.includes('civilite') && (
+                          <TableCell className="text-ink-faint">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
+                        )}
                         <TableCell className="font-medium text-ink">{a.nom}</TableCell>
                         <TableCell className="text-ink-muted">{a.prenom ?? '—'}</TableCell>
-                        <TableCell>
-                          <Badge variant="neutral">{a.statut === 'actif' ? 'Actif' : 'Archivé'}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={STATUT_CYCLE_VARIANTS[cycle]}>{STATUT_CYCLE_LABELS[cycle]}</Badge>
-                          {latestAdhesions.get(a.id)?.date_fin && (
-                            <p className="mt-0.5 font-registre-mono text-[11px] text-ink-faint">
-                              jusqu'au {formatDate(latestAdhesions.get(a.id)!.date_fin!)}
-                            </p>
-                          )}
-                        </TableCell>
+                        {colonnesVisibles.includes('statut') && (
+                          <TableCell>
+                            <Badge variant="neutral">{a.statut === 'actif' ? 'Actif' : 'Archivé'}</Badge>
+                          </TableCell>
+                        )}
+                        {colonnesVisibles.includes('adhesion') && (
+                          <TableCell>
+                            <Badge variant={STATUT_CYCLE_VARIANTS[cycle]}>{STATUT_CYCLE_LABELS[cycle]}</Badge>
+                            {latestAdhesions.get(a.id)?.date_fin && (
+                              <p className="mt-0.5 font-registre-mono text-[11px] text-ink-faint">
+                                jusqu'au {formatDate(latestAdhesions.get(a.id)!.date_fin!)}
+                              </p>
+                            )}
+                          </TableCell>
+                        )}
+                        {colonnesVisibles.includes('email') && (
+                          <TableCell className="text-ink-muted">{a.courriel ?? '—'}</TableCell>
+                        )}
+                        {colonnesVisibles.includes('telephone') && (
+                          <TableCell className="text-ink-muted">{a.telephone ?? '—'}</TableCell>
+                        )}
+                        {colonnesVisibles.includes('localisation') && (
+                          <TableCell className="text-ink-muted">{formatLocalisation(a)}</TableCell>
+                        )}
+                        {colonnesVisibles.includes('date_naissance') && (
+                          <TableCell className="text-ink-muted">{a.date_naissance ? formatDate(a.date_naissance) : '—'}</TableCell>
+                        )}
+                        {colonnesVisibles.includes('listes') && (
+                          <TableCell className="text-ink-muted">{a.tags.length > 0 ? a.tags.join(', ') : '—'}</TableCell>
+                        )}
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-1">
                             <Button variant="secondary" size="sm" onClick={() => openEdit(a)}>Modifier</Button>
@@ -668,6 +716,13 @@ export default function AdherentsPage() {
         organisationId={organisationId}
         adherentIds={Array.from(selectedIds)}
         availableTags={availableTags}
+      />
+
+      <ConfigurerColonnesModal
+        open={colonnesModalOpen}
+        onClose={() => setColonnesModalOpen(false)}
+        colonnesVisibles={colonnesVisibles}
+        onToggle={toggleColonne}
       />
 
       <AdhesionModal
