@@ -175,8 +175,17 @@ export default function GererListesModal({ open, onClose, onChanged, organisatio
                                 className="h-8"
                               />
                             ) : (
-                              <button type="button" onClick={() => startRename(l.nom)} className="hover:underline">
+                              <button
+                                type="button"
+                                onClick={() => startRename(l.nom)}
+                                title="Renommer la liste"
+                                aria-label={`Renommer la liste ${l.nom}`}
+                                className="inline-flex items-center gap-1.5 hover:underline"
+                              >
                                 {l.nom}
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0 text-ink-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                                </svg>
                               </button>
                             )}
                             <p className="mt-0.5 font-registre text-xs text-ink-faint">
