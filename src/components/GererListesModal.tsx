@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { useToast } from '../hooks/useToast'
+import Toast from './Toast'
 import ScrollShadowX from './ScrollShadowX'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -27,6 +29,7 @@ interface ConfirmAdherent {
 }
 
 export default function GererListesModal({ open, onClose, onChanged, organisationId }: GererListesModalProps) {
+  const { toast, showToast, dismissToast } = useToast()
   const [listes, setListes] = useState<ListeRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -81,6 +84,7 @@ export default function GererListesModal({ open, onClose, onChanged, organisatio
       setError(err.code === '23505' ? 'Ce nom existe déjà.' : err.message)
       return
     }
+    showToast(`Liste renommée en « ${nouveauNom} »`)
     await fetchListes()
     onChanged()
   }
@@ -113,6 +117,12 @@ export default function GererListesModal({ open, onClose, onChanged, organisatio
       setError(err.message)
       return
     }
+    const count = confirmAdherents.length
+    showToast(
+      confirmAction.type === 'vider'
+        ? `${count} adhérent${count > 1 ? 's' : ''} retiré${count > 1 ? 's' : ''} de la liste « ${confirmAction.nom} »`
+        : `Liste « ${confirmAction.nom} » supprimée`,
+    )
     setConfirmAction(null)
     await fetchListes()
     onChanged()
@@ -259,6 +269,8 @@ export default function GererListesModal({ open, onClose, onChanged, organisatio
           </div>
         </DialogContent>
       </Dialog>
+
+      {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
     </>
   )
 }
