@@ -6,7 +6,8 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import ScrollShadowX from '../components/ScrollShadowX'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
-import type { Activite } from '../types'
+import AdherentModal from '../components/AdherentModal'
+import type { Activite, Adherent } from '../types'
 import { Button } from '../components/ui/button'
 import { Label } from '../components/ui/label'
 import { Select } from '../components/ui/select'
@@ -67,6 +68,12 @@ export default function CampagneCourrierPage() {
   const [excludeTag, setExcludeTag] = useState('')
   const [availableTags, setAvailableTags] = useState<string[]>([])
   const [destinatairesCount, setDestinatairesCount] = useState<{ complets: number; exclus: number } | null>(null)
+  const [destinatairesApercu, setDestinatairesApercu] = useState<
+    { id: string; nom: string; prenom: string | null; adresse: string; code_postal: string; ville: string }[]
+  >([])
+  const [apercuOpen, setApercuOpen] = useState(false)
+  const [editingAdherent, setEditingAdherent] = useState<Adherent | undefined>(undefined)
+  const [adherentModalOpen, setAdherentModalOpen] = useState(false)
 
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [generating, setGenerating] = useState(false)
@@ -122,7 +129,7 @@ export default function CampagneCourrierPage() {
     const requestId = ++destinatairesRequestIdRef.current
     let query = supabase
       .from('adherents')
-      .select('adresse, code_postal, ville, tags')
+      .select('id, nom, prenom, adresse, code_postal, ville, tags')
       .eq('organisation_id', organisationId)
     if (tagEnvoi) {
       query = query.contains('tags', [tagEnvoi])
@@ -131,11 +138,34 @@ export default function CampagneCourrierPage() {
     }
     const { data } = await query
     if (requestId !== destinatairesRequestIdRef.current) return
-    const rows = (data ?? []) as { adresse: string | null; code_postal: string | null; ville: string | null; tags: string[] }[]
+    const rows = (data ?? []) as {
+      id: string
+      nom: string
+      prenom: string | null
+      adresse: string | null
+      code_postal: string | null
+      ville: string | null
+      tags: string[]
+    }[]
     const filtered = excludeTag ? rows.filter((a) => !(a.tags ?? []).includes(excludeTag)) : rows
-    const complets = filtered.filter((a) => a.adresse?.trim() && a.code_postal?.trim() && a.ville?.trim()).length
-    setDestinatairesCount({ complets, exclus: filtered.length - complets })
+    const complets = filtered.filter((a) => a.adresse?.trim() && a.code_postal?.trim() && a.ville?.trim())
+    setDestinatairesCount({ complets: complets.length, exclus: filtered.length - complets.length })
+    setDestinatairesApercu(
+      complets.map((a) => ({ id: a.id, nom: a.nom, prenom: a.prenom, adresse: a.adresse!, code_postal: a.code_postal!, ville: a.ville! })),
+    )
   }, [organisationId, filtreStatut, tagEnvoi, excludeTag])
+
+  async function handleApercuRowClick(id: string) {
+    const { data } = await supabase.from('adherents').select('*').eq('id', id).single()
+    if (!data) return
+    setEditingAdherent(data as Adherent)
+    setApercuOpen(false)
+    setAdherentModalOpen(true)
+  }
+
+  function handleAdherentSaved() {
+    fetchDestinatairesCount()
+  }
 
   useEffect(() => {
     fetchDestinatairesCount()
@@ -265,6 +295,14 @@ export default function CampagneCourrierPage() {
             <p className="text-xs text-ink-faint">
               {destinatairesCount.complets} destinataire{destinatairesCount.complets > 1 ? 's' : ''} avec adresse complète
               {destinatairesCount.exclus > 0 && ` — ${destinatairesCount.exclus} exclu${destinatairesCount.exclus > 1 ? 's' : ''} (adresse incomplète)`}
+              {destinatairesCount.complets > 0 && (
+                <>
+                  {' — '}
+                  <button type="button" onClick={() => setApercuOpen(true)} className="font-medium text-stamp hover:underline">
+                    Voir la liste ({destinatairesCount.complets})
+                  </button>
+                </>
+              )}
             </p>
           )}
 
@@ -336,6 +374,50 @@ export default function CampagneCourrierPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={apercuOpen} onOpenChange={(next) => { if (!next) setApercuOpen(false) }}>
+        <DialogContent className="max-w-lg" aria-describedby={undefined}>
+          <div className="flex max-h-[80vh] flex-col p-6">
+            <h2 className="font-registre text-lg font-semibold text-ink">Destinataires de la campagne</h2>
+            <div className="mt-4 flex-1 overflow-y-auto">
+              <ScrollShadowX>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nom</TableHead>
+                      <TableHead>Prénom</TableHead>
+                      <TableHead>Adresse</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {destinatairesApercu.map((a) => (
+                      <TableRow key={a.id} onClick={() => handleApercuRowClick(a.id)} className="cursor-pointer hover:bg-paper-border/20">
+                        <TableCell className="font-medium text-ink">{a.nom}</TableCell>
+                        <TableCell className="text-ink-muted">{a.prenom ?? '—'}</TableCell>
+                        <TableCell className="text-ink-muted">{a.adresse}, {a.code_postal} {a.ville}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollShadowX>
+            </div>
+            <div className="mt-5 flex justify-end">
+              <Button type="button" variant="secondary" onClick={() => setApercuOpen(false)}>
+                Fermer
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AdherentModal
+        open={adherentModalOpen}
+        onClose={() => setAdherentModalOpen(false)}
+        onSaved={handleAdherentSaved}
+        adherent={editingAdherent}
+        organisationId={organisationId}
+        availableTags={availableTags}
+      />
 
       {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
     </div>
