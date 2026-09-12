@@ -8,6 +8,7 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import AdherentModal from '../components/AdherentModal'
 import AssignerListeModal from '../components/AssignerListeModal'
+import GererListesModal from '../components/GererListesModal'
 import AdhesionModal from '../components/AdhesionModal'
 import ImportWizard from '../components/import/ImportWizard'
 import { adherentsImportConfig } from '../lib/import/configs'
@@ -108,6 +109,7 @@ export default function AdherentsPage() {
   const [printError, setPrintError] = useState<string | null>(null)
   const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string; count: number } | null>(null)
   const [assignListeOpen, setAssignListeOpen] = useState(false)
+  const [gererListesOpen, setGererListesOpen] = useState(false)
 
   // Debounce de la recherche pour éviter un appel serveur à chaque frappe
   useEffect(() => {
@@ -218,6 +220,11 @@ export default function AdherentsPage() {
   function handleAdherentSaved(saved: Adherent) {
     const wasEdit = !!editingAdherent
     showToast(`${adherentFullName(saved)} ${wasEdit ? 'modifié' : 'ajouté'}`)
+    fetchAdherents()
+    fetchAvailableTags()
+  }
+
+  function handleListesChanged() {
     fetchAdherents()
     fetchAvailableTags()
   }
@@ -448,6 +455,11 @@ export default function AdherentsPage() {
                   </svg>
                   Nouvelle liste
                 </Button>
+                {availableTags.length > 0 && (
+                  <Button variant="secondary" onClick={() => setGererListesOpen(true)}>
+                    Gérer les listes
+                  </Button>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-2 sm:border-l sm:border-paper-border sm:pl-3">
@@ -668,6 +680,13 @@ export default function AdherentsPage() {
         organisationId={organisationId}
         adherentIds={Array.from(selectedIds)}
         availableTags={availableTags}
+      />
+
+      <GererListesModal
+        open={gererListesOpen}
+        onClose={() => setGererListesOpen(false)}
+        onChanged={handleListesChanged}
+        organisationId={organisationId}
       />
 
       <AdhesionModal
