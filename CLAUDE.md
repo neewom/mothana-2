@@ -146,8 +146,8 @@ Le board Trello est la source de vérité unique du backlog (hors cartes "Action
 8. **Priorité 5 — Export comptable enrichi** — recadré, roadmap lointaine. [Trello](https://trello.com/c/W3GCYUOt)
 9. **Priorité 5 — Brique événements/coupons + portefeuille virtuel** (Pagode Coupon) — clarifié, prérequis (inspection projet Supabase "pagode-coupon") avant cadrage technique. [Trello](https://trello.com/c/C9A5B9jr)
 10. **Priorité 5 — Gestion abonnements/plans** (facturation Samakan) — désormais rattachée à la liste Trello "Business plan — Commercialisation" (checklist commercialisation plus large créée le 2026-09-11 : pricing, juridique, marketing, support), roadmap lointaine. [Trello](https://trello.com/c/cfKF8BNw)
-11. **Revoir tous les CTAs pour appliquer le design adapté** — pas encore cadré. [Trello](https://trello.com/c/mWKDv05R)
-12. **Appliquer la méthodologie des tableaux à tous les tableaux** — pas encore cadré. [Trello](https://trello.com/c/wZaVqyIF)
+11. **Revoir tous les CTAs pour appliquer le design adapté** — cadré (2026-09-13) : mise à jour DESIGN.md (obsolète, palette indigo) vers le système actuel (stamp/paper/ink) + convention d'usage par variante, puis audit/migration des boutons hors composant `Button` non conformes. [Trello](https://trello.com/c/mWKDv05R)
+12. **Appliquer la méthodologie des tableaux à tous les tableaux** — cadré (2026-09-13) : ScrollShadowX sur DonsPage/DeclarationCerfaCard, harmonisation SuperAdminPage, suppression bouton "Détail" redondant sur DemandesAdhesionPage, revue au cas par cas des colonnes masquées en mobile. [Trello](https://trello.com/c/wZaVqyIF)
 13. **Dette technique : factoriser CampagneCourrierPage / CampagneMailingPage** — cadré (2026-09-13), scope technique posé (hook `useDestinatairesSelection` + modale `DestinatairesApercuModal` partagée), dev volontairement reporté au 3ᵉ signal de duplication. [Trello](https://trello.com/c/RBsb8fbs)
 
 **Carte supprimée du board le 2026-08-26** (constatée disparue en début de session, hors session Claude Code, décision utilisateur de ne pas la recréer) : "Ajouter des contraintes de saisie de mot de passe dans la page reset password".
