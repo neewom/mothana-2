@@ -8,6 +8,7 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import AdherentModal from '../components/AdherentModal'
 import AssignerListeModal from '../components/AssignerListeModal'
+import RetirerListeModal from '../components/RetirerListeModal'
 import GererListesModal from '../components/GererListesModal'
 import AdhesionModal from '../components/AdhesionModal'
 import ImportWizard from '../components/import/ImportWizard'
@@ -109,6 +110,7 @@ export default function AdherentsPage() {
   const [printError, setPrintError] = useState<string | null>(null)
   const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string; count: number } | null>(null)
   const [assignListeOpen, setAssignListeOpen] = useState(false)
+  const [retirerListeOpen, setRetirerListeOpen] = useState(false)
   const [gererListesOpen, setGererListesOpen] = useState(false)
 
   // Debounce de la recherche pour éviter un appel serveur à chaque frappe
@@ -206,6 +208,10 @@ export default function AdherentsPage() {
 
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
+  const selectedAdherents = useMemo(
+    () => adherents.filter((a) => selectedIds.has(a.id)).map((a) => ({ id: a.id, tags: a.tags })),
+    [adherents, selectedIds],
+  )
 
   function openAdd() {
     setEditingAdherent(undefined)
@@ -235,6 +241,13 @@ export default function AdherentsPage() {
         ? `Liste « ${tag} » créée`
         : `Liste « ${tag} » ajoutée à ${selectedIds.size} adhérent${selectedIds.size > 1 ? 's' : ''}`,
     )
+    setSelectedIds(new Set())
+    fetchAdherents()
+    fetchAvailableTags()
+  }
+
+  function handleListeRemoved(tag: string, count: number) {
+    showToast(`${count} adhérent${count > 1 ? 's' : ''} retiré${count > 1 ? 's' : ''} de la liste « ${tag} »`)
     setSelectedIds(new Set())
     fetchAdherents()
     fetchAvailableTags()
@@ -532,10 +545,15 @@ export default function AdherentsPage() {
                 <span className="text-sm font-medium text-ink">
                   {selectedIds.size} adhérent{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
                 </span>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <Button variant="secondary" size="sm" onClick={() => setAssignListeOpen(true)}>
                     Ajouter à une liste
                   </Button>
+                  {availableTags.length > 0 && (
+                    <Button variant="secondary" size="sm" onClick={() => setRetirerListeOpen(true)}>
+                      Retirer d'une liste
+                    </Button>
+                  )}
                   <Button size="sm" onClick={handlePrintCards} disabled={printing} title={PRINT_HELP_TEXT}>
                     {printing ? 'Génération…' : 'Imprimer les cartes'}
                   </Button>
@@ -680,6 +698,14 @@ export default function AdherentsPage() {
         organisationId={organisationId}
         adherentIds={Array.from(selectedIds)}
         availableTags={availableTags}
+      />
+
+      <RetirerListeModal
+        open={retirerListeOpen}
+        onClose={() => setRetirerListeOpen(false)}
+        onRemoved={handleListeRemoved}
+        organisationId={organisationId}
+        selectedAdherents={selectedAdherents}
       />
 
       <GererListesModal
