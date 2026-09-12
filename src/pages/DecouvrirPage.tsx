@@ -13,6 +13,8 @@ import imgBenevoleDon from '../assets/decouvrir/15-benevole-don.png'
 import imgBenevoleVerification from '../assets/decouvrir/16-benevole-verification.png'
 import imgParametresOrganisation from '../assets/decouvrir/08-parametres-organisation.png'
 import imgFormulaireEditor from '../assets/decouvrir/12-formulaire-adhesion-editor.png'
+import imgDonsReguliers from '../assets/decouvrir/17-dons-reguliers.png'
+import imgModelesRecus from '../assets/decouvrir/18-modeles-recus.png'
 import { Button } from '../components/ui/button'
 
 const SECTIONS = [
@@ -164,13 +166,19 @@ export default function DecouvrirPage() {
               imageAlt="Liste des dons avec indicateurs"
             />
             <Feature
+              title="Automatiser les dons récurrents"
+              description="Enregistrez un engagement de prélèvement mensuel une seule fois — chaque mois, le don correspondant est proposé à la confirmation, sans ressaisie, jusqu'à l'arrêt de l'engagement."
+              image={imgDonsReguliers}
+              imageAlt="Page des dons réguliers"
+            />
+            <Feature
+              reverse
               title="Reçus fiscaux Cerfa en un clic"
               description="Génération automatique des reçus fiscaux (Cerfa 11580/16216) à partir des dons de l'année, avec détection des dossiers incomplets avant génération."
               image={imgRecusFiscaux}
               imageAlt="Liste des reçus fiscaux à générer"
             />
             <Feature
-              reverse
               title="Un tableau de bord comptable clair"
               description="Évolution des dons mois par mois, répartition par activité et par mode de paiement — de quoi préparer sereinement une réunion de bureau ou un point avec le trésorier."
               image={imgComptabilite}
@@ -274,6 +282,12 @@ export default function DecouvrirPage() {
               description="En-tête et pied de page du formulaire d'adhésion personnalisables en HTML/CSS, avec aperçu en direct — le cœur du formulaire reste garanti conforme."
               image={imgFormulaireEditor}
               imageAlt="Éditeur d'en-tête et pied de page du formulaire d'adhésion"
+            />
+            <Feature
+              title="Des reçus à l'image de votre association"
+              description="Personnalisez le contenu HTML des reçus fiscaux 11580 et 16216, avec aperçu en direct à partir de données d'exemple — la conformité Cerfa reste garantie."
+              image={imgModelesRecus}
+              imageAlt="Aperçu d'un modèle de reçu fiscal personnalisé"
             />
           </section>
 

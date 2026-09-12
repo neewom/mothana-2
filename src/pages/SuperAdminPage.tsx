@@ -6,7 +6,7 @@ import { fetchAllRows } from '../lib/fetchAllRows'
 import { DEFAULT_CERFA_TEMPLATES } from '../lib/defaultCerfaTemplates'
 import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS, DEFAULT_CARTE_ADHERENT_NOM } from '../lib/defaultCarteAdherentTemplate'
 import { slugifyUrl } from '../lib/organisationAssets'
-import { isRecette, isStagingSupabaseProject } from '../lib/environment'
+import { isRecette, isStagingSupabaseProject, getCanonicalSiteUrl } from '../lib/environment'
 import { seedDemoOrganisationData } from '../lib/demoOrgSeed'
 import { downloadCsv } from '../lib/csvExport'
 import { cn } from '../lib/utils'
@@ -169,7 +169,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
         Authorization: `Bearer ${token}`,
         apikey: SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({ nom: newNom, email: newEmail, organisation_id: org.id, site_url: window.location.origin }),
+      body: JSON.stringify({ nom: newNom, email: newEmail, organisation_id: org.id, site_url: getCanonicalSiteUrl() }),
     })
     const json = await res.json()
     setAdding(false)
