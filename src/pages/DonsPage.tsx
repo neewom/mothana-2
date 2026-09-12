@@ -6,6 +6,7 @@ import DonModal from '../components/DonModal'
 import ParticipantAutocomplete from '../components/ParticipantAutocomplete'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
 import DonFichiers from '../components/DonFichiers'
+import ScrollShadowX from '../components/ScrollShadowX'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { fetchAllRows } from '../lib/fetchAllRows'
@@ -595,7 +596,7 @@ export default function DonsPage() {
                 <p className="font-registre text-sm text-ink-faint">Aucun don trouvé</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <ScrollShadowX>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -641,7 +642,7 @@ export default function DonsPage() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+              </ScrollShadowX>
             )}
 
             {/* Pagination */}

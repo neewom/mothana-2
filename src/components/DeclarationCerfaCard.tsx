@@ -2,6 +2,7 @@ import { downloadCsv } from '../lib/csvExport'
 import { copyTextToClipboard } from '../lib/clipboard'
 import { Button } from './ui/button'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table'
+import ScrollShadowX from './ScrollShadowX'
 
 function formatEur(n: number): string {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
@@ -59,7 +60,7 @@ export default function DeclarationCerfaCard({ rows, loading }: DeclarationCerfa
       ) : rows.length === 0 ? (
         <p className="py-8 text-center text-sm text-ink-faint">Aucun reçu fiscal généré pour le moment</p>
       ) : (
-        <div className="mt-4 overflow-x-auto">
+        <ScrollShadowX className="mt-4">
           <Table>
             <TableHeader>
               <TableRow>
@@ -84,7 +85,7 @@ export default function DeclarationCerfaCard({ rows, loading }: DeclarationCerfa
               ))}
             </TableBody>
           </Table>
-        </div>
+        </ScrollShadowX>
       )}
 
       <p className="mt-4 text-xs text-ink-faint">

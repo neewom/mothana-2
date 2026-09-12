@@ -297,9 +297,6 @@ export default function DemandesAdhesionPage() {
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-2">
-                            <Button variant="secondary" size="sm" onClick={() => setDetailDemande(d)}>
-                              Détail
-                            </Button>
                             {tab === 'en_attente' && (
                               <>
                                 <Button variant="success" size="sm" onClick={() => setRatifyingDemande(d)}>
