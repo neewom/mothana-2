@@ -4,6 +4,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
+import { getCanonicalSiteUrl } from '../lib/environment'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import ScrollShadowX from '../components/ScrollShadowX'
@@ -455,7 +456,7 @@ export default function CampagneMailingPage() {
         tag_envoi: tagEnvoi,
         exclude_tag: excludeTag || null,
         pieces_jointes: piecesJointes.map((p) => ({ nom: p.fichier.name, contenu_base64: p.base64, type_mime: p.fichier.type })),
-        site_url: window.location.origin,
+        site_url: getCanonicalSiteUrl(),
       }),
     })
 

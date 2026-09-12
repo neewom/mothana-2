@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { getCanonicalSiteUrl } from '../lib/environment'
 import RecetteBanner from '../components/RecetteBanner'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -72,7 +73,7 @@ export default function HomePage() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ email: forgotEmail, site_url: window.location.origin }),
+      body: JSON.stringify({ email: forgotEmail, site_url: getCanonicalSiteUrl() }),
     })
     const json = await res.json().catch(() => ({}))
     setForgotSending(false)
