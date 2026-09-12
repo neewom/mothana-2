@@ -156,6 +156,7 @@ Le board Trello est la source de vérité unique du backlog (hors cartes "Action
 18. **Appliquer la méthodologie des tableaux à tous les tableaux** — pas encore cadré. [Trello](https://trello.com/c/wZaVqyIF)
 19. **Renommer Participants en Donateurs** — pas encore cadré. [Trello](https://trello.com/c/XpeENrtz)
 20. **Dette technique : factoriser CampagneCourrierPage / CampagneMailingPage** — pas encore cadré, repéré le 2026-09-12 pendant le cadrage de l'item 9, traitement reporté volontairement. [Trello](https://trello.com/c/RBsb8fbs)
+21. **Bug mineur : tutoiement isolé sur DonsReguliersPage** — pas encore cadré, repéré le 2026-09-12 en capturant DecouvrirPage, fix trivial (ta → votre). [Trello](https://trello.com/c/yR7ZGoUc)
 
 **Carte supprimée du board le 2026-08-26** (constatée disparue en début de session, hors session Claude Code, décision utilisateur de ne pas la recréer) : "Ajouter des contraintes de saisie de mot de passe dans la page reset password".
 
