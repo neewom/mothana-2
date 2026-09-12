@@ -18,7 +18,13 @@ interface GererListesModalProps {
   organisationId: string
 }
 
-type ConfirmAction = { type: 'vider' | 'supprimer'; nom: string; nombreAdherents: number } | null
+type ConfirmAction = { type: 'vider' | 'supprimer'; nom: string } | null
+
+interface ConfirmAdherent {
+  id: string
+  nom: string
+  prenom: string | null
+}
 
 export default function GererListesModal({ open, onClose, onChanged, organisationId }: GererListesModalProps) {
   const [listes, setListes] = useState<ListeRow[]>([])
@@ -28,6 +34,8 @@ export default function GererListesModal({ open, onClose, onChanged, organisatio
   const [renameValue, setRenameValue] = useState('')
   const [renaming, setRenaming] = useState(false)
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null)
+  const [confirmAdherents, setConfirmAdherents] = useState<ConfirmAdherent[]>([])
+  const [confirmLoading, setConfirmLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
   const fetchListes = useCallback(async () => {
@@ -75,6 +83,20 @@ export default function GererListesModal({ open, onClose, onChanged, organisatio
     }
     await fetchListes()
     onChanged()
+  }
+
+  async function openConfirm(type: 'vider' | 'supprimer', nom: string) {
+    setConfirmAction({ type, nom })
+    setConfirmAdherents([])
+    setConfirmLoading(true)
+    const { data } = await supabase
+      .from('adherents')
+      .select('id, nom, prenom')
+      .eq('organisation_id', organisationId)
+      .contains('tags', [nom])
+      .order('nom')
+    setConfirmAdherents((data ?? []) as ConfirmAdherent[])
+    setConfirmLoading(false)
   }
 
   async function handleConfirmAction() {
@@ -159,7 +181,7 @@ export default function GererListesModal({ open, onClose, onChanged, organisatio
                                 size="icon"
                                 title="Vider la liste"
                                 aria-label={`Vider la liste ${l.nom}`}
-                                onClick={() => setConfirmAction({ type: 'vider', nom: l.nom, nombreAdherents: l.nombre_adherents })}
+                                onClick={() => openConfirm('vider', l.nom)}
                                 disabled={l.nombre_adherents === 0}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -172,7 +194,7 @@ export default function GererListesModal({ open, onClose, onChanged, organisatio
                                 size="icon"
                                 title="Supprimer la liste"
                                 aria-label={`Supprimer la liste ${l.nom}`}
-                                onClick={() => setConfirmAction({ type: 'supprimer', nom: l.nom, nombreAdherents: l.nombre_adherents })}
+                                onClick={() => openConfirm('supprimer', l.nom)}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
@@ -203,16 +225,34 @@ export default function GererListesModal({ open, onClose, onChanged, organisatio
               {confirmAction?.type === 'vider' ? 'Vider la liste' : 'Supprimer la liste'}
             </h2>
             <p className="mt-2 font-registre text-sm text-ink-muted">
-              <span className="font-medium text-ink">
-                {confirmAction?.nombreAdherents ?? 0} adhérent{(confirmAction?.nombreAdherents ?? 0) > 1 ? 's' : ''}
-              </span>{' '}
-              seront retirés de la liste « {confirmAction?.nom} »{confirmAction?.type === 'supprimer' ? ', qui sera supprimée' : ''}.
+              {confirmLoading || confirmAdherents.length > 0 ? (
+                <>
+                  Les adhérents suivants seront retirés de la liste « {confirmAction?.nom} »
+                  {confirmAction?.type === 'supprimer' ? ', qui sera supprimée' : ''} :
+                </>
+              ) : (
+                <>
+                  Aucun adhérent n'appartient à la liste « {confirmAction?.nom} »
+                  {confirmAction?.type === 'supprimer' ? ' — elle sera supprimée.' : '.'}
+                </>
+              )}
             </p>
+            {confirmLoading ? (
+              <div className="mt-3 flex justify-center py-4">
+                <div className="h-5 w-5 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
+              </div>
+            ) : confirmAdherents.length > 0 && (
+              <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto border-t border-paper-border pt-3 font-registre text-sm text-ink-muted">
+                {confirmAdherents.map((a) => (
+                  <li key={a.id}>{a.prenom ? `${a.prenom} ${a.nom}` : a.nom}</li>
+                ))}
+              </ul>
+            )}
             <div className="mt-5 flex justify-end gap-3">
               <Button type="button" variant="secondary" onClick={() => setConfirmAction(null)} disabled={actionLoading}>
                 Annuler
               </Button>
-              <Button type="button" onClick={handleConfirmAction} disabled={actionLoading}>
+              <Button type="button" onClick={handleConfirmAction} disabled={actionLoading || confirmLoading}>
                 {actionLoading ? 'Traitement…' : 'Confirmer'}
               </Button>
             </div>
