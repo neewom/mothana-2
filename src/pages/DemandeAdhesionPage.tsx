@@ -121,7 +121,10 @@ export default function DemandeAdhesionPage() {
       telephone: telephone || null,
       courriel: courriel || null,
       signature_data_url: signature,
-      accepte_statuts: accepteStatuts,
+      // Contrainte DB : accepte_statuts doit toujours valoir true. Sans statuts_url, la case
+      // n'est pas affichée (rien à accepter) — le state accepteStatuts reste alors à son
+      // défaut false, d'où ce fallback explicite.
+      accepte_statuts: organisation.statuts_url ? accepteStatuts : true,
       consent_rgpd: consentRgpd,
     })
 
@@ -356,17 +359,17 @@ export default function DemandeAdhesionPage() {
           </div>
 
           <div className="border-t border-paper-border pt-4">
-            <label className="flex items-start gap-2 text-sm text-ink-muted">
-              <input
-                type="checkbox"
-                required
-                checked={accepteStatuts}
-                onChange={(e) => setAccepteStatuts(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded-sm border-paper-border text-stamp focus:ring-stamp/70"
-              />
-              <span>
-                J'ai pris connaissance{' '}
-                {organisation.statuts_url ? (
+            {organisation.statuts_url && (
+              <label className="flex items-start gap-2 text-sm text-ink-muted">
+                <input
+                  type="checkbox"
+                  required
+                  checked={accepteStatuts}
+                  onChange={(e) => setAccepteStatuts(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded-sm border-paper-border text-stamp focus:ring-stamp/70"
+                />
+                <span>
+                  J'ai pris connaissance{' '}
                   <a
                     href={organisation.statuts_url}
                     target="_blank"
@@ -374,13 +377,11 @@ export default function DemandeAdhesionPage() {
                     className="font-medium text-stamp hover:underline"
                   >
                     des statuts de l'association
-                  </a>
-                ) : (
-                  "des statuts de l'association"
-                )}{' '}
-                et les approuve. <span className="text-stamp">*</span>
-              </span>
-            </label>
+                  </a>{' '}
+                  et les approuve. <span className="text-stamp">*</span>
+                </span>
+              </label>
+            )}
 
             <label className="mt-3 flex items-start gap-2 text-sm text-ink-muted">
               <input

@@ -9,6 +9,8 @@ import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import ScrollShadowX from '../components/ScrollShadowX'
 import BrevoConfigModal, { type BrevoConfigValues } from '../components/BrevoConfigModal'
+import AdherentModal from '../components/AdherentModal'
+import type { Adherent } from '../types'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
@@ -128,6 +130,12 @@ export default function CampagneMailingPage() {
   const [piecesJointes, setPiecesJointes] = useState<PieceJointeState[]>([])
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [destinatairesCount, setDestinatairesCount] = useState<{ avecEmail: number; exclus: number } | null>(null)
+  const [destinatairesApercu, setDestinatairesApercu] = useState<
+    { id: string; nom: string; prenom: string | null; courriel: string }[]
+  >([])
+  const [apercuOpen, setApercuOpen] = useState(false)
+  const [editingAdherent, setEditingAdherent] = useState<Adherent | undefined>(undefined)
+  const [adherentModalOpen, setAdherentModalOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
@@ -345,7 +353,7 @@ export default function CampagneMailingPage() {
     const requestId = ++destinatairesRequestIdRef.current
     let query = supabase
       .from('adherents')
-      .select('courriel, tags')
+      .select('id, nom, prenom, courriel, tags')
       .eq('organisation_id', organisationId)
       .eq('mailing_opt_out', false)
     // Sélectionner une liste prime sur le statut actif/archivé (envoie à tous les
@@ -357,11 +365,24 @@ export default function CampagneMailingPage() {
     }
     const { data } = await query
     if (requestId !== destinatairesRequestIdRef.current) return
-    const rows = (data ?? []) as { courriel: string | null; tags: string[] }[]
+    const rows = (data ?? []) as { id: string; nom: string; prenom: string | null; courriel: string | null; tags: string[] }[]
     const filtered = excludeTag ? rows.filter((a) => !(a.tags ?? []).includes(excludeTag)) : rows
-    const avecEmail = filtered.filter((a) => a.courriel && a.courriel.trim() !== '').length
-    setDestinatairesCount({ avecEmail, exclus: filtered.length - avecEmail })
+    const avecEmail = filtered.filter((a) => a.courriel && a.courriel.trim() !== '')
+    setDestinatairesCount({ avecEmail: avecEmail.length, exclus: filtered.length - avecEmail.length })
+    setDestinatairesApercu(avecEmail.map((a) => ({ id: a.id, nom: a.nom, prenom: a.prenom, courriel: a.courriel! })))
   }, [organisationId, filtreStatut, tagEnvoi, excludeTag])
+
+  async function handleApercuRowClick(id: string) {
+    const { data } = await supabase.from('adherents').select('*').eq('id', id).single()
+    if (!data) return
+    setEditingAdherent(data as Adherent)
+    setApercuOpen(false)
+    setAdherentModalOpen(true)
+  }
+
+  function handleAdherentSaved() {
+    fetchDestinatairesCount()
+  }
 
   useEffect(() => {
     fetchDestinatairesCount()
@@ -673,6 +694,14 @@ export default function CampagneMailingPage() {
             <p className="text-xs text-ink-faint">
               {destinatairesCount.avecEmail} destinataire{destinatairesCount.avecEmail > 1 ? 's' : ''} avec email
               {destinatairesCount.exclus > 0 && ` — ${destinatairesCount.exclus} exclu${destinatairesCount.exclus > 1 ? 's' : ''} (email manquant)`}
+              {destinatairesCount.avecEmail > 0 && (
+                <>
+                  {' — '}
+                  <button type="button" onClick={() => setApercuOpen(true)} className="font-medium text-stamp hover:underline">
+                    Voir la liste ({destinatairesCount.avecEmail})
+                  </button>
+                </>
+              )}
             </p>
           )}
 
@@ -878,6 +907,48 @@ export default function CampagneMailingPage() {
         onSaved={handleConfigSaved}
         organisationId={organisationId}
         initial={brevoConfig}
+      />
+
+      <Dialog open={apercuOpen} onOpenChange={(next) => { if (!next) setApercuOpen(false) }}>
+        <DialogContent className="max-w-lg" aria-describedby={undefined}>
+          <div className="flex max-h-[80vh] flex-col p-6">
+            <h2 className="font-registre text-lg font-semibold text-ink">Destinataires de la campagne</h2>
+            <div className="mt-4 flex-1 overflow-y-auto">
+              <ScrollShadowX>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Destinataire</TableHead>
+                      <TableHead>Email</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {destinatairesApercu.map((a) => (
+                      <TableRow key={a.id} onClick={() => handleApercuRowClick(a.id)} className="cursor-pointer hover:bg-paper-border/20">
+                        <TableCell className="font-medium text-ink">{a.prenom ? `${a.prenom} ${a.nom}` : a.nom}</TableCell>
+                        <TableCell className="break-all text-ink-muted">{a.courriel}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollShadowX>
+            </div>
+            <div className="mt-5 flex justify-end">
+              <Button type="button" variant="secondary" onClick={() => setApercuOpen(false)}>
+                Fermer
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AdherentModal
+        open={adherentModalOpen}
+        onClose={() => setAdherentModalOpen(false)}
+        onSaved={handleAdherentSaved}
+        adherent={editingAdherent}
+        organisationId={organisationId}
+        availableTags={availableTags}
       />
 
       {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}

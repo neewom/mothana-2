@@ -66,6 +66,8 @@ export default function DashboardPage() {
   const [donsReguliersAConfirmer, setDonsReguliersAConfirmer] = useState(0)
   const [adherentsEmailInvalideList, setAdherentsEmailInvalideList] = useState<Adherent[]>([])
   const [emailInvalideModalOpen, setEmailInvalideModalOpen] = useState(false)
+  // undefined = pas encore chargé (évite un flash de la bannière avant la réponse)
+  const [statutsUrl, setStatutsUrl] = useState<string | null | undefined>(undefined)
   const [editingAdherent, setEditingAdherent] = useState<Adherent | undefined>(undefined)
   const [adherentModalOpen, setAdherentModalOpen] = useState(false)
 
@@ -96,7 +98,7 @@ export default function DashboardPage() {
       const aujourdhui = now.toISOString().split('T')[0]
       const dans30Jours = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-      const [donsMoisRes, recentDonsRes, recentActivitesRes, adherentsExpirationRes, demandesRes, engagementsRes, donsGeneresRes] = await Promise.all([
+      const [donsMoisRes, recentDonsRes, recentActivitesRes, adherentsExpirationRes, demandesRes, engagementsRes, donsGeneresRes, organisationRes] = await Promise.all([
         supabase
           .from('dons')
           .select('montant')
@@ -138,6 +140,11 @@ export default function DashboardPage() {
           .select('don_regulier_id, date')
           .eq('organisation_id', organisationId)
           .not('don_regulier_id', 'is', null),
+        supabase
+          .from('organisations')
+          .select('statuts_url')
+          .eq('id', organisationId)
+          .single(),
       ])
 
       const donsMois = (donsMoisRes.data ?? []) as { montant: number }[]
@@ -161,6 +168,7 @@ export default function DashboardPage() {
         0
       )
       setDonsReguliersAConfirmer(totalAConfirmer)
+      setStatutsUrl((organisationRes.data as { statuts_url: string | null } | null)?.statuts_url ?? null)
 
       setLoading(false)
     }
@@ -260,6 +268,30 @@ export default function DashboardPage() {
             Voir les adhérents →
           </span>
         </button>
+      )}
+
+      {adherentsActifs && statutsUrl === null && (
+        <Link
+          to="/admin/parametres/adherents"
+          className="flex flex-col gap-4 rounded-sm border-2 border-warning-border bg-warning-tint px-6 py-5 transition-colors hover:bg-warning-tint/70 sm:flex-row sm:items-center"
+        >
+          <div className="flex items-center gap-4 sm:min-w-0 sm:flex-1">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-warning text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-bold text-warning">Statuts de l'association non configurés</p>
+              <p className="mt-0.5 text-sm text-warning">
+                Le formulaire public de demande d'adhésion ne peut pas les proposer à la lecture.
+              </p>
+            </div>
+          </div>
+          <span className="w-full shrink-0 rounded-sm bg-warning px-4 py-2 text-center text-sm font-semibold text-white sm:w-auto">
+            Configurer →
+          </span>
+        </Link>
       )}
 
       {/* Stats */}
