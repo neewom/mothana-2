@@ -148,7 +148,7 @@ Le board Trello est la source de vérité unique du backlog (hors cartes "Action
 10. **Priorité 5 — Gestion abonnements/plans** (facturation Samakan) — désormais rattachée à la liste Trello "Business plan — Commercialisation" (checklist commercialisation plus large créée le 2026-09-11 : pricing, juridique, marketing, support), roadmap lointaine. [Trello](https://trello.com/c/cfKF8BNw)
 11. **Revoir tous les CTAs pour appliquer le design adapté** — pas encore cadré. [Trello](https://trello.com/c/mWKDv05R)
 12. **Appliquer la méthodologie des tableaux à tous les tableaux** — pas encore cadré. [Trello](https://trello.com/c/wZaVqyIF)
-13. **Dette technique : factoriser CampagneCourrierPage / CampagneMailingPage** — pas encore cadré, repéré le 2026-09-12 pendant le cadrage de l'aperçu nominatif destinataires, traitement reporté volontairement. [Trello](https://trello.com/c/RBsb8fbs)
+13. **Dette technique : factoriser CampagneCourrierPage / CampagneMailingPage** — cadré (2026-09-13), scope technique posé (hook `useDestinatairesSelection` + modale `DestinatairesApercuModal` partagée), dev volontairement reporté au 3ᵉ signal de duplication. [Trello](https://trello.com/c/RBsb8fbs)
 
 **Carte supprimée du board le 2026-08-26** (constatée disparue en début de session, hors session Claude Code, décision utilisateur de ne pas la recréer) : "Ajouter des contraintes de saisie de mot de passe dans la page reset password".
 
