@@ -533,7 +533,7 @@ export default function AdherentsPage() {
                 <span className="text-sm font-medium text-ink">
                   {selectedIds.size} adhérent{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
                 </span>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <Button variant="secondary" size="sm" onClick={() => setAssignListeOpen(true)}>
                     Ajouter à une liste
                   </Button>
