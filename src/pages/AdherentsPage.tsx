@@ -669,22 +669,10 @@ export default function AdherentsPage() {
                         {colonnesVisibles.includes('listes') && (
                           <TableCell className="text-ink-muted">{a.tags.length > 0 ? a.tags.join(', ') : '—'}</TableCell>
                         )}
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-end gap-1">
-                            <Button variant="secondary" size="sm" onClick={() => handlePrintSingleCard(a)} disabled={printing} title={PRINT_HELP_TEXT}>
-                              Carte
-                            </Button>
-                            {a.statut === 'actif' && (
-                              <Button variant="default" size="sm" onClick={() => setRenewingAdherent(a)}>Renouveler</Button>
-                            )}
-                            {a.statut === 'actif' ? (
-                              <Button variant="danger" size="sm" onClick={() => setArchiveConfirm(a)}>
-                                Archiver
-                              </Button>
-                            ) : (
-                              <Button variant="secondary" size="sm" onClick={() => handleReactivate(a)}>Réactiver</Button>
-                            )}
-                          </div>
+                        <TableCell className="text-right text-ink-faint">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
                         </TableCell>
                       </TableRow>
                     )
@@ -736,6 +724,29 @@ export default function AdherentsPage() {
         adherent={editingAdherent}
         organisationId={organisationId}
         availableTags={availableTags}
+        statutActif={editingAdherent?.statut === 'actif'}
+        printing={printing}
+        printHelpText={PRINT_HELP_TEXT}
+        onPrintCard={editingAdherent && (() => {
+          const a = editingAdherent
+          setAdherentModalOpen(false)
+          handlePrintSingleCard(a)
+        })}
+        onRenew={editingAdherent && (() => {
+          const a = editingAdherent
+          setAdherentModalOpen(false)
+          setRenewingAdherent(a)
+        })}
+        onArchive={editingAdherent && (() => {
+          const a = editingAdherent
+          setAdherentModalOpen(false)
+          setArchiveConfirm(a)
+        })}
+        onReactivate={editingAdherent && (() => {
+          const a = editingAdherent
+          setAdherentModalOpen(false)
+          handleReactivate(a)
+        })}
       />
 
       <AssignerListeModal

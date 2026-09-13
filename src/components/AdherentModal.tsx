@@ -46,6 +46,15 @@ interface AdherentModalProps {
   // Doublons potentiels détectés côté DemandesAdhesionPage lors de l'ouverture pour ratification
   duplicateWarnings?: DuplicateMatch[]
   duplicateWarningsLoading?: boolean
+  // Actions de gestion (AdherentsPage uniquement — absentes en ratification DemandesAdhesionPage).
+  // Ferment cette modale avant d'ouvrir la leur, pas de nesting Dialog-dans-Dialog.
+  onPrintCard?: () => void
+  printing?: boolean
+  printHelpText?: string
+  onRenew?: () => void
+  onArchive?: () => void
+  onReactivate?: () => void
+  statutActif?: boolean
 }
 
 function today(): string {
@@ -62,8 +71,16 @@ export default function AdherentModal({
   prefill,
   duplicateWarnings,
   duplicateWarningsLoading,
+  onPrintCard,
+  printing,
+  printHelpText,
+  onRenew,
+  onArchive,
+  onReactivate,
+  statutActif,
 }: AdherentModalProps) {
   const isEdit = !!adherent
+  const hasManagementActions = isEdit && (onPrintCard || onRenew || onArchive || onReactivate)
 
   // Identité
   const [civilite, setCivilite] = useState<CiviliteAdherent>(0)
@@ -288,6 +305,30 @@ export default function AdherentModal({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Modifier l'adhérent" : 'Ajouter un adhérent'}</DialogTitle>
         </DialogHeader>
+
+        {hasManagementActions && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-paper-border px-6 py-3">
+            {onPrintCard && (
+              <Button type="button" variant="secondary" size="sm" onClick={onPrintCard} disabled={printing} title={printHelpText}>
+                {printing ? 'Génération…' : 'Carte'}
+              </Button>
+            )}
+            {statutActif ? (
+              <>
+                {onRenew && (
+                  <Button type="button" size="sm" onClick={onRenew}>Renouveler</Button>
+                )}
+                {onArchive && (
+                  <Button type="button" variant="danger" size="sm" onClick={onArchive}>Archiver</Button>
+                )}
+              </>
+            ) : (
+              onReactivate && (
+                <Button type="button" variant="secondary" size="sm" onClick={onReactivate}>Réactiver</Button>
+              )
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 space-y-4 overflow-y-auto p-6">
