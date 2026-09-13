@@ -208,7 +208,7 @@ function DetailPanel({ don, organisationId, onClose, onEdit, onDeleted }: Detail
       {/* Body */}
       <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
         <div>
-          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Participant</p>
+          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Donateur</p>
           <p className="mt-1 font-semibold text-ink">
             {p ? (p.prenom ? `${p.prenom} ${p.nom}` : p.nom) : '—'}
           </p>
@@ -395,7 +395,7 @@ export default function DonsPage() {
   function handleExport() {
     const rows = filteredDons.map((don) => ({
       Date: formatDateShort(don.date),
-      Participant: participantName(don),
+      Donateur: participantName(don),
       'Activité': don.activites?.nom ?? '',
       Montant: don.montant.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       'Mode de paiement': MODE_PAIEMENT_LABELS[don.mode_paiement],
@@ -457,7 +457,7 @@ export default function DonsPage() {
           <StatCard label="Total collecté" value={formatEur(stats.total)} />
           <StatCard label="Nombre de dons" value={String(stats.count)} />
           <StatCard label="Don moyen" value={stats.count > 0 ? formatEur(stats.avg) : '—'} />
-          <StatCard label="Participants distincts" value={String(stats.distinctParticipants)} />
+          <StatCard label="Donateurs distincts" value={String(stats.distinctParticipants)} />
         </div>
 
         {/* Filters card (expandable) */}
@@ -522,12 +522,12 @@ export default function DonsPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block font-registre-mono text-[11px] font-medium text-ink-faint">Participant</label>
+                  <label className="block font-registre-mono text-[11px] font-medium text-ink-faint">Donateur</label>
                   <ParticipantAutocomplete
                     participants={participants}
                     value={filterParticipant}
                     onChange={(id) => { setFilterParticipant(id); setCurrentPage(1) }}
-                    placeholder="Tous les participants"
+                    placeholder="Tous les donateurs"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -600,7 +600,7 @@ export default function DonsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
-                      <TableHead>Participant</TableHead>
+                      <TableHead>Donateur</TableHead>
                       <TableHead className="hidden md:table-cell">Activité</TableHead>
                       <TableHead className="text-right">Montant</TableHead>
                       <TableHead className="hidden md:table-cell">Mode</TableHead>

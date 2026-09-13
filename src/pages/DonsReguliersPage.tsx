@@ -67,7 +67,7 @@ function DonRegulierModal({ open, onClose, onSaved, engagement, participants, ac
     setError(null)
 
     if (!profilParticipantId) {
-      setError('Veuillez sélectionner un participant.')
+      setError('Veuillez sélectionner un donateur.')
       return
     }
 
@@ -130,7 +130,7 @@ function DonRegulierModal({ open, onClose, onSaved, engagement, participants, ac
 
           <div className="space-y-1.5">
             <Label>
-              Participant <span className="text-stamp">*</span>
+              Donateur <span className="text-stamp">*</span>
             </Label>
             <ParticipantAutocomplete
               participants={participants}

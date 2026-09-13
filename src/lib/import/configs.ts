@@ -22,7 +22,7 @@ export interface ImportConfig {
 
 export const participantsImportConfig: ImportConfig = {
   entity: 'participants',
-  title: 'Participants',
+  title: 'Donateurs',
   fieldDefs: participantsFieldDefs,
   rpcName: 'import_upsert_participants',
   prepareBatch: async (rows, mapping, organisationId) => {

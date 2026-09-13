@@ -62,7 +62,7 @@ export const activitesFieldDefs: FieldDef[] = [
 
 export const donsFieldDefs: FieldDef[] = [
   { key: 'id_externe', label: 'Identifiant externe', required: false, parse: parseTextCell, aliases: ['external id', 'externalid', 'ref externe', 'reference externe'] },
-  { key: 'participant_id_externe', label: 'Identifiant externe participant', required: true, parse: parseRequiredTextCell, aliases: ['participant id', 'donor id', 'participant external id'] },
+  { key: 'participant_id_externe', label: 'Identifiant externe donateur', required: true, parse: parseRequiredTextCell, aliases: ['participant id', 'donor id', 'participant external id'] },
   { key: 'activite_id_externe', label: 'Identifiant externe activité', required: false, parse: parseTextCell, aliases: ['activity id', 'event id'] },
   { key: 'montant', label: 'Montant', required: true, parse: parseMontantCell, aliases: ['amount', 'total'] },
   { key: 'date', label: 'Date du don', required: true, parse: parseRequiredDateCell, aliases: ['donation date', 'date don'] },

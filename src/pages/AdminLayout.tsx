@@ -110,7 +110,7 @@ function buildNavItems(flags: FonctionnalitesActivees): NavEntry[] {
       items: [
         { label: 'Dons', to: '/admin/dons' },
         { label: 'Dons réguliers', to: '/admin/dons-reguliers' },
-        { label: 'Participants', to: '/admin/participants' },
+        { label: 'Donateurs', to: '/admin/participants' },
         { label: 'Activités', to: '/admin/activites' },
         { label: 'Reçus fiscaux', to: '/admin/recus' },
       ],

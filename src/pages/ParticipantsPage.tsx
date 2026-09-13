@@ -207,7 +207,7 @@ function DetailPanel({
     <div className="flex h-full flex-col font-registre">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-paper-border px-6 py-4">
-        <h2 className="text-lg font-semibold text-ink">Détail du participant</h2>
+        <h2 className="text-lg font-semibold text-ink">Détail du donateur</h2>
         <button
           onClick={onClose}
           className="rounded-sm p-1.5 text-ink-faint transition-colors hover:text-stamp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
@@ -305,7 +305,7 @@ function DetailPanel({
           <Button variant="secondary" onClick={onAddDon} className="flex-1">Ajouter un don</Button>
         </div>
         <Button variant="danger" onClick={onDelete} className="w-full">
-          Supprimer le participant
+          Supprimer le donateur
         </Button>
       </div>
     </div>
@@ -488,7 +488,7 @@ export default function ParticipantsPage() {
     const linkedDons = dons.filter((d) => d.profil_participant_id === deleteConfirm.id).length
     if (linkedDons > 0) {
       setDeleteError(
-        `Impossible de supprimer : ${linkedDons} don${linkedDons > 1 ? 's' : ''} ${linkedDons > 1 ? 'sont rattachés' : 'est rattaché'} à ce participant.`
+        `Impossible de supprimer : ${linkedDons} don${linkedDons > 1 ? 's' : ''} ${linkedDons > 1 ? 'sont rattachés' : 'est rattaché'} à ce donateur.`
       )
       return
     }
@@ -547,8 +547,8 @@ export default function ParticipantsPage() {
       <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
         {/* Page title */}
         <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Participants</h1>
-          <p className="mt-1 text-sm text-ink-muted">Gestion des participants et de leurs dons</p>
+          <h1 className="text-2xl font-bold text-ink md:text-3xl">Donateurs</h1>
+          <p className="mt-1 text-sm text-ink-muted">Gestion des donateurs et de leurs dons</p>
         </div>
 
         {/* Error */}
@@ -592,7 +592,7 @@ export default function ParticipantsPage() {
               </div>
             ) : filteredParticipants.length === 0 ? (
               <div className="flex items-center justify-center py-16">
-                <p className="font-registre text-sm text-ink-faint">Aucun participant trouvé</p>
+                <p className="font-registre text-sm text-ink-faint">Aucun donateur trouvé</p>
               </div>
             ) : (
               <ScrollShadowX>
@@ -771,7 +771,7 @@ export default function ParticipantsPage() {
         <DialogContent aria-describedby={undefined}>
           {deleteConfirm && (
             <div className="overflow-y-auto p-6">
-              <h2 className="font-registre text-lg font-semibold text-ink">Supprimer le participant</h2>
+              <h2 className="font-registre text-lg font-semibold text-ink">Supprimer le donateur</h2>
               <p className="mt-2 font-registre text-sm text-ink-muted">
                 Êtes-vous sûr de vouloir supprimer{' '}
                 <span className="font-medium text-ink">« {participantFullName(deleteConfirm)} »</span> ?
