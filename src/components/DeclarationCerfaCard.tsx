@@ -38,8 +38,8 @@ function exportDeclarationCsv(rows: DeclarationCerfaRow[]) {
 
 export default function DeclarationCerfaCard({ rows, loading }: DeclarationCerfaCardProps) {
   return (
-    <div className="rounded-sm border border-paper-border bg-white p-5 font-registre">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white font-registre">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-paper-border px-6 py-4">
         <div>
           <h2 className="font-semibold text-ink">Récapitulatif déclaratif (article 222 bis CGI)</h2>
           <p className="mt-1 text-sm text-ink-faint">
@@ -54,13 +54,13 @@ export default function DeclarationCerfaCard({ rows, loading }: DeclarationCerfa
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-8">
+        <div className="flex items-center justify-center px-6 py-8">
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
         </div>
       ) : rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-ink-faint">Aucun reçu fiscal généré pour le moment</p>
+        <p className="px-6 py-8 text-center text-sm text-ink-faint">Aucun reçu fiscal généré pour le moment</p>
       ) : (
-        <ScrollShadowX className="mt-4">
+        <ScrollShadowX>
           <Table>
             <TableHeader>
               <TableRow>
@@ -88,7 +88,7 @@ export default function DeclarationCerfaCard({ rows, loading }: DeclarationCerfa
         </ScrollShadowX>
       )}
 
-      <p className="mt-4 text-xs text-ink-faint">
+      <p className="border-t border-paper-border px-6 py-4 text-xs text-ink-faint">
         Déclaration à effectuer avant le 2ᵉ jour ouvré suivant le 1ᵉʳ mai N+1 (ou dans les 3 mois suivant
         la clôture de l'exercice pour les organismes n'étant pas sur l'année civile), directement sur
         impots.gouv.fr ou demarches-simplifiees.fr selon le statut de l'organisme. Samakan ne soumet rien

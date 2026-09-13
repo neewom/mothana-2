@@ -765,7 +765,7 @@ export default function SuperAdminPage() {
       )}
 
       {/* Organisations table */}
-      <div className="rounded-sm border border-paper-border bg-white">
+      <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
         <div className="flex flex-col gap-3 border-b border-paper-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold text-ink">Organisations</h2>
           <div className="flex gap-2 rounded-sm bg-paper-border/40 p-1">

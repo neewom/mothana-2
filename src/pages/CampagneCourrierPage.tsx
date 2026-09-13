@@ -45,14 +45,31 @@ function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-function SectionCard({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+function SectionCard({
+  title,
+  description,
+  children,
+  accent = false,
+  noPadding = false,
+}: {
+  title: string
+  description?: string
+  children: ReactNode
+  // Liseré gauche rouge des tableaux principaux (Dons, Adhérents, Participants) —
+  // réservé aux sections qui contiennent un tableau de liste, pas les formulaires.
+  accent?: boolean
+  // Un tableau (ScrollShadowX) doit toucher les bords de la carte, comme sur les
+  // autres tableaux principaux — pas de padding autour, contrairement au contenu
+  // formulaire des autres sections.
+  noPadding?: boolean
+}) {
   return (
-    <div className="rounded-sm border border-paper-border bg-white">
+    <div className={`rounded-sm border border-paper-border bg-white ${accent ? 'border-l-[3px] border-l-stamp' : ''}`}>
       <div className="border-b border-paper-border px-6 py-4">
         <h2 className="text-lg font-semibold text-ink">{title}</h2>
         {description && <p className="mt-0.5 text-sm text-ink-muted">{description}</p>}
       </div>
-      <div className="p-6">{children}</div>
+      <div className={noPadding ? '' : 'p-6'}>{children}</div>
     </div>
   )
 }
@@ -312,13 +329,13 @@ export default function CampagneCourrierPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Historique" description="20 dernières campagnes courrier générées.">
+      <SectionCard title="Historique" description="20 dernières campagnes courrier générées." accent noPadding>
         {historiqueLoading ? (
-          <div className="flex items-center justify-center py-8">
+          <div className="flex items-center justify-center px-6 py-8">
             <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
           </div>
         ) : historique.length === 0 ? (
-          <p className="text-sm text-ink-faint">Aucune campagne courrier générée pour le moment.</p>
+          <p className="p-6 text-sm text-ink-faint">Aucune campagne courrier générée pour le moment.</p>
         ) : (
           <ScrollShadowX>
             <Table>
@@ -335,8 +352,8 @@ export default function CampagneCourrierPage() {
                 {historique.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="whitespace-nowrap text-ink-muted">{formatDateTime(c.created_at)}</TableCell>
-                    <TableCell className="font-medium text-ink">{c.activites?.nom ?? '—'}</TableCell>
-                    <TableCell className="text-ink-muted">{c.selection_label}</TableCell>
+                    <TableCell className="max-w-[30vw] truncate font-medium text-ink sm:max-w-none" title={c.activites?.nom ?? '—'}>{c.activites?.nom ?? '—'}</TableCell>
+                    <TableCell className="max-w-[30vw] truncate text-ink-muted sm:max-w-none" title={c.selection_label}>{c.selection_label}</TableCell>
                     <TableCell className="text-ink-muted">{c.nombre_destinataires}</TableCell>
                     <TableCell className="text-ink-muted">{c.nombre_exclus}</TableCell>
                   </TableRow>
