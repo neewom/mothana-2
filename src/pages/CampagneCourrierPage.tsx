@@ -352,8 +352,8 @@ export default function CampagneCourrierPage() {
                 {historique.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="whitespace-nowrap text-ink-muted">{formatDateTime(c.created_at)}</TableCell>
-                    <TableCell className="max-w-[30vw] truncate font-medium text-ink sm:max-w-none" title={c.activites?.nom ?? '—'}>{c.activites?.nom ?? '—'}</TableCell>
-                    <TableCell className="max-w-[30vw] truncate text-ink-muted sm:max-w-none" title={c.selection_label}>{c.selection_label}</TableCell>
+                    <TableCell className="whitespace-nowrap font-medium text-ink">{c.activites?.nom ?? '—'}</TableCell>
+                    <TableCell className="whitespace-nowrap text-ink-muted">{c.selection_label}</TableCell>
                     <TableCell className="text-ink-muted">{c.nombre_destinataires}</TableCell>
                     <TableCell className="text-ink-muted">{c.nombre_exclus}</TableCell>
                   </TableRow>
