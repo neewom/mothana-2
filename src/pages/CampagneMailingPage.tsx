@@ -749,7 +749,7 @@ export default function CampagneMailingPage() {
                 {historique.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="whitespace-nowrap text-ink-muted">{formatDateTime(c.created_at)}</TableCell>
-                    <TableCell className="font-medium text-ink">{c.sujet}</TableCell>
+                    <TableCell className="max-w-[45vw] truncate font-medium text-ink sm:max-w-none" title={c.sujet}>{c.sujet}</TableCell>
                     <TableCell className="text-ink-muted">{c.nombre_destinataires}</TableCell>
                     <TableCell className="text-ink-muted">{c.nombre_exclus}</TableCell>
                   </TableRow>
