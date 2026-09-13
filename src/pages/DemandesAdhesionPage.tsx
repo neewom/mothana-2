@@ -243,10 +243,10 @@ export default function DemandesAdhesionPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Civilité</TableHead>
+                    <TableHead className="hidden md:table-cell">Civilité</TableHead>
                     <TableHead>Nom</TableHead>
                     <TableHead>Prénom</TableHead>
-                    <TableHead>Contact</TableHead>
+                    <TableHead className="hidden md:table-cell">Contact</TableHead>
                     <TableHead>{tab === 'en_attente' ? 'Soumise le' : 'Décidée le'}</TableHead>
                     <TableHead />
                   </TableRow>
@@ -263,7 +263,7 @@ export default function DemandesAdhesionPage() {
                           hasDuplicate ? 'bg-warning-tint hover:bg-warning-tint/70' : 'hover:bg-paper-border/20'
                         )}
                       >
-                        <TableCell className="text-ink-faint">{CIVILITE_ADHERENT_LABELS[d.civilite]}</TableCell>
+                        <TableCell className="hidden text-ink-faint md:table-cell">{CIVILITE_ADHERENT_LABELS[d.civilite]}</TableCell>
                         <TableCell className="font-medium text-ink">
                           <div className="flex items-center gap-2">
                             {d.nom}
@@ -278,7 +278,7 @@ export default function DemandesAdhesionPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-ink-muted">{d.prenom ?? '—'}</TableCell>
-                        <TableCell className="text-ink-faint">
+                        <TableCell className="hidden text-ink-faint md:table-cell">
                           <div className="flex items-center gap-1.5">
                             {d.courriel ?? '—'}
                             {d.email_bounced_at && (
@@ -295,22 +295,10 @@ export default function DemandesAdhesionPage() {
                         <TableCell className="font-registre-mono text-xs text-ink-faint">
                           {formatDateTime(tab === 'en_attente' ? d.created_at : (d.decided_at ?? d.created_at))}
                         </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-end gap-2">
-                            <Button variant="secondary" size="sm" onClick={() => setDetailDemande(d)}>
-                              Détail
-                            </Button>
-                            {tab === 'en_attente' && (
-                              <>
-                                <Button variant="success" size="sm" onClick={() => setRatifyingDemande(d)}>
-                                  Ratifier
-                                </Button>
-                                <Button variant="danger" size="sm" onClick={() => setRefusingDemande(d)}>
-                                  Refuser
-                                </Button>
-                              </>
-                            )}
-                          </div>
+                        <TableCell className="text-right text-ink-faint">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
                         </TableCell>
                       </TableRow>
                     )

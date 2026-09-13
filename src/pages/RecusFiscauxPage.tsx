@@ -437,7 +437,7 @@ export default function RecusFiscauxPage() {
       )}
 
       {/* Table */}
-      <div className="rounded-sm border border-paper-border bg-white">
+      <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
         {!loading && rows.length > 0 && (
           <div className="border-b border-paper-border px-6 py-4">
             <Input
