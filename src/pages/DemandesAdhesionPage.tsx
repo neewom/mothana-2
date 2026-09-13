@@ -295,19 +295,10 @@ export default function DemandesAdhesionPage() {
                         <TableCell className="font-registre-mono text-xs text-ink-faint">
                           {formatDateTime(tab === 'en_attente' ? d.created_at : (d.decided_at ?? d.created_at))}
                         </TableCell>
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-end gap-2">
-                            {tab === 'en_attente' && (
-                              <>
-                                <Button variant="success" size="sm" onClick={() => setRatifyingDemande(d)}>
-                                  Ratifier
-                                </Button>
-                                <Button variant="danger" size="sm" onClick={() => setRefusingDemande(d)}>
-                                  Refuser
-                                </Button>
-                              </>
-                            )}
-                          </div>
+                        <TableCell className="text-right text-ink-faint">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
                         </TableCell>
                       </TableRow>
                     )
