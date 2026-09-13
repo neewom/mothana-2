@@ -21,7 +21,7 @@ export default function ParticipantAutocomplete({
   value,
   onChange,
   disabled,
-  placeholder = 'Rechercher un participant…',
+  placeholder = 'Rechercher un donateur…',
   onSearchChange,
 }: ParticipantAutocompleteProps) {
   // null = not actively editing: the displayed text is derived from `value`.
@@ -67,7 +67,7 @@ export default function ParticipantAutocomplete({
       {open && (
         <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
           {results.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-slate-500">Aucun participant trouvé</p>
+            <p className="px-3 py-2 text-sm text-slate-500">Aucun donateur trouvé</p>
           ) : (
             results.map((p) => (
               <button

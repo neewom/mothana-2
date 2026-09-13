@@ -67,7 +67,7 @@ function DonRegulierModal({ open, onClose, onSaved, engagement, participants, ac
     setError(null)
 
     if (!profilParticipantId) {
-      setError('Veuillez sélectionner un participant.')
+      setError('Veuillez sélectionner un donateur.')
       return
     }
 
@@ -130,7 +130,7 @@ function DonRegulierModal({ open, onClose, onSaved, engagement, participants, ac
 
           <div className="space-y-1.5">
             <Label>
-              Participant <span className="text-stamp">*</span>
+              Donateur <span className="text-stamp">*</span>
             </Label>
             <ParticipantAutocomplete
               participants={participants}
@@ -460,7 +460,7 @@ export default function DonsReguliersPage() {
         <div>
           <h1 className="text-2xl font-bold text-ink md:text-3xl">Dons réguliers</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Automatise la saisie des dons récurrents (prélèvements mensuels) — chaque don reste soumis à ta confirmation avant d'être enregistré.
+            Automatise la saisie des dons récurrents (prélèvements mensuels) — chaque don reste soumis à votre confirmation avant d'être enregistré.
           </p>
         </div>
 

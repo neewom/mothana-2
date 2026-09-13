@@ -218,7 +218,7 @@ export default function ParticipantModal({
     <Modal open={open} onClose={onClose} labelledBy="participant-modal-title" elevated={elevated}>
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 id="participant-modal-title" className="text-lg font-semibold text-slate-900">
-            {isEdit ? 'Modifier le participant' : 'Ajouter un participant'}
+            {isEdit ? 'Modifier le donateur' : 'Ajouter un donateur'}
           </h2>
         </div>
 

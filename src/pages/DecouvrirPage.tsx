@@ -15,6 +15,7 @@ import imgParametresOrganisation from '../assets/decouvrir/08-parametres-organis
 import imgFormulaireEditor from '../assets/decouvrir/12-formulaire-adhesion-editor.png'
 import imgDonsReguliers from '../assets/decouvrir/17-dons-reguliers.png'
 import imgModelesRecus from '../assets/decouvrir/18-modeles-recus.png'
+import { Link } from 'react-router-dom'
 import { Button } from '../components/ui/button'
 
 const SECTIONS = [
@@ -154,14 +155,14 @@ export default function DecouvrirPage() {
             />
             <Feature
               title="Saisir un don en quelques secondes"
-              description="Un formulaire simple pour enregistrer un don : participant, activité, montant et mode de paiement. Le participant peut être retrouvé instantanément ou créé à la volée."
+              description="Un formulaire simple pour enregistrer un don : donateur, activité, montant et mode de paiement. Le donateur peut être retrouvé instantanément ou créé à la volée."
               image={imgDonModal}
               imageAlt="Formulaire d'ajout d'un don"
             />
             <Feature
               reverse
               title="Suivre tous les dons au même endroit"
-              description="Liste complète des dons avec filtres par période, participant, activité ou mode de paiement, et des indicateurs clés (total collecté, don moyen, participants distincts) toujours visibles."
+              description="Liste complète des dons avec filtres par période, donateur, activité ou mode de paiement, et des indicateurs clés (total collecté, don moyen, donateurs distincts) toujours visibles."
               image={imgDonsListe}
               imageAlt="Liste des dons avec indicateurs"
             />
@@ -297,9 +298,14 @@ export default function DecouvrirPage() {
               Sécurité des données et confidentialité par organisation sont assurées au niveau de la
               base de données elle-même, pas seulement dans l'interface.
             </p>
-            <Button asChild className="mt-6">
-              <a href="mailto:contact@samakan.fr">Nous contacter</a>
-            </Button>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Button asChild>
+                <a href="mailto:contact@samakan.fr">Nous contacter</a>
+              </Button>
+              <Button asChild variant="secondary">
+                <Link to="/aide">Besoin d'aide ?</Link>
+              </Button>
+            </div>
           </footer>
         </main>
       </div>

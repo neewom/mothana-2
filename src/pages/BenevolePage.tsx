@@ -319,7 +319,7 @@ export default function BenevolePage() {
     }
 
     if (!profilParticipantId) {
-      setError('Veuillez sélectionner ou créer un participant.')
+      setError('Veuillez sélectionner ou créer un donateur.')
       setSaving(false)
       return
     }
@@ -505,10 +505,10 @@ export default function BenevolePage() {
                 <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{error}</div>
               )}
 
-              {/* Participant */}
+              {/* Donateur */}
               <div>
                 <Label>
-                  Participant <span className="text-stamp">*</span>
+                  Donateur <span className="text-stamp">*</span>
                 </Label>
 
                 <div ref={searchRef} className="relative mt-1">
@@ -523,7 +523,7 @@ export default function BenevolePage() {
                         setDropdownOpen(true)
                       }}
                       onFocus={() => !showNew && setDropdownOpen(true)}
-                      placeholder="Rechercher un participant…"
+                      placeholder="Rechercher un donateur…"
                       className="pr-8"
                     />
                     {selectedParticipant && (
@@ -597,14 +597,14 @@ export default function BenevolePage() {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                       </svg>
-                      Nouveau participant
+                      Nouveau donateur
                     </>
                   )}
                 </button>
 
                 {showNew && (
                   <div className="mt-3 space-y-3 rounded-sm border border-paper-border bg-paper p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Nouveau participant</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Nouveau donateur</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label className="text-xs">Prénom</Label>
