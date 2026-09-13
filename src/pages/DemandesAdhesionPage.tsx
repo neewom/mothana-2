@@ -243,10 +243,10 @@ export default function DemandesAdhesionPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Civilité</TableHead>
+                    <TableHead className="hidden md:table-cell">Civilité</TableHead>
                     <TableHead>Nom</TableHead>
                     <TableHead>Prénom</TableHead>
-                    <TableHead>Contact</TableHead>
+                    <TableHead className="hidden md:table-cell">Contact</TableHead>
                     <TableHead>{tab === 'en_attente' ? 'Soumise le' : 'Décidée le'}</TableHead>
                     <TableHead />
                   </TableRow>
@@ -263,7 +263,7 @@ export default function DemandesAdhesionPage() {
                           hasDuplicate ? 'bg-warning-tint hover:bg-warning-tint/70' : 'hover:bg-paper-border/20'
                         )}
                       >
-                        <TableCell className="text-ink-faint">{CIVILITE_ADHERENT_LABELS[d.civilite]}</TableCell>
+                        <TableCell className="hidden text-ink-faint md:table-cell">{CIVILITE_ADHERENT_LABELS[d.civilite]}</TableCell>
                         <TableCell className="font-medium text-ink">
                           <div className="flex items-center gap-2">
                             {d.nom}
@@ -278,7 +278,7 @@ export default function DemandesAdhesionPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-ink-muted">{d.prenom ?? '—'}</TableCell>
-                        <TableCell className="text-ink-faint">
+                        <TableCell className="hidden text-ink-faint md:table-cell">
                           <div className="flex items-center gap-1.5">
                             {d.courriel ?? '—'}
                             {d.email_bounced_at && (
