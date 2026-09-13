@@ -188,6 +188,14 @@ Radius unique et discret (`rounded-sm`, 6px) sur l'ensemble des éléments inter
 - **Border:** `border border-paper-border`.
 - **Internal Padding:** 20–24px (`p-5`/`p-6`), header/footer de carte détaché par une bordure interne plutôt qu'un espace.
 
+### Tables
+- **Scroll, jamais de stack mobile :** tout tableau large est enveloppé dans `ScrollShadowX` (scroll horizontal contenu dans la carte, dégradés indiquant qu'il reste du contenu) — jamais de bascule en cartes empilées (`block`/`table-row` en `md:`), y compris pour un tableau à une seule colonne de contenu + actions.
+- **Liseré (`border-l-[3px] border-l-stamp`) :** réservé au tableau qui porte le contenu principal d'une page/section (Dons, Adhérents, Participants, Demandes d'adhésion, Organisations super-admin, Historique de campagne) — jamais sur un tableau secondaire vivant dans une modale (ex. `GererListesModal`, aperçu destinataires) ni sur les sections formulaire d'une page qui n'affichent pas de liste.
+- **Flush, sans padding parasite :** le tableau (et son `ScrollShadowX`) touche les bords de la carte — recherche/filtres et pagination se détachent par une bordure interne (`border-b`/`border-t`), jamais par un padding de carte générique qui empêcherait le scroll horizontal d'aller jusqu'au bord.
+- **Ligne cliquable = pas de CTA de ligne redondant :** si cliquer une ligne ouvre déjà un panneau/une modale de détail, ne pas dupliquer l'action en bouton dans la ligne (ex. "Modifier", "Détail") — dernière colonne réduite à un chevron `›` indicatif. Les actions de gestion (imprimer, renouveler, archiver…) vivent alors dans la modale/le panneau ouvert, pas dans la ligne. Exception assumée : un tableau sans vue détail associée (ex. `RecusFiscauxPage`, `GererListesModal`) garde ses actions en cellule, la ligne n'étant pas cliquable.
+- **Colonnes secondaires masquées sur mobile, jamais perdues :** `hidden md:table-cell` pour les colonnes moins prioritaires (ex. Civilité, Contact) — seulement quand l'information reste accessible autrement (détail au clic sur la ligne). Ne pas masquer une colonne qui serait alors introuvable ailleurs.
+- **Texte de cellule : `whitespace-nowrap` par défaut, jamais de retour à la ligne.** Une valeur trop large pour la carte doit rester lisible via le scroll horizontal (`ScrollShadowX`), pas être coupée par un wrap qui allonge la ligne. `truncate` + ellipsis n'est acceptable que pour un champ de texte libre potentiellement très long où la valeur complète est secondaire (ex. objet d'un email dans un historique) — jamais pour une donnée identifiante (nom, activité, sélection) qu'il faut pouvoir lire en entier.
+
 ### Inputs / Fields
 - **Style:** fond blanc, bordure `paper-border`, `rounded-sm`, `px-3 py-2 text-sm`.
 - **Focus:** `ring-2 ring-stamp/70`, pas de changement de couleur de bordure — l'anneau de focus est le seul signal.
@@ -209,6 +217,7 @@ Bandeau pleine largeur en tête de section pour une action requise ou un avertis
 - **Do** utiliser `ScrollShadowX` pour tout tableau susceptible de déborder horizontalement, y compris les tableaux à une seule colonne de contenu (nom + actions) — jamais de bascule en cartes empilées mobile (`block`/`table-row`).
 - **Do** garder le contenu sur fond clair même quand la sidebar de navigation est sombre — le contraste sidebar/contenu est un repère spatial, pas une invitation à assombrir le reste de l'UI.
 - **Do**, avant de corriger un bouton isolé dans un composant partagé, vérifier si le composant entier est déjà migré vers ce système — sinon, traiter la migration comme un chantier à part (voir la liste des seams ci-dessus), pas une retouche ponctuelle.
+- **Do** retirer un CTA de ligne qui duplique le clic sur la ligne (ouvre déjà la même modale/le même panneau) — dernière colonne réduite à un chevron, actions de gestion déplacées dans la modale/le panneau (voir Tables).
 
 ### Don't:
 - **Don't** mélanger un bouton `Button` (stamp/`rounded-sm`) dans un composant par ailleurs resté sur l'ancien système (indigo/`rounded-lg`) — le résultat bâtard est plus incohérent que l'état actuel ; migrer le composant entier ou ne pas le toucher.
@@ -216,3 +225,4 @@ Bandeau pleine largeur en tête de section pour une action requise ou un avertis
 - **Don't** ajouter d'ombre à une carte de contenu sans qu'elle superpose réellement un autre élément (voir The Structural Shadow Rule).
 - **Don't** utiliser de contrainte HTML native bloquante (`min`/`max` sur un input date) qui peut rendre une valeur inatteignable sur certains pickers mobiles — préférer une validation JS après coup.
 - **Don't** utiliser `variant="destructive"` (fond plein) comme déclencheur initial d'une action de ligne — réservé à la confirmation finale dans une modale ; le déclencheur utilise `variant="danger"` (contour).
+- **Don't** tronquer (`truncate`/ellipsis) une donnée identifiante dans un tableau (nom, activité, sélection) — `whitespace-nowrap` + scroll horizontal (`ScrollShadowX`) garde le contenu entier accessible ; réserver `truncate` au texte libre potentiellement très long dont la valeur complète est secondaire.
