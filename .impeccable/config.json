@@ -4,6 +4,13 @@
     "ignoreFiles": [
       "src/lib/defaultCerfaTemplates.ts"
     ],
-    "ignoreValues": []
+    "ignoreValues": [
+      {
+        "rule": "design-system-font-size",
+        "value": "11px",
+        "createdAt": "2026-09-13T05:48:05.418Z",
+        "reason": "User confirmed 11px is intentional (font-registre-mono badges/hints/errors, ~47 occurrences across the app)"
+      }
+    ]
   }
 }
