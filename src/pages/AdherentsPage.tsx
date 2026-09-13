@@ -671,7 +671,6 @@ export default function AdherentsPage() {
                         )}
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <div className="flex justify-end gap-1">
-                            <Button variant="secondary" size="sm" onClick={() => openEdit(a)}>Modifier</Button>
                             <Button variant="secondary" size="sm" onClick={() => handlePrintSingleCard(a)} disabled={printing} title={PRINT_HELP_TEXT}>
                               Carte
                             </Button>
