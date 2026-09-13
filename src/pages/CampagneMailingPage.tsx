@@ -102,6 +102,7 @@ function SectionCard({
   description,
   children,
   accent = false,
+  noPadding = false,
 }: {
   title: string
   description?: string
@@ -109,6 +110,10 @@ function SectionCard({
   // Liseré gauche rouge des tableaux principaux (Dons, Adhérents, Participants) —
   // réservé aux sections qui contiennent un tableau de liste, pas les formulaires.
   accent?: boolean
+  // Un tableau (ScrollShadowX) doit toucher les bords de la carte, comme sur les
+  // autres tableaux principaux — pas de padding autour, contrairement au contenu
+  // formulaire des autres sections.
+  noPadding?: boolean
 }) {
   return (
     <div className={`rounded-sm border border-paper-border bg-white ${accent ? 'border-l-[3px] border-l-stamp' : ''}`}>
@@ -116,7 +121,7 @@ function SectionCard({
         <h2 className="text-lg font-semibold text-ink">{title}</h2>
         {description && <p className="mt-0.5 text-sm text-ink-muted">{description}</p>}
       </div>
-      <div className="p-6">{children}</div>
+      <div className={noPadding ? '' : 'p-6'}>{children}</div>
     </div>
   )
 }
@@ -739,13 +744,13 @@ export default function CampagneMailingPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Historique" description="20 dernières campagnes envoyées." accent>
+      <SectionCard title="Historique" description="20 dernières campagnes envoyées." accent noPadding>
         {historiqueLoading ? (
-          <div className="flex items-center justify-center py-8">
+          <div className="flex items-center justify-center px-6 py-8">
             <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
           </div>
         ) : historique.length === 0 ? (
-          <p className="text-sm text-ink-faint">Aucune campagne envoyée pour le moment.</p>
+          <p className="p-6 text-sm text-ink-faint">Aucune campagne envoyée pour le moment.</p>
         ) : (
           <ScrollShadowX>
             <Table>
