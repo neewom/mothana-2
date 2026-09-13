@@ -325,11 +325,18 @@ export default function AdminLayout() {
               <span className="font-semibold text-ink">{organisationNom ?? organisationId ?? '—'}</span>
             </span>
           </div>
-          {!isSuperAdminViewing && (
-            <Button variant="secondary" size="sm" onClick={handleLogout}>
-              Se déconnecter
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" asChild>
+              <a href="/aide" target="_blank" rel="noopener noreferrer">
+                Besoin d'aide ?
+              </a>
             </Button>
-          )}
+            {!isSuperAdminViewing && (
+              <Button variant="secondary" size="sm" onClick={handleLogout}>
+                Se déconnecter
+              </Button>
+            )}
+          </div>
         </header>
 
         {/* Content */}
