@@ -1,6 +1,10 @@
 export interface FaqItem {
   question: string
   answer: string
+  // Étapes numérotées — seulement pour les réponses réellement procédurales
+  // (une suite d'actions à faire dans l'ordre), pas pour une règle ou une
+  // simple information : ne pas systématiser au détriment de la lisibilité.
+  steps?: string[]
 }
 
 export interface FaqCategory {
@@ -19,13 +23,20 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
     items: [
       {
         question: 'Comment enregistrer un don ?',
-        answer:
-          "Depuis Dons > Ajouter, renseignez le donateur (recherche instantanée ou création à la volée), l'activité, le montant et le mode de paiement. Le donateur peut être retrouvé en tapant son nom, ou créé directement depuis le formulaire s'il n'existe pas encore.",
+        answer: 'Depuis Dons > Ajouter :',
+        steps: [
+          "Recherchez le donateur par son nom, ou créez-le à la volée s'il n'existe pas encore.",
+          "Choisissez l'activité concernée (facultatif).",
+          'Renseignez le montant et le mode de paiement.',
+        ],
       },
       {
         question: 'Comment automatiser des dons récurrents (prélèvements) ?',
-        answer:
-          "La page Dons réguliers permet de créer un engagement mensuel (montant, jour de prélèvement, date de début/fin) pour un donateur. Chaque échéance génère un don à confirmer avant d'être définitivement enregistré — rien n'est validé automatiquement sans passage par cette confirmation.",
+        answer: 'Depuis la page Dons réguliers :',
+        steps: [
+          "Créez un engagement pour le donateur (montant, jour de prélèvement, date de début/fin).",
+          "Chaque échéance génère un don à confirmer — rien n'est enregistré automatiquement sans cette validation.",
+        ],
       },
       {
         question: 'Puis-je modifier ou réaffecter un don après coup ?',
@@ -45,8 +56,12 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
     items: [
       {
         question: 'Comment ajouter un adhérent ?',
-        answer:
-          "Depuis Adhérents > Ajouter. Les champs obligatoires dépendent de la civilité choisie (ex. un foyer peut renseigner un 2ᵉ nom/prénom). Une adhésion peut être enregistrée dans la foulée ou ajoutée plus tard depuis la fiche adhérent.",
+        answer: 'Depuis Adhérents > Ajouter :',
+        steps: [
+          'Renseignez la civilité — les champs obligatoires s’adaptent ensuite (ex. un foyer peut ajouter un 2ᵉ nom/prénom).',
+          'Complétez les informations de contact.',
+          "Enregistrez une adhésion dans la foulée, ou ajoutez-la plus tard depuis la fiche de l'adhérent.",
+        ],
       },
       {
         question: 'Comment fonctionne le renouvellement d’une adhésion ?',
@@ -55,13 +70,21 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       },
       {
         question: 'Comment traiter une demande d’adhésion reçue via le formulaire public ?',
-        answer:
-          "Chaque organisation dispose d'un formulaire public (lien à partager, personnalisable en en-tête/pied de page). Les demandes arrivent dans Adhérents > Demandes d'adhésion, à ratifier ou refuser (avec motif) individuellement — la ratification crée l'adhérent et son adhésion.",
+        answer: "Chaque organisation dispose d'un formulaire public personnalisable à partager :",
+        steps: [
+          "La demande arrive dans Adhérents > Demandes d'adhésion.",
+          'Ouvrez-la pour vérifier les informations (un doublon potentiel est signalé automatiquement).',
+          'Ratifiez (crée l’adhérent et son adhésion) ou refusez avec un motif.',
+        ],
       },
       {
         question: 'Comment gérer les listes de diffusion et tags d’adhérents ?',
-        answer:
-          "Depuis Adhérents, sélectionnez une ou plusieurs lignes puis \"Ajouter à une liste\"/\"Retirer d'une liste\". Ces listes servent ensuite de cible pour une campagne mailing ou courrier.",
+        answer: 'Depuis Adhérents :',
+        steps: [
+          'Sélectionnez une ou plusieurs lignes.',
+          'Cliquez sur "Ajouter à une liste" ou "Retirer d’une liste".',
+          'Utilisez ensuite cette liste comme cible pour une campagne mailing ou courrier.',
+        ],
       },
     ],
   },
@@ -71,18 +94,30 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
     items: [
       {
         question: 'Comment envoyer une campagne email à mes adhérents ?',
-        answer:
-          "Depuis Adhérents > Mailing : composez le message (éditeur riche, placeholders comme {{params.prenom}}), choisissez les destinataires par statut ou par liste de diffusion, puis envoyez. Un brouillon est conservé automatiquement si vous quittez la page.",
+        answer: 'Depuis Adhérents > Mailing :',
+        steps: [
+          'Composez le message dans l’éditeur (placeholders possibles comme {{params.prenom}}).',
+          'Choisissez les destinataires par statut ou par liste de diffusion.',
+          "Envoyez la campagne — un brouillon est conservé automatiquement si vous quittez la page avant.",
+        ],
       },
       {
         question: 'Comment configurer l’envoi d’emails (Brevo) ?',
-        answer:
-          "Le bouton \"Configurer\" sur la page Mailing ouvre la modale de connexion à votre compte Brevo (clé API, expéditeur). Tant qu'elle n'est pas configurée, l'envoi de campagnes n'est pas disponible.",
+        answer: 'Depuis la page Mailing :',
+        steps: [
+          'Cliquez sur "Configurer".',
+          'Renseignez la clé API et l’expéditeur de votre compte Brevo.',
+          "L'envoi de campagnes reste indisponible tant que cette configuration n'est pas enregistrée.",
+        ],
       },
       {
         question: 'Comment envoyer un courrier postal (publipostage) ?',
-        answer:
-          "La page Campagne courrier fonctionne comme le mailing (sélection de destinataires par statut ou liste) mais génère un document imprimable regroupant les adresses postales, à traiter ensuite en envoi papier.",
+        answer: 'Depuis Adhérents > Campagne courrier :',
+        steps: [
+          'Sélectionnez les destinataires par statut ou par liste de diffusion, comme pour le mailing.',
+          'Générez le document imprimable regroupant les adresses postales.',
+          'Traitez ensuite l’envoi papier de votre côté.',
+        ],
       },
       {
         question: 'Un adhérent peut-il se désinscrire des emails ?',
@@ -102,8 +137,12 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       },
       {
         question: 'Comment générer un reçu fiscal ?',
-        answer:
-          "Depuis Reçus fiscaux, sélectionnez l'année puis générez le reçu d'un donateur (ou en masse). Le bon modèle Cerfa (11580 particulier, 16216 personne morale) est choisi automatiquement selon la civilité du donateur.",
+        answer: 'Depuis Reçus fiscaux :',
+        steps: [
+          "Sélectionnez l'année concernée.",
+          'Générez le reçu d’un donateur, ou tous les reçus en une fois.',
+          'Le bon modèle Cerfa (11580 particulier, 16216 personne morale) est choisi automatiquement selon la civilité du donateur.',
+        ],
       },
       {
         question: 'Pourquoi la génération est-elle bloquée pour certains donateurs ?',

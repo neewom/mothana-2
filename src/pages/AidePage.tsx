@@ -118,7 +118,16 @@ export default function AidePage() {
                           </svg>
                         </button>
                         {open && (
-                          <p className="px-5 pb-4 text-sm leading-relaxed text-ink-muted">{item.answer}</p>
+                          <div className="px-5 pb-4 text-sm leading-relaxed text-ink-muted">
+                            <p>{item.answer}</p>
+                            {item.steps && (
+                              <ol className="mt-2 list-decimal space-y-1.5 pl-5">
+                                {item.steps.map((step, i) => (
+                                  <li key={i}>{step}</li>
+                                ))}
+                              </ol>
+                            )}
+                          </div>
                         )}
                       </div>
                     )
