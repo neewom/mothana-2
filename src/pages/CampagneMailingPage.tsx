@@ -97,9 +97,21 @@ function EditorToolbarButton({ active, onClick, children, label }: { active: boo
 // Carte titre + description + contenu, propre à cette page (pas la ParametresSection
 // partagée : les 4 autres sous-pages de Paramètres ne sont pas encore migrées vers les
 // tokens paper/ink/stamp, la leur laisser intacte évite un changement visuel non désiré).
-function SectionCard({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+function SectionCard({
+  title,
+  description,
+  children,
+  accent = false,
+}: {
+  title: string
+  description?: string
+  children: ReactNode
+  // Liseré gauche rouge des tableaux principaux (Dons, Adhérents, Participants) —
+  // réservé aux sections qui contiennent un tableau de liste, pas les formulaires.
+  accent?: boolean
+}) {
   return (
-    <div className="rounded-sm border border-paper-border bg-white">
+    <div className={`rounded-sm border border-paper-border bg-white ${accent ? 'border-l-[3px] border-l-stamp' : ''}`}>
       <div className="border-b border-paper-border px-6 py-4">
         <h2 className="text-lg font-semibold text-ink">{title}</h2>
         {description && <p className="mt-0.5 text-sm text-ink-muted">{description}</p>}
@@ -727,7 +739,7 @@ export default function CampagneMailingPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Historique" description="20 dernières campagnes envoyées.">
+      <SectionCard title="Historique" description="20 dernières campagnes envoyées." accent>
         {historiqueLoading ? (
           <div className="flex items-center justify-center py-8">
             <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
