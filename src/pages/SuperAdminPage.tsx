@@ -765,7 +765,7 @@ export default function SuperAdminPage() {
       )}
 
       {/* Organisations table */}
-      <div className="rounded-sm border border-paper-border bg-white">
+      <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
         <div className="flex flex-col gap-3 border-b border-paper-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold text-ink">Organisations</h2>
           <div className="flex gap-2 rounded-sm bg-paper-border/40 p-1">
@@ -829,15 +829,15 @@ export default function SuperAdminPage() {
             <Table>
               <TableBody>
                 {archivedOrgs.map((org) => (
-                  <TableRow key={org.id} className="block md:table-row">
-                    <TableCell className="block md:table-cell">
+                  <TableRow key={org.id}>
+                    <TableCell>
                       <div className="font-medium text-ink">{org.nom}</div>
                       <div className="font-registre-mono text-xs text-ink-faint">
                         Archivée le {org.archived_at ? formatDate(org.archived_at) : '—'}
                       </div>
                     </TableCell>
-                    <TableCell className="block pt-0 md:table-cell md:pt-3">
-                      <div className="flex flex-wrap gap-2 md:flex-nowrap md:justify-end">
+                    <TableCell>
+                      <div className="flex flex-nowrap justify-end gap-2">
                         <Button type="button" variant="secondary" size="sm" onClick={() => handleExtract(org)} disabled={extractingId === org.id}>
                           {extractingId === org.id ? 'Extraction…' : 'Extraire les données'}
                         </Button>
