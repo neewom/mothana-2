@@ -14,9 +14,12 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 const MAX_PDF_BYTES = 4 * 1024 * 1024 // 4 Mo décodés
 
-// Mêmes 19 placeholders que src/lib/cerfaPreview.ts (frontend) — dupliqués
+// Mêmes 21 placeholders que src/lib/cerfaPreview.ts (frontend) — dupliqués
 // ici comme le reste des constantes métier de generate-recu, pas d'import
-// possible entre le code front (Vite/TS) et cette fonction Deno.
+// possible entre le code front (Vite/TS) et cette fonction Deno. Liste à
+// resynchroniser manuellement si de nouveaux placeholders apparaissent
+// côté generate-recu (dérive constatée le 2026-09-13 : dons_detail/
+// president_nom/president_titre manquaient depuis leur ajout).
 const PLACEHOLDER_DESCRIPTIONS = `
 - organisation_nom : nom de l'organisme (ex : "Wat Velouvanaram")
 - organisation_adresse : adresse de l'organisme
@@ -31,12 +34,15 @@ const PLACEHOLDER_DESCRIPTIONS = `
 - donateur_adresse : adresse du donateur
 - donateur_code_postal : code postal du donateur
 - donateur_ville : ville du donateur
-- don_montant_chiffres : montant du don en chiffres (ex : "150,00 €")
-- don_montant_lettres : montant du don en toutes lettres (ex : "Cent cinquante euros")
+- don_montant_chiffres : montant total des dons de l'année en chiffres (ex : "150,00 €")
+- don_montant_lettres : montant total en toutes lettres (ex : "Cent cinquante euros")
+- dons_detail : tableau HTML déjà entièrement généré (une ligne par don de l'année : événement/activité, montant, date ou "Nb Mois : N" pour un prélèvement groupé, mode de paiement, plus une ligne de total) — à utiliser TEL QUEL en une seule fois si le PDF montre plusieurs dons individuels sur une même période/année, ne jamais recopier ou réinventer les lignes du tableau en HTML brut
 - don_annee : année du don (ex : "2026")
 - recu_numero_ordre : numéro d'ordre du reçu (ex : "2026-042")
 - recu_date_generation : date de génération du reçu (ex : "18/07/2026")
 - type_reduction : taux de réduction d'impôt applicable (ex : "66%") — optionnel, informatif
+- president_nom : nom du président ou signataire de l'organisme (ex : "Jean Dupont")
+- president_titre : titre/fonction du signataire (ex : "Président")
 `.trim()
 
 const GENERATE_TEMPLATE_TOOL = {
@@ -77,9 +83,10 @@ Règles impératives :
 
 ${PLACEHOLDER_DESCRIPTIONS}
 
-3. Si le PDF est un formulaire vierge (sans donnée réelle remplie), place les placeholders aux emplacements logiques d'après les libellés de champs.
-4. Le HTML doit être un simple fragment (pas de <html>/<head>/<body>), utilisable tel quel dans un conteneur. Le CSS doit être autonome, pensé pour un rendu A4 imprimable.
-5. Utilise l'outil "generate_template" pour renvoyer ta réponse — n'écris aucun texte en dehors de l'appel d'outil.`
+3. Si le PDF montre plusieurs dons individuels listés sur une même période (tableau avec une ligne par don, date/montant/mode répétés), utilise uniquement {{dons_detail}} à l'emplacement de ce tableau — ne remplace pas {{don_montant_chiffres}}/{{don_montant_lettres}} par le détail ligne par ligne, ces deux placeholders restent réservés au total agrégé affiché ailleurs sur le reçu (ex. ligne "Total" en toutes lettres).
+4. Si le PDF est un formulaire vierge (sans donnée réelle remplie), place les placeholders aux emplacements logiques d'après les libellés de champs.
+5. Le HTML doit être un simple fragment (pas de <html>/<head>/<body>), utilisable tel quel dans un conteneur. Le CSS doit être autonome, pensé pour un rendu A4 imprimable.
+6. Utilise l'outil "generate_template" pour renvoyer ta réponse — n'écris aucun texte en dehors de l'appel d'outil.`
 }
 
 Deno.serve(async (req) => {
@@ -156,8 +163,10 @@ Deno.serve(async (req) => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5',
-        max_tokens: 8000,
+        model: 'claude-opus-4-8',
+        max_tokens: 12000,
+        thinking: { type: 'adaptive' },
+        output_config: { effort: 'high' },
         tools: [GENERATE_TEMPLATE_TOOL],
         tool_choice: { type: 'tool', name: 'generate_template' },
         messages: [
