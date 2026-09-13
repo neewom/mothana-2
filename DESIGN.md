@@ -133,6 +133,7 @@ Palette resserrée autour d'un seul accent (le « cachet ») et d'une échelle n
 - **Headline** (600, 1.125rem/18px, 1.4, Inter) : titre de modale, titre de section repliable.
 - **Body** (400–500, 0.875rem/14px, 1.5, Inter) : texte courant, libellés de formulaire, contenu de bouton.
 - **Label** (500, 0.75rem/12px, 1.4, IBM Plex Mono) : badges de statut, texte de tableau dense, sous-libellés en majuscules.
+- **Micro-label** (500, 11px, 1.4, IBM Plex Mono) : signal secondaire à côté d'une donnée principale (pastille "Doublon possible"/"Email invalide", aide de champ sous un input, message d'erreur court) — un cran sous `Label`, jamais pour un contenu principal. Confirmé intentionnel par l'utilisateur (2026-09-14) après plusieurs occurrences (~47) déjà cohérentes dans le code.
 
 ### Named Rules (optional)
 **The PIN Exception Rule.** Le champ de saisie du code PIN bénévole est la seule dérogation volontaire à l'échelle : `text-3xl font-bold tracking-[0.5em] font-registre-mono` pour maximiser la lisibilité d'un code court sur un écran tactile en conditions de terrain.
