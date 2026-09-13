@@ -9,8 +9,14 @@ function normalize(text: string): string {
   return text.normalize('NFD').replace(DIACRITICS_PATTERN, '').toLowerCase()
 }
 
+function itemKey(categoryId: string, question: string): string {
+  return `${categoryId}::${question}`
+}
+
 export default function AidePage() {
   const [search, setSearch] = useState('')
+  const [openKeys, setOpenKeys] = useState<Set<string>>(new Set())
+  const isSearching = search.trim() !== ''
 
   const filteredCategories = useMemo(() => {
     const term = normalize(search.trim())
@@ -26,6 +32,15 @@ export default function AidePage() {
 
   function scrollToCategory(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  function toggleItem(key: string) {
+    setOpenKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   }
 
   return (
@@ -79,12 +94,35 @@ export default function AidePage() {
               <section key={category.id} id={category.id} className="scroll-mt-8">
                 <h2 className="text-xl font-bold text-ink">{category.label}</h2>
                 <div className="mt-4 divide-y divide-paper-border-muted rounded-sm border border-paper-border bg-white">
-                  {category.items.map((item) => (
-                    <div key={item.question} className="px-5 py-4">
-                      <h3 className="font-semibold text-ink">{item.question}</h3>
-                      <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{item.answer}</p>
-                    </div>
-                  ))}
+                  {category.items.map((item) => {
+                    const key = itemKey(category.id, item.question)
+                    const open = isSearching || openKeys.has(key)
+                    return (
+                      <div key={item.question}>
+                        <button
+                          type="button"
+                          onClick={() => toggleItem(key)}
+                          aria-expanded={open}
+                          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+                        >
+                          <h3 className="font-semibold text-ink">{item.question}</h3>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className={`h-4 w-4 shrink-0 text-ink-faint transition-transform ${open ? 'rotate-180' : ''}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
+                        </button>
+                        {open && (
+                          <p className="px-5 pb-4 text-sm leading-relaxed text-ink-muted">{item.answer}</p>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </section>
             ))}
