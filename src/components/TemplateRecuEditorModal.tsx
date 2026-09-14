@@ -88,6 +88,12 @@ export default function TemplateRecuEditorModal({
   // modifications non enregistrées avant de fermer (Escape/clic extérieur ferment la
   // modale nativement via Radix, sans ça la perte est silencieuse).
   const initialValuesRef = useRef({ nom: '', typeCerfa: typeCerfa, htmlTemplate: DEFAULT_HTML, css: DEFAULT_CSS })
+  // Id du template créé pendant cette session d'édition (la modale reste ouverte après
+  // "Créer le template" — sans ce suivi, un 2e clic réinsérerait une ligne en double
+  // puisque la prop `template` ne change pas après la création).
+  const [createdId, setCreatedId] = useState<string | null>(null)
+  const targetId = template?.id ?? createdId
+  const isPersisted = targetId !== null
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -117,6 +123,7 @@ export default function TemplateRecuEditorModal({
       setPanelMode('both')
       setPlaceholdersOpen(false)
       setConfirmDiscardOpen(false)
+      setCreatedId(null)
     }
   }, [open, template, draft])
 
@@ -175,12 +182,21 @@ export default function TemplateRecuEditorModal({
     setError(null)
     setSaving(true)
 
-    const { error: err } = isEdit
-      ? await supabase
-          .from('templates_recu')
-          .update({ nom, type_cerfa: typeCerfa, html_template: htmlTemplate, css })
-          .eq('id', template.id)
-      : await supabase.from('templates_recu').insert({
+    if (targetId) {
+      const { error: err } = await supabase
+        .from('templates_recu')
+        .update({ nom, type_cerfa: typeCerfa, html_template: htmlTemplate, css })
+        .eq('id', targetId)
+
+      if (err) {
+        setError(err.message)
+        setSaving(false)
+        return
+      }
+    } else {
+      const { data, error: err } = await supabase
+        .from('templates_recu')
+        .insert({
           organisation_id: organisationId,
           nom,
           type_cerfa: typeCerfa,
@@ -189,16 +205,23 @@ export default function TemplateRecuEditorModal({
           is_active: false,
           is_archived: false,
         })
+        .select('id')
+        .single()
 
-    if (err) {
-      setError(err.message)
-      setSaving(false)
-      return
+      if (err) {
+        setError(err.message)
+        setSaving(false)
+        return
+      }
+      setCreatedId(data.id)
     }
 
+    // La modale reste ouverte après l'enregistrement (demande explicite) — les valeurs
+    // qu'on vient de sauvegarder deviennent la nouvelle référence pour la détection de
+    // modifications non enregistrées.
+    initialValuesRef.current = { nom, typeCerfa, htmlTemplate, css }
     setSaving(false)
     onSaved()
-    onClose()
   }
 
   return (
@@ -417,10 +440,10 @@ export default function TemplateRecuEditorModal({
 
             <div className="flex gap-3">
               <Button type="button" variant="secondary" onClick={requestClose}>
-                Annuler
+                Fermer
               </Button>
               <Button type="submit" disabled={saving}>
-                {saving ? 'Enregistrement…' : isEdit ? 'Enregistrer' : 'Créer le template'}
+                {saving ? 'Enregistrement…' : isPersisted ? 'Enregistrer' : 'Créer le template'}
               </Button>
             </div>
           </div>
