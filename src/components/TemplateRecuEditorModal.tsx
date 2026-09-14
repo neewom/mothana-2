@@ -177,8 +177,11 @@ export default function TemplateRecuEditorModal({
     setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1500)
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
+  // Cœur de la sauvegarde, partagé entre le bouton "Enregistrer" (reste ouvert) et
+  // "Enregistrer et quitter" (ferme ensuite) depuis la modale de confirmation.
+  async function performSave(): Promise<boolean> {
+    if (!nom.trim()) return false
+
     setError(null)
     setSaving(true)
 
@@ -191,7 +194,7 @@ export default function TemplateRecuEditorModal({
       if (err) {
         setError(err.message)
         setSaving(false)
-        return
+        return false
       }
     } else {
       const { data, error: err } = await supabase
@@ -211,7 +214,7 @@ export default function TemplateRecuEditorModal({
       if (err) {
         setError(err.message)
         setSaving(false)
-        return
+        return false
       }
       setCreatedId(data.id)
     }
@@ -222,6 +225,20 @@ export default function TemplateRecuEditorModal({
     initialValuesRef.current = { nom, typeCerfa, htmlTemplate, css }
     setSaving(false)
     onSaved()
+    return true
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    await performSave()
+  }
+
+  async function handleSaveAndClose() {
+    const ok = await performSave()
+    if (ok) {
+      setConfirmDiscardOpen(false)
+      onClose()
+    }
   }
 
   return (
@@ -458,12 +475,15 @@ export default function TemplateRecuEditorModal({
           <p className="mt-2 font-registre text-sm text-ink-muted">
             Les modifications apportées à ce template seront perdues.
           </p>
-          <div className="mt-5 flex justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={() => setConfirmDiscardOpen(false)}>
+          <div className="mt-5 flex flex-wrap justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setConfirmDiscardOpen(false)} disabled={saving}>
               Continuer l'édition
             </Button>
-            <Button type="button" variant="destructive" onClick={() => { setConfirmDiscardOpen(false); onClose() }}>
+            <Button type="button" variant="destructive" onClick={() => { setConfirmDiscardOpen(false); onClose() }} disabled={saving}>
               Quitter sans enregistrer
+            </Button>
+            <Button type="button" onClick={handleSaveAndClose} disabled={saving || !nom.trim()}>
+              {saving ? 'Enregistrement…' : 'Enregistrer et quitter'}
             </Button>
           </div>
         </div>
