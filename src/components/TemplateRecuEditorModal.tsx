@@ -83,6 +83,17 @@ export default function TemplateRecuEditorModal({
   const [dynamicPlaceholders, setDynamicPlaceholders] = useState<Record<string, string>>({})
   const formRef = useRef<HTMLFormElement>(null)
   const placeholdersRef = useRef<HTMLDivElement>(null)
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false)
+  // Valeurs au moment de l'ouverture — comparées à l'état courant pour détecter des
+  // modifications non enregistrées avant de fermer (Escape/clic extérieur ferment la
+  // modale nativement via Radix, sans ça la perte est silencieuse).
+  const initialValuesRef = useRef({ nom: '', typeCerfa: typeCerfa, htmlTemplate: DEFAULT_HTML, css: DEFAULT_CSS })
+  // Id du template créé pendant cette session d'édition (la modale reste ouverte après
+  // "Créer le template" — sans ce suivi, un 2e clic réinsérerait une ligne en double
+  // puisque la prop `template` ne change pas après la création).
+  const [createdId, setCreatedId] = useState<string | null>(null)
+  const targetId = template?.id ?? createdId
+  const isPersisted = targetId !== null
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -96,29 +107,39 @@ export default function TemplateRecuEditorModal({
 
   useEffect(() => {
     if (open) {
-      if (template) {
-        setNom(template.nom)
-        setTypeCerfa(template.type_cerfa)
-        setHtmlTemplate(template.html_template)
-        setCss(template.css ?? '')
-      } else if (draft) {
-        setNom(draft.nom)
-        setTypeCerfa(draft.type_cerfa)
-        setHtmlTemplate(draft.html_template)
-        setCss(draft.css)
-      } else {
-        setNom('')
-        setTypeCerfa('11580')
-        setHtmlTemplate(DEFAULT_HTML)
-        setCss(DEFAULT_CSS)
-      }
+      const initial = template
+        ? { nom: template.nom, typeCerfa: template.type_cerfa, htmlTemplate: template.html_template, css: template.css ?? '' }
+        : draft
+          ? { nom: draft.nom, typeCerfa: draft.type_cerfa, htmlTemplate: draft.html_template, css: draft.css }
+          : { nom: '', typeCerfa: '11580' as const, htmlTemplate: DEFAULT_HTML, css: DEFAULT_CSS }
+      setNom(initial.nom)
+      setTypeCerfa(initial.typeCerfa)
+      setHtmlTemplate(initial.htmlTemplate)
+      setCss(initial.css)
+      initialValuesRef.current = initial
       setActiveTab('html')
       setError(null)
       setFullScreen(false)
       setPanelMode('both')
       setPlaceholdersOpen(false)
+      setConfirmDiscardOpen(false)
+      setCreatedId(null)
     }
   }, [open, template, draft])
+
+  const isDirty =
+    nom !== initialValuesRef.current.nom ||
+    typeCerfa !== initialValuesRef.current.typeCerfa ||
+    htmlTemplate !== initialValuesRef.current.htmlTemplate ||
+    css !== initialValuesRef.current.css
+
+  function requestClose() {
+    if (isDirty) {
+      setConfirmDiscardOpen(true)
+      return
+    }
+    onClose()
+  }
 
   useEffect(() => {
     if (!open) return
@@ -156,17 +177,29 @@ export default function TemplateRecuEditorModal({
     setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1500)
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
+  // Cœur de la sauvegarde, partagé entre le bouton "Enregistrer" (reste ouvert) et
+  // "Enregistrer et quitter" (ferme ensuite) depuis la modale de confirmation.
+  async function performSave(): Promise<boolean> {
+    if (!nom.trim()) return false
+
     setError(null)
     setSaving(true)
 
-    const { error: err } = isEdit
-      ? await supabase
-          .from('templates_recu')
-          .update({ nom, type_cerfa: typeCerfa, html_template: htmlTemplate, css })
-          .eq('id', template.id)
-      : await supabase.from('templates_recu').insert({
+    if (targetId) {
+      const { error: err } = await supabase
+        .from('templates_recu')
+        .update({ nom, type_cerfa: typeCerfa, html_template: htmlTemplate, css })
+        .eq('id', targetId)
+
+      if (err) {
+        setError(err.message)
+        setSaving(false)
+        return false
+      }
+    } else {
+      const { data, error: err } = await supabase
+        .from('templates_recu')
+        .insert({
           organisation_id: organisationId,
           nom,
           type_cerfa: typeCerfa,
@@ -175,20 +208,42 @@ export default function TemplateRecuEditorModal({
           is_active: false,
           is_archived: false,
         })
+        .select('id')
+        .single()
 
-    if (err) {
-      setError(err.message)
-      setSaving(false)
-      return
+      if (err) {
+        setError(err.message)
+        setSaving(false)
+        return false
+      }
+      setCreatedId(data.id)
     }
 
+    // La modale reste ouverte après l'enregistrement (demande explicite) — les valeurs
+    // qu'on vient de sauvegarder deviennent la nouvelle référence pour la détection de
+    // modifications non enregistrées.
+    initialValuesRef.current = { nom, typeCerfa, htmlTemplate, css }
     setSaving(false)
     onSaved()
-    onClose()
+    return true
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    await performSave()
+  }
+
+  async function handleSaveAndClose() {
+    const ok = await performSave()
+    if (ok) {
+      setConfirmDiscardOpen(false)
+      onClose()
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+    <>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) requestClose() }}>
       <DialogContent
         className={fullScreen ? undefined : 'max-w-6xl h-[85vh] min-h-[560px]'}
         fullScreen={fullScreen}
@@ -401,16 +456,39 @@ export default function TemplateRecuEditorModal({
             </div>
 
             <div className="flex gap-3">
-              <Button type="button" variant="secondary" onClick={onClose}>
-                Annuler
+              <Button type="button" variant="secondary" onClick={requestClose}>
+                Fermer
               </Button>
-              <Button type="submit" disabled={saving}>
-                {saving ? 'Enregistrement…' : isEdit ? 'Enregistrer' : 'Créer le template'}
+              <Button type="submit" disabled={saving || (isPersisted && !isDirty)}>
+                {saving ? 'Enregistrement…' : isPersisted ? 'Enregistrer' : 'Créer le template'}
               </Button>
             </div>
           </div>
         </form>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={confirmDiscardOpen} onOpenChange={(next) => { if (!next) setConfirmDiscardOpen(false) }}>
+      <DialogContent className="max-w-sm" aria-describedby={undefined}>
+        <div className="p-6">
+          <h2 className="font-registre text-lg font-semibold text-ink">Quitter sans enregistrer ?</h2>
+          <p className="mt-2 font-registre text-sm text-ink-muted">
+            Les modifications apportées à ce template seront perdues.
+          </p>
+          <div className="mt-5 flex flex-wrap justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setConfirmDiscardOpen(false)} disabled={saving}>
+              Continuer l'édition
+            </Button>
+            <Button type="button" variant="destructive" onClick={() => { setConfirmDiscardOpen(false); onClose() }} disabled={saving}>
+              Quitter sans enregistrer
+            </Button>
+            <Button type="button" onClick={handleSaveAndClose} disabled={saving || !nom.trim()}>
+              {saving ? 'Enregistrement…' : 'Enregistrer et quitter'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
