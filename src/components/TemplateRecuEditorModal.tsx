@@ -442,7 +442,7 @@ export default function TemplateRecuEditorModal({
               <Button type="button" variant="secondary" onClick={requestClose}>
                 Fermer
               </Button>
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving || (isPersisted && !isDirty)}>
                 {saving ? 'Enregistrement…' : isPersisted ? 'Enregistrer' : 'Créer le template'}
               </Button>
             </div>
