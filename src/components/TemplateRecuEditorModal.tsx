@@ -83,6 +83,11 @@ export default function TemplateRecuEditorModal({
   const [dynamicPlaceholders, setDynamicPlaceholders] = useState<Record<string, string>>({})
   const formRef = useRef<HTMLFormElement>(null)
   const placeholdersRef = useRef<HTMLDivElement>(null)
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false)
+  // Valeurs au moment de l'ouverture — comparées à l'état courant pour détecter des
+  // modifications non enregistrées avant de fermer (Escape/clic extérieur ferment la
+  // modale nativement via Radix, sans ça la perte est silencieuse).
+  const initialValuesRef = useRef({ nom: '', typeCerfa: typeCerfa, htmlTemplate: DEFAULT_HTML, css: DEFAULT_CSS })
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -96,29 +101,38 @@ export default function TemplateRecuEditorModal({
 
   useEffect(() => {
     if (open) {
-      if (template) {
-        setNom(template.nom)
-        setTypeCerfa(template.type_cerfa)
-        setHtmlTemplate(template.html_template)
-        setCss(template.css ?? '')
-      } else if (draft) {
-        setNom(draft.nom)
-        setTypeCerfa(draft.type_cerfa)
-        setHtmlTemplate(draft.html_template)
-        setCss(draft.css)
-      } else {
-        setNom('')
-        setTypeCerfa('11580')
-        setHtmlTemplate(DEFAULT_HTML)
-        setCss(DEFAULT_CSS)
-      }
+      const initial = template
+        ? { nom: template.nom, typeCerfa: template.type_cerfa, htmlTemplate: template.html_template, css: template.css ?? '' }
+        : draft
+          ? { nom: draft.nom, typeCerfa: draft.type_cerfa, htmlTemplate: draft.html_template, css: draft.css }
+          : { nom: '', typeCerfa: '11580' as const, htmlTemplate: DEFAULT_HTML, css: DEFAULT_CSS }
+      setNom(initial.nom)
+      setTypeCerfa(initial.typeCerfa)
+      setHtmlTemplate(initial.htmlTemplate)
+      setCss(initial.css)
+      initialValuesRef.current = initial
       setActiveTab('html')
       setError(null)
       setFullScreen(false)
       setPanelMode('both')
       setPlaceholdersOpen(false)
+      setConfirmDiscardOpen(false)
     }
   }, [open, template, draft])
+
+  const isDirty =
+    nom !== initialValuesRef.current.nom ||
+    typeCerfa !== initialValuesRef.current.typeCerfa ||
+    htmlTemplate !== initialValuesRef.current.htmlTemplate ||
+    css !== initialValuesRef.current.css
+
+  function requestClose() {
+    if (isDirty) {
+      setConfirmDiscardOpen(true)
+      return
+    }
+    onClose()
+  }
 
   useEffect(() => {
     if (!open) return
@@ -188,7 +202,8 @@ export default function TemplateRecuEditorModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+    <>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) requestClose() }}>
       <DialogContent
         className={fullScreen ? undefined : 'max-w-6xl h-[85vh] min-h-[560px]'}
         fullScreen={fullScreen}
@@ -401,7 +416,7 @@ export default function TemplateRecuEditorModal({
             </div>
 
             <div className="flex gap-3">
-              <Button type="button" variant="secondary" onClick={onClose}>
+              <Button type="button" variant="secondary" onClick={requestClose}>
                 Annuler
               </Button>
               <Button type="submit" disabled={saving}>
@@ -412,5 +427,25 @@ export default function TemplateRecuEditorModal({
         </form>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={confirmDiscardOpen} onOpenChange={(next) => { if (!next) setConfirmDiscardOpen(false) }}>
+      <DialogContent className="max-w-sm" aria-describedby={undefined}>
+        <div className="p-6">
+          <h2 className="font-registre text-lg font-semibold text-ink">Quitter sans enregistrer ?</h2>
+          <p className="mt-2 font-registre text-sm text-ink-muted">
+            Les modifications apportées à ce template seront perdues.
+          </p>
+          <div className="mt-5 flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setConfirmDiscardOpen(false)}>
+              Continuer l'édition
+            </Button>
+            <Button type="button" variant="destructive" onClick={() => { setConfirmDiscardOpen(false); onClose() }}>
+              Quitter sans enregistrer
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
