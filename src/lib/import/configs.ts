@@ -10,6 +10,8 @@ export interface ImportConfig {
   title: string
   fieldDefs: FieldDef[]
   rpcName: string
+  /** RPC générant un nouvel id_externe, appelée quand l'admin choisit "Créer un nouveau" sur une ligne sensible en collision. Renseigné uniquement pour les entités avec détection collision/doublon (adhérents, participants). */
+  idExterneRpcName?: string
   prepareBatch: (rows: ParsedRow[], mapping: Record<string, number | null>, organisationId: string) => Promise<PreparedBatch>
   /**
    * Ajustement optionnel post-parsing, pour une dépendance entre deux
@@ -25,9 +27,10 @@ export const participantsImportConfig: ImportConfig = {
   title: 'Donateurs',
   fieldDefs: participantsFieldDefs,
   rpcName: 'import_upsert_participants',
+  idExterneRpcName: 'next_participant_id_externe',
   prepareBatch: async (rows, mapping, organisationId) => {
     const existing = await fetchExistingParticipants(organisationId)
-    return buildParticipantsBatch(rows, mapping, existing)
+    return buildParticipantsBatch(rows, mapping, existing.byIdExterne, existing.all)
   },
 }
 
@@ -53,7 +56,7 @@ export const donsImportConfig: ImportConfig = {
       fetchExistingParticipants(organisationId),
       fetchExistingActivites(organisationId),
     ])
-    return buildDonsBatch(rows, mapping, existingDons, existingParticipants, existingActivites)
+    return buildDonsBatch(rows, mapping, existingDons, existingParticipants.byIdExterne, existingActivites)
   },
 }
 
@@ -62,6 +65,7 @@ export const adherentsImportConfig: ImportConfig = {
   title: 'Adhérents',
   fieldDefs: adherentsFieldDefs,
   rpcName: 'import_upsert_adherents',
+  idExterneRpcName: 'next_adherent_id_externe',
   prepareBatch: async (rows, mapping, organisationId) => {
     const { byIdExterne, all } = await fetchExistingAdherents(organisationId)
     return buildAdherentsBatch(rows, mapping, byIdExterne, all)

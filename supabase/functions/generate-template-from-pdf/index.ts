@@ -35,6 +35,7 @@ const PLACEHOLDER_DESCRIPTIONS = `
 - donateur_adresse : adresse du donateur
 - donateur_code_postal : code postal du donateur
 - donateur_ville : ville du donateur
+- numero_donateur : numéro/référence du donateur propre à l'organisation (ex : "446") — optionnel, vide si non renseigné
 - don_montant_chiffres : montant total des dons de l'année en chiffres (ex : "150,00 €")
 - don_montant_lettres : montant total en toutes lettres (ex : "Cent cinquante euros")
 - dons_detail : tableau HTML déjà entièrement généré (une ligne par don de l'année : événement/activité, montant, date ou "Nb Mois : N" pour un prélèvement groupé, mode de paiement, plus une ligne de total) — à utiliser TEL QUEL en une seule fois si le PDF montre plusieurs dons individuels sur une même période/année, ne jamais recopier ou réinventer les lignes du tableau en HTML brut

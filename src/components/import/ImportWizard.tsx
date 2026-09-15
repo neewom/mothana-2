@@ -21,6 +21,11 @@ interface ImportWizardProps {
   onImported?: () => void
 }
 
+const NOUVELLE_FICHE_LABEL: Partial<Record<ImportConfig['entity'], string>> = {
+  adherents: 'Créer un nouvel adhérent',
+  participants: 'Créer un nouveau donateur',
+}
+
 export default function ImportWizard({ open, onClose, config, organisationId, onImported }: ImportWizardProps) {
   const [step, setStep] = useState<Step>('upload')
   const [fileName, setFileName] = useState('')
@@ -160,7 +165,7 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
     if (action === 'create-new' && c.sensitive?.kind === 'collision') {
       setResolvingIndex(c.index)
       setError(null)
-      const { data, error: err } = await supabase.rpc('next_adherent_id_externe', { p_organisation_id: organisationId })
+      const { data, error: err } = await supabase.rpc(config.idExterneRpcName!, { p_organisation_id: organisationId })
       setResolvingIndex(null)
       if (err) {
         setError(err.message)
@@ -376,7 +381,7 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
                             disabled={resolvingIndex === c.index}
                             className={`rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-60 ${action === 'create-new' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300 text-slate-600 hover:bg-slate-50'}`}
                           >
-                            {resolvingIndex === c.index ? 'Génération…' : 'Créer un nouvel adhérent'}
+                            {resolvingIndex === c.index ? 'Génération…' : (NOUVELLE_FICHE_LABEL[config.entity] ?? 'Créer une nouvelle fiche')}
                           </button>
                           <button
                             type="button"
