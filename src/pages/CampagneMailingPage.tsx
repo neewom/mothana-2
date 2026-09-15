@@ -495,6 +495,7 @@ export default function CampagneMailingPage() {
         exclude_tag: excludeTag || null,
         pieces_jointes: piecesJointes.map((p) => ({ nom: p.fichier.name, contenu_base64: p.base64, type_mime: p.fichier.type })),
         site_url: getCanonicalSiteUrl(),
+        organisation_id: organisationId,
       }),
     })
 

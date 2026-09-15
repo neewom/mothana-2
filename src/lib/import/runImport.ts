@@ -24,6 +24,7 @@ interface RpcResult {
 export async function runImport(
   rpcName: string,
   payloadRows: Record<string, unknown>[],
+  organisationId: string,
   onProgress?: (done: number, total: number) => void
 ): Promise<ImportSummary> {
   const summary: ImportSummary = { created: 0, updated: 0, skipped: 0, chunkErrors: [] }
@@ -33,7 +34,10 @@ export async function runImport(
     const chunk = payloadRows.slice(i, i + IMPORT_CHUNK_SIZE)
     const chunkIndex = i / IMPORT_CHUNK_SIZE
 
-    const { data, error } = await supabase.rpc(rpcName, { payload: chunk })
+    // p_organisation_id : ignoré côté serveur sauf pour un super-admin sans
+    // profils_organisation (mode "Consulter"), cf. resolveOrganisationId /
+    // is_current_user_super_admin.
+    const { data, error } = await supabase.rpc(rpcName, { payload: chunk, p_organisation_id: organisationId })
 
     if (error) {
       summary.chunkErrors.push({ chunkIndex, rowRange: [i, i + chunk.length - 1], message: error.message })

@@ -221,7 +221,7 @@ export default function RecusFiscauxPage() {
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
       },
-      body: JSON.stringify({ profil_participant_id: profilId, annee }),
+      body: JSON.stringify({ profil_participant_id: profilId, annee, organisation_id: organisationId }),
     })
 
     const json = await res.json()
@@ -292,7 +292,7 @@ export default function RecusFiscauxPage() {
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
       },
-      body: JSON.stringify({ profil_participant_id: id, annee }),
+      body: JSON.stringify({ profil_participant_id: id, annee, organisation_id: organisationId }),
     })
 
     const json = await res.json()
