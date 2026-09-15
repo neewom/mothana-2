@@ -59,7 +59,7 @@ function App() {
             <Route element={<FeatureGuard feature="adherents" />}>
               <Route path="adherents" element={<AdherentsPage />} />
               <Route path="adherents/demandes" element={<DemandesAdhesionPage />} />
-              <Route path="adherents/mailing" element={<CampagneMailingPage />} />
+              <Route path="adherents/campagne-mailing" element={<CampagneMailingPage />} />
               <Route path="adherents/campagne-courrier" element={<CampagneCourrierPage />} />
               <Route path="parametres/adherents" element={<ParametresAdherentsPage />} />
             </Route>

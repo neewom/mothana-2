@@ -527,7 +527,7 @@ export default function CampagneMailingPage() {
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       <div>
-        <h1 className="text-2xl font-bold text-ink md:text-3xl">Mailing</h1>
+        <h1 className="text-2xl font-bold text-ink md:text-3xl">Campagne mailing</h1>
         <p className="mt-1 text-sm text-ink-muted">Envoyez une campagne d'information à vos adhérents via Brevo.</p>
       </div>
 
