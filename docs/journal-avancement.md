@@ -447,7 +447,8 @@ Go donné pour tout le batch en une fois (liste Trello "Batch — Campagnes mail
 
 ### Batch "batch 555" (2026-09-15) — 4 cartes cadrées le matin même, enchaînées sans confirmation entre elles (convention batch), chaque branche repart de `dev`
 
-- **Assets orga : CTA "Remplacer"/"Supprimer" qui débordent de leur cadre** (terminé, PR #182 dev) : boutons empilés verticalement (`flex-col`) plutôt que côte à côte dans la carte de chaque asset (`ParametresOrganisationPage.tsx`, grille `sm:grid-cols-3` contrainte à `max-w-lg`, ~170px/colonne). Vérifié desktop + mobile 375px sur staging.
+- **Assets orga : CTA "Remplacer"/"Supprimer" qui débordent de leur cadre** (terminé 2026-09-16, PR #182, mergée) : boutons empilés verticalement (`flex-col`) plutôt que côte à côte dans la carte de chaque asset (`ParametresOrganisationPage.tsx`, grille `sm:grid-cols-3` contrainte à `max-w-lg`, ~170px/colonne). Vérifié desktop + mobile 375px sur staging.
+  - **2 retours utilisateur traités après coup, dans la même PR** : (1) "Supprimer" ne respectait pas `DESIGN.md` — bouton brut (`text-stamp hover:underline`) au lieu du composant `Button variant="danger"` documenté pour un déclencheur de ligne non-final (bordure + fond blanc, texte stamp dès le repos). (2) L'empilement vertical, nécessaire en grille 3 colonnes desktop, forçait aussi les CTA sur 2 lignes en mobile où la grille repasse en 1 colonne (pleine largeur, pas de contrainte) — corrigé en `flex-row sm:flex-col` (ligne par défaut, colonne seulement à partir de `sm:`).
 
 - **Renommer "Mailing" en "Campagne mailing"** (terminé, PR #183 dev) : uniformisation avec "Campagne courrier" — nav, route (`/admin/adherents/mailing` → `/admin/adherents/campagne-mailing`), titre de page, FAQ, page publique "Découvrir". Composant `CampagneMailingPage.tsx` déjà nommé selon la convention, non touché. Vérifié sur staging (nav, route, page Découvrir — 3 occurrences confirmées, 0 résiduelle).
 
