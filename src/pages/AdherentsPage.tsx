@@ -365,7 +365,7 @@ export default function AdherentsPage() {
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
       },
-      body: JSON.stringify({ adherent_ids: ids }),
+      body: JSON.stringify({ adherent_ids: ids, organisation_id: organisationId }),
     })
 
     if (!res.ok) {

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,22 +46,18 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     })
 
-    // Caller must be admin for an organisation
-    const { data: profilOrg } = await adminClient
-      .from('profils_organisation')
-      .select('organisation_id')
-      .eq('utilisateur_id', user.id)
-      .eq('role', 'admin')
-      .single()
+    // Caller must be admin for an organisation, or super-admin with an explicit organisation_id
+    const { organisation_id } = await req.json().catch(() => ({}))
+    const resolved = await resolveOrganisationId(adminClient, user, organisation_id)
 
-    if (!profilOrg) {
+    if (!resolved) {
       return new Response(
         JSON.stringify({ error: 'Acces refuse' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
-    const organisationId = profilOrg.organisation_id
+    const organisationId = resolved.organisationId
 
     // Generate a PIN that doesn't already exist in another org
     let newPin = generatePin()

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 
 // Appelée depuis BrevoConfigModal juste après l'enregistrement d'une clé API
 // Brevo : enregistre automatiquement (idempotent) le webhook de bounce côté
@@ -58,26 +59,21 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
 
-    const { data: profilOrg } = await adminClient
-      .from('profils_organisation')
-      .select('organisation_id')
-      .eq('utilisateur_id', user.id)
-      .eq('role', 'admin')
-      .single()
-
-    if (!profilOrg) return jsonResponse({ error: 'Accès refusé' }, 403)
+    const { organisation_id } = await req.json().catch(() => ({}))
+    const resolved = await resolveOrganisationId(adminClient, user, organisation_id)
+    if (!resolved) return jsonResponse({ error: 'Accès refusé' }, 403)
 
     const { data: org } = await adminClient
       .from('organisations')
       .select('brevo_api_key')
-      .eq('id', profilOrg.organisation_id)
+      .eq('id', resolved.organisationId)
       .single()
 
     if (!org?.brevo_api_key) {
       return jsonResponse({ skipped: true, reason: 'Pas de clé API Brevo configurée' })
     }
 
-    const webhookUrl = `${supabaseUrl}/functions/v1/brevo-bounce-webhook?org=${profilOrg.organisation_id}`
+    const webhookUrl = `${supabaseUrl}/functions/v1/brevo-bounce-webhook?org=${resolved.organisationId}`
 
     const listRes = await fetch('https://api.brevo.com/v3/webhooks?type=transactional', {
       headers: { 'api-key': org.brevo_api_key, Accept: 'application/json' },

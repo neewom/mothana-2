@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -83,10 +84,19 @@ Règles impératives :
 
 ${PLACEHOLDER_DESCRIPTIONS}
 
-3. Si le PDF montre plusieurs dons individuels listés sur une même période (tableau avec une ligne par don, date/montant/mode répétés), utilise uniquement {{dons_detail}} à l'emplacement de ce tableau — ne remplace pas {{don_montant_chiffres}}/{{don_montant_lettres}} par le détail ligne par ligne, ces deux placeholders restent réservés au total agrégé affiché ailleurs sur le reçu (ex. ligne "Total" en toutes lettres).
-4. Si le PDF est un formulaire vierge (sans donnée réelle remplie), place les placeholders aux emplacements logiques d'après les libellés de champs.
-5. Le HTML doit être un simple fragment (pas de <html>/<head>/<body>), utilisable tel quel dans un conteneur. Le CSS doit être autonome, pensé pour un rendu A4 imprimable.
-6. Utilise l'outil "generate_template" pour renvoyer ta réponse — n'écris aucun texte en dehors de l'appel d'outil.`
+3. Si le PDF affiche un logo, une photo, un tampon ou toute autre image de l'organisme, utilise une balise <img src="{{asset_logo}}" alt="Logo" ...> à cet emplacement — "asset_logo" est l'identifiant conventionnel attendu pour le logo principal (système d'assets uploadables par l'organisation, indépendant de la liste de placeholders ci-dessus). Ne dessine jamais un espace réservé décoratif sans balise <img> : sans elle, aucune image ne s'affichera jamais, quel que soit le logo que l'organisation upload ensuite.
+4. Si le PDF montre plusieurs dons individuels listés sur une même période (tableau avec une ligne par don, date/montant/mode répétés), utilise uniquement {{dons_detail}} à l'emplacement de ce tableau — ne remplace pas {{don_montant_chiffres}}/{{don_montant_lettres}} par le détail ligne par ligne, ces deux placeholders restent réservés au total agrégé affiché ailleurs sur le reçu (ex. ligne "Total" en toutes lettres).
+5. Si le PDF est un formulaire vierge (sans donnée réelle remplie), place les placeholders aux emplacements logiques d'après les libellés de champs.
+5bis. Si un texte du PDF ressemble à une donnée variable (propre à ce donateur/cet envoi précis) mais qu'aucun placeholder de la liste ne correspond, ne le supprime pas : conserve-le tel quel, en texte fixe, à l'endroit où il apparaît dans le PDF. Mieux vaut un texte figé sur la valeur de l'exemple qu'une information silencieusement perdue.
+
+Fidélité visuelle — le PDF fourni est le seul référentiel de style, ne t'appuie sur aucune convention par défaut :
+6. Retranscris l'intégralité du texte visible, y compris les lignes secondaires (sous-titres, mentions sous un logo, légendes) — ne saute aucune ligne au prétexte qu'elle semble redondante avec une autre information déjà placée ailleurs.
+7. Ne stylise jamais au-delà de ce qui est visible dans le PDF : coins nets par défaut (pas de border-radius sauf arrondi clairement visible dans la source), pas d'ombres ni d'effets non présents dans le PDF.
+8. Si deux éléments proches se distinguent visuellement (ex. un encadré mis en avant par un fond coloré à côté d'un encadré neutre), la CSS générée pour l'élément mis en avant doit contenir la propriété qui le distingue réellement (couleur de fond, etc.) — une classe séparée qui ne fait que dupliquer le style de l'élément de base ne suffit pas.
+9. Pour une zone de fond colorée qui met en évidence une information (encadré donateur, ligne de total...), vise une teinte clairement visible, proche en intensité de celle observée dans le PDF — évite les tons trop proches du blanc qui effacent l'effet de mise en évidence.
+
+10. Le HTML doit être un simple fragment (pas de <html>/<head>/<body>), utilisable tel quel dans un conteneur. Le CSS doit être autonome, pensé pour un rendu A4 imprimable.
+11. Utilise l'outil "generate_template" pour renvoyer ta réponse — n'écris aucun texte en dehors de l'appel d'outil.`
 }
 
 Deno.serve(async (req) => {
@@ -100,7 +110,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Non autorisé' }, 401)
     }
 
-    const { pdf_base64, type_cerfa } = await req.json()
+    const { pdf_base64, type_cerfa, organisation_id } = await req.json()
 
     if (!pdf_base64 || typeof pdf_base64 !== 'string') {
       return jsonResponse({ error: 'PDF manquant' }, 400)
@@ -140,14 +150,8 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     })
 
-    const { data: profilOrg } = await adminClient
-      .from('profils_organisation')
-      .select('organisation_id, role')
-      .eq('utilisateur_id', user.id)
-      .eq('role', 'admin')
-      .single()
-
-    if (!profilOrg) {
+    const resolved = await resolveOrganisationId(adminClient, user, organisation_id)
+    if (!resolved) {
       return jsonResponse({ error: 'Accès refusé' }, 403)
     }
 

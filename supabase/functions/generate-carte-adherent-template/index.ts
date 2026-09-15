@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,7 +82,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Non autorisé' }, 401)
     }
 
-    const { file_base64, media_type } = await req.json()
+    const { file_base64, media_type, organisation_id } = await req.json()
 
     if (!file_base64 || typeof file_base64 !== 'string') {
       return jsonResponse({ error: 'Fichier manquant' }, 400)
@@ -121,14 +122,8 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     })
 
-    const { data: profilOrg } = await adminClient
-      .from('profils_organisation')
-      .select('organisation_id, role')
-      .eq('utilisateur_id', user.id)
-      .eq('role', 'admin')
-      .single()
-
-    if (!profilOrg) {
+    const resolved = await resolveOrganisationId(adminClient, user, organisation_id)
+    if (!resolved) {
       return jsonResponse({ error: 'Accès refusé' }, 403)
     }
 

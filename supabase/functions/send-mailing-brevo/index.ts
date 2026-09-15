@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,7 +61,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Non autorisé' }, 401)
     }
 
-    const { sujet, corps_html, filtre_statut, tag_envoi, exclude_tag, pieces_jointes, site_url } = await req.json()
+    const { sujet, corps_html, filtre_statut, tag_envoi, exclude_tag, pieces_jointes, site_url, organisation_id } = await req.json()
 
     if (!sujet || typeof sujet !== 'string' || !corps_html || typeof corps_html !== 'string') {
       return jsonResponse({ error: 'Sujet et contenu du message requis' }, 400)
@@ -102,19 +103,13 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     })
 
-    // Caller must be admin for an organisation
-    const { data: profilOrg } = await adminClient
-      .from('profils_organisation')
-      .select('organisation_id, role')
-      .eq('utilisateur_id', user.id)
-      .eq('role', 'admin')
-      .single()
-
-    if (!profilOrg) {
+    // Caller must be admin for an organisation, or super-admin with an explicit organisation_id
+    const resolved = await resolveOrganisationId(adminClient, user, organisation_id)
+    if (!resolved) {
       return jsonResponse({ error: 'Accès refusé' }, 403)
     }
 
-    const organisationId = profilOrg.organisation_id
+    const organisationId = resolved.organisationId
 
     // ---------------------------------------------------------------------
     // 1. Config Brevo de l'organisation
