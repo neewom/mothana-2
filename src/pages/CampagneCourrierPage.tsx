@@ -212,6 +212,7 @@ export default function CampagneCourrierPage() {
         filtre_statut: filtreStatut,
         tag_envoi: tagEnvoi,
         exclude_tag: excludeTag || null,
+        organisation_id: organisationId,
       }),
     })
 

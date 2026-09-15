@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 import qrcodeGenerator from 'https://esm.sh/qrcode-generator@1.4.4'
 
 const corsHeaders = {
@@ -148,7 +149,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Non autorisé' }, 401)
     }
 
-    const { activite_id, filtre_statut, tag_envoi, exclude_tag } = await req.json()
+    const { activite_id, filtre_statut, tag_envoi, exclude_tag, organisation_id } = await req.json()
 
     if (!activite_id || typeof activite_id !== 'string') {
       return jsonResponse({ error: 'Activité requise' }, 400)
@@ -182,18 +183,12 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     })
 
-    const { data: profilOrg } = await adminClient
-      .from('profils_organisation')
-      .select('organisation_id, role')
-      .eq('utilisateur_id', user.id)
-      .eq('role', 'admin')
-      .single()
-
-    if (!profilOrg) {
+    const resolved = await resolveOrganisationId(adminClient, user, organisation_id)
+    if (!resolved) {
       return jsonResponse({ error: 'Accès refusé' }, 403)
     }
 
-    const organisationId = profilOrg.organisation_id
+    const organisationId = resolved.organisationId
 
     // ---------------------------------------------------------------------
     // 1. Organisation (expéditeur) + activité

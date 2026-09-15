@@ -194,7 +194,7 @@ export default function ImportWizard({ open, onClose, config, organisationId, on
   async function handleRunImport() {
     setStep('running')
     setProgress({ done: 0, total: finalPayloadRows.length })
-    const result = await runImport(config.rpcName, finalPayloadRows, (done, total) => setProgress({ done, total }))
+    const result = await runImport(config.rpcName, finalPayloadRows, organisationId, (done, total) => setProgress({ done, total }))
     setSummary(result)
     setStep('done')
     onImported?.()

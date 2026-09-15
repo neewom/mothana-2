@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { TemplateRecuDraft } from './TemplateRecuEditorModal'
 import { Button } from './ui/button'
 import { Label } from './ui/label'
@@ -27,6 +28,7 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function TemplateRecuImportPdfModal({ open, onClose, onDraftReady }: TemplateRecuImportPdfModalProps) {
+  const organisationId = useOrganisationId()
   const [typeCerfa, setTypeCerfa] = useState<'11580' | '16216'>('11580')
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
@@ -68,7 +70,7 @@ export default function TemplateRecuImportPdfModal({ open, onClose, onDraftReady
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
         },
-        body: JSON.stringify({ pdf_base64: pdfBase64, type_cerfa: typeCerfa }),
+        body: JSON.stringify({ pdf_base64: pdfBase64, type_cerfa: typeCerfa, organisation_id: organisationId }),
       })
 
       const json = await res.json()

@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { CarteAdherentDraft } from './CarteAdherentEditorModal'
 import { Button } from './ui/button'
 import { Label } from './ui/label'
@@ -27,6 +28,7 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function CarteAdherentImportModal({ open, onClose, onDraftReady }: CarteAdherentImportModalProps) {
+  const organisationId = useOrganisationId()
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -72,7 +74,7 @@ export default function CarteAdherentImportModal({ open, onClose, onDraftReady }
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
         },
-        body: JSON.stringify({ file_base64: fileBase64, media_type: file.type }),
+        body: JSON.stringify({ file_base64: fileBase64, media_type: file.type, organisation_id: organisationId }),
       })
 
       const json = await res.json()

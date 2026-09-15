@@ -168,7 +168,7 @@ export default function ParametresOrganisationPage() {
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ organisation_id: organisationId }),
     })
 
     const json = await res.json()

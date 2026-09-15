@@ -80,9 +80,11 @@ export default function BrevoConfigModal({ open, onClose, onSaved, organisationI
         fetch(`${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/register-brevo-webhook`, {
           method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${session.access_token}`,
             apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
           },
+          body: JSON.stringify({ organisation_id: organisationId }),
         }).catch((e) => console.error('register-brevo-webhook error:', e))
       })
     }
