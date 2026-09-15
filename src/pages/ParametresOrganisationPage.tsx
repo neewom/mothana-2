@@ -510,14 +510,15 @@ export default function ParametresOrganisationPage() {
                         }}
                       />
                     </label>
-                    <button
+                    <Button
                       type="button"
+                      variant="danger"
+                      size="sm"
                       onClick={() => handleDeleteAsset(asset)}
                       disabled={assetActionLoading[asset.id]}
-                      className="font-registre text-xs font-medium text-stamp hover:underline disabled:opacity-60"
                     >
                       Supprimer
-                    </button>
+                    </Button>
                   </div>
                   {assetError[asset.id] && <p className="mt-1.5 text-xs text-stamp">{assetError[asset.id]}</p>}
                 </div>
