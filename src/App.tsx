@@ -52,7 +52,6 @@ function App() {
               <Route path="dons" element={<DonsPage />} />
               <Route path="dons-reguliers" element={<DonsReguliersPage />} />
               <Route path="participants" element={<ParticipantsPage />} />
-              <Route path="activites" element={<ActivitesPage />} />
               <Route path="recus" element={<RecusFiscauxPage />} />
               <Route path="comptabilite" element={<ComptabilitePage />} />
             </Route>
@@ -62,6 +61,9 @@ function App() {
               <Route path="adherents/mailing" element={<CampagneMailingPage />} />
               <Route path="adherents/campagne-courrier" element={<CampagneCourrierPage />} />
               <Route path="parametres/adherents" element={<ParametresAdherentsPage />} />
+            </Route>
+            <Route element={<FeatureGuard feature={['dons', 'adherents']} />}>
+              <Route path="activites" element={<ActivitesPage />} />
             </Route>
             <Route path="parametres" element={<ParametresOrganisationPage />} />
             <Route path="parametres/fiscal" element={<ParametresFiscalPage />} />
