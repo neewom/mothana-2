@@ -496,7 +496,7 @@ export default function ParametresOrganisationPage() {
                     <img src={asset.url} alt={asset.libelle} className="max-h-full max-w-full object-contain" />
                   </div>
                   <p className="mb-2 truncate font-registre-mono text-[11px] text-stamp">{`{{asset_${asset.identifiant}}}`}</p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col items-start gap-2">
                     <label className="cursor-pointer rounded-sm border border-paper-border px-3 py-1.5 font-registre text-xs font-medium text-ink-muted hover:bg-paper">
                       {assetActionLoading[asset.id] ? 'Envoi…' : 'Remplacer'}
                       <input
