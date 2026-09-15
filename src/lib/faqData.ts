@@ -94,7 +94,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
     items: [
       {
         question: 'Comment envoyer une campagne email à mes adhérents ?',
-        answer: 'Depuis Adhérents > Mailing :',
+        answer: 'Depuis Adhérents > Campagne mailing :',
         steps: [
           'Composez le message dans l’éditeur (placeholders possibles comme {{params.prenom}}).',
           'Choisissez les destinataires par statut ou par liste de diffusion.',
@@ -103,7 +103,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       },
       {
         question: 'Comment configurer l’envoi d’emails (Brevo) ?',
-        answer: 'Depuis la page Mailing :',
+        answer: 'Depuis la page Campagne mailing :',
         steps: [
           'Cliquez sur "Configurer".',
           'Renseignez la clé API et l’expéditeur de votre compte Brevo.',

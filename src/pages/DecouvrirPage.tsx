@@ -21,7 +21,7 @@ import { Button } from '../components/ui/button'
 const SECTIONS = [
   { id: 'dons', label: 'Dons' },
   { id: 'adherents', label: 'Adhérents' },
-  { id: 'mailing', label: 'Mailing' },
+  { id: 'mailing', label: 'Campagne mailing' },
   { id: 'benevole', label: 'Espace bénévole' },
   { id: 'personnalisation', label: 'Personnalisation' },
 ]
@@ -223,7 +223,7 @@ export default function DecouvrirPage() {
 
           <section id="mailing" className="scroll-mt-20 border-b border-paper-border py-4">
             <SectionHeading
-              eyebrow="Mailing"
+              eyebrow="Campagne mailing"
               title="Des campagnes email en quelques minutes"
               description="Composez un message une fois, filtrez vos destinataires, et envoyez à tous vos adhérents via votre propre compte Brevo — avec gestion automatique de la désinscription."
             />
