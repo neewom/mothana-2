@@ -45,13 +45,13 @@ export interface ConflictRow {
   /** Ligne prête à envoyer, valeurs importées par défaut ; ajustée par applyResolutions selon les choix de l'admin. */
   payloadBase: Record<string, unknown>
   diffs: FieldDiff[]
-  /** Renseigné uniquement pour les adhérents : ce conflit nécessite une décision explicite (pas de résolution groupée) avant de pouvoir continuer. */
+  /** Renseigné uniquement pour les entités avec détection collision/doublon (adhérents, participants) : ce conflit nécessite une décision explicite (pas de résolution groupée) avant de pouvoir continuer. */
   sensitive?: SensitiveConflict
   /**
-   * Payload alternatif prêt à insérer comme adhérent distinct si l'admin choisit
-   * "Créer un nouvel adhérent" sur une ligne sensible. Pour kind === 'collision',
-   * id_externe est null (l'importé est déjà pris) : à renseigner via
-   * next_adherent_id_externe au moment du choix, avant envoi.
+   * Payload alternatif prêt à insérer comme fiche distincte si l'admin choisit
+   * "Créer un nouveau" sur une ligne sensible. Pour kind === 'collision',
+   * id_externe est null (l'importé est déjà pris) : à renseigner via la RPC
+   * idExterneRpcName de l'entité au moment du choix, avant envoi.
    */
   createNewPayload?: Record<string, unknown>
 }

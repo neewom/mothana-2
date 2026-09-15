@@ -54,19 +54,107 @@ const PARTICIPANT_FIELD_KEYS = [
   'adresse', 'code_postal', 'ville', 'pays', 'nom2', 'prenom2', 'notes',
 ]
 
+// Index de recherche de doublon (nom+prénom / email / téléphone) pour les
+// participants — même sémantique que buildAdherentDuplicateIndex/
+// findAdherentDuplicate ci-dessous, dupliqué plutôt que généralisé car les
+// deux opèrent sur des champs légèrement différents (courriel vs email) et
+// des types de référence distincts (ExistingAdherentRef vs ExistingRef).
+interface ParticipantDuplicateIndex {
+  byNamePrenom: Map<string, ExistingRef[]>
+  byEmail: Map<string, ExistingRef[]>
+  byTelephone: Map<string, ExistingRef[]>
+}
+
+function buildParticipantDuplicateIndex(all: ExistingRef[]): ParticipantDuplicateIndex {
+  const byNamePrenom = new Map<string, ExistingRef[]>()
+  const byEmail = new Map<string, ExistingRef[]>()
+  const byTelephone = new Map<string, ExistingRef[]>()
+  for (const ref of all) {
+    const nom = normalize(ref.values.nom)
+    const prenom = normalize(ref.values.prenom)
+    if (nom && prenom) pushIndexed(byNamePrenom, `${nom}|${prenom}`, ref)
+    const email = normalize(ref.values.email)
+    if (email) pushIndexed(byEmail, email, ref)
+    const telephone = normalize(ref.values.telephone)
+    if (telephone) pushIndexed(byTelephone, telephone, ref)
+  }
+  return { byNamePrenom, byEmail, byTelephone }
+}
+
+function findParticipantDuplicate(
+  index: ParticipantDuplicateIndex,
+  values: Record<string, unknown>
+): { ref: ExistingRef; raisons: string[] } | undefined {
+  const found = new Map<string, { ref: ExistingRef; raisons: string[] }>()
+
+  function record(ref: ExistingRef, raison: string) {
+    const entry = found.get(ref.id) ?? { ref, raisons: [] }
+    entry.raisons.push(raison)
+    found.set(ref.id, entry)
+  }
+
+  const nom = normalize(values.nom)
+  const prenom = normalize(values.prenom)
+  if (nom && prenom) {
+    for (const ref of index.byNamePrenom.get(`${nom}|${prenom}`) ?? []) record(ref, 'nom et prénom identiques')
+  }
+  const email = normalize(values.email)
+  if (email) {
+    for (const ref of index.byEmail.get(email) ?? []) record(ref, 'email identique')
+  }
+  const telephone = normalize(values.telephone)
+  if (telephone) {
+    for (const ref of index.byTelephone.get(telephone) ?? []) record(ref, 'téléphone identique')
+  }
+
+  return found.values().next().value
+}
+
 export function buildParticipantsBatch(
   rows: ParsedRow[],
   mapping: Record<string, number | null>,
-  existing: Map<string, ExistingRef>
+  existingByIdExterne: Map<string, ExistingRef>,
+  existingAll: ExistingRef[]
 ): BuildBatchResult {
   const mappedKeys = mappedKeySet(mapping)
   const inserts: Record<string, unknown>[] = []
   const conflicts: ConflictRow[] = []
   let identicalCount = 0
+  const duplicateIndex = buildParticipantDuplicateIndex(existingAll)
 
   for (const row of rows) {
     const idExterne = (row.values.id_externe as string | null) ?? null
-    const match = idExterne ? existing.get(idExterne) : undefined
+    const idExterneMatch = idExterne ? existingByIdExterne.get(idExterne) : undefined
+
+    let match: ExistingRef | undefined = idExterneMatch
+    let sensitive: ConflictRow['sensitive']
+
+    if (idExterneMatch) {
+      // Même id_externe, mais nom ET prénom différents : probable collision
+      // entre deux personnes plutôt qu'une simple correction de données.
+      const nomDiffers = !sameNormalized(row.values.nom, idExterneMatch.values.nom)
+      const prenomDiffers = !sameNormalized(row.values.prenom, idExterneMatch.values.prenom)
+      if (nomDiffers && prenomDiffers) {
+        const importedName = [row.values.prenom, row.values.nom].filter(Boolean).join(' ') || '—'
+        const existingName = [idExterneMatch.values.prenom, idExterneMatch.values.nom].filter(Boolean).join(' ') || '—'
+        sensitive = {
+          kind: 'collision',
+          reason: `id_externe "${idExterne}" déjà utilisé par ${existingName}, mais cette ligne importée concerne apparemment ${importedName} — collision possible entre deux personnes différentes.`,
+        }
+      }
+    } else {
+      // Pas de match par id_externe : cherche un doublon probable (même
+      // personne saisie à la main puis réimportée sous un autre numéro).
+      const dup = findParticipantDuplicate(duplicateIndex, row.values)
+      if (dup) {
+        match = dup.ref
+        sensitive = {
+          kind: 'duplicate',
+          reason: `Un donateur existant (id_externe ${dup.ref.idExterne ?? '—'}) partage : ${dup.raisons.join(', ')} — probable doublon de la même personne plutôt qu'une nouvelle fiche.`,
+        }
+      }
+    }
+
     const personneId = match?.personneId ?? generateUUID()
     const profilId = match?.id ?? generateUUID()
 
@@ -81,11 +169,31 @@ export function buildParticipantsBatch(
     }
 
     const diffs = diffMappedFields(participantsFieldDefs, mappedKeys, match.values, row.values)
-    if (diffs.length === 0) {
+
+    if (diffs.length === 0 && !sensitive) {
       identicalCount++
-    } else {
-      conflicts.push({ index: row.index, idExterne, payloadBase, diffs })
+      continue
     }
+
+    let createNewPayload: Record<string, unknown> | undefined
+    if (sensitive) {
+      // Payload alternatif prêt à insérer comme participant distinct, si
+      // l'admin choisit "Créer un nouveau" plutôt que de fusionner avec
+      // `match`. Pour kind === 'collision', id_externe est laissé null : un
+      // nouveau sera généré (next_participant_id_externe) au moment du choix.
+      const altId = generateUUID()
+      const alt: Record<string, unknown> = {
+        personne_id: generateUUID(),
+        profil_id: altId,
+        id_externe: sensitive.kind === 'collision' ? null : idExterne,
+      }
+      for (const key of PARTICIPANT_FIELD_KEYS) {
+        alt[key] = mappedKeys.has(key) ? (row.values[key] ?? null) : null
+      }
+      createNewPayload = alt
+    }
+
+    conflicts.push({ index: row.index, idExterne, payloadBase, diffs, sensitive, createNewPayload })
   }
 
   return { inserts, conflicts, identicalCount, excluded: [], warnings: [] }
@@ -247,7 +355,7 @@ interface AdherentDuplicateIndex {
   byTelephone: Map<string, ExistingAdherentRef[]>
 }
 
-function pushIndexed<K>(map: Map<K, ExistingAdherentRef[]>, key: K, ref: ExistingAdherentRef) {
+function pushIndexed<K, R>(map: Map<K, R[]>, key: K, ref: R) {
   const list = map.get(key)
   if (list) list.push(ref)
   else map.set(key, [ref])

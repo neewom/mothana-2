@@ -386,7 +386,7 @@ Deno.serve(async (req) => {
 
     const { data: participant } = await adminClient
       .from('profils_participant')
-      .select('id, organisation_id, personnes(nom, prenom, email, civilite, nom2, prenom2, adresse, code_postal, ville, pays)')
+      .select('id, organisation_id, id_externe, personnes(nom, prenom, email, civilite, nom2, prenom2, adresse, code_postal, ville, pays)')
       .eq('id', profil_participant_id)
       .eq('organisation_id', organisationId)
       .single()
@@ -536,6 +536,7 @@ Deno.serve(async (req) => {
       donateur_adresse: personne.adresse ?? '',
       donateur_code_postal: personne.code_postal ?? '',
       donateur_ville: personne.ville ?? '',
+      numero_donateur: participant.id_externe ?? '',
       don_montant_chiffres: formatMontant(totalMontant),
       don_montant_lettres: numberToWords(totalMontant),
       dons_detail: buildDonsDetailHtml(donsDetail),
