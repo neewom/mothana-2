@@ -6,17 +6,17 @@ import { fetchAllRows } from '../lib/fetchAllRows'
 import { DEFAULT_CERFA_TEMPLATES } from '../lib/defaultCerfaTemplates'
 import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS, DEFAULT_CARTE_ADHERENT_NOM } from '../lib/defaultCarteAdherentTemplate'
 import { slugifyUrl } from '../lib/organisationAssets'
-import { isRecette, isStagingSupabaseProject, getCanonicalSiteUrl } from '../lib/environment'
+import { isRecette, isStagingSupabaseProject } from '../lib/environment'
 import { seedDemoOrganisationData } from '../lib/demoOrgSeed'
 import { downloadCsv } from '../lib/csvExport'
 import { cn } from '../lib/utils'
 import ScrollShadowX from '../components/ScrollShadowX'
+import AdminAccountsManager from '../components/AdminAccountsManager'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Badge } from '../components/ui/badge'
 import { Table, TableBody, TableRow, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
 
@@ -44,15 +44,6 @@ interface OrgRow {
   nb_dons: number
   nb_admins: number
   total_dons: number
-}
-
-interface AdminRow {
-  utilisateur_id: string
-  nom_affiche: string | null
-  email: string
-  role: string
-  created_at: string
-  is_banned: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -110,18 +101,6 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
   const [initialAdherentsActifs, setInitialAdherentsActifs] = useState(true)
   const isDirty = nom !== initialNom || donsActifs !== initialDonsActifs || adherentsActifs !== initialAdherentsActifs
 
-  // Admins section (fusionnée depuis l'ex-AdminsModal)
-  const [admins, setAdmins] = useState<AdminRow[]>([])
-  const [adminsLoading, setAdminsLoading] = useState(false)
-  const [adminsError, setAdminsError] = useState<string | null>(null)
-  const [showDisabledAdmins, setShowDisabledAdmins] = useState(false)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [newNom, setNewNom] = useState('')
-  const [newEmail, setNewEmail] = useState('')
-  const [addError, setAddError] = useState<string | null>(null)
-  const [adding, setAdding] = useState(false)
-  const [banningId, setBanningId] = useState<string | null>(null)
-
   useEffect(() => {
     if (open) {
       setNom(org?.nom ?? '')
@@ -131,87 +110,8 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
       setAdherentsActifs(org?.fonctionnalites_activees.adherents ?? true)
       setInitialAdherentsActifs(org?.fonctionnalites_activees.adherents ?? true)
       setError(null)
-      setShowAddForm(false)
-      setNewNom('')
-      setNewEmail('')
-      setAddError(null)
-      setAdminsError(null)
-      setShowDisabledAdmins(false)
-      if (org) fetchAdmins(org.id)
     }
   }, [open, org])
-
-  async function fetchAdmins(orgId: string) {
-    setAdminsLoading(true)
-    setAdminsError(null)
-    const { data, error: err } = await supabase.rpc('get_org_admins', { org_id: orgId })
-    if (err) {
-      setAdminsError(err.message)
-    } else {
-      setAdmins((data ?? []) as AdminRow[])
-    }
-    setAdminsLoading(false)
-  }
-
-  async function handleAddAdmin(e: FormEvent) {
-    e.preventDefault()
-    if (!org) return
-    setAddError(null)
-    setAdding(true)
-
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData.session?.access_token ?? ''
-
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/create-admin`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        apikey: SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({ nom: newNom, email: newEmail, organisation_id: org.id, site_url: getCanonicalSiteUrl() }),
-    })
-    const json = await res.json()
-    setAdding(false)
-
-    if (!res.ok) {
-      setAddError(json.error ?? 'Erreur lors de la création du compte')
-      return
-    }
-
-    setShowAddForm(false)
-    setNewNom('')
-    setNewEmail('')
-    onAdminAdded(newEmail)
-    fetchAdmins(org.id)
-  }
-
-  async function handleToggleBan(admin: AdminRow) {
-    if (!org) return
-    setBanningId(admin.utilisateur_id)
-
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData.session?.access_token ?? ''
-
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/disable-admin`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        apikey: SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({ utilisateur_id: admin.utilisateur_id, ban: !admin.is_banned }),
-    })
-    setBanningId(null)
-
-    if (!res.ok) {
-      const json = await res.json()
-      setAdminsError(json.error ?? 'Erreur lors de la mise à jour du compte')
-      return
-    }
-
-    fetchAdmins(org.id)
-  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -275,9 +175,6 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
     onSaved(isEdit ? `« ${nom} » mise à jour` : `« ${nom} » créée`)
     onClose()
   }
-
-  const disabledAdminsCount = admins.filter((a) => a.is_banned).length
-  const visibleAdmins = showDisabledAdmins ? admins : admins.filter((a) => !a.is_banned)
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
@@ -360,124 +257,13 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
           </form>
 
           {isEdit && org && (
-            <div className="space-y-4 border-t border-paper-border px-6 py-5">
-              <h3 className="font-registre text-sm font-semibold text-ink">Comptes admin</h3>
-
-              {adminsError && (
-                <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">{adminsError}</div>
-              )}
-
-              {adminsLoading ? (
-                <div className="py-6 text-center font-registre text-sm text-ink-faint">Chargement…</div>
-              ) : admins.length === 0 ? (
-                <div className="py-6 text-center font-registre text-sm text-ink-faint">Aucun compte admin pour cette organisation.</div>
-              ) : (
-                <>
-                  {visibleAdmins.length === 0 ? (
-                    <div className="py-6 text-center font-registre text-sm text-ink-faint">Tous les comptes sont désactivés.</div>
-                  ) : (
-                    <ul className="divide-y divide-paper-border-muted rounded-sm border border-paper-border">
-                      {visibleAdmins.map((admin) => (
-                        <li key={admin.utilisateur_id} className="flex items-center justify-between px-4 py-3">
-                          <div className="min-w-0">
-                            <p className="truncate font-registre text-sm font-medium text-ink">
-                              {admin.nom_affiche ?? '—'}
-                            </p>
-                            <p className="truncate font-registre text-xs text-ink-faint">{admin.email}</p>
-                          </div>
-                          <div className="ml-4 flex flex-shrink-0 items-center gap-3">
-                            {admin.is_banned && <Badge variant="stamp">Désactivé</Badge>}
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleToggleBan(admin)}
-                              disabled={banningId === admin.utilisateur_id}
-                            >
-                              {banningId === admin.utilisateur_id
-                                ? '…'
-                                : admin.is_banned
-                                ? 'Réactiver'
-                                : 'Désactiver'}
-                            </Button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {disabledAdminsCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowDisabledAdmins((prev) => !prev)}
-                      className="font-registre-mono text-xs font-medium text-stamp hover:text-stamp/80"
-                    >
-                      {showDisabledAdmins
-                        ? 'Masquer les comptes désactivés'
-                        : `Afficher les comptes désactivés (${disabledAdminsCount})`}
-                    </button>
-                  )}
-                </>
-              )}
-
-              {showAddForm ? (
-                <form onSubmit={handleAddAdmin} className="space-y-3 rounded-sm border border-paper-border bg-paper p-4">
-                  <p className="font-registre-mono text-xs font-semibold uppercase tracking-wide text-ink-faint">Nouveau compte admin</p>
-                  {addError && (
-                    <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-3 py-2 font-registre text-xs text-stamp">{addError}</div>
-                  )}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="admin-nom">
-                      Nom affiché <span className="text-stamp">*</span>
-                    </Label>
-                    <Input
-                      id="admin-nom"
-                      type="text"
-                      required
-                      value={newNom}
-                      onChange={(e) => setNewNom(e.target.value)}
-                      placeholder="Prénom Nom"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="admin-email">
-                      Email <span className="text-stamp">*</span>
-                    </Label>
-                    <Input
-                      id="admin-email"
-                      type="email"
-                      required
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      placeholder="admin@exemple.fr"
-                    />
-                    <p className="text-xs text-ink-faint">Un email d'invitation sera envoyé pour définir le mot de passe.</p>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-1">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => { setShowAddForm(false); setAddError(null) }}
-                    >
-                      Annuler
-                    </Button>
-                    <Button type="submit" size="sm" disabled={adding}>
-                      {adding ? 'Envoi…' : "Envoyer l'invitation"}
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-paper-border py-3 font-registre text-sm font-medium text-stamp hover:bg-stamp/[0.04]"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                  Ajouter un admin
-                </button>
-              )}
+            <div className="border-t border-paper-border px-6 py-5">
+              <AdminAccountsManager
+                organisationId={org.id}
+                showRoleBadge
+                emptyLabel="Aucun compte pour cette organisation."
+                onAccountAdded={onAdminAdded}
+              />
             </div>
           )}
         </div>

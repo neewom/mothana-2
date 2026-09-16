@@ -5,7 +5,7 @@ export type AuthState =
   | { type: 'loading' }
   | { type: 'unauthenticated' }
   | { type: 'super_admin'; user: User }
-  | { type: 'admin'; user: User; organisationId: string }
+  | { type: 'admin'; user: User; organisationId: string; role: 'admin' | 'contributeur' }
   | { type: 'benevole'; organisationId: string }
 
 export interface AuthContextValue {

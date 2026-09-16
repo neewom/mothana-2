@@ -6,12 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-function inviteAdminEmailHtml(nom: string, organisationNom: string, actionLink: string): string {
+function inviteAdminEmailHtml(nom: string, organisationNom: string, actionLink: string, role: 'admin' | 'contributeur'): string {
+  const roleLabel = role === 'admin' ? 'administrateur' : 'contributeur'
   return `<!doctype html><html><body style="font-family: ui-sans-serif, system-ui, sans-serif; background: #f8fafc; padding: 32px;">
   <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e2e8f0;">
     <h1 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">Bienvenue sur Samakan</h1>
     <p style="color: #475569; font-size: 14px; line-height: 1.5;">Bonjour ${nom},</p>
-    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Un compte administrateur vient d'être créé pour vous, pour l'organisation <strong>${organisationNom}</strong>. Cliquez sur le bouton ci-dessous pour définir votre mot de passe et accéder à votre espace.</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Un compte ${roleLabel} vient d'être créé pour vous, pour l'organisation <strong>${organisationNom}</strong>. Cliquez sur le bouton ci-dessous pour définir votre mot de passe et accéder à votre espace.</p>
     <p style="margin: 24px 0;">
       <a href="${actionLink}" style="background: #4f46e5; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Définir mon mot de passe</a>
     </p>
@@ -41,18 +42,11 @@ Deno.serve(async (req) => {
     const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
     const isSuperAdmin = payload?.app_metadata?.is_super_admin === true
 
-    if (!isSuperAdmin) {
-      return new Response(
-        JSON.stringify({ error: 'Accès refusé — réservé aux super-admins' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
     const { nom, email, organisation_id, site_url } = await req.json()
 
-    if (!nom || !email || !organisation_id || !site_url) {
+    if (!nom || !email || !site_url || (isSuperAdmin && !organisation_id)) {
       return new Response(
-        JSON.stringify({ error: 'Paramètres manquants : nom, email, organisation_id, site_url requis' }),
+        JSON.stringify({ error: 'Paramètres manquants : nom, email, site_url requis (organisation_id également pour un super-admin)' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
@@ -64,10 +58,38 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     })
 
+    // Super-admin : crée un admin dans l'organisation de son choix.
+    // Admin : crée un contributeur, forcément dans sa propre organisation
+    // (organisation_id du body ignoré, jamais fait confiance au client ici).
+    let targetOrganisationId: string
+    let targetRole: 'admin' | 'contributeur'
+
+    if (isSuperAdmin) {
+      targetOrganisationId = organisation_id
+      targetRole = 'admin'
+    } else {
+      const { data: callerProfil } = await adminClient
+        .from('profils_organisation')
+        .select('organisation_id, role')
+        .eq('utilisateur_id', payload.sub)
+        .eq('role', 'admin')
+        .single()
+
+      if (!callerProfil) {
+        return new Response(
+          JSON.stringify({ error: 'Accès refusé — réservé aux super-admins et aux admins' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+
+      targetOrganisationId = callerProfil.organisation_id
+      targetRole = 'contributeur'
+    }
+
     const { data: orgData, error: orgError } = await adminClient
       .from('organisations')
       .select('nom')
-      .eq('id', organisation_id)
+      .eq('id', targetOrganisationId)
       .single()
 
     if (orgError || !orgData) {
@@ -95,16 +117,16 @@ Deno.serve(async (req) => {
     const utilisateur_id = linkData.user.id
     const actionLink = linkData.properties.action_link
 
-    // Insert the admin profile linked to the organisation
+    // Insert the admin/contributeur profile linked to the organisation
     const { data: profil, error: profilError } = await adminClient
       .from('profils_organisation')
       .insert({
         utilisateur_id,
-        organisation_id,
+        organisation_id: targetOrganisationId,
         nom_affiche: nom,
-        role: 'admin',
+        role: targetRole,
       })
-      .select('id, utilisateur_id, nom_affiche, organisation_id')
+      .select('id, utilisateur_id, nom_affiche, organisation_id, role')
       .single()
 
     if (profilError || !profil) {
@@ -117,7 +139,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    const emailResult = await sendViaResend(email, 'Votre accès administrateur Samakan', inviteAdminEmailHtml(nom, orgData.nom, actionLink))
+    const emailResult = await sendViaResend(email, 'Votre accès Samakan', inviteAdminEmailHtml(nom, orgData.nom, actionLink, targetRole))
 
     if (!emailResult.ok) {
       console.error('Resend error:', emailResult.detail)
@@ -131,6 +153,7 @@ Deno.serve(async (req) => {
         nom_affiche: profil.nom_affiche,
         email,
         organisation_id: profil.organisation_id,
+        role: profil.role,
         email_envoye: emailResult.ok,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
