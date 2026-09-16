@@ -1,6 +1,8 @@
 # Session 2026-09-15 → 2026-09-16 — Cadrage backlog, super-admin sans blocages, batch 555
 
-**Statut : terminé.** Session à cheval sur deux jours (démarrée le 2026-09-15, batch dev + merges conclus le 2026-09-16). Tour de cadrage complet du backlog Trello, diagnostic + fix de la fidélité visuelle de l'import Cerfa, dev complet du sujet "super-admin sans blocages Supabase" (promu en prod), puis un batch de 4 cartes issues du cadrage.
+**Statut : partie 1 terminée** (batch 555 clos le 2026-09-16 avant `/clear`). **Partie 2 ci-dessous** (nouvelle session le même jour, après `/clear`) : cadrage landing page (reporté) + dev "page paramètres admin" / rôle contributeur, PR #186 ouverte, pas encore mergée.
+
+Session à cheval sur deux jours (démarrée le 2026-09-15, batch dev + merges conclus le 2026-09-16). Tour de cadrage complet du backlog Trello, diagnostic + fix de la fidélité visuelle de l'import Cerfa, dev complet du sujet "super-admin sans blocages Supabase" (promu en prod), puis un batch de 4 cartes issues du cadrage.
 
 ## Réalisé
 
@@ -52,3 +54,46 @@ Aucun.
 - **Fidélité visuelle Cerfa** : le tableau `{{dons_detail}}` reste au format fixe (limite acceptée, pas de rework du moteur de template pour l'instant).
 - **Promotion prod sans `pg_dump`** : accepté pour des migrations fonctions/policies uniquement (pas de DDL touchant des données) — sauvegarde manuelle des définitions comme filet de sécurité.
 - **Nouvelle règle de fonctionnement (mémorisée)** : au sein d'un batch dev déjà confirmé, l'annonce d'un merge PR par PR vaut autorisation d'enchaîner directement (routine + branche suivante) sans re-demander.
+
+---
+
+## Partie 2 — 2026-09-16 (après `/clear`)
+
+### Réalisé
+
+**Nouvelle carte Trello "Landing page"** (ajoutée par l'utilisateur, hors session) — cadrage entamé mais **explicitement reporté** : trouvé en explorant le code qu'une page `/decouvrir` existe déjà (hero + parcours fonctionnalités, liée seulement depuis `/aide`) ; utilisateur a choisi de s'en inspirer pour le contenu (pas de réutilisation telle quelle, pas de refonte from scratch) mais a jugé le scope des sections encore trop flou tant que la commercialisation n'est pas posée — carte laissée en Backlog, non cadrée, à reprendre plus tard.
+
+**Carte "admin : ajouter une page paramètres admin"** — dev complet, PR [#186](https://github.com/neewom/mothana-2/pull/186) ouverte (dev ← feat/admin-parametres-contributeur), **pas encore mergée**.
+- Nouvelle page `/admin/parametres/compte` : nom affiché, changement d'email (double lien de confirmation ancienne+nouvelle adresse via `generateLink`/Resend, pattern existant du projet — pas d'envoi auto Supabase), réinitialisation mot de passe (réutilise `request-password-reset`), préférence `notif_demandes_adhesion` (colonne posée, logique d'envoi laissée à la carte séparée "demande d'adhésion : email aux admins").
+- **Modèle de rôle simplifié en cours de plan mode** : le cadrage initial de la carte ("admin_root" par promotion, super-admin promeut un admin en admin_root) a été jugé trop lourd à développer par l'utilisateur une fois le plan présenté — remplacé par un modèle plus simple sans promotion : `admin` inchangé (toujours créé par le super-admin), nouveau rôle `contributeur` créé par un admin, mêmes droits fonctionnels, aucun droit de gestion des comptes (confirmé explicitement, pas même en lecture).
+- **Faille RLS préexistante trouvée et fermée** (pas un bug de cette feature, mais un risque activé par l'ajout d'une 2e valeur de `role`) : policy `profils_org_all_admin` (catch-all, sans `WITH CHECK`) permettait en théorie à un admin de modifier n'importe quelle colonne — y compris `role` — de n'importe quelle ligne de son organisation via l'API REST directe. Fermée par policy self-update + `REVOKE`/`GRANT` colonne par colonne + trigger de défense en profondeur. Vérifié en staging : auto-promotion et insert direct bloqués en 403.
+- **Découverte critique pendant l'exploration** : `resolveOrganisationId.ts` filtrait en dur `role = 'admin'`, ce qui aurait bloqué le premier compte contributeur sur 9 Edge Functions (reçus, mailing, PIN bénévole...) — fix appliqué et déployé avant toute création de contributeur.
+- `AdminAccountsManager` extrait de `SuperAdminPage` (composant partagé, ~150 lignes dédupliquées), réutilisé par la nouvelle page et par `SuperAdminPage` (qui affiche désormais admin + contributeur avec badge de rôle).
+- Testé sur staging (Playwright, via l'instance `npm run dev` permanente déjà en cours) : création/désactivation/réactivation d'un contributeur, toggle préférence, changement d'email (requête 200, non vérifié jusqu'à réception réelle de l'email), écrans desktop + mobile (375px). Comptes de test créés sur l'organisation "Association Démo Staging" désactivés après vérification (pas supprimés, pas d'accès service_role local pour le faire proprement).
+
+### Reste à faire
+
+- PR #186 à tester/merger par l'utilisateur.
+- Une fois mergée : routine post-merge (checkout `dev`, déplacer la carte Trello vers Done, entrée `docs/journal-avancement.md`).
+- Carte "Landing page" à reprendre pour cadrage quand la commercialisation sera plus avancée.
+
+### Blockers
+
+Aucun.
+
+### Décisions
+
+- **Rôle `contributeur` plutôt qu'`admin_root`** : modèle sans promotion (rôle fixé à la création selon qui crée le compte) préféré par l'utilisateur à la mécanique de promotion initialement cadrée — plus simple à développer et à raisonner.
+- **Gestion des comptes 100% réservée à l'admin** : un contributeur n'a aucun accès à la section "Comptes", ni en lecture ni en écriture (confirmé explicitement, écarte une lecture plus permissive de "mêmes droits que l'admin hormis la création").
+- **Landing page reportée** : pas de cadrage tant que les sections de contenu dépendent de décisions de commercialisation pas encore prises.
+
+### Investigation post-PR : erreur "Unexpected token '<'" en testant depuis le téléphone (2026-09-16)
+
+Utilisateur bloqué en testant "Ajouter un contributeur" depuis son téléphone via l'IP Tailscale (`100.107.87.80:5173`, réseau Tailscale confirmé — `tailscale status`, tailnet `tail5a5a34.ts.net`). Root cause isolée par tests directs (curl répétés, contrôlés) :
+- **Cause réelle, à deux niveaux** :
+  1. Supabase Auth (`generateLink`, utilisé par `create-admin`) rejette silencieusement (réponse HTML au lieu de JSON) tout `redirectTo` dont l'hôte est une IP littérale — confirmé déterministe (3/3 échecs avec IP, 3/3 succès avec nom d'hôte), y compris après ajout de l'IP exacte à l'allowlist Supabase. Un nom d'hôte (testé : `mac-mini-de-vichith.local`, puis le nom Tailscale MagicDNS) fonctionne.
+  2. Vite lui-même bloque le nom Tailscale en Host header (protection anti DNS-rebinding, `server.allowedHosts` par défaut) — nécessiterait un ajout dans `vite.config.ts` **et** un redémarrage de l'instance `npm run dev` permanente pour prendre effet. Utilisateur a choisi de ne pas aller jusque-là pour l'instant (option "je testerai autrement").
+- **Pas un bug introduit par cette PR** : le flux `create-admin` existant (`SuperAdminPage`, avant cette session) aurait le même comportement testé dans les mêmes conditions (IP littérale).
+- **Changement laissé en place sur le projet Supabase staging** : allowlist Auth (`uri_allow_list`) mise à jour pour remplacer l'IP par le nom Tailscale MagicDNS (`http://mac-mini-de-vichith.tail5a5a34.ts.net:5173/**`), en plus de `localhost:5173` et `test.samakan.fr` déjà présents — utile si le sujet `allowedHosts` Vite est repris plus tard, sans effet tant que ce n'est pas fait.
+- **6 comptes de test créés pendant le diagnostic** (sur "Association Démo Staging") désactivés en fin d'investigation.
+- **Reste à faire pour tester réellement la création de compte depuis le téléphone** : soit ajouter `mac-mini-de-vichith.tail5a5a34.ts.net` à `server.allowedHosts` dans `vite.config.ts` + redémarrer l'instance `npm run dev` (accord explicite requis, jamais fait sans demander), soit tester via `localhost:5173` sur la machine, soit attendre la promotion sur `test.samakan.fr`.
