@@ -164,10 +164,9 @@ Le board Trello est la source de vérité unique du backlog (hors cartes "Action
 3. **Support multi-organisation pour un compte admin** — cadré, dev reporté à plus tard (décision explicite utilisateur). [Trello](https://trello.com/c/WtLrSLGW)
 4. **Dette technique : factoriser CampagneCourrierPage / CampagneMailingPage** — cadré (2026-09-13), dev reporté au 3ᵉ signal de duplication. [Trello](https://trello.com/c/RBsb8fbs)
 5. **Demande d'adhésion : email aux admins à la soumission** — cadré (2026-09-15). [Trello](https://trello.com/c/eHtWmxYK)
-6. **`AGENTS.md`/`CLAUDE.md` portables** (switch Codex ↔ Claude Code, pour permettre un handoff en cas de quota épuisé) — cadré (2026-09-16), dev en cours cette même session. [Trello](https://trello.com/c/0XmhK0iv)
-7. **Priorité 5 — Export comptable enrichi** — roadmap lointaine. [Trello](https://trello.com/c/W3GCYUOt)
-8. **Priorité 5 — Brique événements/coupons + portefeuille virtuel** (Pagode Coupon) — prérequis (inspection projet Supabase "pagode-coupon") avant cadrage technique. [Trello](https://trello.com/c/C9A5B9jr)
-9. **Priorité 5 — Gestion abonnements/plans** — rattachée à la liste Trello "Business plan — Commercialisation", roadmap lointaine. [Trello](https://trello.com/c/cfKF8BNw)
+6. **Priorité 5 — Export comptable enrichi** — roadmap lointaine. [Trello](https://trello.com/c/W3GCYUOt)
+7. **Priorité 5 — Brique événements/coupons + portefeuille virtuel** (Pagode Coupon) — prérequis (inspection projet Supabase "pagode-coupon") avant cadrage technique. [Trello](https://trello.com/c/C9A5B9jr)
+8. **Priorité 5 — Gestion abonnements/plans** — rattachée à la liste Trello "Business plan — Commercialisation", roadmap lointaine. [Trello](https://trello.com/c/cfKF8BNw)
 
 ---
 
