@@ -73,9 +73,9 @@ Aucun.
 
 ### Reste à faire
 
-- PR #186 à tester/merger par l'utilisateur.
-- Une fois mergée : routine post-merge (checkout `dev`, déplacer la carte Trello vers Done, entrée `docs/journal-avancement.md`).
 - Carte "Landing page" à reprendre pour cadrage quand la commercialisation sera plus avancée.
+- Vérifier que le dialogue d'approbation `@AGENTS.md` s'affiche bien à la prochaine ouverture du projet (voir Partie 3) — utilisateur va redémarrer l'instance au prochain `/clear`.
+- Tester réellement la création de compte contributeur depuis le téléphone (bloqué par le sujet IP littérale/Vite `allowedHosts`, cf. investigation ci-dessous — laissé de côté par choix explicite de l'utilisateur).
 
 ### Blockers
 
@@ -97,3 +97,29 @@ Utilisateur bloqué en testant "Ajouter un contributeur" depuis son téléphone 
 - **Changement laissé en place sur le projet Supabase staging** : allowlist Auth (`uri_allow_list`) mise à jour pour remplacer l'IP par le nom Tailscale MagicDNS (`http://mac-mini-de-vichith.tail5a5a34.ts.net:5173/**`), en plus de `localhost:5173` et `test.samakan.fr` déjà présents — utile si le sujet `allowedHosts` Vite est repris plus tard, sans effet tant que ce n'est pas fait.
 - **6 comptes de test créés pendant le diagnostic** (sur "Association Démo Staging") désactivés en fin d'investigation.
 - **Reste à faire pour tester réellement la création de compte depuis le téléphone** : soit ajouter `mac-mini-de-vichith.tail5a5a34.ts.net` à `server.allowedHosts` dans `vite.config.ts` + redémarrer l'instance `npm run dev` (accord explicite requis, jamais fait sans demander), soit tester via `localhost:5173` sur la machine, soit attendre la promotion sur `test.samakan.fr`.
+
+---
+
+## Partie 3 — 2026-09-16 (fin de session)
+
+### Réalisé
+
+**PR #186 mergée et validée par l'utilisateur** (plan de test fourni avant merge : infos perso, changement email, reset mdp, préférences, cycle de vie contributeur, vue super-admin). Routine post-merge exécutée :
+- `checkout dev` + `pull` — rattrapage au passage d'un commit de notes de session resté sur la branche feature après le merge (cherry-pické sur `dev`).
+- Carte Trello "admin : ajouter une page paramètres admin" déplacée en Done, Backlog revérifié (rien de nouveau).
+- Entrée `docs/journal-avancement.md` ajoutée (dev + investigation post-merge IP Tailscale).
+
+**Sujet `AGENTS.md` relancé par l'utilisateur**, explicitement dans l'optique du handoff (quota Claude Code proche de 80% évoqué comme déclencheur). Discussion approfondie sur le suivi d'usage avant d'en arriver là (voir aussi mémoires `feedback_agents_md_sync_load_bearing_rules`, `project_agents_md_cadrage`) :
+- Écarté : statusline (rendu terminal seulement, jamais dans mon contexte), hooks lisant le quota via un outil tiers non officiel (`claude-quota`, exige une auth OAuth séparée — jugé disproportionné par l'utilisateur).
+- Retenu : partage manuel ponctuel de `/usage` par l'utilisateur (fait une fois en cours de session, 59% fenêtre 5h / 36% semaine à ce moment-là).
+- Cadrage puis dev `AGENTS.md` fait dans la foulée (même session, confirmation "go") : `AGENTS.md` créé à la racine (~90% de l'ancien `CLAUDE.md`, dé-Claude-ifié), `CLAUDE.md` réduit à `@AGENTS.md` + section Claude-only (mémoire persistante, skill webapp-testing). Carte Trello cadrée puis déplacée directement en Done (changement doc-only, pas de PR). Détail complet des décisions : `docs/journal-avancement.md` + mémoire `project_agents_md_cadrage`.
+- **Non vérifié à ce stade** : le mécanisme `@import` lui-même — utilisateur va redémarrer l'instance Claude Code au prochain `/clear` pour vérifier que le dialogue d'approbation s'affiche.
+
+### Blockers
+
+Aucun.
+
+### Décisions
+
+- **Pas d'automatisation du suivi de quota** : le risque (auth séparée, endpoint non documenté) a été jugé disproportionné par rapport au besoin — partage manuel de `/usage` retenu à la place.
+- **`AGENTS.md` : contenu durable de la mémoire répliqué en texte statique**, pas de MCP ni d'outil de mémoire partagée tiers — maintenance manuelle assumée (nouvelle règle mémorisée pour ne pas avoir à le redemander).
