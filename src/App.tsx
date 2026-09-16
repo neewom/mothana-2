@@ -27,6 +27,7 @@ import ParametresOrganisationPage from './pages/ParametresOrganisationPage'
 import ParametresFiscalPage from './pages/ParametresFiscalPage'
 import ParametresAdherentsPage from './pages/ParametresAdherentsPage'
 import ParametresSuiviPage from './pages/ParametresSuiviPage'
+import ParametresCompteAdminPage from './pages/ParametresCompteAdminPage'
 import SuperAdminLayout from './pages/SuperAdminLayout'
 import SuperAdminPage from './pages/SuperAdminPage'
 
@@ -68,6 +69,7 @@ function App() {
             <Route path="parametres" element={<ParametresOrganisationPage />} />
             <Route path="parametres/fiscal" element={<ParametresFiscalPage />} />
             <Route path="parametres/suivi" element={<ParametresSuiviPage />} />
+            <Route path="parametres/compte" element={<ParametresCompteAdminPage />} />
           </Route>
         </Route>
 

@@ -1,6 +1,8 @@
 -- Ce fichier est à exécuter manuellement dans le Supabase SQL Editor.
 -- Il crée une fonction PostgreSQL sécurisée (security definer) qui retourne
--- la liste des admins d'une organisation, réservée aux super-admins.
+-- la liste des comptes (admin + contributeur) d'une organisation, réservée
+-- aux super-admins et à l'admin de cette organisation (cf.
+-- contributeur_role.sql — un contributeur n'a pas ce droit).
 
 create or replace function get_org_admins(org_id uuid)
 returns table(
@@ -15,8 +17,10 @@ language plpgsql
 security definer
 as $$
 begin
-  -- Réservé aux super-admins
-  if not ((auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true) then
+  if not (
+    (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
+    or (current_user_role() = 'admin' and current_user_organisation_id() = org_id)
+  ) then
     raise exception 'Unauthorized';
   end if;
   return query
@@ -30,7 +34,7 @@ begin
     from profils_organisation po
     join auth.users au on au.id = po.utilisateur_id
     where po.organisation_id = org_id
-      and po.role = 'admin'
+      and po.role in ('admin', 'contributeur')
     order by po.created_at asc;
 end;
 $$;

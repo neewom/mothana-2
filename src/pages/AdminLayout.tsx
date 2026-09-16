@@ -155,6 +155,7 @@ function buildNavItems(flags: FonctionnalitesActivees): NavEntry[] {
       { label: 'Fiscalité', to: '/admin/parametres/fiscal' },
       ...(flags.adherents ? [{ label: 'Adhérents', to: '/admin/parametres/adherents' }] : []),
       { label: 'Historique', to: '/admin/parametres/suivi' },
+      { label: 'Mon compte', to: '/admin/parametres/compte' },
     ],
   })
 

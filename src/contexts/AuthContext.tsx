@@ -16,14 +16,20 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function fetchOrganisationId(userId: string): Promise<string | null> {
+interface AdminProfil {
+  organisationId: string
+  role: 'admin' | 'contributeur'
+}
+
+async function fetchAdminProfil(userId: string): Promise<AdminProfil | null> {
   const { data, error } = await supabase
     .from('profils_organisation')
-    .select('organisation_id')
+    .select('organisation_id, role')
     .eq('utilisateur_id', userId)
     .single()
   if (error || !data) return null
-  return (data as { organisation_id: string }).organisation_id
+  const row = data as { organisation_id: string; role: 'admin' | 'contributeur' }
+  return { organisationId: row.organisation_id, role: row.role }
 }
 
 async function isOrganisationArchived(organisationId: string): Promise<boolean> {
@@ -89,11 +95,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Admin: resolve organisation via profils_organisation
-        const organisationId = await fetchOrganisationId(user.id)
+        const adminProfil = await fetchAdminProfil(user.id)
         if (!cancelled) {
           setAuth(
-            organisationId
-              ? { type: 'admin', user, organisationId }
+            adminProfil
+              ? { type: 'admin', user, organisationId: adminProfil.organisationId, role: adminProfil.role }
               : { type: 'unauthenticated' }
           )
         }
@@ -128,11 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!cancelled) setAuth({ type: 'super_admin', user: session.user })
           return
         }
-        const organisationId = await fetchOrganisationId(session.user.id)
+        const adminProfil = await fetchAdminProfil(session.user.id)
         if (!cancelled) {
           setAuth(
-            organisationId
-              ? { type: 'admin', user: session.user, organisationId }
+            adminProfil
+              ? { type: 'admin', user: session.user, organisationId: adminProfil.organisationId, role: adminProfil.role }
               : { type: 'unauthenticated' }
           )
         }
@@ -160,16 +166,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { error: null, authType: 'super_admin' }
         }
 
-        const organisationId = await fetchOrganisationId(data.user.id)
-        if (!organisationId) {
+        const adminProfil = await fetchAdminProfil(data.user.id)
+        if (!adminProfil) {
           await supabase.auth.signOut()
           return { error: 'Aucune organisation associée à ce compte.' }
         }
-        if (await isOrganisationArchived(organisationId)) {
+        if (await isOrganisationArchived(adminProfil.organisationId)) {
           await supabase.auth.signOut()
           return { error: 'Cette organisation a été archivée.' }
         }
-        setAuth({ type: 'admin', user: data.user, organisationId })
+        setAuth({ type: 'admin', user: data.user, organisationId: adminProfil.organisationId, role: adminProfil.role })
         return { error: null, authType: 'admin' }
       } finally {
         suppressListenerRef.current = false
