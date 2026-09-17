@@ -97,6 +97,11 @@ Référence complète et à jour (toutes les tables, colonnes, contraintes) : `d
 - **Pas de `any`** sauf cas exceptionnel justifié en commentaire
 - **Réutilisation** : composants partagés entre écrans (formulaires, modales, autocomplete)
 
+**Avant tout push** :
+- `tsc -b` (pas `tsc --noEmit` seul, insuffisant sur ce projet — tsconfig racine vide, `-b` matche la commande de build Vercel)
+- `npm test` (Vitest, `src/lib/participantSearch.test.ts` en référence) pour tout changement touchant une fonction couverte par des tests unitaires
+- Lint ciblé sur les fichiers touchés au minimum — le lint global reste rouge sur 6 erreurs préexistantes hors périmètre (`DonFichiers.tsx`, `TemplateRecuEditorModal.tsx`), pas un bloqueur pour une PR qui n'y touche pas
+
 ---
 
 ## Sécurité — règles absolues
