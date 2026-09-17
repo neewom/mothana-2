@@ -62,6 +62,7 @@ Aucun.
 - Développement sur `fix/recherche-donateur-benevole` : remplacement du filtre local par `filterParticipants` partagé.
 - Vitest ajouté comme première infrastructure de tests unitaires du dépôt (`npm test`) ; 6 tests passent. Build production et lint ciblé passent.
 - Vérification fonctionnelle sur l'instance Vite permanente avec l'organisation « Association Démo Staging » : deux ordres, recherche partielle et terme absent conformes ; repli vers les adhérents préservé. Aucune donnée créée ou modifiée.
+- Retour utilisateur « Guérin » face à « Nicolas Guerin » traité dans la même PR #188 : normalisation des diacritiques et des séparateurs usuels (apostrophes/tirets) dans le helper partagé. Suite portée à 14 tests, build et lint ciblé toujours verts. Vérification UI équivalente réussie avec « Sômchai » face à « Somchai Sombath » ; le jeu de données staging ne contient pas Nicolas Guerin.
 
 ### Reste à faire
 

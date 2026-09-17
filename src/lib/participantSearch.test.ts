@@ -46,4 +46,24 @@ describe('participant search', () => {
 
     expect(filterParticipants([marieMartin, jeanDupont], 'Dupont Jean')).toEqual([jeanDupont])
   })
+
+  it.each(['Guerin', 'Guérin', 'guerin nicolas', 'Nicolas Guérin'])(
+    'ignores diacritics with "%s"',
+    (search) => {
+      const nicolasGuerin = participant('Guerin', 'Nicolas')
+
+      expect(matchesParticipantSearch(nicolasGuerin, search)).toBe(true)
+    },
+  )
+
+  it.each(["OConnor", "O'Connor", 'Jean Pierre', 'Jean-Pierre'])(
+    'ignores common name separators with "%s"',
+    (search) => {
+      const separatedName = search.toLowerCase().includes('connor')
+        ? participant("O'Connor", 'Liam')
+        : participant('Martin', 'Jean-Pierre')
+
+      expect(matchesParticipantSearch(separatedName, search)).toBe(true)
+    },
+  )
 })
