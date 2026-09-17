@@ -24,7 +24,7 @@ export async function resolveOrganisationId(
     .from('profils_organisation')
     .select('organisation_id, role')
     .eq('utilisateur_id', user.id)
-    .eq('role', 'admin')
+    .in('role', ['admin', 'contributeur'])
     .single()
 
   if (profilOrg) {

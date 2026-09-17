@@ -496,7 +496,7 @@ export default function ParametresOrganisationPage() {
                     <img src={asset.url} alt={asset.libelle} className="max-h-full max-w-full object-contain" />
                   </div>
                   <p className="mb-2 truncate font-registre-mono text-[11px] text-stamp">{`{{asset_${asset.identifiant}}}`}</p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-row items-center gap-2 sm:flex-col sm:items-start">
                     <label className="cursor-pointer rounded-sm border border-paper-border px-3 py-1.5 font-registre text-xs font-medium text-ink-muted hover:bg-paper">
                       {assetActionLoading[asset.id] ? 'Envoi…' : 'Remplacer'}
                       <input
@@ -510,14 +510,15 @@ export default function ParametresOrganisationPage() {
                         }}
                       />
                     </label>
-                    <button
+                    <Button
                       type="button"
+                      variant="danger"
+                      size="sm"
                       onClick={() => handleDeleteAsset(asset)}
                       disabled={assetActionLoading[asset.id]}
-                      className="font-registre text-xs font-medium text-stamp hover:underline disabled:opacity-60"
                     >
                       Supprimer
-                    </button>
+                    </Button>
                   </div>
                   {assetError[asset.id] && <p className="mt-1.5 text-xs text-stamp">{assetError[asset.id]}</p>}
                 </div>

@@ -5,6 +5,8 @@ import type { ModePaiement } from '../../types'
 export interface ExistingRef {
   id: string
   personneId?: string
+  /** id_externe de cette référence — utile pour un match trouvé autrement que par id_externe (ex. doublon par nom/email). */
+  idExterne?: string | null
   /** Valeurs actuelles, clés alignées sur les FieldDef.key de l'entité, pour comparaison avec les valeurs importées. */
   values: Record<string, unknown>
 }
@@ -29,7 +31,19 @@ interface ParticipantRow {
   } | null
 }
 
-export async function fetchExistingParticipants(organisationId: string): Promise<Map<string, ExistingRef>> {
+export interface ExistingParticipants {
+  /** Pour le matching par id_externe (comportement historique). */
+  byIdExterne: Map<string, ExistingRef>
+  /**
+   * Tous les participants de l'organisation, y compris sans id_externe —
+   * pour la détection de doublon par nom/prénom/email/téléphone (cf.
+   * buildParticipantsBatch), même besoin que fetchExistingAdherents/
+   * buildAdherentsBatch.
+   */
+  all: ExistingRef[]
+}
+
+export async function fetchExistingParticipants(organisationId: string): Promise<ExistingParticipants> {
   const { data } = await fetchAllRows<ParticipantRow>((from, to) =>
     supabase
       .from('profils_participant')
@@ -37,17 +51,17 @@ export async function fetchExistingParticipants(organisationId: string): Promise
         'id, personne_id, id_externe, notes, personnes(nom, prenom, civilite, email, telephone, adresse, code_postal, ville, pays, nom2, prenom2)'
       )
       .eq('organisation_id', organisationId)
-      .not('id_externe', 'is', null)
       .range(from, to) as unknown as PromiseLike<{ data: ParticipantRow[] | null; error: { message: string } | null }>
   )
 
-  const map = new Map<string, ExistingRef>()
+  const byIdExterne = new Map<string, ExistingRef>()
+  const all: ExistingRef[] = []
   for (const row of data) {
-    if (!row.id_externe) continue
     const p = row.personnes
-    map.set(row.id_externe, {
+    const ref: ExistingRef = {
       id: row.id,
       personneId: row.personne_id,
+      idExterne: row.id_externe,
       values: {
         nom: p?.nom ?? null,
         prenom: p?.prenom ?? null,
@@ -62,9 +76,11 @@ export async function fetchExistingParticipants(organisationId: string): Promise
         prenom2: p?.prenom2 ?? null,
         notes: row.notes ?? null,
       },
-    })
+    }
+    all.push(ref)
+    if (row.id_externe) byIdExterne.set(row.id_externe, ref)
   }
-  return map
+  return { byIdExterne, all }
 }
 
 interface ActiviteRow {

@@ -142,6 +142,16 @@ export default function ParticipantModal({
       onClose()
       return
     } else {
+      const { data: idExterne, error: idExterneErr } = await supabase.rpc('next_participant_id_externe', {
+        p_organisation_id: organisationId,
+      })
+
+      if (idExterneErr) {
+        setError(idExterneErr.message)
+        setSaving(false)
+        return
+      }
+
       // Generate UUIDs client-side to avoid triggering the SELECT policy via RETURNING
       const personneId = generateUUID()
       const profilId = generateUUID()
@@ -178,6 +188,7 @@ export default function ParticipantModal({
           personne_id: personneId,
           organisation_id: organisationId,
           notes: notes || null,
+          id_externe: idExterne,
         })
 
       if (profilErr) {
@@ -192,7 +203,7 @@ export default function ParticipantModal({
         personne_id: personneId,
         organisation_id: organisationId,
         notes: notes || null,
-        id_externe: null,
+        id_externe: idExterne,
         created_at: new Date().toISOString(),
         personnes: {
           id: personneId,

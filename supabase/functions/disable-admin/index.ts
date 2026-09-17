@@ -26,13 +26,6 @@ Deno.serve(async (req) => {
     const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
     const isSuperAdmin = payload?.app_metadata?.is_super_admin === true
 
-    if (!isSuperAdmin) {
-      return new Response(
-        JSON.stringify({ error: 'Accès refusé — réservé aux super-admins' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
     const { utilisateur_id, ban } = await req.json()
 
     if (!utilisateur_id || typeof ban !== 'boolean') {
@@ -48,6 +41,37 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false },
     })
+
+    if (!isSuperAdmin) {
+      // Un admin ne peut désactiver/réactiver qu'un contributeur de sa
+      // propre organisation — jamais un autre admin, jamais lui-même.
+      const { data: callerProfil } = await adminClient
+        .from('profils_organisation')
+        .select('organisation_id')
+        .eq('utilisateur_id', payload.sub)
+        .eq('role', 'admin')
+        .single()
+
+      if (!callerProfil) {
+        return new Response(
+          JSON.stringify({ error: 'Accès refusé — réservé aux super-admins et aux admins' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+
+      const { data: targetProfil } = await adminClient
+        .from('profils_organisation')
+        .select('organisation_id, role')
+        .eq('utilisateur_id', utilisateur_id)
+        .single()
+
+      if (!targetProfil || targetProfil.role !== 'contributeur' || targetProfil.organisation_id !== callerProfil.organisation_id) {
+        return new Response(
+          JSON.stringify({ error: 'Accès refusé' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+    }
 
     // Ban: set a very long ban duration. Unban: set duration to 'none'.
     const ban_duration = ban ? '876000h' : 'none'

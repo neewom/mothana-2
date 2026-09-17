@@ -27,6 +27,7 @@ import ParametresOrganisationPage from './pages/ParametresOrganisationPage'
 import ParametresFiscalPage from './pages/ParametresFiscalPage'
 import ParametresAdherentsPage from './pages/ParametresAdherentsPage'
 import ParametresSuiviPage from './pages/ParametresSuiviPage'
+import ParametresCompteAdminPage from './pages/ParametresCompteAdminPage'
 import SuperAdminLayout from './pages/SuperAdminLayout'
 import SuperAdminPage from './pages/SuperAdminPage'
 
@@ -52,20 +53,23 @@ function App() {
               <Route path="dons" element={<DonsPage />} />
               <Route path="dons-reguliers" element={<DonsReguliersPage />} />
               <Route path="participants" element={<ParticipantsPage />} />
-              <Route path="activites" element={<ActivitesPage />} />
               <Route path="recus" element={<RecusFiscauxPage />} />
               <Route path="comptabilite" element={<ComptabilitePage />} />
             </Route>
             <Route element={<FeatureGuard feature="adherents" />}>
               <Route path="adherents" element={<AdherentsPage />} />
               <Route path="adherents/demandes" element={<DemandesAdhesionPage />} />
-              <Route path="adherents/mailing" element={<CampagneMailingPage />} />
+              <Route path="adherents/campagne-mailing" element={<CampagneMailingPage />} />
               <Route path="adherents/campagne-courrier" element={<CampagneCourrierPage />} />
               <Route path="parametres/adherents" element={<ParametresAdherentsPage />} />
+            </Route>
+            <Route element={<FeatureGuard feature={['dons', 'adherents']} />}>
+              <Route path="activites" element={<ActivitesPage />} />
             </Route>
             <Route path="parametres" element={<ParametresOrganisationPage />} />
             <Route path="parametres/fiscal" element={<ParametresFiscalPage />} />
             <Route path="parametres/suivi" element={<ParametresSuiviPage />} />
+            <Route path="parametres/compte" element={<ParametresCompteAdminPage />} />
           </Route>
         </Route>
 
