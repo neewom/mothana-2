@@ -50,3 +50,30 @@ Aucun.
 
 - **Promotion groupée plutôt que par feature** pour ce batch précis : légitime car les 5 PR étaient toutes déjà validées sur recette, aucune en attente d'approbation — la règle "une feature à la fois" reste la valeur par défaut du projet, ce n'est pas un changement de règle générale.
 - **Handoff = fin de session standard, mais exhaustive** : pas de nouveau mécanisme/outil, juste un niveau de détail plus élevé au moment de l'écrire, en anticipant l'absence de mémoire persistante côté agent receveur.
+
+---
+
+## Partie 2 — reprise Codex : recherche donateur bénévole
+
+### Réalisé
+
+- Routine de début de session exécutée avec succès par Codex à partir d'`AGENTS.md` et de ce fichier : handoff retrouvé sans indication manuelle du chemin, aucune PR ouverte, aucun blocker.
+- Nouvelle carte Trello « pouvoir rechercher les donateurs avec nom et prenom ou prenom et nom » cadrée après inspection : les écrans admin avaient déjà le comportement attendu, seul `BenevolePage` conservait une comparaison de chaîne dépendante de l'ordre. Carte renommée, décrite, étiquetée « cadré », déplacée Backlog → Todo et remontée en tête des sujets de développement.
+- Développement sur `fix/recherche-donateur-benevole` : remplacement du filtre local par `filterParticipants` partagé.
+- Vitest ajouté comme première infrastructure de tests unitaires du dépôt (`npm test`) ; 6 tests passent. Build production et lint ciblé passent.
+- Vérification fonctionnelle sur l'instance Vite permanente avec l'organisation « Association Démo Staging » : deux ordres, recherche partielle et terme absent conformes ; repli vers les adhérents préservé. Aucune donnée créée ou modifiée.
+
+### Reste à faire
+
+- Commiter, pousser et ouvrir la PR vers `dev` ; ne pas la merger sans autorisation explicite.
+- Après merge : checkout/pull `dev`, carte Trello vers Done et mise à jour indissociable du journal.
+
+### Blockers
+
+- Aucun blocker sur la fonctionnalité.
+- `npm run lint` global reste rouge sur 6 erreurs préexistantes hors périmètre dans `DonFichiers.tsx` et `TemplateRecuEditorModal.tsx` ; les fichiers modifiés passent le lint ciblé.
+
+### Décisions
+
+- Réutiliser la logique partagée existante plutôt que dupliquer un second filtre multi-mots.
+- Ajouter Vitest maintenant, le dépôt n'ayant jusque-là aucune infrastructure de tests unitaires malgré le critère de non-régression du cadrage.

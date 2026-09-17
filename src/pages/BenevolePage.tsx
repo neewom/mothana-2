@@ -12,6 +12,7 @@ import BenevoleVerificationAdherent from '../components/BenevoleVerificationAdhe
 import RecetteBanner from '../components/RecetteBanner'
 import { useFonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
+import { filterParticipants } from '../lib/participantSearch'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -229,11 +230,7 @@ export default function BenevolePage() {
       })
   }, [organisationId])
 
-  const filtered = search.trim()
-    ? participants.filter((p) =>
-        participantLabel(p).toLowerCase().includes(search.toLowerCase()),
-      )
-    : participants
+  const filtered = filterParticipants(participants, search)
 
   const showAdherentFallback =
     !showNew && !selectedParticipant && search.trim().length >= 2 && filtered.length === 0
