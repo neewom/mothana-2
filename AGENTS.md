@@ -159,15 +159,14 @@ Historique complet des sujets terminés (détail des décisions techniques, bugs
 
 Le board Trello est la source de vérité unique du backlog (hors cartes "Action admin"). Liste ci-dessous volontairement réduite à titre + statut + lien — le détail complet vit sur la description de la carte Trello. Ordre = priorité/complexité, pas l'ordre d'ajout. Confirmation explicite à redemander avant de démarrer le dev de l'une d'entre elles, même déjà cadrée.
 
-1. **Espace bénévole — recherche donateur indépendante de l'ordre nom/prénom** — PR #188 ouverte (2026-09-17). [Trello](https://trello.com/c/OJIwckiV)
-2. **Mire de connexion personnalisée par organisation** (admin + bénévole) — cadré. [Trello](https://trello.com/c/gkOuH3uh)
-3. **Campagne mailing : inclure les donateurs** — cadré (2026-09-13). [Trello](https://trello.com/c/GqVqTkKB)
-4. **Support multi-organisation pour un compte admin** — cadré, dev reporté à plus tard (décision explicite utilisateur). [Trello](https://trello.com/c/WtLrSLGW)
-5. **Dette technique : factoriser CampagneCourrierPage / CampagneMailingPage** — cadré (2026-09-13), dev reporté au 3ᵉ signal de duplication. [Trello](https://trello.com/c/RBsb8fbs)
-6. **Demande d'adhésion : email aux admins à la soumission** — cadré (2026-09-15). [Trello](https://trello.com/c/eHtWmxYK)
-7. **Priorité 5 — Export comptable enrichi** — roadmap lointaine. [Trello](https://trello.com/c/W3GCYUOt)
-8. **Priorité 5 — Brique événements/coupons + portefeuille virtuel** (Pagode Coupon) — prérequis (inspection projet Supabase "pagode-coupon") avant cadrage technique. [Trello](https://trello.com/c/C9A5B9jr)
-9. **Priorité 5 — Gestion abonnements/plans** — rattachée à la liste Trello "Business plan — Commercialisation", roadmap lointaine. [Trello](https://trello.com/c/cfKF8BNw)
+1. **Mire de connexion personnalisée par organisation** (admin + bénévole) — cadré. [Trello](https://trello.com/c/gkOuH3uh)
+2. **Campagne mailing : inclure les donateurs** — cadré (2026-09-13). [Trello](https://trello.com/c/GqVqTkKB)
+3. **Support multi-organisation pour un compte admin** — cadré, dev reporté à plus tard (décision explicite utilisateur). [Trello](https://trello.com/c/WtLrSLGW)
+4. **Dette technique : factoriser CampagneCourrierPage / CampagneMailingPage** — cadré (2026-09-13), dev reporté au 3ᵉ signal de duplication. [Trello](https://trello.com/c/RBsb8fbs)
+5. **Demande d'adhésion : email aux admins à la soumission** — cadré (2026-09-15). [Trello](https://trello.com/c/eHtWmxYK)
+6. **Priorité 5 — Export comptable enrichi** — roadmap lointaine. [Trello](https://trello.com/c/W3GCYUOt)
+7. **Priorité 5 — Brique événements/coupons + portefeuille virtuel** (Pagode Coupon) — prérequis (inspection projet Supabase "pagode-coupon") avant cadrage technique. [Trello](https://trello.com/c/C9A5B9jr)
+8. **Priorité 5 — Gestion abonnements/plans** — rattachée à la liste Trello "Business plan — Commercialisation", roadmap lointaine. [Trello](https://trello.com/c/cfKF8BNw)
 
 ---
 

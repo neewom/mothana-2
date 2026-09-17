@@ -63,11 +63,11 @@ Aucun.
 - Vitest ajouté comme première infrastructure de tests unitaires du dépôt (`npm test`) ; 6 tests passent. Build production et lint ciblé passent.
 - Vérification fonctionnelle sur l'instance Vite permanente avec l'organisation « Association Démo Staging » : deux ordres, recherche partielle et terme absent conformes ; repli vers les adhérents préservé. Aucune donnée créée ou modifiée.
 - Retour utilisateur « Guérin » face à « Nicolas Guerin » traité dans la même PR #188 : normalisation des diacritiques et des séparateurs usuels (apostrophes/tirets) dans le helper partagé. Suite portée à 14 tests, build et lint ciblé toujours verts. Vérification UI équivalente réussie avec « Sômchai » face à « Somchai Sombath » ; le jeu de données staging ne contient pas Nicolas Guerin.
+- PR #188 mergée par l'utilisateur ; branche locale `dev` mise à jour, carte Trello déplacée vers Done et journal synchronisé dans la même routine.
 
 ### Reste à faire
 
-- PR #188 ouverte vers `dev` ; ne pas la merger sans autorisation explicite.
-- Après merge : checkout/pull `dev`, carte Trello vers Done et mise à jour indissociable du journal.
+- Aucun reste à faire sur ce sujet. Une promotion `dev` → `main` nécessitera une confirmation explicite séparée.
 
 ### Blockers
 
