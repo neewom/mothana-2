@@ -78,3 +78,30 @@ Aucun.
 
 - Réutiliser la logique partagée existante plutôt que dupliquer un second filtre multi-mots.
 - Ajouter Vitest maintenant, le dépôt n'ayant jusque-là aucune infrastructure de tests unitaires malgré le critère de non-régression du cadrage.
+
+---
+
+## Partie 3 — handoff Codex → prochain agent
+
+### Réalisé
+
+- **Test de continuité bidirectionnel concluant** : Codex a retrouvé seul le handoff Claude → Codex via `AGENTS.md` + le présent fichier, puis a exécuté la routine complète (cadrage, développement, tests, PR, retours utilisateur, merge et clôture). Le présent ajout constitue le handoff inverse Codex → prochain agent dans le même format portable.
+- État Git final vérifié : branche `dev` sur `1ddf575`, synchronisée avec `origin/dev`. Aucune PR ouverte.
+- État Trello final vérifié : carte [recherche donateur bénévole](https://trello.com/c/OJIwckiV) en Done ; aucune nouvelle carte apparue dans Backlog ou Todo lors du contrôle post-merge.
+- Documentation de clôture déjà poussée sur `dev` : `AGENTS.md` ne référence plus la carte terminée dans le backlog actif et `docs/journal-avancement.md` porte l'entrée finale PR #188 mergée.
+
+### Reste à faire
+
+- **Promotion recette → production non demandée** : `origin/dev` contient la PR #188 et ses commits documentaires, absents de `origin/main`. Ne créer/merger une PR `dev` → `main` que sur nouvelle confirmation explicite de l'utilisateur.
+- Avant tout autre développement, appliquer la routine normale : vérifier les PR ouvertes, le Backlog Trello et redemander confirmation pour le sujet choisi.
+
+### Blockers
+
+- Aucun blocker fonctionnel ni Git.
+- Dette préexistante constatée pendant la PR #188 : `npm run lint` global échoue sur 6 erreurs dans `DonFichiers.tsx` et `TemplateRecuEditorModal.tsx`; lint ciblé des fichiers de la PR propre. Aucun correctif entrepris hors périmètre.
+- Arbre local volontairement non nettoyé : fichiers temporaires Supabase modifiés/non suivis, `.agents/` et `deno.lock` non suivi. Ils étaient déjà présents pendant le travail ou ont été générés par les outils ; ne pas les supprimer ni les committer sans les qualifier explicitement.
+
+### Décisions
+
+- La neutralisation de recherche couvre les diacritiques ainsi que les apostrophes et tirets, dans le helper partagé `participantSearch`, donc sur tous ses consommateurs et pas uniquement `BenevolePage`.
+- La carte est clôturée au merge vers `dev`; la promotion vers `main` reste une étape séparée soumise à confirmation.
