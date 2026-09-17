@@ -65,7 +65,7 @@ Aucun.
 
 ### Reste à faire
 
-- Commiter, pousser et ouvrir la PR vers `dev` ; ne pas la merger sans autorisation explicite.
+- PR #188 ouverte vers `dev` ; ne pas la merger sans autorisation explicite.
 - Après merge : checkout/pull `dev`, carte Trello vers Done et mise à jour indissociable du journal.
 
 ### Blockers
