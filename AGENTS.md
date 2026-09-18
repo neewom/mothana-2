@@ -142,6 +142,7 @@ Boîte à idées de l'utilisateur — il y note à la volée ses demandes d'évo
 - Liste "Done" (`6a4ec9b1939cbad2bfc0da8c`)
 - Listes "Batch — ..." : groupes de cartes à dev enchaîné sans confirmation/merge intermédiaire (voir règle "batch dev" ci-dessus) — créées à la discrétion de l'utilisateur, signal fiable = l'existence de la liste elle-même, pas de jugement à faire sur si des cartes hors liste sont "assez indépendantes" pour être enchaînées
 - Listes "Pr \<numéro\>" : retours de QA sur une PR précise, une carte par retour, remplie par l'utilisateur pendant ses tests — à traiter en un seul passage groupé, un seul commit/push sur la PR existante, puis archiver la liste
+- Liste "Coupon" : sujet épique (Pagode Coupon, cf. backlog actif) — la carte de tête reste la référence de cadrage global, à découper en sous-cartes dans cette même liste au fur et à mesure. Pas la sémantique "batch dev" (pas d'enchaînement sans confirmation) sauf si une liste "Batch — ..." est créée séparément pour un sous-ensemble de ces sous-cartes
 - Étiquette "cadré" (verte) : `6a4ec9a991df5c8810c08fb9`
 - Étiquette "action admin" (bleue) : `6a4ec9ab204b09f95ad0f09f` — tâche pour l'utilisateur lui-même, à ignorer au cadrage
 
@@ -170,7 +171,7 @@ Le board Trello est la source de vérité unique du backlog (hors cartes "Action
 4. **Dette technique : factoriser CampagneCourrierPage / CampagneMailingPage** — cadré (2026-09-13), dev reporté au 3ᵉ signal de duplication. [Trello](https://trello.com/c/RBsb8fbs)
 5. **Demande d'adhésion : email aux admins à la soumission** — cadré (2026-09-15). [Trello](https://trello.com/c/eHtWmxYK)
 6. **Priorité 5 — Export comptable enrichi** — roadmap lointaine. [Trello](https://trello.com/c/W3GCYUOt)
-7. **Priorité 5 — Brique événements/coupons + portefeuille virtuel** (Pagode Coupon) — prérequis (inspection projet Supabase "pagode-coupon") avant cadrage technique. [Trello](https://trello.com/c/C9A5B9jr)
+7. **Événements/coupons + portefeuille virtuel** (Pagode Coupon) — cadré (2026-09-18) : nouveau module Mothana ouvert à toutes les organisations, reconstruction native (pas de fusion de code, incompatibilité Next.js/Vite) réutilisant les patterns existants (Supabase Auth, `profils_organisation`, RLS multi-tenant avec bypass super-admin, PIN bénévole via `verify-pin`). Liste Trello dédiée "Coupon", carte de tête épique à découper en sous-cartes. [Trello](https://trello.com/c/C9A5B9jr)
 8. **Priorité 5 — Gestion abonnements/plans** — rattachée à la liste Trello "Business plan — Commercialisation", roadmap lointaine. [Trello](https://trello.com/c/cfKF8BNw)
 
 ---
