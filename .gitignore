@@ -26,3 +26,6 @@ dist-ssr
 
 # Worktrees créés par les agents Claude Code (isolation "worktree")
 .claude/worktrees/
+
+# Graphify (cache local régénérable via `graphify update .`)
+graphify-out/
