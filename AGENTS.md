@@ -29,6 +29,38 @@ Contexte projet et règles de fonctionnement, lus par tout agent de code travail
 
 ---
 
+## Organisation à deux agents : lead tech / dev
+
+Deux agents travaillent sur ce dépôt depuis la même machine : **Claude Code** et **Codex**. Rôles fonctionnels, attribution par défaut : **Claude Code = lead tech / PO / reviewer**, **Codex = dev**. Si l'un est indisponible (quota), l'autre reprend les deux rôles (handoff) ; la PR n'a alors pas de revue indépendante et l'utilisateur en est informé explicitement.
+
+Pas de messagerie directe entre agents : la coordination passe par les commentaires Trello, les commentaires de PR et `.claude/sessions/`. L'utilisateur lance chaque agent, dans son propre répertoire (voir Isolation).
+
+### Lead tech / PO
+- Cadre les cartes (routine ci-dessus), les découpe, tranche l'architecture.
+- Rédige le **ticket de dev** avant de passer la main (format ci-dessous).
+- **Revoit chaque PR du dev avant que l'utilisateur la teste ou la merge** : exactitude, sécurité (RLS avec bypass super-admin, aucune écriture anonyme sensible), cohérence avec les patterns existants, tests, impact (`graphify affected "<symbole>"` sur ce qui est touché), `tsc -b` et `npm test`. Résultat en commentaire de PR (bloquants / suggestions) ; le dev corrige, le lead tech confirme.
+- Ne code pas les cartes confiées au dev (correctif trivial ponctuel toléré sur demande de l'utilisateur).
+
+### Dev
+- Ne démarre qu'une carte **cadrée + ticket rédigé + go explicite de l'utilisateur**.
+- Au démarrage, pose un commentaire Trello « Dev en cours — <agent>, branche <nom> » : une carte = un seul agent à la fois.
+- Implémente, teste, ouvre la PR vers `dev`, la déclare « prête pour review » (commentaire de PR + fichier de session), intègre les retours.
+- Sur toute ambiguïté touchant architecture, sécurité, périmètre ou modèle de données : remonter (commentaire de PR ou Trello) au lieu de trancher seul.
+
+### Utilisateur
+Inchangé : seul à donner le go de démarrage d'une carte, seul à merger. Toute PR passe par la revue du lead tech avant son test.
+
+### Ticket de dev
+Section `## Ticket dev` dans la description de la carte Trello : objectif · périmètre (inclus / exclu) · zones du code concernées (issues de graphify) · décisions déjà prises · contraintes (RLS et bypass super-admin, flag, conventions) · critères d'acceptation vérifiables · ce que le dev peut trancher seul / ce qu'il doit remonter.
+
+### Isolation (deux agents, une machine)
+- Chaque agent travaille dans **son propre worktree git**, créé une fois par `scripts/agent-worktree.sh <agent>` (→ `../mothana-2-<agent>`, HEAD détaché sur `origin/dev`, `.env` et lien Supabase copiés, `npm install` fait). Par carte : `git switch -c <branche> origin/dev` dans ce worktree. Jamais deux agents dans le même répertoire ; jamais de `git checkout` de branche dans le checkout principal (servi par l'instance permanente 5173), sauf pour mettre une PR à disposition de l'utilisateur, en l'annonçant (règle existante).
+- Un worktree ne partage pas les fichiers non versionnés : `node_modules`, `.env`, `supabase/.temp` sont propres à chacun (le script les prépare) ; `graphify-out/` se reconstruit avec `graphify update .`.
+- Serveur de dev d'un worktree : `npx vite --host --port <port> --strictPort`, port dédié (Codex : **5174**, worktree de revue : **5175**), arrêt uniquement par PID exact. L'instance permanente 5173 n'est jamais touchée. L'agent annonce à l'utilisateur l'URL/port de la branche à tester (même hôte Tailscale que 5173) au lieu de basculer le checkout principal.
+- Les flux d'authentification à redirection (invitation, reset mot de passe, changement d'email) échouent sur une origine absente de l'allowlist Supabase Auth : les tester sur `localhost:5173` ou `test.samakan.fr` après merge sur `dev`.
+
+---
+
 ## Contexte du projet
 
 Mothana (marque publique : Samakan) est une application de gestion des dons pour associations. MVP fullstack (React + Supabase).
