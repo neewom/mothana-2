@@ -67,7 +67,7 @@ Mothana (marque publique : Samakan) est une application de gestion des dons pour
 
 **Lire seulement si le sujet du jour s'y prête** :
 - `docs/cadrage-mothana.md` — spec fonctionnelle complète (tout nouveau sujet fonctionnel, pour vérifier qu'il n'est pas déjà tranché ou explicitement hors scope)
-- `docs/schema-mothana.sql` — schéma SQL de référence (avant toute migration ou requête touchant une table pas encore rencontrée)
+- `docs/schema-mothana.sql` — schéma initial historique, **obsolète** (ne contient pas les tables récentes, ex. `dons_reguliers`, `listes_diffusion`) : la source de vérité du schéma actuel est l'ensemble de `supabase/migrations/*.sql` ; ne pas mettre ce fichier à jour, s'appuyer sur les migrations (avant toute migration ou requête touchant une table pas encore rencontrée)
 - `docs/plan-dev-mothana.md` — plan de développement (question de roadmap/priorisation long terme)
 - `docs/regles-recus-fiscaux.md` — règles métier reçus fiscaux (tout dev touchant Cerfa/reçus fiscaux)
 - `docs/brief-cerfa.md` — brief technique refonte Cerfa (référence si on retouche la génération de reçus)
@@ -109,7 +109,7 @@ Ce projet tourne sur une machine dédiée où il est exposé sur le réseau via 
 
 ## Schéma de données
 
-Référence complète et à jour (toutes les tables, colonnes, contraintes) : `docs/schema-mothana.sql`. Points non évidents à la simple lecture des colonnes :
+Source de vérité : `supabase/migrations/*.sql` (`docs/schema-mothana.sql` n'est qu'une base historique obsolète). Points non évidents à la simple lecture des colonnes :
 
 - `personnes.civilite` (smallint) : 1=Monsieur 2=Madame 3=Mademoiselle 4=Foyer 5=Société 6=Association 7=Famille — 0/255→NULL
 - `adherents.civilite` (smallint réduit, enum **distinct** de celui de `personnes`) : 0=non défini, 1=Monsieur, 2=Madame — pas de personne morale/famille adhérente pour l'instant
