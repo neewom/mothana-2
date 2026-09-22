@@ -12,9 +12,10 @@
 - Deux migrations rejouées sans erreur sur staging ; `audit_missing_super_admin_bypass()` ne remonte aucune des six tables.
 - Test réel à deux connexions : double décision = un débit puis `DEJA_DECIDEE`, deux créations simultanées = une demande puis `DEMANDE_EN_COURS`, solde jamais négatif. Données synthétiques supprimées après validation.
 - Vérifications propres : `tsc -b`, `npm test` (14 tests), ESLint ciblé, `git diff --check`, `graphify update .`.
+- Commit `9b0e7c3` poussé ; PR #190 ouverte vers `dev` et déclarée prête pour revue : https://github.com/neewom/mothana-2/pull/190
 
 ## Reste à faire
-- Pousser la branche, ouvrir la PR vers `dev` et demander la revue du lead tech.
+- Revue indépendante du lead tech, corrections éventuelles, puis test utilisateur et merge explicite.
 - Ne pas promouvoir en production sans demande explicite ; les migrations sont uniquement sur staging.
 
 ## Blockers
