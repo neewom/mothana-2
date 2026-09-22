@@ -27,6 +27,11 @@ function formatDate(value: string): string {
   }).format(new Date(`${value}T12:00:00`))
 }
 
+function formatDateRange(start: string, end: string): string {
+  if (start === end) return formatDate(start)
+  return `${formatDate(start)} → ${formatDate(end)}`
+}
+
 function CalendarIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-10 w-10">
@@ -57,11 +62,11 @@ export default function EvenementsPage() {
     const [eventsResult, organisationResult, activitesResult] = await Promise.all([
       supabase
         .from('evenements')
-        .select('id, organisation_id, activite_id, slug, nom, date_evenement, statut, montants_credit_centimes, created_at, updated_at')
+        .select('id, organisation_id, activite_id, slug, nom, date_evenement, date_fin, statut, montants_credit_centimes, created_at, updated_at')
         .eq('organisation_id', organisationId)
         .order('date_evenement', { ascending: false }),
       supabase.from('organisations').select('slug').eq('id', organisationId).single(),
-      supabase.from('activites').select('id, nom, organisation_id').eq('organisation_id', organisationId),
+      supabase.from('activites').select('id, nom, organisation_id, date_debut, date_fin').eq('organisation_id', organisationId),
     ])
 
     if (eventsResult.error || organisationResult.error || activitesResult.error) {
@@ -148,7 +153,7 @@ export default function EvenementsPage() {
                       <p className="mt-0.5 font-registre-mono text-[11px] text-ink-faint">/{evenement.slug}</p>
                     </TableCell>
                     <TableCell className="whitespace-nowrap font-registre-mono text-xs text-ink-muted">
-                      {formatDate(evenement.date_evenement)}
+                      {formatDateRange(evenement.date_evenement, evenement.date_fin)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={evenement.statut === 'ouvert' ? 'success' : 'neutral'}>

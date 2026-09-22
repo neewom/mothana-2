@@ -18,3 +18,7 @@ export function findExactActivite(activites: Activite[], search: string): Activi
   if (!normalized) return undefined
   return activites.find((activite) => activite.nom.trim().toLocaleLowerCase('fr-FR') === normalized)
 }
+
+export function filterUpcomingDatedActivites(activites: Activite[], todayIso: string): Activite[] {
+  return activites.filter((activite) => activite.date_debut !== null && activite.date_debut >= todayIso)
+}

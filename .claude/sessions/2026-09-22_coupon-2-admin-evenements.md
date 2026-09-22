@@ -21,6 +21,10 @@
 - Dernier complément Trello appliqué : suppression du champ « Activité associée ». Le champ Nom est l'unique recherche/création d'activité ; une suggestion sélectionnée aligne le nom de l'événement, une correspondance exacte est réutilisée à l'enregistrement, sinon une activité d'un jour est créée.
 - Cas d'édition préservé : tant que le Nom n'est pas modifié, l'`activite_id` existant reste inchangé même si le nom de l'activité liée diffère. Dès qu'une saisie modifie le Nom, le lien est réévalué.
 - Vérification visuelle desktop/mobile refaite avec un événement dont le nom diffère de l'activité liée : le champ affiche bien le nom de l'événement, puis propose recherche et création après renommage. Le texte d'aide demandé est présent, sans second champ.
+- Ajustement demandé pendant le test utilisateur : les suggestions du champ Nom sont limitées aux activités dont `date_debut` est renseignée et égale ou postérieure au jour courant ; les activités passées ou sans date restent exclues, sans casser le lien existant d'un événement en édition.
+- Ajout d'une date de fin obligatoire aux événements : migration avec backfill des données existantes sur une journée, contrainte `date_fin >= date_evenement`, exposition dans `get_evenement_public`, formulaire début/fin, plage affichée dans le tableau et l'affiche QR. Une nouvelle saisie de début préremplit la fin sur le même jour, qui reste modifiable.
+- Migration `evenements_date_fin.sql` appliquée puis rejouée sur staging ; suites SQL Coupon 1 et crédit manuel propres, y compris retour public de la date de fin et rejet d'une plage inversée. Vitest passe à 18 tests avec le filtrage des activités futures datées.
+- Vérification visuelle desktop/mobile 375 px : seule l'activité future datée apparaît dans les suggestions, la plage est lisible dans le tableau et les trois contrôles début/fin/statut s'adaptent correctement. Fixtures retirées ; l'instance utilisateur 5174 reste active.
 
 ## Reste à faire
 - Revue lead tech de la PR #191, puis corrections éventuelles et test utilisateur.

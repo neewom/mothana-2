@@ -19,6 +19,11 @@ function formatDate(value: string): string {
   }).format(new Date(`${value}T12:00:00`))
 }
 
+function formatDateRange(start: string, end: string): string {
+  if (start === end) return formatDate(start)
+  return `Du ${formatDate(start)} au ${formatDate(end)}`
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll('&', '&amp;')
@@ -76,7 +81,7 @@ export default function EvenementAfficheModal({
         .url { max-width: 150mm; overflow-wrap: anywhere; color: #726860; font-family: ui-monospace, monospace; font-size: 11px; }
       </style></head><body><main>
         <h1>${escapeHtml(evenement.nom)}</h1>
-        <p class="date">${escapeHtml(formatDate(evenement.date_evenement))}</p>
+        <p class="date">${escapeHtml(formatDateRange(evenement.date_evenement, evenement.date_fin))}</p>
         <img src="${qrDataUrl}" alt="QR code vers la page de l'événement">
         <p class="instruction">Scannez pour acheter ou recharger votre crédit</p>
         <p class="url">${escapeHtml(publicUrl)}</p>
@@ -94,7 +99,7 @@ export default function EvenementAfficheModal({
           {evenement && (
             <div className="mx-auto flex max-w-md flex-col items-center rounded-sm border border-paper-border bg-white px-6 py-8 text-center">
               <h3 className="max-w-sm text-balance text-2xl font-bold text-ink">{evenement.nom}</h3>
-              <p className="mt-2 text-sm text-ink-muted">{formatDate(evenement.date_evenement)}</p>
+              <p className="mt-2 text-sm text-ink-muted">{formatDateRange(evenement.date_evenement, evenement.date_fin)}</p>
               <div className="mt-6 flex h-64 w-64 items-center justify-center rounded-sm border border-paper-border bg-white p-2">
                 {qrDataUrl ? (
                   <img src={qrDataUrl} alt={`QR code vers ${evenement.nom}`} className="h-full w-full" />

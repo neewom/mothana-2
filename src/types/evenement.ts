@@ -7,6 +7,7 @@ export interface Evenement {
   slug: string
   nom: string
   date_evenement: string
+  date_fin: string
   statut: EvenementStatut
   montants_credit_centimes: number[]
   created_at: string

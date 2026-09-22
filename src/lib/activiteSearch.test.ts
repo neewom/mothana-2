@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { Activite } from '../types'
-import { filterActivites, findExactActivite } from './activiteSearch'
+import { filterActivites, filterUpcomingDatedActivites, findExactActivite } from './activiteSearch'
 
 const activites: Activite[] = [
-  { id: '1', organisation_id: 'org', nom: 'Nouvel An lao', id_externe: null, date_debut: null, date_fin: null },
-  { id: '2', organisation_id: 'org', nom: 'Fête culturelle', id_externe: null, date_debut: null, date_fin: null },
+  { id: '1', organisation_id: 'org', nom: 'Nouvel An lao', id_externe: null, date_debut: '2027-04-14', date_fin: '2027-04-16' },
+  { id: '2', organisation_id: 'org', nom: 'Fête culturelle', id_externe: null, date_debut: '2026-08-10', date_fin: '2026-08-10' },
+  { id: '3', organisation_id: 'org', nom: 'Sans date', id_externe: null, date_debut: null, date_fin: null },
 ]
 
 describe('recherche d’activités', () => {
@@ -18,5 +19,9 @@ describe('recherche d’activités', () => {
 
   it('laisse un nom libre sans correspondance pour une création', () => {
     expect(findExactActivite(activites, 'Nouvelle activité')).toBeUndefined()
+  })
+
+  it('ne propose que les activités datées à partir d’aujourd’hui', () => {
+    expect(filterUpcomingDatedActivites(activites, '2026-09-22')).toEqual([activites[0]])
   })
 })

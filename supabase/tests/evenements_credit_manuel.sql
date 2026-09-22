@@ -27,16 +27,16 @@ values
   ('22000000-0000-0000-0000-000000000001', '12000000-0000-0000-0000-000000000001', 'Admin crédit A', 'admin'),
   ('22000000-0000-0000-0000-000000000002', '12000000-0000-0000-0000-000000000002', 'Admin crédit B', 'admin');
 
-insert into public.evenements (id, organisation_id, slug, nom, date_evenement, statut)
+insert into public.evenements (id, organisation_id, slug, nom, date_evenement, date_fin, statut)
 values
   ('32000000-0000-0000-0000-000000000001', '12000000-0000-0000-0000-000000000001',
-    'ouvert', 'Événement ouvert', current_date, 'ouvert'),
+    'ouvert', 'Événement ouvert', current_date, current_date, 'ouvert'),
   ('32000000-0000-0000-0000-000000000002', '12000000-0000-0000-0000-000000000001',
-    'brouillon', 'Événement brouillon', current_date, 'brouillon'),
+    'brouillon', 'Événement brouillon', current_date, current_date, 'brouillon'),
   ('32000000-0000-0000-0000-000000000003', '12000000-0000-0000-0000-000000000001',
-    'clos', 'Événement clos', current_date, 'clos'),
+    'clos', 'Événement clos', current_date, current_date, 'clos'),
   ('32000000-0000-0000-0000-000000000004', '12000000-0000-0000-0000-000000000002',
-    'autre-org', 'Événement autre organisation', current_date, 'ouvert');
+    'autre-org', 'Événement autre organisation', current_date, current_date, 'ouvert');
 
 insert into public.activites (id, organisation_id, nom, date_debut, date_fin)
 values (
@@ -71,8 +71,8 @@ select set_config('request.jwt.claims',
 
 -- Le CRUD direct des événements reste limité à l'organisation de l'admin.
 set local role authenticated;
-insert into public.evenements (organisation_id, slug, nom, date_evenement, statut)
-values ('12000000-0000-0000-0000-000000000001', 'cree-par-admin', 'Créé par admin', current_date, 'brouillon');
+insert into public.evenements (organisation_id, slug, nom, date_evenement, date_fin, statut)
+values ('12000000-0000-0000-0000-000000000001', 'cree-par-admin', 'Créé par admin', current_date, current_date, 'brouillon');
 update public.evenements set statut = 'ouvert'
 where organisation_id = '12000000-0000-0000-0000-000000000001' and slug = 'cree-par-admin';
 do $$
@@ -89,8 +89,8 @@ begin
     raise exception 'TEST: modification inter-organisation autorisée';
   end if;
   begin
-    insert into public.evenements (organisation_id, slug, nom, date_evenement)
-    values ('12000000-0000-0000-0000-000000000002', 'interdit', 'Interdit', current_date);
+    insert into public.evenements (organisation_id, slug, nom, date_evenement, date_fin)
+    values ('12000000-0000-0000-0000-000000000002', 'interdit', 'Interdit', current_date, current_date);
     raise exception 'TEST: création inter-organisation autorisée';
   exception when insufficient_privilege then null;
   end;

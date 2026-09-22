@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { findExactActivite } from '../lib/activiteSearch'
+import { filterUpcomingDatedActivites, findExactActivite } from '../lib/activiteSearch'
 import { slugifyUrl } from '../lib/organisationAssets'
 import type { Activite } from '../types'
 import type { Evenement, EvenementStatut } from '../types/evenement'
@@ -44,6 +44,7 @@ export default function EvenementModal({
   const [nom, setNom] = useState('')
   const [slug, setSlug] = useState('')
   const [dateEvenement, setDateEvenement] = useState('')
+  const [dateFin, setDateFin] = useState('')
   const [statut, setStatut] = useState<EvenementStatut>('brouillon')
   const [activiteId, setActiviteId] = useState('')
   const [montants, setMontants] = useState<string[]>(DEFAULT_AMOUNTS)
@@ -55,6 +56,7 @@ export default function EvenementModal({
     setNom(evenement?.nom ?? '')
     setSlug(evenement?.slug ?? '')
     setDateEvenement(evenement?.date_evenement ?? '')
+    setDateFin(evenement?.date_fin ?? '')
     setStatut(evenement?.statut ?? 'brouillon')
     setActiviteId(evenement?.activite_id ?? '')
     setMontants(evenement?.montants_credit_centimes.map(centimesToInput) ?? DEFAULT_AMOUNTS)
@@ -76,8 +78,12 @@ export default function EvenementModal({
 
     const normalizedName = nom.trim()
     const normalizedSlug = slugifyUrl(isEdit ? slug : normalizedName)
-    if (!normalizedName || !dateEvenement || !normalizedSlug) {
-      setError('Renseignez le nom, la date et un identifiant URL valide.')
+    if (!normalizedName || !dateEvenement || !dateFin || !normalizedSlug) {
+      setError('Renseignez le nom, les dates et un identifiant URL valide.')
+      return
+    }
+    if (dateFin < dateEvenement) {
+      setError('La date de fin doit être égale ou postérieure à la date de début.')
       return
     }
 
@@ -91,9 +97,11 @@ export default function EvenementModal({
     setSaving(true)
     let linkedActiviteId = activiteId
     let createdActiviteId: string | null = null
+    const todayIso = new Date().toLocaleDateString('en-CA')
+    const suggestedActivites = filterUpcomingDatedActivites(activites, todayIso)
 
     if (!linkedActiviteId) {
-      const exactActivite = findExactActivite(activites, normalizedName)
+      const exactActivite = findExactActivite(suggestedActivites, normalizedName)
       if (exactActivite) {
         linkedActiviteId = exactActivite.id
       } else {
@@ -103,7 +111,7 @@ export default function EvenementModal({
             organisation_id: organisationId,
             nom: normalizedName,
             date_debut: dateEvenement,
-            date_fin: dateEvenement,
+            date_fin: dateFin,
           })
           .select('id')
           .single()
@@ -122,6 +130,7 @@ export default function EvenementModal({
       nom: normalizedName,
       slug: normalizedSlug,
       date_evenement: dateEvenement,
+      date_fin: dateFin,
       statut,
       activite_id: linkedActiviteId,
       montants_credit_centimes: uniqueAmounts,
@@ -166,7 +175,7 @@ export default function EvenementModal({
             <div className="space-y-1.5">
               <Label htmlFor="evenement-nom">Nom</Label>
               <ActiviteAutocomplete
-                activites={activites}
+                activites={filterUpcomingDatedActivites(activites, new Date().toLocaleDateString('en-CA'))}
                 value={activiteId}
                 onChange={setActiviteId}
                 customValue={nom}
@@ -199,14 +208,29 @@ export default function EvenementModal({
               </div>
             )}
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-1.5">
-                <Label htmlFor="evenement-date">Date</Label>
+                <Label htmlFor="evenement-date">Date de début</Label>
                 <Input
                   id="evenement-date"
                   type="date"
                   value={dateEvenement}
-                  onChange={(event) => setDateEvenement(event.target.value)}
+                  onChange={(event) => {
+                    const nextDate = event.target.value
+                    setDateFin((current) => !current || current === dateEvenement ? nextDate : current)
+                    setDateEvenement(nextDate)
+                  }}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="evenement-date-fin">Date de fin</Label>
+                <Input
+                  id="evenement-date-fin"
+                  type="date"
+                  min={dateEvenement || undefined}
+                  value={dateFin}
+                  onChange={(event) => setDateFin(event.target.value)}
                   required
                 />
               </div>
