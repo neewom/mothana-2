@@ -140,21 +140,21 @@ function ActiviteModal({ open, onClose, onSaved, onDelete, activite, organisatio
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
       <DialogContent aria-describedby={undefined}>
-        <DialogHeader>
+        {isEdit && onDelete && (
+          <button
+            type="button"
+            onClick={() => { onClose(); onDelete() }}
+            className="absolute right-12 top-4 text-ink-faint transition-colors hover:text-stamp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70 rounded-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-5 w-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9.5 7V5.5A1.5 1.5 0 0111 4h2a1.5 1.5 0 011.5 1.5V7m1.5 0-.6 12.1a2 2 0 01-2 1.9H8.6a2 2 0 01-2-1.9L6 7" />
+            </svg>
+            <span className="sr-only">Supprimer l'activité</span>
+          </button>
+        )}
+        <DialogHeader className={isEdit && onDelete ? 'pr-20' : undefined}>
           <DialogTitle>{isEdit ? "Modifier l'activité" : 'Nouvelle activité'}</DialogTitle>
         </DialogHeader>
-        {isEdit && onDelete && (
-          <div className="flex items-center gap-2 border-b border-paper-border px-6 py-3">
-            <Button
-              type="button"
-              variant="danger"
-              size="sm"
-              onClick={() => { onClose(); onDelete() }}
-            >
-              Supprimer
-            </Button>
-          </div>
-        )}
         <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto p-6">
           {error && (
             <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
@@ -255,7 +255,7 @@ function ActiviteRow({
       onClick={onEdit}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit() } }}
       className={cn(
-        'flex cursor-pointer flex-col gap-3 border-t border-paper-border-muted px-4 py-4 first:border-t-0 hover:bg-paper sm:flex-row sm:items-center md:px-6',
+        'flex cursor-pointer items-center gap-3 border-t border-paper-border-muted px-4 py-4 first:border-t-0 hover:bg-paper md:px-6',
         isTerminee && 'py-3'
       )}
     >
@@ -274,7 +274,7 @@ function ActiviteRow({
           )}
         </div>
       </div>
-      <span className="shrink-0 self-center pl-[68px] font-registre text-ink-faint sm:pl-0" aria-hidden>›</span>
+      <span className="shrink-0 font-registre text-ink-faint" aria-hidden>›</span>
     </li>
   )
 }
