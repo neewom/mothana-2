@@ -18,6 +18,9 @@
 - Nouveau complément UX Trello intégré : le champ Activité est désormais un champ unique recherche + création. Le texte suit en direct le nom de l'événement jusqu'à la première modification manuelle, puis devient indépendant ; une correspondance exacte réutilise l'activité existante, sinon le nom saisi crée l'activité à l'enregistrement.
 - `ActiviteAutocomplete` reçoit un mode `allowCreate` optionnel, désactivé par défaut : `DonModal` conserve son comportement de sélection pure. Trois tests unitaires ajoutés sur le filtrage, la correspondance exacte normalisée et le nom libre ; total Vitest porté à 17.
 - Parcours vérifié sans écriture de données en desktop et mobile 375 px : pré-remplissage depuis Nom, création inline explicite, indépendance après modification et sélection d'une suggestion existante. Route et fixtures visuelles temporaires retirées, serveur 5174 arrêté par PID/session exact.
+- Dernier complément Trello appliqué : suppression du champ « Activité associée ». Le champ Nom est l'unique recherche/création d'activité ; une suggestion sélectionnée aligne le nom de l'événement, une correspondance exacte est réutilisée à l'enregistrement, sinon une activité d'un jour est créée.
+- Cas d'édition préservé : tant que le Nom n'est pas modifié, l'`activite_id` existant reste inchangé même si le nom de l'activité liée diffère. Dès qu'une saisie modifie le Nom, le lien est réévalué.
+- Vérification visuelle desktop/mobile refaite avec un événement dont le nom diffère de l'activité liée : le champ affiche bien le nom de l'événement, puis propose recherche et création après renommage. Le texte d'aide demandé est présent, sans second champ.
 
 ## Reste à faire
 - Revue lead tech de la PR #191, puis corrections éventuelles et test utilisateur.
@@ -32,4 +35,5 @@
 - Le secret retourné par la RPC n'est jamais affiché dans l'interface admin. Tant que la page acheteur de Coupon 4 n'existe pas, le succès présente uniquement le code public du portefeuille.
 - Le dernier commentaire Trello du 2026-09-22 remplace le précédent : une activité devient systématiquement liée à l'enregistrement, choisie explicitement ou créée automatiquement si le champ reste vide.
 - Le complément UX Trello publié ensuite remplace la création silencieuse : le nom de la nouvelle activité est toujours visible et modifiable dans le champ unifié avant l'enregistrement.
+- Le dernier complément UX remplace à son tour les deux champs synchronisés : Nom devient la seule valeur visible et reste toujours identique au nom de l'activité sélectionnée ou créée.
 - Production inchangée : la nouvelle migration est appliquée uniquement au projet staging jusqu'à une promotion explicite `dev` → `main`.

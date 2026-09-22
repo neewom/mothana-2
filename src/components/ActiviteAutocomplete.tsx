@@ -13,6 +13,8 @@ interface ActiviteAutocompleteProps {
   allowCreate?: boolean
   customValue?: string
   onCustomValueChange?: (value: string) => void
+  displayCustomValueWhenSelected?: boolean
+  required?: boolean
 }
 
 const MAX_RESULTS = 20
@@ -27,6 +29,8 @@ export default function ActiviteAutocomplete({
   allowCreate = false,
   customValue = '',
   onCustomValueChange,
+  displayCustomValueWhenSelected = false,
+  required = false,
 }: ActiviteAutocompleteProps) {
   // null = not actively editing: the displayed text is derived from `value`.
   // A string once the user starts typing, until a pick or blur resolves it.
@@ -34,7 +38,13 @@ export default function ActiviteAutocomplete({
   const [open, setOpen] = useState(false)
 
   const selected = activites.find((a) => a.id === value)
-  const displayValue = draft !== null ? draft : (selected ? selected.nom : allowCreate ? customValue : '')
+  const displayValue = draft !== null
+    ? draft
+    : selected && !displayCustomValueWhenSelected
+      ? selected.nom
+      : allowCreate
+        ? customValue
+        : ''
 
   function handleCustomValue(raw: string) {
     const nextValue = raw.trim()
@@ -46,7 +56,7 @@ export default function ActiviteAutocomplete({
 
   function handleSelect(a: Activite) {
     onChange(a.id)
-    onCustomValueChange?.('')
+    onCustomValueChange?.(allowCreate ? a.nom : '')
     setDraft(null)
     setOpen(false)
   }
@@ -90,6 +100,7 @@ export default function ActiviteAutocomplete({
         onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}
         placeholder={placeholder}
         autoComplete="off"
+        required={required}
       />
       {open && (
         <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-sm border border-paper-border bg-white shadow-lg">

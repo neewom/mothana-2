@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { findExactActivite } from '../lib/activiteSearch'
 import { slugifyUrl } from '../lib/organisationAssets'
 import type { Activite } from '../types'
 import type { Evenement, EvenementStatut } from '../types/evenement'
@@ -45,8 +46,6 @@ export default function EvenementModal({
   const [dateEvenement, setDateEvenement] = useState('')
   const [statut, setStatut] = useState<EvenementStatut>('brouillon')
   const [activiteId, setActiviteId] = useState('')
-  const [activiteName, setActiviteName] = useState('')
-  const [activiteTouched, setActiviteTouched] = useState(false)
   const [montants, setMontants] = useState<string[]>(DEFAULT_AMOUNTS)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,8 +57,6 @@ export default function EvenementModal({
     setDateEvenement(evenement?.date_evenement ?? '')
     setStatut(evenement?.statut ?? 'brouillon')
     setActiviteId(evenement?.activite_id ?? '')
-    setActiviteName(evenement?.activite_id ? '' : evenement?.nom ?? '')
-    setActiviteTouched(false)
     setMontants(evenement?.montants_credit_centimes.map(centimesToInput) ?? DEFAULT_AMOUNTS)
     setError(null)
     setSaving(false)
@@ -73,24 +70,14 @@ export default function EvenementModal({
     setMontants((current) => current.filter((_, i) => i !== index))
   }
 
-  function handleNomChange(value: string) {
-    setNom(value)
-    if (!activiteTouched && !activiteId) setActiviteName(value)
-  }
-
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
 
     const normalizedName = nom.trim()
-    const normalizedActiviteName = activiteName.trim()
     const normalizedSlug = slugifyUrl(isEdit ? slug : normalizedName)
     if (!normalizedName || !dateEvenement || !normalizedSlug) {
       setError('Renseignez le nom, la date et un identifiant URL valide.')
-      return
-    }
-    if (!activiteId && !normalizedActiviteName) {
-      setError('Choisissez une activité existante ou saisissez le nom de la nouvelle activité.')
       return
     }
 
@@ -106,24 +93,29 @@ export default function EvenementModal({
     let createdActiviteId: string | null = null
 
     if (!linkedActiviteId) {
-      const { data: createdActivite, error: activiteError } = await supabase
-        .from('activites')
-        .insert({
-          organisation_id: organisationId,
-          nom: normalizedActiviteName,
-          date_debut: dateEvenement,
-          date_fin: dateEvenement,
-        })
-        .select('id')
-        .single()
+      const exactActivite = findExactActivite(activites, normalizedName)
+      if (exactActivite) {
+        linkedActiviteId = exactActivite.id
+      } else {
+        const { data: createdActivite, error: activiteError } = await supabase
+          .from('activites')
+          .insert({
+            organisation_id: organisationId,
+            nom: normalizedName,
+            date_debut: dateEvenement,
+            date_fin: dateEvenement,
+          })
+          .select('id')
+          .single()
 
-      if (activiteError || !createdActivite) {
-        setError(activiteError?.message ?? 'L’activité associée n’a pas pu être créée.')
-        setSaving(false)
-        return
+        if (activiteError || !createdActivite) {
+          setError(activiteError?.message ?? 'L’activité associée n’a pas pu être créée.')
+          setSaving(false)
+          return
+        }
+        linkedActiviteId = createdActivite.id
+        createdActiviteId = createdActivite.id
       }
-      linkedActiviteId = createdActivite.id
-      createdActiviteId = createdActivite.id
     }
 
     const payload = {
@@ -173,13 +165,22 @@ export default function EvenementModal({
 
             <div className="space-y-1.5">
               <Label htmlFor="evenement-nom">Nom</Label>
-              <Input
-                id="evenement-nom"
-                value={nom}
-                onChange={(event) => handleNomChange(event.target.value)}
+              <ActiviteAutocomplete
+                activites={activites}
+                value={activiteId}
+                onChange={setActiviteId}
+                customValue={nom}
+                onCustomValueChange={setNom}
+                inputId="evenement-nom"
+                allowCreate
+                displayCustomValueWhenSelected
                 placeholder="Ex : Nouvel An lao 2027"
+                disabled={saving}
                 required
               />
+              <p className="font-registre-mono text-[11px] text-ink-faint">
+                Une activité du même nom sera créée ou retrouvée automatiquement.
+              </p>
             </div>
 
             {isEdit && (
@@ -226,30 +227,6 @@ export default function EvenementModal({
             <p className="-mt-3 font-registre-mono text-[11px] text-ink-faint">
               Le statut se change manuellement dans les deux sens. Aucun passage automatique n’est appliqué.
             </p>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="evenement-activite">Activité associée</Label>
-              <ActiviteAutocomplete
-                activites={activites}
-                value={activiteId}
-                onChange={(id) => {
-                  setActiviteId(id)
-                  setActiviteTouched(true)
-                }}
-                disabled={saving}
-                placeholder="Rechercher ou créer une activité…"
-                inputId="evenement-activite"
-                allowCreate
-                customValue={activiteName}
-                onCustomValueChange={(value) => {
-                  setActiviteName(value)
-                  setActiviteTouched(true)
-                }}
-              />
-              <p className="font-registre-mono text-[11px] text-ink-faint">
-                Choisissez une activité existante ou saisissez un nouveau nom. La nouvelle activité sera créée à la date de l’événement.
-              </p>
-            </div>
 
             <fieldset className="space-y-3">
               <div className="flex items-center justify-between gap-3">
