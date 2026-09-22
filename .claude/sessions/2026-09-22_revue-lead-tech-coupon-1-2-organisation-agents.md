@@ -46,3 +46,30 @@ Aucun.
 - Pas d'installation de bridge Claude↔Codex tiers ni de canal Slack/Discord commun pour l'instant — recherché sérieusement (Claude Code Channels officiel, `squad`/`codex-claude-bridge` communautaires), écarté pour l'instant vu le niveau d'accès (prod Supabase) que ça donnerait à du code non audité.
 - Règle "PR draft dès le début" explicitement non rétroactive — cartes 1 et 2 restent sur l'ancien flux (PR à la fin), la nouvelle règle s'applique à partir de la carte 3.
 - Nouvelle règle de revue (2026-09-22) : itération fonctionnelle/UX en direct utilisateur ↔ dev pendant que la PR est en draft ; revue lead tech complète une seule fois, au passage « ready for review ». Si la revue lead tech déclenche un nouvel ajustement fonctionnel, la PR peut repasser en draft pour un nouveau tour direct plutôt que de reboucler par le lead tech à chaque micro-ajustement.
+
+## Suite Codex — Coupon 3, prototype de transport (PR #192 draft)
+
+### Réalisé
+- Go explicite reçu pour https://trello.com/c/RSgVypMH. Ticket dev lu ; aucune PR ouverte au départ. Branche `codex/coupon-3-spike-temps-reel` créée depuis `origin/dev` (`56b901b`), PR draft #192 ouverte immédiatement, commentaire de démarrage Trello publié.
+- Transport réutilisable avec Broadcast comme signal vide, relecture serveur, polling seul/repli, réconciliation 5 s, backoff, timeout, suspension/reprise et déduplication par révision.
+- Banc synthétique `/coupon-spike.html`, capacités vendeur/acheteur distinctes et expirant en 2 h, demandes de 90 s, export diagnostic sans secrets. Aucun accès aux tables financières. Build opt-in staging uniquement.
+- Table/RPC techniques dans `supabase/spikes/` (hors migrations produit), appliquées/rejouées sur staging après snapshot `/tmp/coupon3-before.sql`. Tests SQL transactionnels passés. Edge Function déployée sur `cxngcmvxktddhyxboyyx`, flag serveur `COUPON_SPIKE_ENABLED=true` ; production inchangée.
+- Vérifications : `tsc -b`, 26 tests Vitest, lint ciblé, `deno check`, builds normal/opt-in. Tests réseau staging sur Mac : 5 demandes + décisions par mode, mauvais secret/rôles/création anonyme refusés et première décision conservée.
+- Mesures Mac sauvegardées dans `docs/spikes/coupon-3-mesures-mac.json` ; demande Broadcast médiane 666 ms, décision 609 ms ; polling 1255/1253 ms. Ce ne sont PAS des mesures téléphones et la phase du polling démarre à l'action.
+- Interface observée sur deux onglets : rôles distincts, demande reçue, boutons acheteur, décision envoyée. Pas de campagne mobile réalisée. Protocole, limites et installation dans `docs/spikes/coupon-3-transport.md`.
+- Quota Pro documenté (500 avec spend cap / 10 000 sans) remonté au lead via commentaire PR ; quota réel et affluence encore inconnus.
+
+### Reste à faire
+- Mise à disposition HTTPS du banc avec variables staging explicites (le domaine recette suit `dev`, ne pas merger ou changer l'alias sans autorisation).
+- Mesures sur 2 vrais téléphones : réseaux mobiles, coupures, verrouillage/arrière-plan et reprise. Le choix reste provisoire jusque-là.
+- Validation fonctionnelle avec utilisateur puis passage ready for review, revue lead tech, merge seulement sur autorisation.
+- Désactiver `COUPON_SPIKE_ENABLED` après la campagne. Carte reste dans Coupon, pas en Done.
+
+### Blockers
+- Pas d'accès aux deux téléphones physiques ; critères d'acceptation empiriques non encore satisfaits.
+- Le banc n'est pas publié sur `test.samakan.fr` (PR non mergée, build opt-in requis).
+
+### Décisions
+- Candidat provisoire Broadcast + relecture serveur/polling de secours ; aucun payload Broadcast n'autorise une opération.
+- Le prototype ne reproduit pas le modèle financier : intégration des véritables secrets/RPC/flag/gel/clôture à faire en cartes 4/5.
+- PR conservée en draft, aucune affirmation de validation mobile ni de sujet terminé.
