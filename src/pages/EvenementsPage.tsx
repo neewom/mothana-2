@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
 import { supabase } from '../lib/supabaseClient'
+import type { Activite } from '../types'
 import type { Evenement, EvenementStatut } from '../types/evenement'
 
 const STATUS_LABELS: Record<EvenementStatut, string> = {
@@ -39,6 +40,7 @@ export default function EvenementsPage() {
   const organisationId = useOrganisationId()
   const { toast, showToast, dismissToast } = useToast()
   const [evenements, setEvenements] = useState<Evenement[]>([])
+  const [activites, setActivites] = useState<Activite[]>([])
   const [organisationSlug, setOrganisationSlug] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -52,22 +54,24 @@ export default function EvenementsPage() {
     setLoading(true)
     setError(null)
 
-    const [eventsResult, organisationResult] = await Promise.all([
+    const [eventsResult, organisationResult, activitesResult] = await Promise.all([
       supabase
         .from('evenements')
-        .select('id, organisation_id, slug, nom, date_evenement, statut, montants_credit_centimes, created_at, updated_at')
+        .select('id, organisation_id, activite_id, slug, nom, date_evenement, statut, montants_credit_centimes, created_at, updated_at')
         .eq('organisation_id', organisationId)
         .order('date_evenement', { ascending: false }),
       supabase.from('organisations').select('slug').eq('id', organisationId).single(),
+      supabase.from('activites').select('id, nom, organisation_id').eq('organisation_id', organisationId),
     ])
 
-    if (eventsResult.error || organisationResult.error) {
-      setError(eventsResult.error?.message ?? organisationResult.error?.message ?? 'Erreur de chargement')
+    if (eventsResult.error || organisationResult.error || activitesResult.error) {
+      setError(eventsResult.error?.message ?? organisationResult.error?.message ?? activitesResult.error?.message ?? 'Erreur de chargement')
       setLoading(false)
       return
     }
 
     setEvenements((eventsResult.data ?? []) as Evenement[])
+    setActivites((activitesResult.data as unknown as Activite[]) ?? [])
     setOrganisationSlug((organisationResult.data as { slug: string }).slug)
     setLoading(false)
   }, [organisationId])
@@ -181,6 +185,7 @@ export default function EvenementsPage() {
         open={formOpen}
         onClose={() => setFormOpen(false)}
         organisationId={organisationId}
+        activites={activites}
         evenement={editing}
         onSaved={(message) => void handleSaved(message)}
       />

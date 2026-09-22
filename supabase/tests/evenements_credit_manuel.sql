@@ -38,6 +38,34 @@ values
   ('32000000-0000-0000-0000-000000000004', '12000000-0000-0000-0000-000000000002',
     'autre-org', 'Événement autre organisation', current_date, 'ouvert');
 
+insert into public.activites (id, organisation_id, nom, date_debut, date_fin)
+values (
+  '42000000-0000-0000-0000-000000000001',
+  '12000000-0000-0000-0000-000000000001',
+  'Activité événement',
+  current_date,
+  current_date
+);
+
+update public.evenements
+set activite_id = '42000000-0000-0000-0000-000000000001'
+where id = '32000000-0000-0000-0000-000000000001';
+
+do $$
+begin
+  if (select activite_id from public.evenements
+      where id = '32000000-0000-0000-0000-000000000001')
+      is distinct from '42000000-0000-0000-0000-000000000001'::uuid then
+    raise exception 'TEST: rattachement activité événement incorrect';
+  end if;
+  delete from public.activites where id = '42000000-0000-0000-0000-000000000001';
+  if (select activite_id from public.evenements
+      where id = '32000000-0000-0000-0000-000000000001') is not null then
+    raise exception 'TEST: suppression activité ne remet pas activite_id à null';
+  end if;
+end;
+$$;
+
 select set_config('request.jwt.claims',
   '{"sub":"22000000-0000-0000-0000-000000000001","role":"authenticated","app_metadata":{}}', true);
 

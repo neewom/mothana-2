@@ -12,6 +12,9 @@
 - Vérification visuelle sur serveur isolé 5174 : desktop et mobile 375 px, liste et modales création/affiche/crédit. Route et données de démonstration temporaires retirées après contrôle ; serveur arrêté par sa session exacte.
 - Contrôles finaux propres : `tsc -b`, 14 tests Vitest, ESLint ciblé, `git diff --check`, `graphify update .`.
 - Branche poussée et PR #191 ouverte vers `dev` : https://github.com/neewom/mothana-2/pull/191 — prête pour la revue lead tech, non mergée.
+- Complément Trello révisé intégré dans la même PR : `evenements.activite_id` nullable avec `ON DELETE SET NULL`, choix d'une activité existante via `ActiviteAutocomplete`, ou création automatique d'une activité d'un jour au nom et à la date de l'événement quand le champ est vide, en création comme en édition.
+- Aucun rapprochement implicite par nom et aucune synchronisation ultérieure des dates d'une activité déjà liée. En cas d'échec d'enregistrement après une création automatique, l'activité nouvellement créée est supprimée pour éviter un enregistrement orphelin.
+- Migration `evenements_activite.sql` appliquée et rejouée sur staging ; test SQL enrichi pour le rattachement et le `ON DELETE SET NULL`. Champ vérifié visuellement en desktop et mobile 375 px, y compris recherche et sélection d'une activité existante.
 
 ## Reste à faire
 - Revue lead tech de la PR #191, puis corrections éventuelles et test utilisateur.
@@ -24,4 +27,5 @@
 - Coupon 2 repart bien de Coupon 1 mergé dans `origin/dev`, sans empilement de branches.
 - Le crédit manuel accepte un montant libre positif au centime ; il recharge automatiquement le portefeuille du même email pour le même événement.
 - Le secret retourné par la RPC n'est jamais affiché dans l'interface admin. Tant que la page acheteur de Coupon 4 n'existe pas, le succès présente uniquement le code public du portefeuille.
+- Le dernier commentaire Trello du 2026-09-22 remplace le précédent : une activité devient systématiquement liée à l'enregistrement, choisie explicitement ou créée automatiquement si le champ reste vide.
 - Production inchangée : la nouvelle migration est appliquée uniquement au projet staging jusqu'à une promotion explicite `dev` → `main`.

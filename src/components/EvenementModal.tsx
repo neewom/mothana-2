@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { slugifyUrl } from '../lib/organisationAssets'
+import type { Activite } from '../types'
 import type { Evenement, EvenementStatut } from '../types/evenement'
+import ActiviteAutocomplete from './ActiviteAutocomplete'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
@@ -11,6 +13,7 @@ interface EvenementModalProps {
   open: boolean
   onClose: () => void
   organisationId: string
+  activites: Activite[]
   evenement: Evenement | null
   onSaved: (message: string) => void
 }
@@ -32,6 +35,7 @@ export default function EvenementModal({
   open,
   onClose,
   organisationId,
+  activites,
   evenement,
   onSaved,
 }: EvenementModalProps) {
@@ -40,6 +44,7 @@ export default function EvenementModal({
   const [slug, setSlug] = useState('')
   const [dateEvenement, setDateEvenement] = useState('')
   const [statut, setStatut] = useState<EvenementStatut>('brouillon')
+  const [activiteId, setActiviteId] = useState('')
   const [montants, setMontants] = useState<string[]>(DEFAULT_AMOUNTS)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,6 +55,7 @@ export default function EvenementModal({
     setSlug(evenement?.slug ?? '')
     setDateEvenement(evenement?.date_evenement ?? '')
     setStatut(evenement?.statut ?? 'brouillon')
+    setActiviteId(evenement?.activite_id ?? '')
     setMontants(evenement?.montants_credit_centimes.map(centimesToInput) ?? DEFAULT_AMOUNTS)
     setError(null)
     setSaving(false)
@@ -82,11 +88,36 @@ export default function EvenementModal({
     const uniqueAmounts = Array.from(new Set(parsedAmounts as number[]))
 
     setSaving(true)
+    let linkedActiviteId = activiteId
+    let createdActiviteId: string | null = null
+
+    if (!linkedActiviteId) {
+      const { data: createdActivite, error: activiteError } = await supabase
+        .from('activites')
+        .insert({
+          organisation_id: organisationId,
+          nom: normalizedName,
+          date_debut: dateEvenement,
+          date_fin: dateEvenement,
+        })
+        .select('id')
+        .single()
+
+      if (activiteError || !createdActivite) {
+        setError(activiteError?.message ?? 'L’activité associée n’a pas pu être créée.')
+        setSaving(false)
+        return
+      }
+      linkedActiviteId = createdActivite.id
+      createdActiviteId = createdActivite.id
+    }
+
     const payload = {
       nom: normalizedName,
       slug: normalizedSlug,
       date_evenement: dateEvenement,
       statut,
+      activite_id: linkedActiviteId,
       montants_credit_centimes: uniqueAmounts,
     }
 
@@ -95,6 +126,9 @@ export default function EvenementModal({
       : await supabase.from('evenements').insert({ ...payload, organisation_id: organisationId })
 
     if (saveError) {
+      if (createdActiviteId) {
+        await supabase.from('activites').delete().eq('id', createdActiviteId)
+      }
       setError(
         saveError.code === '23505'
           ? 'Cet identifiant URL est déjà utilisé par un autre événement de cette organisation.'
@@ -178,6 +212,20 @@ export default function EvenementModal({
             <p className="-mt-3 font-registre-mono text-[11px] text-ink-faint">
               Le statut se change manuellement dans les deux sens. Aucun passage automatique n’est appliqué.
             </p>
+
+            <div className="space-y-1.5">
+              <Label>Activité associée</Label>
+              <ActiviteAutocomplete
+                activites={activites}
+                value={activiteId}
+                onChange={setActiviteId}
+                disabled={saving}
+                placeholder="Créée automatiquement si vide"
+              />
+              <p className="font-registre-mono text-[11px] text-ink-faint">
+                Sans sélection, une activité du même nom et à la même date sera créée automatiquement.
+              </p>
+            </div>
 
             <fieldset className="space-y-3">
               <div className="flex items-center justify-between gap-3">
