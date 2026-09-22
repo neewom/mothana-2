@@ -3,6 +3,7 @@
 ## Réalisé
 
 - Refonte front de la liste selon le langage visuel d’Activités : titre « Portefeuille événement » dans la page et la navigation, fond papier, compteur, cartes de registre, liseré cachet, tampon adapté au statut et séparation des événements clos. Rendu contrôlé sur desktop et mobile 375 px ; aucune modification du modèle de données.
+- Alignement responsive des CTA calé exactement sur les cartes Activités : sous le contenu sur mobile, à droite sur la même ligne dès `sm`.
 - Dernière session relue ; PR #190 de Coupon 1 mergée dans `dev`, revue lead tech sans bloquant et carte déjà déplacée en Done avec journal mis à jour sur `origin/dev` (`06106c9`).
 - Aucune PR ouverte. Backlog vérifié : audit des droits EXECUTE toujours à cadrer, aucune autre nouveauté.
 - Ticket dev v1 de Coupon 2 lu et confirmé cadré : https://trello.com/c/XamwqLfu ; go explicite reçu.

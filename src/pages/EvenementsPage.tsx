@@ -93,7 +93,7 @@ function EvenementRow({
 
   return (
     <li className={cn(
-      'flex flex-col gap-3 border-t border-paper-border-muted px-4 py-4 first:border-t-0 md:px-6',
+      'flex flex-col gap-3 border-t border-paper-border-muted px-4 py-4 first:border-t-0 sm:flex-row sm:items-center md:px-6',
       isClosed && 'py-3'
     )}>
       <div className="flex min-w-0 flex-1 items-center gap-4">
@@ -122,7 +122,7 @@ function EvenementRow({
           <p className="mt-0.5 font-registre-mono text-[11px] text-ink-faint">/{evenement.slug}</p>
         </div>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center justify-end gap-1 pl-[68px]">
+      <div className="flex shrink-0 items-center gap-1 pl-[68px] sm:pl-0">
         {evenement.statut === 'ouvert' && (
           <Button type="button" variant="secondary" size="sm" onClick={onCredit}>
             Créditer
