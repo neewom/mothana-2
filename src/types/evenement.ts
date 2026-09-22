@@ -1,0 +1,13 @@
+export type EvenementStatut = 'brouillon' | 'ouvert' | 'clos'
+
+export interface Evenement {
+  id: string
+  organisation_id: string
+  slug: string
+  nom: string
+  date_evenement: string
+  statut: EvenementStatut
+  montants_credit_centimes: number[]
+  created_at: string
+  updated_at: string
+}

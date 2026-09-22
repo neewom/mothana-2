@@ -76,6 +76,15 @@ function ActivitesIcon() {
   )
 }
 
+function EvenementsIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 8.25h16.5M5.25 4.5h13.5A1.5 1.5 0 0120.25 6v13.5H3.75V6a1.5 1.5 0 011.5-1.5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 12h3v3h-3z" />
+    </svg>
+  )
+}
+
 function ChartIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -144,6 +153,10 @@ function buildNavItems(flags: FonctionnalitesActivees): NavEntry[] {
 
   if (flags.dons || flags.adherents) {
     items.push({ type: 'link', label: 'Activités', to: '/admin/activites', icon: <ActivitesIcon /> })
+  }
+
+  if (flags.evenements) {
+    items.push({ type: 'link', label: 'Événements', to: '/admin/evenements', icon: <EvenementsIcon /> })
   }
 
   if (flags.dons) {
