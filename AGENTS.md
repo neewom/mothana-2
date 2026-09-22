@@ -162,7 +162,7 @@ Règles générales, valables quel que soit l'agent :
 - Ne jamais merger une PR sans autorisation explicite de l'utilisateur, même testée/validée manuellement
 - Avant de démarrer un nouveau développement, vérifier s'il y a des PR ouvertes ; si oui et sans rapport direct, informer l'utilisateur et demander confirmation
 - Un blocage trouvé en testant une PR ouverte (même dans un fichier sans rapport direct) se corrige dans **cette même PR**, pas dans une PR séparée
-- Dès qu'un développement est jugé terminé (fonctionnel, testé), pousser la branche et **ouvrir une PR automatiquement**, sans attendre qu'on le demande
+- Dès qu'un développement est jugé terminé (fonctionnel, testé), pousser la branche et **ouvrir une PR automatiquement**, sans attendre qu'on le demande. **Sans exception**, y compris pour un correctif ponctuel codé directement par le lead tech (pas de carte, pas de dev) — même quand une revue indépendante n'a pas de sens puisque c'est le même agent qui a écrit et vérifié le changement : la PR reste la trace et le point de rollback. Écart constaté le 2026-09-22 (3 commits Activités poussés directement sur `dev`) — ne pas reproduire
 - Demander confirmation explicite avant de démarrer le dev d'une carte/d'un sujet, même déjà cadré — ne pas enchaîner automatiquement après le merge d'une PR précédente
   - **Exception "batch dev"** : pour les cartes groupées dans une liste Trello "Batch — ..." (voir section Trello ci-dessous), la confirmation se donne une fois pour tout le batch — pas de nouvelle confirmation ni d'attente du merge entre deux cartes. Chaque nouvelle branche repart de `dev` (pas empilée, sauf dépendance réelle), chaque PR cible `dev` directement. Le merge de chaque PR reste manuel et explicite.
 
