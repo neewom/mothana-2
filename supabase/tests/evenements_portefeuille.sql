@@ -41,12 +41,26 @@ values
   ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Admin A', 'admin'),
   ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002', 'Admin B', 'admin');
 
-insert into public.evenements (id, organisation_id, slug, nom, date_evenement, statut)
+insert into public.evenements (id, organisation_id, slug, nom, date_evenement, date_fin, statut)
 values
   ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
-    'fete-a', 'Fête A', current_date, 'ouvert'),
+    'fete-a', 'Fête A', current_date, current_date + 1, 'ouvert'),
   ('30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002',
-    'fete-b', 'Fête B', current_date, 'ouvert');
+    'fete-b', 'Fête B', current_date, current_date, 'ouvert');
+
+do $$
+begin
+  if (select date_fin from public.get_evenement_public('wallet-test-a', 'fete-a')) <> current_date + 1 then
+    raise exception 'TEST: date de fin absente de la lecture publique';
+  end if;
+  begin
+    update public.evenements set date_fin = date_evenement - 1
+    where id = '30000000-0000-0000-0000-000000000001';
+    raise exception 'TEST: plage de dates inversée acceptée';
+  exception when check_violation then null;
+  end;
+end;
+$$;
 
 do $$
 begin

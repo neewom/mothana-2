@@ -17,6 +17,7 @@ import DonsPage from './pages/DonsPage'
 import DonsReguliersPage from './pages/DonsReguliersPage'
 import ParticipantsPage from './pages/ParticipantsPage'
 import ActivitesPage from './pages/ActivitesPage'
+import EvenementsPage from './pages/EvenementsPage'
 import RecusFiscauxPage from './pages/RecusFiscauxPage'
 import AdherentsPage from './pages/AdherentsPage'
 import DemandesAdhesionPage from './pages/DemandesAdhesionPage'
@@ -44,7 +45,6 @@ function App() {
         <Route path="/desinscription" element={<DesinscriptionMailingPage />} />
         <Route path="/decouvrir" element={<DecouvrirPage />} />
         <Route path="/aide" element={<AidePage />} />
-
         {/* Admin (protected) */}
         <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
           <Route path="/admin" element={<AdminLayout />}>
@@ -65,6 +65,9 @@ function App() {
             </Route>
             <Route element={<FeatureGuard feature={['dons', 'adherents']} />}>
               <Route path="activites" element={<ActivitesPage />} />
+            </Route>
+            <Route element={<FeatureGuard feature="evenements" />}>
+              <Route path="evenements" element={<EvenementsPage />} />
             </Route>
             <Route path="parametres" element={<ParametresOrganisationPage />} />
             <Route path="parametres/fiscal" element={<ParametresFiscalPage />} />
