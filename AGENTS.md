@@ -38,15 +38,23 @@ Pas de messagerie directe entre agents : la coordination passe par les commentai
 ### Lead tech / PO
 - Cadre les cartes (routine ci-dessus), les découpe, tranche l'architecture.
 - Rédige le **ticket de dev** avant de passer la main (format ci-dessous).
-- **Revoit chaque PR du dev avant que l'utilisateur la teste ou la merge** : exactitude, sécurité (RLS avec bypass super-admin, aucune écriture anonyme sensible), cohérence avec les patterns existants, tests, impact (`graphify affected "<symbole>"` sur ce qui est touché), `tsc -b` et `npm test`. Résultat en commentaire de PR (bloquants / suggestions) ; le dev corrige, le lead tech confirme.
+- **Revoit la PR du dev avant que l'utilisateur la teste ou la merge** : exactitude, sécurité (RLS avec bypass super-admin, aucune écriture anonyme sensible), cohérence avec les patterns existants, tests, impact (`graphify affected "<symbole>"` sur ce qui est touché), `tsc -b` et `npm test`. Résultat en commentaire de PR (bloquants / suggestions) ; le dev corrige, le lead tech confirme.
+- **Cette revue a lieu une seule fois, au passage « ready for review »** — pas à chaque push pendant que la PR est en draft (voir "Boucle d'itération fonctionnelle/UX" ci-dessous). Exception : une remontée explicite du dev sur un point d'architecture/sécurité/modèle de données (cf. section Dev) se traite au fil de l'eau, sans attendre la fin de l'itération, mais reste ciblée sur ce point précis — pas une revue complète anticipée.
 - Ne code pas les cartes confiées au dev (correctif trivial ponctuel toléré sur demande de l'utilisateur).
 - Dès que le dev ouvre sa PR (même en draft, cf. ci-dessous), s'y abonner (`subscribe_pr_activity`) — réveil automatique quand elle passe « ready for review », pas besoin d'interroger GitHub périodiquement.
 
 ### Dev
 - Ne démarre qu'une carte **cadrée + ticket rédigé + go explicite de l'utilisateur**.
 - Au démarrage : crée la branche, **ouvre immédiatement une PR en draft** vers `dev` (même quasi vide) puis pose un commentaire Trello « Dev en cours — <agent>, branche <nom>, PR #<numéro> » : une carte = un seul agent à la fois. La PR draft dès le départ permet au lead tech de s'y abonner sans polling (voir ci-dessus). Introduit à partir de la carte 3 de l'épique Coupon (2026-09-22) — pas rétroactif sur les cartes précédentes.
-- Implémente, teste, pousse ses commits sur cette même PR, puis la **repasse en « ready for review »** + commentaire « prête pour review » (fichier de session aussi), intègre les retours.
-- Sur toute ambiguïté touchant architecture, sécurité, périmètre ou modèle de données : remonter (commentaire de PR ou Trello) au lieu de trancher seul.
+- Implémente, teste, pousse ses commits sur cette même PR, puis la **repasse en « ready for review »** + commentaire « prête pour review » (fichier de session aussi), intègre les retours du lead tech.
+- Sur toute ambiguïté touchant architecture, sécurité, périmètre ou modèle de données : remonter (commentaire de PR ou Trello) au lieu de trancher seul — que la PR soit encore en draft ou non.
+
+### Boucle d'itération fonctionnelle/UX
+Introduit le 2026-09-22 (carte 3 de l'épique Coupon et suivantes), après constat que les allers-retours à 4 (Codex → Claude Code → utilisateur → Claude Code → Codex) sur des points purement fonctionnels/UX rallongeaient inutilement le cycle sans ajouter de sécurité — la carte 2 (rattachement activité ↔ événement) en a fait les frais avec 3 itérations chacune revues intégralement par le lead tech.
+
+- Tant que la PR reste **en draft**, l'utilisateur teste directement avec le dev sur son port dédié (voir Isolation) et lui donne son feedback fonctionnel/UX en direct, sans passer par le lead tech à chaque tour. Le dev pousse ses commits au fil de l'eau ; le lead tech reste abonné mais n'intervient pas sur ces pushes (pas de revue, pas de commentaire), sauf remontée explicite du dev sur un point d'architecture/sécurité/données.
+- Une fois le périmètre fonctionnel stabilisé (validé par l'utilisateur en direct avec le dev), le dev repasse la PR en « ready for review » : c'est ce seul passage qui déclenche la revue complète du lead tech (routine ci-dessus).
+- Si la revue lead tech remonte un point qui nécessite un nouvel ajustement fonctionnel (pas juste une correction technique), la PR peut repasser en draft pour un nouveau tour direct utilisateur ↔ dev, plutôt que de re-boucler par le lead tech à chaque micro-ajustement.
 
 ### Utilisateur
 Inchangé : seul à donner le go de démarrage d'une carte, seul à merger. Toute PR passe par la revue du lead tech avant son test.
