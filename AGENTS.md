@@ -31,7 +31,9 @@ Contexte projet et règles de fonctionnement, lus par tout agent de code travail
 
 ## Organisation à deux agents : lead tech / dev
 
-Deux agents travaillent sur ce dépôt depuis la même machine : **Claude Code** et **Codex**. Rôles fonctionnels, attribution par défaut : **Claude Code = lead tech / PO / reviewer**, **Codex = dev**. Si l'un est indisponible (quota), l'autre reprend les deux rôles (handoff) ; la PR n'a alors pas de revue indépendante et l'utilisateur en est informé explicitement.
+Deux agents travaillent sur ce dépôt depuis la même machine : **Claude Code** et **Codex**. Rôles fonctionnels, attribution par défaut : **Claude Code = lead tech / PO / reviewer**, **Codex = dev**.
+
+**Indisponibilité (quota) — pas de handoff automatique.** Si un agent est à court de tokens en cours de carte, l'autre **n'enchaîne pas** de lui-même sur son rôle : on attend son retour par défaut (constaté en pratique sur la carte 3, 2026-09-22 — Codex a manqué de tokens après la seule routine de démarrage). Le handoff (l'autre agent reprend les deux rôles, PR sans revue indépendante) reste possible mais seulement sur demande explicite de l'utilisateur au moment où la situation se présente, jamais présumé.
 
 Pas de messagerie directe entre agents : la coordination passe par les commentaires Trello, les commentaires de PR et `.claude/sessions/`. L'utilisateur lance chaque agent, dans son propre répertoire (voir Isolation).
 
