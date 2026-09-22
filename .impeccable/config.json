@@ -10,6 +10,12 @@
         "value": "11px",
         "createdAt": "2026-09-13T05:48:05.418Z",
         "reason": "User confirmed 11px is intentional (font-registre-mono badges/hints/errors, ~47 occurrences across the app)"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-09-22T09:16:28.222Z",
+        "reason": "Samakan uses Inter as its established interface typeface; the standalone printable event poster intentionally matches the product typography."
       }
     ]
   }
