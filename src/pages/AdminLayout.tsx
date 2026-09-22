@@ -2,7 +2,11 @@ import { useState, useEffect, type ReactElement } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useOrganisationId } from '../hooks/useOrganisationId'
-import { useFonctionnalitesActivees, type FonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
+import {
+  DEFAULT_FONCTIONNALITES,
+  useFonctionnalitesActivees,
+  type FonctionnalitesActivees,
+} from '../hooks/useFonctionnalitesActivees'
 import { supabase } from '../lib/supabaseClient'
 import RecetteBanner from '../components/RecetteBanner'
 import { cn } from '../lib/utils'
@@ -256,7 +260,7 @@ export default function AdminLayout() {
   const [organisationNom, setOrganisationNom] = useState<string | null>(null)
 
   const isSuperAdminViewing = auth.type === 'super_admin'
-  const navItems = buildNavItems(fonctionnalitesActivees ?? { dons: true, adherents: true })
+  const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES)
 
   useEffect(() => {
     if (!organisationId) return
