@@ -86,11 +86,12 @@ interface ActiviteModalProps {
   open: boolean
   onClose: () => void
   onSaved: () => void
+  onDelete?: () => void
   activite?: Activite
   organisationId: string
 }
 
-function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: ActiviteModalProps) {
+function ActiviteModal({ open, onClose, onSaved, onDelete, activite, organisationId }: ActiviteModalProps) {
   const isEdit = !!activite
   const [nom, setNom] = useState('')
   const [dateDebut, setDateDebut] = useState('')
@@ -142,6 +143,18 @@ function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: Act
         <DialogHeader>
           <DialogTitle>{isEdit ? "Modifier l'activité" : 'Nouvelle activité'}</DialogTitle>
         </DialogHeader>
+        {isEdit && onDelete && (
+          <div className="flex items-center gap-2 border-b border-paper-border px-6 py-3">
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              onClick={() => { onClose(); onDelete() }}
+            >
+              Supprimer
+            </Button>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto p-6">
           {error && (
             <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
@@ -209,13 +222,11 @@ function ActiviteRow({
   statut,
   counts,
   onEdit,
-  onDelete,
 }: {
   activite: Activite
   statut: ActiviteStatut
   counts: ActiviteCounts | undefined
   onEdit: () => void
-  onDelete: () => void
 }) {
   const postmarkDate = statut === 'terminee' ? activite.date_fin ?? activite.date_debut : activite.date_debut
   const isTerminee = statut === 'terminee'
@@ -239,8 +250,12 @@ function ActiviteRow({
 
   return (
     <li
+      role="button"
+      tabIndex={0}
+      onClick={onEdit}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit() } }}
       className={cn(
-        'flex flex-col gap-3 border-t border-paper-border-muted px-4 py-4 first:border-t-0 sm:flex-row sm:items-center md:px-6',
+        'flex cursor-pointer flex-col gap-3 border-t border-paper-border-muted px-4 py-4 first:border-t-0 hover:bg-paper sm:flex-row sm:items-center md:px-6',
         isTerminee && 'py-3'
       )}
     >
@@ -259,10 +274,7 @@ function ActiviteRow({
           )}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1 pl-[68px] sm:pl-0">
-        <Button variant="secondary" size="sm" onClick={onEdit}>Modifier</Button>
-        <Button variant="danger" size="sm" onClick={onDelete}>Supprimer</Button>
-      </div>
+      <span className="shrink-0 self-center pl-[68px] font-registre text-ink-faint sm:pl-0" aria-hidden>›</span>
     </li>
   )
 }
@@ -513,7 +525,6 @@ export default function ActivitesPage() {
                         statut={statut}
                         counts={donsByActivite.get(activite.id)}
                         onEdit={() => openEdit(activite)}
-                        onDelete={() => openDelete(activite)}
                       />
                     ))}
                   </ul>
@@ -534,7 +545,6 @@ export default function ActivitesPage() {
                         statut={statut}
                         counts={donsByActivite.get(activite.id)}
                         onEdit={() => openEdit(activite)}
-                        onDelete={() => openDelete(activite)}
                       />
                     ))}
                   </ul>
@@ -559,7 +569,6 @@ export default function ActivitesPage() {
                         statut={statut}
                         counts={donsByActivite.get(activite.id)}
                         onEdit={() => openEdit(activite)}
-                        onDelete={() => openDelete(activite)}
                       />
                     ))}
                   </ul>
@@ -604,6 +613,7 @@ export default function ActivitesPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSaved={() => { fetchActivites(); fetchCounts() }}
+        onDelete={editing ? () => openDelete(editing) : undefined}
         activite={editing}
         organisationId={organisationId}
       />
