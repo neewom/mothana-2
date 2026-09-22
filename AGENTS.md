@@ -40,11 +40,12 @@ Pas de messagerie directe entre agents : la coordination passe par les commentai
 - Rédige le **ticket de dev** avant de passer la main (format ci-dessous).
 - **Revoit chaque PR du dev avant que l'utilisateur la teste ou la merge** : exactitude, sécurité (RLS avec bypass super-admin, aucune écriture anonyme sensible), cohérence avec les patterns existants, tests, impact (`graphify affected "<symbole>"` sur ce qui est touché), `tsc -b` et `npm test`. Résultat en commentaire de PR (bloquants / suggestions) ; le dev corrige, le lead tech confirme.
 - Ne code pas les cartes confiées au dev (correctif trivial ponctuel toléré sur demande de l'utilisateur).
+- Dès que le dev ouvre sa PR (même en draft, cf. ci-dessous), s'y abonner (`subscribe_pr_activity`) — réveil automatique quand elle passe « ready for review », pas besoin d'interroger GitHub périodiquement.
 
 ### Dev
 - Ne démarre qu'une carte **cadrée + ticket rédigé + go explicite de l'utilisateur**.
-- Au démarrage, pose un commentaire Trello « Dev en cours — <agent>, branche <nom> » : une carte = un seul agent à la fois.
-- Implémente, teste, ouvre la PR vers `dev`, la déclare « prête pour review » (commentaire de PR + fichier de session), intègre les retours.
+- Au démarrage : crée la branche, **ouvre immédiatement une PR en draft** vers `dev` (même quasi vide) puis pose un commentaire Trello « Dev en cours — <agent>, branche <nom>, PR #<numéro> » : une carte = un seul agent à la fois. La PR draft dès le départ permet au lead tech de s'y abonner sans polling (voir ci-dessus). Introduit à partir de la carte 3 de l'épique Coupon (2026-09-22) — pas rétroactif sur les cartes précédentes.
+- Implémente, teste, pousse ses commits sur cette même PR, puis la **repasse en « ready for review »** + commentaire « prête pour review » (fichier de session aussi), intègre les retours.
 - Sur toute ambiguïté touchant architecture, sécurité, périmètre ou modèle de données : remonter (commentaire de PR ou Trello) au lieu de trancher seul.
 
 ### Utilisateur
