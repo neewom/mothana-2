@@ -15,6 +15,9 @@
 - Complément Trello révisé intégré dans la même PR : `evenements.activite_id` nullable avec `ON DELETE SET NULL`, choix d'une activité existante via `ActiviteAutocomplete`, ou création automatique d'une activité d'un jour au nom et à la date de l'événement quand le champ est vide, en création comme en édition.
 - Aucun rapprochement implicite par nom et aucune synchronisation ultérieure des dates d'une activité déjà liée. En cas d'échec d'enregistrement après une création automatique, l'activité nouvellement créée est supprimée pour éviter un enregistrement orphelin.
 - Migration `evenements_activite.sql` appliquée et rejouée sur staging ; test SQL enrichi pour le rattachement et le `ON DELETE SET NULL`. Champ vérifié visuellement en desktop et mobile 375 px, y compris recherche et sélection d'une activité existante.
+- Nouveau complément UX Trello intégré : le champ Activité est désormais un champ unique recherche + création. Le texte suit en direct le nom de l'événement jusqu'à la première modification manuelle, puis devient indépendant ; une correspondance exacte réutilise l'activité existante, sinon le nom saisi crée l'activité à l'enregistrement.
+- `ActiviteAutocomplete` reçoit un mode `allowCreate` optionnel, désactivé par défaut : `DonModal` conserve son comportement de sélection pure. Trois tests unitaires ajoutés sur le filtrage, la correspondance exacte normalisée et le nom libre ; total Vitest porté à 17.
+- Parcours vérifié sans écriture de données en desktop et mobile 375 px : pré-remplissage depuis Nom, création inline explicite, indépendance après modification et sélection d'une suggestion existante. Route et fixtures visuelles temporaires retirées, serveur 5174 arrêté par PID/session exact.
 
 ## Reste à faire
 - Revue lead tech de la PR #191, puis corrections éventuelles et test utilisateur.
@@ -28,4 +31,5 @@
 - Le crédit manuel accepte un montant libre positif au centime ; il recharge automatiquement le portefeuille du même email pour le même événement.
 - Le secret retourné par la RPC n'est jamais affiché dans l'interface admin. Tant que la page acheteur de Coupon 4 n'existe pas, le succès présente uniquement le code public du portefeuille.
 - Le dernier commentaire Trello du 2026-09-22 remplace le précédent : une activité devient systématiquement liée à l'enregistrement, choisie explicitement ou créée automatiquement si le champ reste vide.
+- Le complément UX Trello publié ensuite remplace la création silencieuse : le nom de la nouvelle activité est toujours visible et modifiable dans le champ unifié avant l'enregistrement.
 - Production inchangée : la nouvelle migration est appliquée uniquement au projet staging jusqu'à une promotion explicite `dev` → `main`.

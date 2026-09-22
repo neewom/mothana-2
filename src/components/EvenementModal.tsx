@@ -45,6 +45,8 @@ export default function EvenementModal({
   const [dateEvenement, setDateEvenement] = useState('')
   const [statut, setStatut] = useState<EvenementStatut>('brouillon')
   const [activiteId, setActiviteId] = useState('')
+  const [activiteName, setActiviteName] = useState('')
+  const [activiteTouched, setActiviteTouched] = useState(false)
   const [montants, setMontants] = useState<string[]>(DEFAULT_AMOUNTS)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,6 +58,8 @@ export default function EvenementModal({
     setDateEvenement(evenement?.date_evenement ?? '')
     setStatut(evenement?.statut ?? 'brouillon')
     setActiviteId(evenement?.activite_id ?? '')
+    setActiviteName(evenement?.activite_id ? '' : evenement?.nom ?? '')
+    setActiviteTouched(false)
     setMontants(evenement?.montants_credit_centimes.map(centimesToInput) ?? DEFAULT_AMOUNTS)
     setError(null)
     setSaving(false)
@@ -69,14 +73,24 @@ export default function EvenementModal({
     setMontants((current) => current.filter((_, i) => i !== index))
   }
 
+  function handleNomChange(value: string) {
+    setNom(value)
+    if (!activiteTouched && !activiteId) setActiviteName(value)
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
 
     const normalizedName = nom.trim()
+    const normalizedActiviteName = activiteName.trim()
     const normalizedSlug = slugifyUrl(isEdit ? slug : normalizedName)
     if (!normalizedName || !dateEvenement || !normalizedSlug) {
       setError('Renseignez le nom, la date et un identifiant URL valide.')
+      return
+    }
+    if (!activiteId && !normalizedActiviteName) {
+      setError('Choisissez une activité existante ou saisissez le nom de la nouvelle activité.')
       return
     }
 
@@ -96,7 +110,7 @@ export default function EvenementModal({
         .from('activites')
         .insert({
           organisation_id: organisationId,
-          nom: normalizedName,
+          nom: normalizedActiviteName,
           date_debut: dateEvenement,
           date_fin: dateEvenement,
         })
@@ -162,7 +176,7 @@ export default function EvenementModal({
               <Input
                 id="evenement-nom"
                 value={nom}
-                onChange={(event) => setNom(event.target.value)}
+                onChange={(event) => handleNomChange(event.target.value)}
                 placeholder="Ex : Nouvel An lao 2027"
                 required
               />
@@ -214,16 +228,26 @@ export default function EvenementModal({
             </p>
 
             <div className="space-y-1.5">
-              <Label>Activité associée</Label>
+              <Label htmlFor="evenement-activite">Activité associée</Label>
               <ActiviteAutocomplete
                 activites={activites}
                 value={activiteId}
-                onChange={setActiviteId}
+                onChange={(id) => {
+                  setActiviteId(id)
+                  setActiviteTouched(true)
+                }}
                 disabled={saving}
-                placeholder="Créée automatiquement si vide"
+                placeholder="Rechercher ou créer une activité…"
+                inputId="evenement-activite"
+                allowCreate
+                customValue={activiteName}
+                onCustomValueChange={(value) => {
+                  setActiviteName(value)
+                  setActiviteTouched(true)
+                }}
               />
               <p className="font-registre-mono text-[11px] text-ink-faint">
-                Sans sélection, une activité du même nom et à la même date sera créée automatiquement.
+                Choisissez une activité existante ou saisissez un nouveau nom. La nouvelle activité sera créée à la date de l’événement.
               </p>
             </div>
 

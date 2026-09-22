@@ -12,3 +12,9 @@ export function filterActivites(activites: Activite[], search: string): Activite
   if (!search.trim()) return activites
   return activites.filter((a) => matchesActiviteSearch(a, search))
 }
+
+export function findExactActivite(activites: Activite[], search: string): Activite | undefined {
+  const normalized = search.trim().toLocaleLowerCase('fr-FR')
+  if (!normalized) return undefined
+  return activites.find((activite) => activite.nom.trim().toLocaleLowerCase('fr-FR') === normalized)
+}
