@@ -156,7 +156,7 @@ function buildNavItems(flags: FonctionnalitesActivees): NavEntry[] {
   }
 
   if (flags.evenements) {
-    items.push({ type: 'link', label: 'Événements', to: '/admin/evenements', icon: <EvenementsIcon /> })
+    items.push({ type: 'link', label: 'Portefeuille événement', to: '/admin/evenements', icon: <EvenementsIcon /> })
   }
 
   if (flags.dons) {
