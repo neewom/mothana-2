@@ -4,9 +4,14 @@ import { supabase } from '../lib/supabaseClient'
 export interface FonctionnalitesActivees {
   dons: boolean
   adherents: boolean
+  evenements: boolean
 }
 
-const DEFAULT_FONCTIONNALITES: FonctionnalitesActivees = { dons: true, adherents: true }
+export const DEFAULT_FONCTIONNALITES: FonctionnalitesActivees = {
+  dons: true,
+  adherents: true,
+  evenements: false,
+}
 
 /**
  * null tant que non chargé — les appelants doivent traiter null comme
