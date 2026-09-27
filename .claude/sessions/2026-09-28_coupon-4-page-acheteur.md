@@ -4,7 +4,7 @@
 
 - Branche `codex/coupon-4-page-acheteur` créée depuis `origin/dev` au commit demandé `9c99ad4`, PR #193 ouverte immédiatement en draft vers `dev`, puis commentaire de démarrage posté sur la carte Trello.
 - Route publique `/p#<secret>` implémentée : identité de l'organisation et de l'événement, solde, QR du code public, historique et état événement clos, avec gestion distincte des erreurs invalides/révoquées, réseau, indisponibilité et limite de débit.
-- Secret brut lu uniquement depuis le fragment, retiré immédiatement de l'URL avec `history.replaceState`, puis haché en SHA-256 avant tout appel réseau. Le QR et le PDF n'embarquent que le code public.
+- Secret brut lu uniquement depuis le fragment, retiré immédiatement de l'URL avec `history.replaceState`, puis haché en SHA-256 avant tout appel réseau. Le hash est conservé dans l'état d'historique du même onglet pour qu'un rechargement reste fonctionnel, sans remettre le secret dans l'URL. Le QR et le PDF n'embarquent que le code public.
 - Migration `portefeuille_acheteur_lecture.sql` ajoutée : résolution par hash, agrégat `service_role` avec contrôle du feature flag, limitation persistante par IP hachée et portefeuille, droits et RLS resserrés.
 - Deux Edge Functions ajoutées : lecture du portefeuille et génération du PDF QR via Gotenberg. Secret `PORTEFEUILLE_RATE_LIMIT_KEY` configuré sur staging.
 - Snapshot SQL staging pris avant migration, migration appliquée et rejouée, tests SQL transactionnels passés. Les deux Edge Functions ont été déployées sur staging.
@@ -25,7 +25,7 @@
 
 ## Décisions
 
-- Le navigateur ne transmet jamais le secret brut : SHA-256 côté client, fragment supprimé avant le chargement asynchrone.
+- Le navigateur ne transmet jamais le secret brut : SHA-256 côté client, fragment supprimé avant le chargement asynchrone, hash conservé seulement dans l'état d'historique du même onglet.
 - Les lectures publiques passent par des Edge Functions et une RPC agrégée inaccessible à `anon`/`authenticated` ; aucune table métier n'est ouverte publiquement.
 - La limitation de débit utilise une empreinte HMAC de l'IP, jamais l'IP brute, et des seuils distincts lecture/PDF.
 - Le QR et le PDF utilisent uniquement `code_public`. L'état d'une demande en attente est fourni par le backend mais n'est pas affiché dans cette phase lecture seule.

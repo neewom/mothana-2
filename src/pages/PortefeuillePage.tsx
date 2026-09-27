@@ -35,6 +35,11 @@ function statusToError(status: number): PortefeuilleAcheteurError {
   return 'indisponible'
 }
 
+function getHistorySecretHash(): string | null {
+  const candidate = (window.history.state as { portefeuilleHash?: unknown } | null)?.portefeuilleHash
+  return typeof candidate === 'string' && /^[a-f0-9]{64}$/.test(candidate) ? candidate : null
+}
+
 const ERROR_CONTENT: Record<PortefeuilleAcheteurError, { title: string; message: string }> = {
   lien_invalide: {
     title: 'Lien non valide',
@@ -99,8 +104,10 @@ function ErrorState({ error, onRetry }: ErrorStateProps) {
 
 export default function PortefeuillePage() {
   const [initialSecret] = useState(() => extractPortefeuilleSecret(window.location.hash))
+  const [initialSecretHash] = useState(() => getHistorySecretHash())
   const secretRef = useRef<string | null>(initialSecret)
-  const [secretHash, setSecretHash] = useState<string | null>(null)
+  const secretHashRef = useRef<string | null>(initialSecretHash)
+  const [secretHash, setSecretHash] = useState<string | null>(initialSecretHash)
   const [state, setState] = useState<PortefeuilleAcheteurState | null>(null)
   const [error, setError] = useState<PortefeuilleAcheteurError | null>(null)
   const [loading, setLoading] = useState(true)
@@ -126,8 +133,8 @@ export default function PortefeuillePage() {
       setError(null)
       setState(null)
 
-      const secret = secretRef.current
-      if (!secret) {
+      let hash = secretHashRef.current
+      if (!hash && !secretRef.current) {
         setError('lien_invalide')
         setLoading(false)
         return
@@ -139,9 +146,18 @@ export default function PortefeuillePage() {
       }
 
       try {
-        const hash = await hashPortefeuilleSecret(secret)
-        if (cancelled) return
-        setSecretHash(hash)
+        if (!hash) {
+          hash = await hashPortefeuilleSecret(secretRef.current!)
+          if (cancelled) return
+          secretRef.current = null
+          secretHashRef.current = hash
+          setSecretHash(hash)
+          window.history.replaceState(
+            { ...window.history.state, portefeuilleHash: hash },
+            '',
+            `${window.location.pathname}${window.location.search}`,
+          )
+        }
 
         const response = await fetch(endpoint('get-portefeuille'), {
           method: 'POST',
