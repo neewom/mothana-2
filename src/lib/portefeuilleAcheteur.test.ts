@@ -25,6 +25,19 @@ describe('portefeuille acheteur', () => {
     )
   })
 
+  it('calcule le SHA-256 sans dépendre de Web Crypto', async () => {
+    const originalCrypto = globalThis.crypto
+    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: undefined })
+
+    try {
+      await expect(hashPortefeuilleSecret('abc')).resolves.toBe(
+        'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+      )
+    } finally {
+      Object.defineProperty(globalThis, 'crypto', { configurable: true, value: originalCrypto })
+    }
+  })
+
   it('formate les montants et les types de mouvement', () => {
     expect(formatCentimes(1234)).toContain('12,34')
     expect(libelleMouvement('credit_initial')).toBe('Crédit initial')

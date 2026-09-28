@@ -1,3 +1,5 @@
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex } from '@noble/hashes/utils.js'
 import type { MouvementPortefeuilleType } from '../types/portefeuilleAcheteur'
 
 export function extractPortefeuilleSecret(fragment: string): string | null {
@@ -12,8 +14,7 @@ export function extractPortefeuilleSecret(fragment: string): string | null {
   }
 }
 export async function hashPortefeuilleSecret(secret: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret))
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+  return bytesToHex(sha256(new TextEncoder().encode(secret)))
 }
 
 export function formatCentimes(montantCentimes: number): string {

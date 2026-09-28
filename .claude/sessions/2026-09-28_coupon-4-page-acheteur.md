@@ -10,8 +10,9 @@
 - Snapshot SQL staging pris avant migration, migration appliquée et rejouée, tests SQL transactionnels passés. Les deux Edge Functions ont été déployées sur staging.
 - Fixture synthétique de démonstration créée sur staging avec un solde et trois mouvements. Lecture HTTP réelle et génération d'un PDF A4 valide vérifiées.
 - Parcours navigateur vérifié en desktop 1440 px et mobile 390 px. Les trois corrections de la revue visuelle ont été intégrées ; verdict final `ship`.
-- `npm run build`, `npm test` (22 tests), lint ciblé, `deno check`, tests SQL, `git diff --check` et mise à jour Graphify validés.
+- `npm run build`, `npm test` (23 tests), lint ciblé, `deno check`, tests SQL, `git diff --check` et mise à jour Graphify validés.
 - PR #192 laissée intacte, conformément au ticket.
+- Blocage de consultation depuis un téléphone via l'IP Tailscale levé : la page HTTP n'est pas un contexte sécurisé, donc Web Crypto n'exposait pas `crypto.subtle` et le hash échouait avant l'appel Supabase. Le calcul SHA-256 utilise maintenant `@noble/hashes`, y compris sans Web Crypto ; test de non-régression ajouté. CORS avait été contrôlé séparément et répondait correctement.
 
 ## Reste à faire
 
@@ -26,6 +27,7 @@
 ## Décisions
 
 - Le navigateur ne transmet jamais le secret brut : SHA-256 côté client, fragment supprimé avant le chargement asynchrone, hash conservé seulement dans l'état d'historique du même onglet.
+- Le calcul SHA-256 ne dépend pas de l'API Web Crypto, afin de fonctionner aussi sur l'origine HTTP Tailscale utilisée pour les tests mobiles.
 - Les lectures publiques passent par des Edge Functions et une RPC agrégée inaccessible à `anon`/`authenticated` ; aucune table métier n'est ouverte publiquement.
 - La limitation de débit utilise une empreinte HMAC de l'IP, jamais l'IP brute, et des seuils distincts lecture/PDF.
 - Le QR et le PDF utilisent uniquement `code_public`. L'état d'une demande en attente est fourni par le backend mais n'est pas affiché dans cette phase lecture seule.
