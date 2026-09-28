@@ -13,6 +13,7 @@ Contexte projet et règles de fonctionnement, lus par tout agent de code travail
 - Vérifier la liste "Backlog" du board Trello "Mothana" (voir section Trello ci-dessous) — l'utilisateur y note à la volée ses demandes d'évolution, pas encore cadrées. En cas de nouveauté (carte non présente dans le backlog ci-dessous), proposer de la cadrer pour l'inscrire dans "État d'avancement"
 - Quand un sujet est cadré (nouveauté détectée ou sujet déjà connu qu'on approfondit), alimenter la carte Trello correspondante avec le détail du cadrage (description), réécrire le titre si le libellé d'origine est devenu imprécis, appliquer l'étiquette verte "cadré", et **déplacer la carte de "Backlog" vers "Todo"**
 - À ce même moment, reclasser les cartes de "Todo" (et des listes "Batch — ...") par priorité/complexité : un sujet peu complexe peut remonter en haut de la liste, un sujet complexe redescend en général plus bas — sauf s'il est aussi sensible ou prioritaire, auquel cas il remonte malgré sa complexité
+- **Cette routine sert à décider quoi faire quand on arrive à froid.** Si le message de démarrage reçu est déjà complet et autonome (carte précise, lien du ticket dev, branche/commit de départ — cas type d'un dev qui démarre une carte cadrée par le lead tech), la décision est déjà prise : inutile de retracer "où on en est" ni de vérifier Backlog/Todo. Lire `AGENTS.md` reste toujours utile (règles opérationnelles générales), le reste de la routine ne l'est pas dans ce cas précis.
 
 ### En fin de session
 - Sauvegarder un résumé dans `.claude/sessions/[date]_[sujet].md`
@@ -26,6 +27,7 @@ Contexte projet et règles de fonctionnement, lus par tout agent de code travail
 - Les blockers non résolus de la session précédente deviennent la priorité
 - Quand un blocker est levé, le noter explicitement dans "Réalisé"
 - **Avant toute action corrective sur une carte Trello jugée mal classée** : `grep` l'URL/le nom de la carte sur **l'ensemble** de `.claude/sessions/*.md`, pas seulement le fichier de session le plus récent — un sujet peut se refermer dans une session ultérieure à celle qui l'a initialement cadré
+- **Ne jamais affirmer l'état d'une PR ou d'une carte (mergée, en draft, ready for review) de mémoire** — vérifier sur une source vivante avant de l'énoncer : `gh pr view <numéro> --json state,mergedAt,isDraft` (après `git fetch` si le worktree local peut être en retard), ou à défaut la dernière entrée du fichier de session/`docs/journal-avancement.md`. Deux occurrences confirmées de PR annoncées à tort comme non mergées alors qu'elles l'étaient (2026-09-22 carte 2 ; 2026-09-28 PR #194) — dans les deux cas une affirmation non vérifiée, pas juste un problème de session réutilisée (le 28/09 s'est produit dans une session neuve)
 
 ---
 
