@@ -19,6 +19,12 @@ describe('portefeuille acheteur', () => {
     expect(extractPortefeuilleSecret(`#${encodeURIComponent(secret)}`)).toBe(secret)
   })
 
+  it('ignore les caractères invisibles ajoutés lors de la copie du lien', () => {
+    const secret = 'a'.repeat(64)
+    const copiedSecret = `${secret.slice(0, 20)}\u200B${secret.slice(20, 44)}\u2060${secret.slice(44)}`
+    expect(extractPortefeuilleSecret(`#${encodeURIComponent(copiedSecret)}`)).toBe(secret)
+  })
+
   it('calcule le SHA-256 envoyé au backend', async () => {
     await expect(hashPortefeuilleSecret('abc')).resolves.toBe(
       'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',

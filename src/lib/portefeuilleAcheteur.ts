@@ -8,6 +8,8 @@ export function extractPortefeuilleSecret(fragment: string): string | null {
 
   try {
     const decoded = decodeURIComponent(raw)
+      .replace(/[\u00AD\u200B-\u200D\u2060\uFEFF]/g, '')
+      .trim()
     return decoded.length >= 32 && decoded.length <= 256 ? decoded : null
   } catch {
     return null
