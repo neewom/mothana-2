@@ -9,6 +9,7 @@ import DonFichiers, { type DonFichiersHandle } from '../components/DonFichiers'
 import AdherentFallbackSuggestions from '../components/AdherentFallbackSuggestions'
 import type { ParticipantEnAttente } from '../lib/adherentTranspose'
 import BenevoleVerificationAdherent from '../components/BenevoleVerificationAdherent'
+import BenevoleEvenement from '../components/BenevoleEvenement'
 import RecetteBanner from '../components/RecetteBanner'
 import { useFonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
@@ -106,18 +107,28 @@ export default function BenevolePage() {
   const fonctionnalitesActivees = useFonctionnalitesActivees(organisationId)
   const donsActifs = fonctionnalitesActivees?.dons ?? true
   const adherentsActifs = fonctionnalitesActivees?.adherents ?? true
+  const evenementsActifs = fonctionnalitesActivees?.evenements ?? false
 
   const [organisationNom, setOrganisationNom] = useState<string | null>(null)
 
   // Onglets
-  const [activeTab, setActiveTab] = useState<'don' | 'verification'>('don')
+  const [activeTab, setActiveTab] = useState<'don' | 'verification' | 'evenement'>('don')
 
   // Bascule automatiquement sur l'onglet encore actif si l'onglet courant
   // devient indisponible (switch désactivé pendant la session).
   useEffect(() => {
-    if (activeTab === 'don' && !donsActifs && adherentsActifs) setActiveTab('verification')
-    else if (activeTab === 'verification' && !adherentsActifs && donsActifs) setActiveTab('don')
-  }, [donsActifs, adherentsActifs, activeTab])
+    const activeTabIsAvailable =
+      (activeTab === 'don' && donsActifs)
+      || (activeTab === 'verification' && adherentsActifs)
+      || (activeTab === 'evenement' && evenementsActifs)
+    if (activeTabIsAvailable) return
+
+    if (donsActifs) setActiveTab('don')
+    else if (adherentsActifs) setActiveTab('verification')
+    else if (evenementsActifs) setActiveTab('evenement')
+  }, [donsActifs, adherentsActifs, evenementsActifs, activeTab])
+
+  const activeFeatureCount = Number(donsActifs) + Number(adherentsActifs) + Number(evenementsActifs)
 
   // Data
   const [participants, setParticipants] = useState<ProfilParticipant[]>([])
@@ -414,33 +425,57 @@ export default function BenevolePage() {
       {/* Content */}
       <main className="flex flex-1 items-start justify-center px-4 py-8">
         <div className="w-full max-w-lg">
-          {donsActifs && adherentsActifs && (
+          {activeFeatureCount > 1 && (
             <div className="mb-6 flex gap-2 rounded-sm bg-paper-border/40 p-1">
-              <button
-                type="button"
-                onClick={() => setActiveTab('don')}
-                className={cn(
-                  'flex-1 rounded-sm px-3 py-2 text-sm font-medium transition-colors',
-                  activeTab === 'don' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
-                )}
-              >
-                Saisir un don
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('verification')}
-                className={cn(
-                  'flex-1 rounded-sm px-3 py-2 text-sm font-medium transition-colors',
-                  activeTab === 'verification' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
-                )}
-              >
-                Vérifier un adhérent
-              </button>
+              {donsActifs && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('don')}
+                  aria-pressed={activeTab === 'don'}
+                  className={cn(
+                    'min-h-10 flex-1 rounded-sm px-2 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70 sm:px-3 sm:text-sm',
+                    activeTab === 'don' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
+                  )}
+                >
+                  <span className="sm:hidden">Don</span>
+                  <span className="hidden sm:inline">Saisir un don</span>
+                </button>
+              )}
+              {adherentsActifs && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('verification')}
+                  aria-pressed={activeTab === 'verification'}
+                  className={cn(
+                    'min-h-10 flex-1 rounded-sm px-2 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70 sm:px-3 sm:text-sm',
+                    activeTab === 'verification' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
+                  )}
+                >
+                  <span className="sm:hidden">Adhérent</span>
+                  <span className="hidden sm:inline">Vérifier un adhérent</span>
+                </button>
+              )}
+              {evenementsActifs && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('evenement')}
+                  aria-pressed={activeTab === 'evenement'}
+                  className={cn(
+                    'min-h-10 flex-1 rounded-sm px-2 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70 sm:px-3 sm:text-sm',
+                    activeTab === 'evenement' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
+                  )}
+                >
+                  <span className="sm:hidden">Paiement</span>
+                  <span className="hidden sm:inline">Événement</span>
+                </button>
+              )}
             </div>
           )}
 
-          {!donsActifs && !adherentsActifs ? (
+          {!donsActifs && !adherentsActifs && !evenementsActifs ? (
             <p className="py-16 text-center text-sm text-ink-faint">Aucune fonctionnalité active pour cette organisation.</p>
+          ) : activeTab === 'evenement' ? (
+            <BenevoleEvenement organisationId={organisationId} />
           ) : activeTab === 'verification' ? (
             <BenevoleVerificationAdherent organisationId={organisationId} />
           ) : (
