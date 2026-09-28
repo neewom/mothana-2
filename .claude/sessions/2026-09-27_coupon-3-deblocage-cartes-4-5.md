@@ -30,9 +30,14 @@ Reprise sur le blocage matériel de la carte 3 (spike temps réel) identifié en
 ### Carte 4 — mergée (2026-09-28)
 - Go explicite de l'utilisateur, PR #193 mergée dans `dev` (merge commit `02128b4`, cohérent avec le style des PR précédentes de l'épique). Checkout principal mis à jour (`git pull`, fast-forward). Routine post-merge faite : carte 4 déplacée vers Done sur Trello, entrée `docs/journal-avancement.md` mise à jour pour refléter le merge (au lieu de "prête pour review") et la revue lead tech, `AGENTS.md` (item 7) mis à jour — carte 5 (écran vendeur) devient la prochaine étape.
 
+### Carte 5 — cadrage (2026-09-28)
+- Constat de départ : la carte 5 telle que décrite sur Trello dépend entièrement du mécanisme temps réel ("attente de la décision de l'acheteur (mécanisme retenu en carte 3)", "Dépend des cartes 1, 3 et 4") — or ni la carte 3 (PR #192 toujours en draft) ni la phase (b) de la carte 4 (validation acheteur, explicitement exclue de ce qui a été mergé) n'existent. Proposé et validé par l'utilisateur : même découpage phase (a)/(b) que la carte 4.
+- Investigation code : pattern d'onglets déjà en place dans `BenevolePage.tsx` (`activeTab` gaté par `fonctionnalitesActivees?.dons/.adherents`, à étendre à `.evenements`), RLS `evenements_benevole_select`/`demandes_paiement_benevole_select` et RPC `creer_demande_paiement`/`annuler_demande_paiement` déjà `authenticated`-grant depuis la carte 1 (rien à ajouter côté schéma), pattern de mapping d'erreurs RPC→français déjà écrit dans `CreditManuelModal.tsx` (carte 2) à reprendre. Manque : `html5-qrcode` (nouvelle dépendance), aucun sélecteur d'événement côté bénévole.
+- Carte 5 mise à jour sur Trello (https://trello.com/c/fWGYep40) : ticket dev complet, étiquette "cadré" appliquée. Phase (a) = tout sauf l'attente temps réel (résolue par un bouton "Vérifier le statut" en relecture directe, pas de polling automatique — volontairement pas de réinvention de la carte 3). Contrainte notée : le scan caméra exige HTTPS, pas testable sur l'IP Tailscale comme la carte 4 — seulement la saisie manuelle en direct pendant le draft, le scan attendra un test post-merge sur `test.samakan.fr`.
+
 ## Reste à faire
-- Cadrage de la carte 5 (écran vendeur) à faire sur demande de l'utilisateur — pas commencé cette session.
-- Retester les angles morts listés ci-dessus une fois les briques manquantes du lifecycle Coupon disponibles (fermeture/gel réel d'un événement — carte 11, ou fixture staging dédiée).
+- Confirmation explicite de l'utilisateur à redemander avant de démarrer le dev de la carte 5 (cadrage fait, dev pas encore lancé).
+- Retester les angles morts listés ci-dessus (carte 4) une fois les briques manquantes du lifecycle Coupon disponibles (fermeture/gel réel d'un événement — carte 11, ou fixture staging dédiée).
 - Test à 2 vrais téléphones (carte 3) à reprendre avant mise en prod du module Coupon : préparer le tunnel `cloudflared` le jour venu (installation + lancement à valider manuellement par l'utilisateur, bloqué par le mode auto).
 - PR #192 (`codex/coupon-3-spike-temps-reel`) reste en draft, carte 3 reste hors Done tant que la preuve terrain n'existe pas (cf. doc `docs/spikes/coupon-3-transport.md` sur cette branche, non mergée).
 
