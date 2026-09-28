@@ -40,6 +40,15 @@ function getHistorySecretHash(): string | null {
   return typeof candidate === 'string' && /^[a-f0-9]{64}$/.test(candidate) ? candidate : null
 }
 
+function historyStateWithoutSecretHash(): Record<string, unknown> {
+  const currentState: unknown = window.history.state
+  if (!currentState || typeof currentState !== 'object') return {}
+
+  const nextState = { ...(currentState as Record<string, unknown>) }
+  delete nextState.portefeuilleHash
+  return nextState
+}
+
 const ERROR_CONTENT: Record<PortefeuilleAcheteurError, { title: string; message: string }> = {
   lien_invalide: {
     title: 'Lien non valide',
@@ -104,7 +113,7 @@ function ErrorState({ error, onRetry }: ErrorStateProps) {
 
 export default function PortefeuillePage() {
   const [initialSecret] = useState(() => extractPortefeuilleSecret(window.location.hash))
-  const [initialSecretHash] = useState(() => getHistorySecretHash())
+  const [initialSecretHash] = useState(() => initialSecret ? null : getHistorySecretHash())
   const secretRef = useRef<string | null>(initialSecret)
   const secretHashRef = useRef<string | null>(initialSecretHash)
   const [secretHash, setSecretHash] = useState<string | null>(initialSecretHash)
@@ -118,10 +127,31 @@ export default function PortefeuillePage() {
   useLayoutEffect(() => {
     if (!window.location.hash) return
     window.history.replaceState(
-      window.history.state,
+      historyStateWithoutSecretHash(),
       '',
       `${window.location.pathname}${window.location.search}`,
     )
+  }, [])
+
+  useEffect(() => {
+    function handleHashChange() {
+      const secret = extractPortefeuilleSecret(window.location.hash)
+      if (!secret) return
+
+      secretRef.current = secret
+      secretHashRef.current = null
+      setSecretHash(null)
+      setPdfState('idle')
+      window.history.replaceState(
+        historyStateWithoutSecretHash(),
+        '',
+        `${window.location.pathname}${window.location.search}`,
+      )
+      setRetryKey((value) => value + 1)
+    }
+
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
   useEffect(() => {
@@ -153,7 +183,7 @@ export default function PortefeuillePage() {
           secretHashRef.current = hash
           setSecretHash(hash)
           window.history.replaceState(
-            { ...window.history.state, portefeuilleHash: hash },
+            { ...historyStateWithoutSecretHash(), portefeuilleHash: hash },
             '',
             `${window.location.pathname}${window.location.search}`,
           )

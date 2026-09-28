@@ -13,6 +13,7 @@
 - `npm run build`, `npm test` (23 tests), lint ciblé, `deno check`, tests SQL, `git diff --check` et mise à jour Graphify validés.
 - PR #192 laissée intacte, conformément au ticket.
 - Blocage de consultation depuis un téléphone via l'IP Tailscale levé : la page HTTP n'est pas un contexte sécurisé, donc Web Crypto n'exposait pas `crypto.subtle` et le hash échouait avant l'appel Supabase. Le calcul SHA-256 utilise maintenant `@noble/hashes`, y compris sans Web Crypto ; test de non-régression ajouté. CORS avait été contrôlé séparément et répondait correctement.
+- Second cas mobile levé : après nettoyage du fragment, rouvrir le lien depuis le même onglet ne réinitialisait pas le composant et pouvait réutiliser un ancien hash d'historique. Un listener `hashchange` recharge désormais le nouveau secret, qui prend toujours priorité sur l'état d'historique. Vérifié sur l'origine HTTP Tailscale avec deux fragments successifs dans le même onglet.
 
 ## Reste à faire
 
