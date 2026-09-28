@@ -4,7 +4,7 @@
 
 - Branche `codex/coupon-4-page-acheteur` créée depuis `origin/dev` au commit demandé `9c99ad4`, PR #193 ouverte immédiatement en draft vers `dev`, puis commentaire de démarrage posté sur la carte Trello.
 - Route publique `/p#<secret>` implémentée : identité de l'organisation et de l'événement, solde, QR du code public, historique et état événement clos, avec gestion distincte des erreurs invalides/révoquées, réseau, indisponibilité et limite de débit.
-- Secret brut lu uniquement depuis le fragment, retiré immédiatement de l'URL avec `history.replaceState`, puis haché en SHA-256 avant tout appel réseau. Le hash est conservé dans l'état d'historique du même onglet pour qu'un rechargement reste fonctionnel, sans remettre le secret dans l'URL. Le QR et le PDF n'embarquent que le code public.
+- Secret brut lu uniquement depuis le fragment, conservé dans l'URL pour que le lien reste copiable comme prévu par le ticket, puis haché en SHA-256 avant tout appel réseau. Le fragment n'est transmis ni au serveur ni dans le `Referer`. Le QR et le PDF n'embarquent que le code public.
 - Migration `portefeuille_acheteur_lecture.sql` ajoutée : résolution par hash, agrégat `service_role` avec contrôle du feature flag, limitation persistante par IP hachée et portefeuille, droits et RLS resserrés.
 - Deux Edge Functions ajoutées : lecture du portefeuille et génération du PDF QR via Gotenberg. Secret `PORTEFEUILLE_RATE_LIMIT_KEY` configuré sur staging.
 - Snapshot SQL staging pris avant migration, migration appliquée et rejouée, tests SQL transactionnels passés. Les deux Edge Functions ont été déployées sur staging.
@@ -13,7 +13,7 @@
 - `npm run build`, `npm test` (23 tests), lint ciblé, `deno check`, tests SQL, `git diff --check` et mise à jour Graphify validés.
 - PR #192 laissée intacte, conformément au ticket.
 - Blocage de consultation depuis un téléphone via l'IP Tailscale levé : la page HTTP n'est pas un contexte sécurisé, donc Web Crypto n'exposait pas `crypto.subtle` et le hash échouait avant l'appel Supabase. Le calcul SHA-256 utilise maintenant `@noble/hashes`, y compris sans Web Crypto ; test de non-régression ajouté. CORS avait été contrôlé séparément et répondait correctement.
-- Second cas mobile levé : après nettoyage du fragment, rouvrir le lien depuis le même onglet ne réinitialisait pas le composant et pouvait réutiliser un ancien hash d'historique. Un listener `hashchange` recharge désormais le nouveau secret, qui prend toujours priorité sur l'état d'historique. Vérifié sur l'origine HTTP Tailscale avec deux fragments successifs dans le même onglet.
+- Second cas mobile levé : le nettoyage du fragment rendait impossible la copie du lien depuis la barre d'adresse du navigateur ChatGPT, et rouvrir un lien dans le même onglet ne réinitialisait pas le composant. Le fragment reste désormais visible et copiable conformément au ticket ; un listener `hashchange` recharge aussi tout nouveau secret dans le même onglet. Vérifié sur l'origine HTTP Tailscale, y compris après rechargement.
 
 ## Reste à faire
 
@@ -27,7 +27,7 @@
 
 ## Décisions
 
-- Le navigateur ne transmet jamais le secret brut : SHA-256 côté client, fragment supprimé avant le chargement asynchrone, hash conservé seulement dans l'état d'historique du même onglet.
+- Le navigateur ne transmet jamais le secret brut : il reste dans le fragment copiable de l'URL et seul son SHA-256 est envoyé aux Edge Functions.
 - Le calcul SHA-256 ne dépend pas de l'API Web Crypto, afin de fonctionner aussi sur l'origine HTTP Tailscale utilisée pour les tests mobiles.
 - Les lectures publiques passent par des Edge Functions et une RPC agrégée inaccessible à `anon`/`authenticated` ; aucune table métier n'est ouverte publiquement.
 - La limitation de débit utilise une empreinte HMAC de l'IP, jamais l'IP brute, et des seuils distincts lecture/PDF.

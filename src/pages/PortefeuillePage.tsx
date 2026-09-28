@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { Button } from '../components/ui/button'
 import {
@@ -33,20 +33,6 @@ function statusToError(status: number): PortefeuilleAcheteurError {
   if (status === 404) return 'lien_invalide'
   if (status === 429) return 'limite'
   return 'indisponible'
-}
-
-function getHistorySecretHash(): string | null {
-  const candidate = (window.history.state as { portefeuilleHash?: unknown } | null)?.portefeuilleHash
-  return typeof candidate === 'string' && /^[a-f0-9]{64}$/.test(candidate) ? candidate : null
-}
-
-function historyStateWithoutSecretHash(): Record<string, unknown> {
-  const currentState: unknown = window.history.state
-  if (!currentState || typeof currentState !== 'object') return {}
-
-  const nextState = { ...(currentState as Record<string, unknown>) }
-  delete nextState.portefeuilleHash
-  return nextState
 }
 
 const ERROR_CONTENT: Record<PortefeuilleAcheteurError, { title: string; message: string }> = {
@@ -113,25 +99,15 @@ function ErrorState({ error, onRetry }: ErrorStateProps) {
 
 export default function PortefeuillePage() {
   const [initialSecret] = useState(() => extractPortefeuilleSecret(window.location.hash))
-  const [initialSecretHash] = useState(() => initialSecret ? null : getHistorySecretHash())
   const secretRef = useRef<string | null>(initialSecret)
-  const secretHashRef = useRef<string | null>(initialSecretHash)
-  const [secretHash, setSecretHash] = useState<string | null>(initialSecretHash)
+  const secretHashRef = useRef<string | null>(null)
+  const [secretHash, setSecretHash] = useState<string | null>(null)
   const [state, setState] = useState<PortefeuilleAcheteurState | null>(null)
   const [error, setError] = useState<PortefeuilleAcheteurError | null>(null)
   const [loading, setLoading] = useState(true)
   const [retryKey, setRetryKey] = useState(0)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [pdfState, setPdfState] = useState<'idle' | 'loading' | 'done' | 'limit' | 'offline' | 'error'>('idle')
-
-  useLayoutEffect(() => {
-    if (!window.location.hash) return
-    window.history.replaceState(
-      historyStateWithoutSecretHash(),
-      '',
-      `${window.location.pathname}${window.location.search}`,
-    )
-  }, [])
 
   useEffect(() => {
     function handleHashChange() {
@@ -142,11 +118,6 @@ export default function PortefeuillePage() {
       secretHashRef.current = null
       setSecretHash(null)
       setPdfState('idle')
-      window.history.replaceState(
-        historyStateWithoutSecretHash(),
-        '',
-        `${window.location.pathname}${window.location.search}`,
-      )
       setRetryKey((value) => value + 1)
     }
 
@@ -182,11 +153,6 @@ export default function PortefeuillePage() {
           secretRef.current = null
           secretHashRef.current = hash
           setSecretHash(hash)
-          window.history.replaceState(
-            { ...historyStateWithoutSecretHash(), portefeuilleHash: hash },
-            '',
-            `${window.location.pathname}${window.location.search}`,
-          )
         }
 
         const response = await fetch(endpoint('get-portefeuille'), {
