@@ -51,10 +51,18 @@ Reprise sur le blocage matériel de la carte 3 (spike temps réel) identifié en
 - **Correction importante** : le cadrage initial disait "à trancher avec Adrien" — inexact. Adrien a réalisé un POC du concept (repo `adrienvidal/pagode-coupon`, en dormance), mais **la question de l'encaissement était explicitement hors périmètre de ce POC** — rien à en récupérer sur ce point précis, c'est une décision entièrement neuve. Cartes Trello (carte 6 + carte épique) et mémoire corrigées en conséquence.
 - Brief poussé sur la carte 6 (sans étiquette "cadré", ce n'est pas un cadrage dev) : 4 options comparées, choix explicitement laissé ouvert, 3 prochaines étapes suggérées (confirmation Stripe, avis juridique sur le seuil, creuser HelloAsso si besoin).
 
+### Aparté — trust Codex mobile sur le worktree (2026-09-28)
+- L'utilisateur bloqué sur l'appli mobile ChatGPT/Codex pour démarrer un chat scopé sur `mothana-2-codex` ("Impossible de vérifier la fiabilité du projet"). Cause trouvée dans `~/.codex/config.toml` : seul `/Users/vichithboulom/Projects/mothana-2` était déclaré `trust_level = "trusted"`, pas le worktree. Ajout d'une entrée équivalente pour `mothana-2-codex` (même origine/commits que le repo principal) — confirmé fonctionnel par l'utilisateur.
+
+### Dépendances de l'épique vérifiées, carte 10 cadrée (2026-09-28)
+- Cartes 7 (paiement backend), 8 (achat public) et 9 (récupération du lien) bloquées en cascade par la carte 6 (paiement). Cartes 10 (durcissement `verify-pin`) et 11 (dashboard admin, hors action remboursement) libres de toute dépendance — carte 6 mise de côté, on avance sur celles-ci.
+- Carte 10 cadrée : réutilisation du mécanisme de rate limiting de la carte 4 (`acces_portefeuille_rate_limits`, extension du `scope` à `'verify_pin'`) plutôt qu'une nouvelle table — précision explicite que le blocage ne peut être que par IP (pas par organisation, PIN = seule clé de recherche avant résolution). Ticket dev complet poussé sur Trello, étiquette "cadré" appliquée. Dev pas encore lancé.
+
 ## Reste à faire
+- Confirmation explicite de l'utilisateur à redemander avant de démarrer le dev de la carte 10.
+- Cadrer la carte 11 (dashboard admin événement, hors remboursement) une fois la carte 10 en cours/terminée.
 - Cadrer la nouvelle carte Backlog sur l'accès distinct du vendeur (accès vendeur événementiel), à un prochain point de check du backlog.
 - Carte 6 : attendre que l'utilisateur avance sur les 3 prochaines étapes (Stripe, juriste, HelloAsso) avant de pouvoir trancher — pas une action agent.
-- Décider de la prochaine étape de l'épique Coupon avec l'utilisateur : reprendre la carte 3 (test 2 téléphones), avancer sur une autre carte (9, 10, 11) qui ne dépend pas de la boucle temps réel.
 - Retester les angles morts (cartes 4/5) une fois les briques manquantes disponibles — cf. carte Backlog de suivi.
 - Retester les angles morts listés ci-dessus (carte 4) une fois les briques manquantes du lifecycle Coupon disponibles (fermeture/gel réel d'un événement — carte 11, ou fixture staging dédiée).
 - Test à 2 vrais téléphones (carte 3) à reprendre avant mise en prod du module Coupon : préparer le tunnel `cloudflared` le jour venu (installation + lancement à valider manuellement par l'utilisateur, bloqué par le mode auto).
