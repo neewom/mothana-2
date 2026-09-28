@@ -64,9 +64,10 @@ Reprise sur le blocage matériel de la carte 3 (spike temps réel) identifié en
 - L'utilisateur a demandé si le plan de test de Codex était jouable sur `test.samakan.fr` sans merger : oui, confirmé — backend déjà déployé sur staging indépendamment du merge, frontend (`AuthContext.tsx`) déjà compatible sans modification (affiche `json.error` génériquement).
 - Décision : garder ce test pour le batch groupé sur `test.samakan.fr` plutôt que de le faire isolément maintenant. Carte de suivi (https://trello.com/c/En0Q5ofB) mise à jour avec le plan de test complet de Codex ; carte 10 commentée pour tracer le report.
 
+- Go donné, PR #195 mergée (`411d020`). Routine post-merge faite : carte 10 → Done, journal mis à jour, `AGENTS.md` (item 7) condensé — la description avait accumulé tout l'historique détaillé de l'épique au fil de la session, ramenée à un état courant concis (le détail reste dans le journal).
+
 ## Reste à faire
-- Merge de la PR #195 : go explicite de l'utilisateur à donner (pas encore fait, test fonctionnel reporté au batch test.samakan.fr — https://trello.com/c/En0Q5ofB).
-- Cadrer la carte 11 (dashboard admin événement, hors remboursement) — carte 10 n'attend plus que le merge.
+- Cadrer la carte 11 (dashboard admin événement, hors remboursement) — plus aucune dépendance bloquante.
 - Cadrer la nouvelle carte Backlog sur l'accès distinct du vendeur (accès vendeur événementiel), à un prochain point de check du backlog.
 - Carte 6 : attendre que l'utilisateur avance sur les 3 prochaines étapes (Stripe, juriste, HelloAsso) avant de pouvoir trancher — pas une action agent.
 - Retester les angles morts (cartes 4/5) et le plan de test carte 10 une fois les briques manquantes disponibles — tout consolidé sur la carte Backlog de suivi (https://trello.com/c/En0Q5ofB).
