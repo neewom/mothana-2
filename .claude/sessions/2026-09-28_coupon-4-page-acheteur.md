@@ -15,11 +15,11 @@
 - Blocage de consultation depuis un téléphone via l'IP Tailscale levé : la page HTTP n'est pas un contexte sécurisé, donc Web Crypto n'exposait pas `crypto.subtle` et le hash échouait avant l'appel Supabase. Le calcul SHA-256 utilise maintenant `@noble/hashes`, y compris sans Web Crypto ; test de non-régression ajouté. CORS avait été contrôlé séparément et répondait correctement.
 - Second cas mobile levé : le nettoyage du fragment rendait impossible la copie du lien depuis la barre d'adresse du navigateur ChatGPT, et rouvrir un lien dans le même onglet ne réinitialisait pas le composant. Le fragment reste désormais visible et copiable conformément au ticket ; un listener `hashchange` recharge aussi tout nouveau secret dans le même onglet. Vérifié sur l'origine HTTP Tailscale, y compris après rechargement.
 - Cas de copie directe depuis le texte du fil traité : les caractères invisibles de mise en forme susceptibles d'être insérés au milieu d'une longue URL (`soft hyphen`, espaces sans largeur, `word joiner`, BOM) sont retirés du fragment avant validation et hash. Test dédié avec deux caractères invisibles encodés au milieu du secret.
+- Validation fonctionnelle utilisateur reçue le 2026-09-28 après test dans le navigateur habituel via Tailscale. PR #193 prête pour la revue complète du lead tech.
 
 ## Reste à faire
 
-- Faire tester la PR #193 en draft par l'utilisateur sur le port 5174 et intégrer ses éventuels retours fonctionnels/UX.
-- Après validation fonctionnelle explicite, passer la PR en « ready for review », commenter « prête pour review » et laisser le lead tech effectuer l'unique revue complète.
+- Laisser le lead tech effectuer l'unique revue complète de la PR #193 et intégrer ses éventuels retours.
 - Après merge seulement, déplacer la carte Trello en Done et mettre à jour le journal dans la même action.
 
 ## Blockers
