@@ -10,6 +10,7 @@
 - `verify-pin`, `get-portefeuille` et `generate-portefeuille-qr-pdf` redéployées sur la recette, les deux dernières embarquant le helper partagé.
 - Test HTTP réel : PIN invalide sous le seuil = 401 ; 11e tentative = 429 avec `Retry-After: 900` ; compteur de test remis hors fenêtre puis retour au 401 confirmé.
 - `deno check` sur les trois Edge Functions, lint Deno ciblé, `tsc -b`, `npm test` (31 tests), `git diff --check` et `graphify update .` validés.
+- PR #195 passée de draft à « ready for review » et commentaire Trello « Prête pour review » publié.
 
 ## Reste à faire
 
