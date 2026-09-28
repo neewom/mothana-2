@@ -58,13 +58,18 @@ Reprise sur le blocage matériel de la carte 3 (spike temps réel) identifié en
 - Cartes 7 (paiement backend), 8 (achat public) et 9 (récupération du lien) bloquées en cascade par la carte 6 (paiement). Cartes 10 (durcissement `verify-pin`) et 11 (dashboard admin, hors action remboursement) libres de toute dépendance — carte 6 mise de côté, on avance sur celles-ci.
 - Carte 10 cadrée : réutilisation du mécanisme de rate limiting de la carte 4 (`acces_portefeuille_rate_limits`, extension du `scope` à `'verify_pin'`) plutôt qu'une nouvelle table — précision explicite que le blocage ne peut être que par IP (pas par organisation, PIN = seule clé de recherche avant résolution). Ticket dev complet poussé sur Trello, étiquette "cadré" appliquée. Dev pas encore lancé.
 
+### Carte 10 — dev livré, revue faite, test reporté au batch (2026-09-29)
+- Codex a livré la carte 10 (PR #195) : réutilisation propre du rate limiting de la carte 4 (extraction DRY de `clientIp`/`hashClientIp` vers `_shared/rateLimit.ts`), nouvelle RPC `verifier_limite_verify_pin` sur la même table `acces_portefeuille_rate_limits` (scope `verify_pin`), contrôle appelé avant la recherche du PIN. Revue lead tech faite (worktree de revue) : `tsc -b`, 31 tests, `deno check` verts, migration+fonction confirmées déployées sur staging. Aucun bloquant.
+- **Vérification empirique faite pendant la revue** : test direct pour savoir si `cf-connecting-ip` (vérifié en premier par `clientIp()`) est spoofable sur ce projet — non, le domaine `*.supabase.co` est servi par Cloudflare qui rejette (erreur 1000) toute requête où le client tente de poser ce header lui-même. Referme définitivement le point laissé en suggestion sur la carte 4.
+- L'utilisateur a demandé si le plan de test de Codex était jouable sur `test.samakan.fr` sans merger : oui, confirmé — backend déjà déployé sur staging indépendamment du merge, frontend (`AuthContext.tsx`) déjà compatible sans modification (affiche `json.error` génériquement).
+- Décision : garder ce test pour le batch groupé sur `test.samakan.fr` plutôt que de le faire isolément maintenant. Carte de suivi (https://trello.com/c/En0Q5ofB) mise à jour avec le plan de test complet de Codex ; carte 10 commentée pour tracer le report.
+
 ## Reste à faire
-- Confirmation explicite de l'utilisateur à redemander avant de démarrer le dev de la carte 10.
-- Cadrer la carte 11 (dashboard admin événement, hors remboursement) une fois la carte 10 en cours/terminée.
+- Merge de la PR #195 : go explicite de l'utilisateur à donner (pas encore fait, test fonctionnel reporté au batch test.samakan.fr — https://trello.com/c/En0Q5ofB).
+- Cadrer la carte 11 (dashboard admin événement, hors remboursement) — carte 10 n'attend plus que le merge.
 - Cadrer la nouvelle carte Backlog sur l'accès distinct du vendeur (accès vendeur événementiel), à un prochain point de check du backlog.
 - Carte 6 : attendre que l'utilisateur avance sur les 3 prochaines étapes (Stripe, juriste, HelloAsso) avant de pouvoir trancher — pas une action agent.
-- Retester les angles morts (cartes 4/5) une fois les briques manquantes disponibles — cf. carte Backlog de suivi.
-- Retester les angles morts listés ci-dessus (carte 4) une fois les briques manquantes du lifecycle Coupon disponibles (fermeture/gel réel d'un événement — carte 11, ou fixture staging dédiée).
+- Retester les angles morts (cartes 4/5) et le plan de test carte 10 une fois les briques manquantes disponibles — tout consolidé sur la carte Backlog de suivi (https://trello.com/c/En0Q5ofB).
 - Test à 2 vrais téléphones (carte 3) à reprendre avant mise en prod du module Coupon : préparer le tunnel `cloudflared` le jour venu (installation + lancement à valider manuellement par l'utilisateur, bloqué par le mode auto).
 - PR #192 (`codex/coupon-3-spike-temps-reel`) reste en draft, carte 3 reste hors Done tant que la preuve terrain n'existe pas (cf. doc `docs/spikes/coupon-3-transport.md` sur cette branche, non mergée).
 
