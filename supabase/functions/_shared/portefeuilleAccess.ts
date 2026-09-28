@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2'
+import { hashClientIp } from './rateLimit.ts'
 
 export const portefeuilleCorsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,29 +52,6 @@ export function portefeuilleJson(body: unknown, status = 200): Response {
   })
 }
 
-function clientIp(req: Request): string {
-  const forwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-  return req.headers.get('cf-connecting-ip')?.trim()
-    || forwarded
-    || req.headers.get('x-real-ip')?.trim()
-    || 'unknown'
-}
-
-async function hmacSha256(value: string): Promise<string> {
-  const keyValue = Deno.env.get('PORTEFEUILLE_RATE_LIMIT_KEY')
-  if (!keyValue) throw new Error('RATE_LIMIT_KEY_MISSING')
-
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(keyValue),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  )
-  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value))
-  return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
 async function parseSecretHash(req: Request): Promise<string | null> {
   const raw = await req.text()
   if (raw.length > 512) return null
@@ -110,7 +88,7 @@ export async function readPortefeuilleBuyerState(
 
   let ipHash: string
   try {
-    ipHash = await hmacSha256(clientIp(req))
+    ipHash = await hashClientIp(req)
   } catch {
     console.error('Portefeuille rate limiter is not configured')
     return { ok: false, response: portefeuilleJson({ error: 'SERVICE_INDISPONIBLE' }, 503) }

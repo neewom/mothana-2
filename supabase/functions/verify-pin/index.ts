@@ -1,8 +1,30 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { hashClientIp } from '../_shared/rateLimit.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+interface VerifyPinRateLimitResult {
+  ok: boolean
+  reason?: 'ACCES_INVALIDE' | 'RATE_LIMIT'
+}
+
+function jsonResponse(
+  body: unknown,
+  status = 200,
+  extraHeaders: Record<string, string> = {},
+): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
+      ...extraHeaders,
+    },
+  })
 }
 
 Deno.serve(async (req) => {
@@ -27,6 +49,41 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false },
     })
+
+    let ipHash: string
+    try {
+      ipHash = await hashClientIp(req)
+    } catch {
+      console.error('Verify PIN rate limiter is not configured')
+      return jsonResponse({ error: 'Service temporairement indisponible' }, 503)
+    }
+
+    const { data: rateLimitData, error: rateLimitError } = await adminClient.rpc(
+      'verifier_limite_verify_pin',
+      { p_ip_hash: ipHash },
+    )
+
+    if (rateLimitError) {
+      console.error('Verify PIN rate limit failed:', rateLimitError.code)
+      return jsonResponse({ error: 'Service temporairement indisponible' }, 503)
+    }
+
+    const rateLimit = rateLimitData as VerifyPinRateLimitResult | null
+    if (!rateLimit?.ok) {
+      if (rateLimit?.reason === 'RATE_LIMIT') {
+        return jsonResponse(
+          {
+            error: 'Trop de tentatives. Réessayez dans 15 minutes.',
+            code: 'TROP_DE_REQUETES',
+          },
+          429,
+          { 'Retry-After': '900' },
+        )
+      }
+
+      console.error('Verify PIN rate limit returned an invalid result')
+      return jsonResponse({ error: 'Service temporairement indisponible' }, 503)
+    }
 
     // 1. Verify PIN → resolve organisation
     const { data: org, error: orgError } = await adminClient
