@@ -11,18 +11,18 @@
 - Rendu vérifié en desktop et mobile 390 px. La contrainte de caméra sans HTTPS est explicitement expliquée et renvoie vers la saisie manuelle.
 - `npm run build`, `npm test` (31 tests), lint ciblé, `git diff --check`, détecteur Impeccable et `graphify update .` validés.
 - Revue de finition Impeccable : course détectée pendant l’autorisation caméra (changement de mode/démontage avant résolution de `start()`), corrigée par invalidation des opérations, attente du démarrage avant arrêt et test unitaire du cycle asynchrone. Sémantique active des onglets explicitée avec `aria-pressed`.
+- Parcours fonctionnel/UX validé par l’utilisateur sur le serveur Codex port 5174 via Tailscale ; PR #194 passée de draft à « ready for review » et commentaire Trello « prête pour review » publié.
 
 ## Reste à faire
 
-- Faire tester la saisie manuelle par l’utilisateur avec sa vraie session bénévole sur le serveur Codex port 5174 ; garder la PR en draft pendant cette boucle.
 - Le scan caméra réel doit être testé sous HTTPS après merge sur `dev` ou via une preview HTTPS, comme prévu par le ticket.
-- Après validation fonctionnelle utilisateur : pousser les éventuels ajustements, passer la PR #194 « ready for review », commenter Trello « prête pour review », puis laisser le lead tech effectuer l’unique revue complète.
+- Laisser le lead tech effectuer l’unique revue complète de la PR #194 maintenant prête pour review, puis intégrer ses éventuels retours.
 - Après merge seulement, déplacer la carte Trello en Done et ajouter l’entrée correspondante dans `docs/journal-avancement.md` dans la même action.
 
 ## Blockers
 
 - Aucun blocker de code. Le test caméra reste volontairement différé à un environnement HTTPS.
-- Le PIN bénévole de démonstration documenté historiquement n’est plus valide et sa lecture directe en base n’a pas été contournée ; le parcours staging a donc utilisé temporairement la session admin de démonstration pour vérifier l’UI/RPC, sans conserver ce bypass dans le code. Le vrai test bénévole reste à faire par l’utilisateur.
+- Le PIN bénévole de démonstration documenté historiquement n’est plus valide et sa lecture directe en base n’a pas été contournée ; le parcours staging automatisé a donc utilisé temporairement la session admin de démonstration pour vérifier l’UI/RPC, sans conserver ce bypass dans le code.
 
 ## Décisions
 
