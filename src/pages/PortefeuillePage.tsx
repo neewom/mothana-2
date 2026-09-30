@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { Button } from '../components/ui/button'
 import {
+  PAYMENT_CHANGED_EVENT,
+  paymentDecisionReasonMessage,
+} from '../lib/couponPaymentRealtime'
+import { createPaymentTransport, TransportAccessError } from '../lib/transport/paymentTransport'
+import {
   extractPortefeuilleSecret,
   formatCentimes,
   formatDateMouvement,
@@ -9,6 +14,8 @@ import {
   hashPortefeuilleSecret,
   libelleMouvement,
 } from '../lib/portefeuilleAcheteur'
+import { supabase } from '../lib/supabaseClient'
+import type { SyncReason } from '../types/paymentTransport'
 import type {
   PortefeuilleAcheteurError,
   PortefeuilleAcheteurState,
@@ -16,6 +23,21 @@ import type {
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+class PortefeuilleHttpError extends Error {
+  readonly status: number
+
+  constructor(status: number) {
+    super(`Portefeuille request failed with status ${status}`)
+    this.status = status
+  }
+}
+
+interface PaymentDecisionResponse {
+  ok: boolean
+  raison: string | null
+  statut: 'validee' | 'refusee' | 'expiree' | 'annulee' | null
+}
 
 function endpoint(functionName: string): string {
   return `${supabaseUrl}/functions/v1/${functionName}`
@@ -33,6 +55,19 @@ function statusToError(status: number): PortefeuilleAcheteurError {
   if (status === 404) return 'lien_invalide'
   if (status === 429) return 'limite'
   return 'indisponible'
+}
+
+async function fetchPortefeuilleState(secretHash: string, signal?: AbortSignal): Promise<PortefeuilleAcheteurState> {
+  const response = await fetch(endpoint('get-portefeuille'), {
+    method: 'POST',
+    headers: requestHeaders(),
+    body: JSON.stringify({ secret_hash: secretHash }),
+    cache: 'no-store',
+    signal,
+  })
+  if (response.status === 404) throw new TransportAccessError('Portefeuille access denied')
+  if (!response.ok) throw new PortefeuilleHttpError(response.status)
+  return response.json() as Promise<PortefeuilleAcheteurState>
 }
 
 const ERROR_CONTENT: Record<PortefeuilleAcheteurError, { title: string; message: string }> = {
@@ -108,6 +143,11 @@ export default function PortefeuillePage() {
   const [retryKey, setRetryKey] = useState(0)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [pdfState, setPdfState] = useState<'idle' | 'loading' | 'done' | 'limit' | 'offline' | 'error'>('idle')
+  const [decisionState, setDecisionState] = useState<'idle' | 'accepting' | 'refusing'>('idle')
+  const [decisionError, setDecisionError] = useState<string | null>(null)
+  const [decisionFeedback, setDecisionFeedback] = useState<string | null>(null)
+  const [realtimeNote, setRealtimeNote] = useState<string | null>(null)
+  const paymentRefreshRef = useRef<((reason: SyncReason) => Promise<void>) | null>(null)
 
   useEffect(() => {
     function handleHashChange() {
@@ -118,6 +158,9 @@ export default function PortefeuillePage() {
       secretHashRef.current = null
       setSecretHash(null)
       setPdfState('idle')
+      setDecisionState('idle')
+      setDecisionError(null)
+      setDecisionFeedback(null)
       setRetryKey((value) => value + 1)
     }
 
@@ -155,20 +198,12 @@ export default function PortefeuillePage() {
           setSecretHash(hash)
         }
 
-        const response = await fetch(endpoint('get-portefeuille'), {
-          method: 'POST',
-          headers: requestHeaders(),
-          body: JSON.stringify({ secret_hash: hash }),
-          cache: 'no-store',
-          signal: controller.signal,
-        })
-        if (!response.ok) throw new Response(null, { status: response.status })
-
-        const payload = await response.json() as PortefeuilleAcheteurState
+        const payload = await fetchPortefeuilleState(hash, controller.signal)
         if (!cancelled) setState(payload)
       } catch (caught) {
         if (controller.signal.aborted || cancelled) return
-        if (caught instanceof Response) setError(statusToError(caught.status))
+        if (caught instanceof TransportAccessError) setError('lien_invalide')
+        else if (caught instanceof PortefeuilleHttpError) setError(statusToError(caught.status))
         else setError(navigator.onLine ? 'indisponible' : 'hors_ligne')
       } finally {
         if (!cancelled) setLoading(false)
@@ -181,6 +216,59 @@ export default function PortefeuillePage() {
       controller.abort()
     }
   }, [retryKey])
+
+  useEffect(() => {
+    if (!secretHash) return
+
+    const transport = createPaymentTransport<PortefeuilleAcheteurState>({
+      mode: 'broadcast',
+      read: (signal) => fetchPortefeuilleState(secretHash, signal),
+      subscribe: (hint, connected) => {
+        const channel = supabase
+          .channel(secretHash, { config: { private: false } })
+          .on('broadcast', { event: PAYMENT_CHANGED_EVENT }, hint)
+          .subscribe((status) => connected(status === 'SUBSCRIBED'))
+        return () => { void supabase.removeChannel(channel) }
+      },
+      onSnapshot: (snapshot) => {
+        setState(snapshot)
+        setError(null)
+        setLoading(false)
+        setRealtimeNote(null)
+      },
+      onEvent: (event) => {
+        if (event.event === 'access-denied') {
+          setState(null)
+          setError('lien_invalide')
+          setLoading(false)
+        } else if (event.event === 'offline') {
+          setRealtimeNote('Connexion interrompue — la mise à jour reprendra automatiquement.')
+        } else if (event.event === 'read-error' || event.event === 'broadcast-fallback') {
+          setRealtimeNote('Connexion instable — vérification automatique en cours.')
+        }
+      },
+      pollMs: 2500,
+      reconcileMs: 5000,
+    })
+
+    paymentRefreshRef.current = transport.refresh
+    const updateAvailability = () => {
+      transport.setAvailability(document.visibilityState === 'visible', navigator.onLine)
+    }
+    document.addEventListener('visibilitychange', updateAvailability)
+    window.addEventListener('online', updateAvailability)
+    window.addEventListener('offline', updateAvailability)
+    updateAvailability()
+    transport.start()
+
+    return () => {
+      if (paymentRefreshRef.current === transport.refresh) paymentRefreshRef.current = null
+      document.removeEventListener('visibilitychange', updateAvailability)
+      window.removeEventListener('online', updateAvailability)
+      window.removeEventListener('offline', updateAvailability)
+      transport.stop()
+    }
+  }, [secretHash])
 
   useEffect(() => {
     if (!state) return
@@ -199,6 +287,49 @@ export default function PortefeuillePage() {
   }, [state])
 
   const retry = useCallback(() => setRetryKey((value) => value + 1), [])
+
+  async function decidePayment(validate: boolean) {
+    const pending = state?.demandeEnAttente
+    if (!secretHash || !pending || decisionState !== 'idle') return
+
+    setDecisionState(validate ? 'accepting' : 'refusing')
+    setDecisionError(null)
+    setDecisionFeedback(null)
+    try {
+      const response = await fetch(endpoint('decider-portefeuille-paiement'), {
+        method: 'POST',
+        headers: requestHeaders(),
+        body: JSON.stringify({
+          secret_hash: secretHash,
+          demande_id: pending.id,
+          valider: validate,
+        }),
+        cache: 'no-store',
+      })
+      if (!response.ok) {
+        setDecisionError(response.status === 404
+          ? 'Cette demande n’est plus disponible.'
+          : 'La décision n’a pas pu être enregistrée. Réessayez.')
+      } else {
+        const result = await response.json() as PaymentDecisionResponse
+        if (result.ok || (result.raison === 'DEJA_DECIDEE'
+          && (result.statut === 'validee' || result.statut === 'refusee'))) {
+          setDecisionFeedback(result.statut === 'validee'
+            ? 'Paiement accepté. Le vendeur a reçu la confirmation.'
+            : 'Paiement refusé. Le vendeur a reçu la confirmation.')
+        } else {
+          setDecisionError(paymentDecisionReasonMessage(result.raison))
+        }
+      }
+    } catch {
+      setDecisionError(navigator.onLine
+        ? 'Résultat incertain. L’état du portefeuille va être vérifié.'
+        : 'Vous êtes hors ligne. Reconnectez-vous avant de décider.')
+    } finally {
+      await paymentRefreshRef.current?.('mutation')
+      setDecisionState('idle')
+    }
+  }
 
   async function downloadPdf() {
     if (!secretHash || !state || pdfState === 'loading') return
@@ -260,6 +391,82 @@ export default function PortefeuillePage() {
           <div className="mt-5 rounded-sm border border-warning-border bg-warning-tint px-4 py-3 text-sm leading-5 text-warning">
             Cet événement est terminé. Votre portefeuille reste consultable en lecture seule.
           </div>
+        )}
+
+        {realtimeNote && (
+          <p role="status" className="mt-5 rounded-sm border border-warning-border bg-warning-tint px-4 py-3 text-sm text-warning">
+            {realtimeNote}
+          </p>
+        )}
+
+        {decisionFeedback && !state.demandeEnAttente && (
+          <p role="status" className="mt-5 rounded-sm border border-success-border bg-success-tint px-4 py-3 text-sm text-success">
+            {decisionFeedback}
+          </p>
+        )}
+
+        {decisionError && !state.demandeEnAttente && (
+          <p role="alert" className="mt-5 rounded-sm border border-stamp/25 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">
+            {decisionError}
+          </p>
+        )}
+
+        {!isClosed && state.demandeEnAttente && (
+          <section className="mt-5 overflow-hidden rounded-sm border border-warning-border bg-white" aria-labelledby="pending-payment-title">
+            <div className="border-b border-warning-border bg-warning-tint px-5 py-4 sm:px-6">
+              <h2 id="pending-payment-title" className="text-xl font-semibold text-ink">Demande de paiement à confirmer</h2>
+              <p className="mt-1 text-sm leading-6 text-ink-muted">
+                Vérifiez le montant demandé par le vendeur avant de choisir.
+              </p>
+            </div>
+            <dl className="grid gap-4 px-5 py-5 sm:grid-cols-3 sm:px-6">
+              <div>
+                <dt className="font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">Montant</dt>
+                <dd className="mt-1 font-registre-mono text-xl font-semibold text-ink">
+                  {formatCentimes(state.demandeEnAttente.montantCentimes)}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">Solde actuel</dt>
+                <dd className="mt-1 font-registre-mono text-xl font-semibold text-ink">
+                  {formatCentimes(state.portefeuille.soldeCentimes)}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">Après paiement</dt>
+                <dd className="mt-1 font-registre-mono text-xl font-semibold text-ink">
+                  {formatCentimes(Math.max(0, state.portefeuille.soldeCentimes - state.demandeEnAttente.montantCentimes))}
+                </dd>
+              </div>
+            </dl>
+            <p className="border-t border-paper-border px-5 py-3 font-registre-mono text-[11px] text-ink-faint sm:px-6">
+              Expire à {new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(state.demandeEnAttente.expireLe))}
+            </p>
+            {decisionError && (
+              <p role="alert" className="mx-5 my-4 rounded-sm border border-stamp/25 bg-stamp/[0.04] px-3 py-2 text-sm text-stamp sm:mx-6">
+                {decisionError}
+              </p>
+            )}
+            <div className="grid gap-3 border-t border-paper-border px-5 py-4 sm:grid-cols-2 sm:px-6">
+              <Button
+                type="button"
+                className="h-11 w-full"
+                onClick={() => void decidePayment(true)}
+                disabled={decisionState !== 'idle'}
+              >
+                {decisionState === 'accepting' ? 'Validation…' : 'Accepter'}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-11 w-full"
+                onClick={() => void decidePayment(false)}
+                disabled={decisionState !== 'idle'}
+              >
+                {decisionState === 'refusing' ? 'Refus…' : 'Refuser'}
+              </Button>
+            </div>
+          </section>
         )}
 
         <div className="mt-5 grid items-start gap-5 md:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">

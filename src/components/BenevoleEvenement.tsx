@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import type { Html5Qrcode } from 'html5-qrcode'
+import {
+  PAYMENT_CHANGED_EVENT,
+  paymentRequestRevision,
+  sellerPaymentTopic,
+} from '../lib/couponPaymentRealtime'
 import { supabase } from '../lib/supabaseClient'
+import { createPaymentTransport } from '../lib/transport/paymentTransport'
 import {
   eurosToCentimes,
   isValidWalletCode,
@@ -14,6 +20,7 @@ import { formatCentimes, formatPeriodeEvenement } from '../lib/portefeuilleAchet
 import { disposeQrScanner } from '../lib/qrScannerLifecycle'
 import { cn } from '../lib/utils'
 import type { Evenement } from '../types/evenement'
+import type { SyncReason, TransportSnapshot } from '../types/paymentTransport'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
@@ -37,6 +44,12 @@ interface PaymentRequestRow {
   statut: PaymentRequestStatus
   montant_centimes: number
   expire_le: string
+  updated_at: string
+}
+
+interface SellerPaymentSnapshot extends TransportSnapshot {
+  statut: PaymentRequestStatus
+  expireLe: string
 }
 
 interface CurrentPaymentRequest {
@@ -62,6 +75,24 @@ function effectiveStatus(row: PaymentRequestRow): PaymentRequestStatus {
   return row.statut
 }
 
+async function readPaymentRequest(requestId: string, signal: AbortSignal): Promise<SellerPaymentSnapshot> {
+  const { data, error } = await supabase
+    .from('demandes_paiement')
+    .select('id, statut, montant_centimes, expire_le, updated_at')
+    .eq('id', requestId)
+    .abortSignal(signal)
+    .single()
+
+  if (error || !data) throw new Error('PAYMENT_REQUEST_READ_FAILED')
+  const row = data as PaymentRequestRow
+  const statut = effectiveStatus(row)
+  return {
+    revision: paymentRequestRevision(row.updated_at, row.expire_le, row.statut),
+    statut,
+    expireLe: row.expire_le,
+  }
+}
+
 function requestStatusClasses(status: PaymentRequestStatus): string {
   if (status === 'validee') return 'border-success-border bg-success-tint text-success'
   if (status === 'en_attente') return 'border-warning-border bg-warning-tint text-warning'
@@ -72,7 +103,7 @@ function requestStatusClasses(status: PaymentRequestStatus): string {
 function requestStatusDescription(status: PaymentRequestStatus): string {
   switch (status) {
     case 'en_attente':
-      return 'Demandez à l’acheteur de valider sur son téléphone, puis vérifiez le statut ici.'
+      return 'Demandez à l’acheteur de valider sur son téléphone. Le résultat apparaîtra automatiquement.'
     case 'validee':
       return 'Le paiement a été accepté et le portefeuille a été débité.'
     case 'refusee':
@@ -106,6 +137,8 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
   const [cancelling, setCancelling] = useState(false)
   const [statusNote, setStatusNote] = useState<string | null>(null)
   const [request, setRequest] = useState<CurrentPaymentRequest | null>(null)
+  const sellerRefreshRef = useRef<((reason: SyncReason) => Promise<void>) | null>(null)
+  const trackedRequestId = request?.statut === 'en_attente' ? request.id : null
 
   const loadEvents = useCallback(async () => {
     setLoadingEvents(true)
@@ -161,6 +194,64 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
   useEffect(() => {
     if (inputMode !== 'scan') void stopScanner()
   }, [inputMode, stopScanner])
+
+  useEffect(() => {
+    if (!trackedRequestId) return
+
+    const transport = createPaymentTransport<SellerPaymentSnapshot>({
+      mode: 'broadcast',
+      read: (signal) => readPaymentRequest(trackedRequestId, signal),
+      subscribe: (hint, connected) => {
+        const channel = supabase
+          .channel(sellerPaymentTopic(trackedRequestId), { config: { private: false } })
+          .on('broadcast', { event: PAYMENT_CHANGED_EVENT }, hint)
+          .subscribe((status) => connected(status === 'SUBSCRIBED'))
+        return () => { void supabase.removeChannel(channel) }
+      },
+      onSnapshot: (snapshot, reason) => {
+        setRequest((current) => current?.id === trackedRequestId
+          ? { ...current, statut: snapshot.statut, expireLe: snapshot.expireLe }
+          : current)
+        if (snapshot.statut === 'en_attente' && reason === 'mutation') {
+          const time = new Intl.DateTimeFormat('fr-FR', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+          }).format(new Date())
+          setStatusNote(`Toujours en attente — vérifié à ${time}.`)
+        } else if (snapshot.statut !== 'en_attente') {
+          setStatusNote('Décision reçue automatiquement.')
+        }
+      },
+      onEvent: (event) => {
+        if (event.event === 'broadcast-connected') {
+          setStatusNote('Suivi automatique actif.')
+        } else if (event.event === 'offline') {
+          setStatusNote('Hors ligne — le suivi reprendra automatiquement à la reconnexion.')
+        } else if (event.event === 'read-error' || event.event === 'broadcast-fallback') {
+          setStatusNote('Connexion instable — vérification automatique en cours.')
+        }
+      },
+      pollMs: 1000,
+      reconcileMs: 5000,
+    })
+
+    sellerRefreshRef.current = transport.refresh
+    const updateAvailability = () => {
+      transport.setAvailability(document.visibilityState === 'visible', navigator.onLine)
+    }
+    document.addEventListener('visibilitychange', updateAvailability)
+    window.addEventListener('online', updateAvailability)
+    window.addEventListener('offline', updateAvailability)
+    updateAvailability()
+    transport.start()
+
+    return () => {
+      if (sellerRefreshRef.current === transport.refresh) sellerRefreshRef.current = null
+      document.removeEventListener('visibilitychange', updateAvailability)
+      window.removeEventListener('online', updateAvailability)
+      window.removeEventListener('offline', updateAvailability)
+      transport.stop()
+    }
+  }, [trackedRequestId])
 
   function switchInputMode(mode: 'scan' | 'manual') {
     inputModeRef.current = mode
@@ -297,34 +388,15 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
       statut: 'en_attente',
       expireLe: null,
     })
+    setStatusNote('Connexion au suivi automatique…')
     setSaving(false)
   }
 
   async function checkStatus() {
-    if (!request) return
+    if (!request || !sellerRefreshRef.current) return
     setChecking(true)
     setError(null)
-    setStatusNote(null)
-
-    const { data, error: queryError } = await supabase
-      .from('demandes_paiement')
-      .select('id, statut, montant_centimes, expire_le')
-      .eq('id', request.id)
-      .single()
-
-    if (queryError || !data) {
-      setError('Le statut n’a pas pu être vérifié. Réessayez.')
-      setChecking(false)
-      return
-    }
-
-    const row = data as PaymentRequestRow
-    const statut = effectiveStatus(row)
-    setRequest((current) => current ? { ...current, statut, expireLe: row.expire_le } : current)
-    if (statut === 'en_attente') {
-      const time = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date())
-      setStatusNote(`Toujours en attente — vérifié à ${time}.`)
-    }
+    await sellerRefreshRef.current('mutation')
     setChecking(false)
   }
 
@@ -423,7 +495,7 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
             {isPending ? (
               <>
                 <Button type="button" onClick={() => void checkStatus()} disabled={checking || cancelling} className="w-full">
-                  {checking ? 'Vérification…' : 'Vérifier le statut'}
+                  {checking ? 'Actualisation…' : 'Actualiser maintenant'}
                 </Button>
                 <Button type="button" variant="danger" onClick={() => void cancelRequest()} disabled={checking || cancelling} className="w-full">
                   {cancelling ? 'Annulation…' : 'Annuler la demande'}
