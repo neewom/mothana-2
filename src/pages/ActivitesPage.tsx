@@ -48,7 +48,7 @@ function postmarkParts(iso: string): { day: string; month: string } {
 // ---------------------------------------------------------------------------
 
 function Postmark({ statut, dateIso }: { statut: ActiviteStatut; dateIso: string | null }) {
-  if (statut === 'a_venir' || statut === 'sans_date' || !dateIso) {
+  if (statut === 'sans_date' || !dateIso) {
     return (
       <div
         className="h-[52px] w-[52px] shrink-0 animate-in zoom-in-75 fade-in duration-300 rounded-full border-[1.5px] border-dashed border-paper-border"
@@ -58,8 +58,8 @@ function Postmark({ statut, dateIso }: { statut: ActiviteStatut; dateIso: string
   }
 
   const { day, month } = postmarkParts(dateIso)
-  const isLive = statut === 'en_cours'
-  // Le cachet rétrécit une fois l'activité classée — hiérarchie active > terminée,
+  const isLive = statut === 'en_cours' || statut === 'a_venir'
+  // Le cachet rétrécit une fois l'activité classée — hiérarchie active/à venir > terminée,
   // pas seulement une histoire d'opacité (repris du comp validé par l'utilisateur).
   const size = isLive ? 'h-[52px] w-[52px]' : 'h-10 w-10'
 
@@ -86,11 +86,12 @@ interface ActiviteModalProps {
   open: boolean
   onClose: () => void
   onSaved: () => void
+  onDelete?: () => void
   activite?: Activite
   organisationId: string
 }
 
-function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: ActiviteModalProps) {
+function ActiviteModal({ open, onClose, onSaved, onDelete, activite, organisationId }: ActiviteModalProps) {
   const isEdit = !!activite
   const [nom, setNom] = useState('')
   const [dateDebut, setDateDebut] = useState('')
@@ -139,7 +140,19 @@ function ActiviteModal({ open, onClose, onSaved, activite, organisationId }: Act
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
       <DialogContent aria-describedby={undefined}>
-        <DialogHeader>
+        {isEdit && onDelete && (
+          <button
+            type="button"
+            onClick={() => { onClose(); onDelete() }}
+            className="absolute right-12 top-4 text-ink-faint transition-colors hover:text-stamp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70 rounded-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-5 w-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9.5 7V5.5A1.5 1.5 0 0111 4h2a1.5 1.5 0 011.5 1.5V7m1.5 0-.6 12.1a2 2 0 01-2 1.9H8.6a2 2 0 01-2-1.9L6 7" />
+            </svg>
+            <span className="sr-only">Supprimer l'activité</span>
+          </button>
+        )}
+        <DialogHeader className={isEdit && onDelete ? 'pr-20' : undefined}>
           <DialogTitle>{isEdit ? "Modifier l'activité" : 'Nouvelle activité'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto p-6">
@@ -209,13 +222,11 @@ function ActiviteRow({
   statut,
   counts,
   onEdit,
-  onDelete,
 }: {
   activite: Activite
   statut: ActiviteStatut
   counts: ActiviteCounts | undefined
   onEdit: () => void
-  onDelete: () => void
 }) {
   const postmarkDate = statut === 'terminee' ? activite.date_fin ?? activite.date_debut : activite.date_debut
   const isTerminee = statut === 'terminee'
@@ -239,8 +250,12 @@ function ActiviteRow({
 
   return (
     <li
+      role="button"
+      tabIndex={0}
+      onClick={onEdit}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit() } }}
       className={cn(
-        'flex flex-col gap-3 border-t border-paper-border-muted px-4 py-4 first:border-t-0 sm:flex-row sm:items-center md:px-6',
+        'flex cursor-pointer items-center gap-3 border-t border-paper-border-muted px-4 py-4 first:border-t-0 hover:bg-paper md:px-6',
         isTerminee && 'py-3'
       )}
     >
@@ -259,10 +274,7 @@ function ActiviteRow({
           )}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1 pl-[68px] sm:pl-0">
-        <Button variant="secondary" size="sm" onClick={onEdit}>Modifier</Button>
-        <Button variant="danger" size="sm" onClick={onDelete}>Supprimer</Button>
-      </div>
+      <span className="shrink-0 font-registre text-ink-faint" aria-hidden>›</span>
     </li>
   )
 }
@@ -348,19 +360,22 @@ export default function ActivitesPage() {
 
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), [])
 
-  const { actives, terminees } = useMemo(() => {
-    const actives: { activite: Activite; statut: ActiviteStatut }[] = []
+  const { datees, recurrentes, terminees } = useMemo(() => {
+    const datees: { activite: Activite; statut: ActiviteStatut }[] = []
+    const recurrentes: { activite: Activite; statut: ActiviteStatut }[] = []
     const terminees: { activite: Activite; statut: ActiviteStatut }[] = []
     for (const activite of paginatedActivites) {
       const statut = getStatut(activite, todayIso)
       if (statut === 'terminee') terminees.push({ activite, statut })
-      else actives.push({ activite, statut })
+      else if (statut === 'sans_date') recurrentes.push({ activite, statut })
+      else datees.push({ activite, statut })
     }
-    actives.sort((a, b) => (a.activite.date_debut ?? '9999').localeCompare(b.activite.date_debut ?? '9999'))
+    datees.sort((a, b) => (a.activite.date_debut ?? '9999').localeCompare(b.activite.date_debut ?? '9999'))
+    recurrentes.sort((a, b) => a.activite.nom.localeCompare(b.activite.nom, 'fr'))
     terminees.sort((a, b) =>
       (b.activite.date_fin ?? b.activite.date_debut ?? '').localeCompare(a.activite.date_fin ?? a.activite.date_debut ?? '')
     )
-    return { actives, terminees }
+    return { datees, recurrentes, terminees }
   }, [paginatedActivites, todayIso])
 
   function openAdd() {
@@ -424,8 +439,10 @@ export default function ActivitesPage() {
         contour = action de marque, plein = danger), Inter (texte) + IBM Plex Mono (dates/
         compteurs), radius plat (rounded-sm), pas de card flottante ni d'ombre décorative.
         STORY: l'admin distingue en un coup d'œil ce qui est actif/à venir de ce qui est clos.
-        FIRST VIEWPORT: deux blocs de registre côte à côte en desktop (actives | terminées),
-        empilés en mobile ; cachet à gauche de chaque ligne, actions à droite.
+        FIRST VIEWPORT: trois blocs de registre côte à côte en desktop (à venir/en cours |
+        récurrentes | terminées), empilés en mobile ; cachet à gauche de chaque ligne, actions
+        à droite. Passé de deux à trois blocs le 2026-09-22 pour séparer les activités datées
+        des récurrentes sans date, jusque-là mêlées dans le même bloc (retour utilisateur).
         FORM: direction "carnet tamponné x registre" (fusion E), choisie via AskUserQuestion
         (concept-seed/serve-question non exécutable ici — pas de génération d'image dans cette
         session), validée par l'utilisateur après 2 itérations (compteurs réels dons/
@@ -494,27 +511,45 @@ export default function ActivitesPage() {
         ) : (
           <>
             <div className="lg:flex lg:items-start lg:gap-6">
-              {/* Actives / à venir */}
-              <div className="mb-6 min-w-0 lg:mb-0 lg:flex-1">
-                {actives.length > 0 ? (
+              {/* Datées : à venir / en cours */}
+              {datees.length > 0 && (
+                <div className="mb-6 min-w-0 lg:mb-0 lg:flex-1">
+                  <p className="mb-2 px-1 font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">
+                    À venir / en cours
+                  </p>
                   <ul className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
-                    {actives.map(({ activite, statut }) => (
+                    {datees.map(({ activite, statut }) => (
                       <ActiviteRow
                         key={activite.id}
                         activite={activite}
                         statut={statut}
                         counts={donsByActivite.get(activite.id)}
                         onEdit={() => openEdit(activite)}
-                        onDelete={() => openDelete(activite)}
                       />
                     ))}
                   </ul>
-                ) : (
-                  <p className="rounded-sm border border-paper-border bg-white px-6 py-8 text-center font-registre text-sm text-ink-faint">
-                    Aucune activité active ou à venir.
+                </div>
+              )}
+
+              {/* Récurrentes : sans date, jamais de tampon */}
+              {recurrentes.length > 0 && (
+                <div className="mb-6 min-w-0 lg:mb-0 lg:flex-1">
+                  <p className="mb-2 px-1 font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">
+                    Récurrentes
                   </p>
-                )}
-              </div>
+                  <ul className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+                    {recurrentes.map(({ activite, statut }) => (
+                      <ActiviteRow
+                        key={activite.id}
+                        activite={activite}
+                        statut={statut}
+                        counts={donsByActivite.get(activite.id)}
+                        onEdit={() => openEdit(activite)}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Terminées */}
               {terminees.length > 0 && (
@@ -534,7 +569,6 @@ export default function ActivitesPage() {
                         statut={statut}
                         counts={donsByActivite.get(activite.id)}
                         onEdit={() => openEdit(activite)}
-                        onDelete={() => openDelete(activite)}
                       />
                     ))}
                   </ul>
@@ -579,6 +613,7 @@ export default function ActivitesPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSaved={() => { fetchActivites(); fetchCounts() }}
+        onDelete={editing ? () => openDelete(editing) : undefined}
         activite={editing}
         organisationId={organisationId}
       />
