@@ -12,12 +12,12 @@
 - Parcours staging validé dans deux sessions navigateur sur le portefeuille `C4DE5A6B7C` : demande visible automatiquement côté acheteur, acceptation visible automatiquement côté vendeur, refus idem, demande récupérée après rechargement acheteur, annulation vendeur retirée automatiquement côté acheteur. Le secret temporaire créé pour le test a été révoqué et le refus d’accès après révocation vérifié.
 - Validation fonctionnelle utilisateur terminée sur les scénarios temps réel, coupure réseau et verrouillage. Clarification actée : après rechargement complet, le vendeur revient au formulaire (la restauration du dernier statut terminé n’est pas dans le ticket) ; la reprise automatique concerne la page restée ouverte après arrière-plan/coupure.
 - Ajustement UX après test utilisateur : composant partagé `StatusNotice` pour unifier format et espacements des notifications acheteur/vendeur ; résultats terminaux renforcés (validation verte, refus rouge) et boutons Accepter/Refuser différenciés par leur couleur sémantique. Rendus attente/refus/validation vérifiés sur staging dans deux sessions navigateur.
+- Validation visuelle utilisateur reçue ; PR #196 passée de draft à « ready for review » et commentaire « Prête pour review » publié sur les deux cartes Trello.
 - Validation locale : `npm run build`, 43 tests Vitest, lint ciblé, `deno check`, `git diff --check`, détecteur Impeccable et `graphify update .` réussis. Audit staging des privilèges : les RPC de résolution/décision restent absentes pour `anon` et `authenticated`.
 
 ## Reste à faire
 
-- L’utilisateur vérifie le dernier ajustement visuel des notifications sur le serveur Codex 5174.
-- Après cette confirmation visuelle : passer la PR #196 en « ready for review », publier « prête pour review » sur les deux cartes et laisser le lead tech effectuer l’unique revue complète.
+- Le lead tech effectue l’unique revue complète de la PR #196 ; intégrer ses éventuels retours.
 - Après merge seulement : déplacer les deux cartes vers Done et ajouter l’entrée correspondante dans `docs/journal-avancement.md` dans la même action.
 
 ## Blockers
