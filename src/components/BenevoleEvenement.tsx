@@ -24,6 +24,7 @@ import type { SyncReason, TransportSnapshot } from '../types/paymentTransport'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { StatusNotice } from './ui/status-notice'
 
 type OpenEvent = Pick<Evenement, 'id' | 'nom' | 'date_evenement' | 'date_fin' | 'statut'>
 
@@ -93,11 +94,11 @@ async function readPaymentRequest(requestId: string, signal: AbortSignal): Promi
   }
 }
 
-function requestStatusClasses(status: PaymentRequestStatus): string {
-  if (status === 'validee') return 'border-success-border bg-success-tint text-success'
-  if (status === 'en_attente') return 'border-warning-border bg-warning-tint text-warning'
-  if (status === 'refusee') return 'border-stamp/25 bg-stamp/[0.04] text-stamp'
-  return 'border-paper-border bg-paper text-ink-muted'
+function requestStatusTone(status: PaymentRequestStatus): 'neutral' | 'warning' | 'success-emphasis' | 'danger-emphasis' {
+  if (status === 'validee') return 'success-emphasis'
+  if (status === 'refusee') return 'danger-emphasis'
+  if (status === 'en_attente' || status === 'expiree') return 'warning'
+  return 'neutral'
 }
 
 function requestStatusDescription(status: PaymentRequestStatus): string {
@@ -440,8 +441,8 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
 
   if (loadError) {
     return (
-      <div className="rounded-sm border border-stamp/25 bg-stamp/[0.04] p-6 text-center">
-        <p role="alert" className="text-sm text-stamp">{loadError}</p>
+      <div className="text-center">
+        <StatusNotice tone="danger" role="alert">{loadError}</StatusNotice>
         <Button type="button" className="mt-4" onClick={() => void loadEvents()}>
           Réessayer
         </Button>
@@ -474,11 +475,12 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
           <p className="mt-1 text-sm text-ink-muted">{request.evenementNom}</p>
         </div>
 
+        <StatusNotice tone={requestStatusTone(request.statut)} heading={paymentRequestStatusLabel(request.statut)}>
+          <p>{requestStatusDescription(request.statut)}</p>
+          {statusNote && <p className="mt-2 text-xs font-medium opacity-80">{statusNote}</p>}
+        </StatusNotice>
+
         <div className="rounded-sm border border-paper-border bg-white">
-          <div className={cn('border-b px-5 py-5', requestStatusClasses(request.statut))} aria-live="polite">
-            <p className="text-lg font-semibold">{paymentRequestStatusLabel(request.statut)}</p>
-            <p className="mt-1 text-sm leading-6">{requestStatusDescription(request.statut)}</p>
-          </div>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-4 px-5 py-5 text-sm">
             <div>
               <dt className="font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">Montant</dt>
@@ -489,8 +491,7 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
               <dd className="mt-1 break-all font-registre-mono text-sm font-semibold text-ink">{request.codePublic}</dd>
             </div>
           </dl>
-          {statusNote && <p className="border-t border-paper-border px-5 py-3 text-sm text-ink-muted" aria-live="polite">{statusNote}</p>}
-          {error && <p role="alert" className="mx-5 mb-5 rounded-sm border border-stamp/25 bg-stamp/[0.04] px-3 py-2 text-sm text-stamp">{error}</p>}
+          {error && <StatusNotice tone="danger" role="alert" className="mx-5 mb-5">{error}</StatusNotice>}
           <div className="grid gap-3 border-t border-paper-border px-5 py-4 sm:grid-cols-2">
             {isPending ? (
               <>
@@ -520,8 +521,8 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
       </div>
 
       <form onSubmit={createRequest} className="space-y-6 rounded-sm border border-paper-border bg-white p-5 sm:p-6">
-        {error && <p role="alert" className="rounded-sm border border-stamp/25 bg-stamp/[0.04] px-3 py-2 text-sm text-stamp">{error}</p>}
-        {scanMessage && <p role="status" className="rounded-sm border border-success-border bg-success-tint px-3 py-2 text-sm text-success">{scanMessage}</p>}
+        {error && <StatusNotice tone="danger" role="alert">{error}</StatusNotice>}
+        {scanMessage && <StatusNotice tone="success">{scanMessage}</StatusNotice>}
 
         <div className="space-y-1.5">
           <Label htmlFor="seller-event">Événement</Label>

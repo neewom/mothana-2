@@ -10,17 +10,19 @@
 - Migration `portefeuille_boucle_temps_reel.sql` : révision monotone en microsecondes dans l’état acheteur et trigger `realtime.send` à payload vide vers les secrets actifs lors des mutations de demande. Il s’agit de Broadcast, pas de Postgres Changes.
 - Migration appliquée sur `mothana-staging`; fonctions `get-portefeuille`, `generate-portefeuille-qr-pdf` et `decider-portefeuille-paiement` déployées.
 - Parcours staging validé dans deux sessions navigateur sur le portefeuille `C4DE5A6B7C` : demande visible automatiquement côté acheteur, acceptation visible automatiquement côté vendeur, refus idem, demande récupérée après rechargement acheteur, annulation vendeur retirée automatiquement côté acheteur. Le secret temporaire créé pour le test a été révoqué et le refus d’accès après révocation vérifié.
+- Validation fonctionnelle utilisateur terminée sur les scénarios temps réel, coupure réseau et verrouillage. Clarification actée : après rechargement complet, le vendeur revient au formulaire (la restauration du dernier statut terminé n’est pas dans le ticket) ; la reprise automatique concerne la page restée ouverte après arrière-plan/coupure.
+- Ajustement UX après test utilisateur : composant partagé `StatusNotice` pour unifier format et espacements des notifications acheteur/vendeur ; résultats terminaux renforcés (validation verte, refus rouge) et boutons Accepter/Refuser différenciés par leur couleur sémantique. Rendus attente/refus/validation vérifiés sur staging dans deux sessions navigateur.
 - Validation locale : `npm run build`, 43 tests Vitest, lint ciblé, `deno check`, `git diff --check`, détecteur Impeccable et `graphify update .` réussis. Audit staging des privilèges : les RPC de résolution/décision restent absentes pour `anon` et `authenticated`.
 
 ## Reste à faire
 
-- L’utilisateur teste la PR draft sur les deux téléphones réels, notamment après coupure réseau ou verrouillage d’un écran. Le serveur Codex tourne sur le port 5174.
-- Après validation fonctionnelle utilisateur : passer la PR #196 en « ready for review », publier « prête pour review » sur les deux cartes et laisser le lead tech effectuer l’unique revue complète.
+- L’utilisateur vérifie le dernier ajustement visuel des notifications sur le serveur Codex 5174.
+- Après cette confirmation visuelle : passer la PR #196 en « ready for review », publier « prête pour review » sur les deux cartes et laisser le lead tech effectuer l’unique revue complète.
 - Après merge seulement : déplacer les deux cartes vers Done et ajouter l’entrée correspondante dans `docs/journal-avancement.md` dans la même action.
 
 ## Blockers
 
-- Aucun blocker de code ou de staging. Le scénario matériel réel coupure/verrouillage nécessite l’utilisateur et ses deux téléphones.
+- Aucun.
 
 ## Décisions
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { Button } from '../components/ui/button'
+import { StatusNotice } from '../components/ui/status-notice'
 import {
   PAYMENT_CHANGED_EVENT,
   paymentDecisionReasonMessage,
@@ -37,6 +38,10 @@ interface PaymentDecisionResponse {
   ok: boolean
   raison: string | null
   statut: 'validee' | 'refusee' | 'expiree' | 'annulee' | null
+}
+
+interface DecisionFeedback {
+  statut: 'validee' | 'refusee'
 }
 
 function endpoint(functionName: string): string {
@@ -145,7 +150,7 @@ export default function PortefeuillePage() {
   const [pdfState, setPdfState] = useState<'idle' | 'loading' | 'done' | 'limit' | 'offline' | 'error'>('idle')
   const [decisionState, setDecisionState] = useState<'idle' | 'accepting' | 'refusing'>('idle')
   const [decisionError, setDecisionError] = useState<string | null>(null)
-  const [decisionFeedback, setDecisionFeedback] = useState<string | null>(null)
+  const [decisionFeedback, setDecisionFeedback] = useState<DecisionFeedback | null>(null)
   const [realtimeNote, setRealtimeNote] = useState<string | null>(null)
   const paymentRefreshRef = useRef<((reason: SyncReason) => Promise<void>) | null>(null)
 
@@ -314,9 +319,11 @@ export default function PortefeuillePage() {
         const result = await response.json() as PaymentDecisionResponse
         if (result.ok || (result.raison === 'DEJA_DECIDEE'
           && (result.statut === 'validee' || result.statut === 'refusee'))) {
-          setDecisionFeedback(result.statut === 'validee'
-            ? 'Paiement accepté. Le vendeur a reçu la confirmation.'
-            : 'Paiement refusé. Le vendeur a reçu la confirmation.')
+          setDecisionFeedback({
+            statut: result.statut === 'validee' || result.statut === 'refusee'
+              ? result.statut
+              : validate ? 'validee' : 'refusee',
+          })
         } else {
           setDecisionError(paymentDecisionReasonMessage(result.raison))
         }
@@ -388,27 +395,31 @@ export default function PortefeuillePage() {
         </header>
 
         {isClosed && (
-          <div className="mt-5 rounded-sm border border-warning-border bg-warning-tint px-4 py-3 text-sm leading-5 text-warning">
+          <StatusNotice tone="warning" className="mt-5">
             Cet événement est terminé. Votre portefeuille reste consultable en lecture seule.
-          </div>
+          </StatusNotice>
         )}
 
         {realtimeNote && (
-          <p role="status" className="mt-5 rounded-sm border border-warning-border bg-warning-tint px-4 py-3 text-sm text-warning">
+          <StatusNotice tone="warning" className="mt-5">
             {realtimeNote}
-          </p>
+          </StatusNotice>
         )}
 
         {decisionFeedback && !state.demandeEnAttente && (
-          <p role="status" className="mt-5 rounded-sm border border-success-border bg-success-tint px-4 py-3 text-sm text-success">
-            {decisionFeedback}
-          </p>
+          <StatusNotice
+            tone={decisionFeedback.statut === 'validee' ? 'success-emphasis' : 'danger-emphasis'}
+            heading={decisionFeedback.statut === 'validee' ? 'Paiement accepté' : 'Paiement refusé'}
+            className="mt-5"
+          >
+            Le vendeur a reçu la confirmation.
+          </StatusNotice>
         )}
 
         {decisionError && !state.demandeEnAttente && (
-          <p role="alert" className="mt-5 rounded-sm border border-stamp/25 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">
+          <StatusNotice tone="danger" role="alert" className="mt-5">
             {decisionError}
-          </p>
+          </StatusNotice>
         )}
 
         {!isClosed && state.demandeEnAttente && (
@@ -443,13 +454,14 @@ export default function PortefeuillePage() {
               Expire à {new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(state.demandeEnAttente.expireLe))}
             </p>
             {decisionError && (
-              <p role="alert" className="mx-5 my-4 rounded-sm border border-stamp/25 bg-stamp/[0.04] px-3 py-2 text-sm text-stamp sm:mx-6">
+              <StatusNotice tone="danger" role="alert" className="mx-5 my-4 sm:mx-6">
                 {decisionError}
-              </p>
+              </StatusNotice>
             )}
             <div className="grid gap-3 border-t border-paper-border px-5 py-4 sm:grid-cols-2 sm:px-6">
               <Button
                 type="button"
+                variant="success"
                 className="h-11 w-full"
                 onClick={() => void decidePayment(true)}
                 disabled={decisionState !== 'idle'}
@@ -458,7 +470,7 @@ export default function PortefeuillePage() {
               </Button>
               <Button
                 type="button"
-                variant="secondary"
+                variant="danger"
                 className="h-11 w-full"
                 onClick={() => void decidePayment(false)}
                 disabled={decisionState !== 'idle'}
