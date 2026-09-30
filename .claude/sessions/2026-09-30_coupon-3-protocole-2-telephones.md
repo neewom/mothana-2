@@ -29,11 +29,24 @@ Reprise du blocage matériel de la carte 3 (spike temps réel), en pause depuis 
 ### Incident git annexe
 - Push refusé par GitHub (`GH007`, email privé protégé). Résolu en committant avec l'email noreply GitHub (`8076017+neewom@users.noreply.github.com`) via variables d'environnement (jamais via `git config`, règle stricte sans exception même sur demande explicite). L'utilisateur a ensuite mis à jour son `git config --global user.email` lui-même vers cette même adresse — vérifié effectif sur les 3 répertoires (checkout principal + 2 worktrees).
 
+## Suite — Coupon 4/5, phase (b) : cadrage, dev, revue, merge
+
+### Cadrage
+- "go 4 et 5" de l'utilisateur : traités ensemble (mêmes deux bouts d'une seule boucle temps réel, testable seulement en entier). Investigation avant cadrage : la lecture acheteur (`lire_portefeuille_par_secret_hash`) renvoyait déjà `demandeEnAttente`, ignoré par `PortefeuillePage.tsx` ; la RPC `decider_demande_paiement` (carte 1) n'était appelée nulle part dans le code.
+- Point d'arbitrage posé explicitement à l'utilisateur : réutiliser `paymentTransport.ts` des deux côtés vs Supabase Realtime Postgres Changes côté vendeur (authentifié, RLS déjà en place). Détail des deux options + une hybride donné sur demande. Décision : réutilisation intégrale de `paymentTransport.ts` — seule option déjà validée en conditions réelles mobiles, le surcoût de code jugé faible face au risque d'introduire un mécanisme non testé sur un flux où l'argent réel arrive bientôt.
+- Ticket dev complet posé sur les cartes 4 et 5 (section "Ticket dev — Phase (b)") : nouvelle Edge Function `decider-portefeuille-paiement` (résout le portefeuille depuis le secret, jamais un ID brut client), canal acheteur = `secret_hash`, canal vendeur dérivé du `demande_id`, révision monotone laissée au dev. Cartes déplacées de Done vers Todo. Message de démarrage transmis à l'utilisateur pour Codex (une seule branche/PR pour les deux cartes).
+
+### Dev et revue (PR #196)
+- Codex a livré en une branche/PR : réutilisation inchangée de `paymentTransport.ts`, nouvelle Edge Function, migration `portefeuille_boucle_temps_reel.sql`. Point notable trouvé en revue : le réveil acheteur est implémenté via un **trigger DB** (`realtime.send` sur toute mutation de `demandes_paiement.statut`) plutôt qu'un appel Broadcast applicatif comme suggéré dans le ticket — plus robuste (se déclenche quel que soit le chemin de code). Révision monotone en microsecondes avec gestion de l'expiration virtuelle (`expire_le` compte comme nouvelle révision même sans écriture DB), bien testée.
+- **Vérification avant revue** : `AGENTS.md`, modifié dans la PR elle-même, indiquait encore "test utilisateur réel mobile/coupure-verrouillage restant avant passage ready for review" au moment où l'utilisateur a annoncé la PR prête — question posée directement plutôt que de supposer un oubli de mise à jour. Réponse : 1 smartphone réel pour le vendeur, 1 navigateur pour l'écran acheteur — conforme au critère d'acceptation du ticket ("au moins un des deux rôles" en conditions réelles, le mécanisme lui-même étant déjà validé sur 2 téléphones en carte 3).
+- Revue lead tech (worktree de revue, détaché sur le commit de la PR — le worktree Codex avait déjà la branche) : `tsc -b`, 43 tests Vitest, lint et `deno check` verts. Sécurité vérifiée : résolution secret→portefeuille toujours côté serveur, double protection via le filtrage `demande_id`/`portefeuille_id` déjà présent dans `decider_demande_paiement`. Aucun bloquant, une suggestion non bloquante postée (timeout manquant sur le fetch de décision acheteur côté client, contrairement aux lectures `paymentTransport.ts` qui en ont un de 8 s).
+- PR #196 mergée sur `dev` (commit `a6162a1`) sur autorisation explicite. Routine post-merge faite : `dev` synchronisée, cartes 4 et 5 déplacées en Done, `docs/journal-avancement.md` et `AGENTS.md` mis à jour et poussés (commit `553f12a`).
+
 ## Reste à faire
 - Cadrer la carte 11 (dashboard admin événement) — plus aucune dépendance bloquante.
 - Cadrer la carte Backlog sur l'accès distinct du vendeur événementiel.
-- Démarrer les phases (b) des cartes 4/5 (boucle temps réel bout en bout) maintenant que le candidat de transport est confirmé — nécessite un nouveau cadrage avant dev.
-- Carte 6 (paiement) toujours en attente côté utilisateur (Stripe, avis juridique).
+- Carte 6 (paiement) toujours en attente côté utilisateur (Stripe, avis juridique). Cartes 7/8/9 bloquées en cascade.
+- Suggestion non bloquante de la revue PR #196 à garder en tête : ajouter un timeout explicite sur le fetch de décision acheteur (`PortefeuillePage.tsx`).
 - **Écart repéré en session, non traité** : la carte "Priorité 5 — Export comptable enrichi" (item 6 du backlog condensé `AGENTS.md`) est en réalité dans la liste Trello **Backlog**, pas Todo comme le backlog condensé le laisse penser — à corriger ou à confirmer intentionnel au prochain point de check.
 
 ## Blockers
@@ -42,4 +55,6 @@ Aucun.
 ## Décisions
 - Candidat de transport définitif pour le porte-monnaie événementiel : Broadcast (signal de changement) + relecture serveur, avec repli polling.
 - Servir un build de production (`vite preview`) plutôt que le serveur de dev pour tout test via tunnel externe — le client HMR provoque des rechargements complets à travers un tunnel instable.
+- Cartes 4/5 phase (b) : réutilisation intégrale de `paymentTransport.ts` des deux côtés plutôt que Postgres Changes côté vendeur — cohérence et couverture de test réelle priorisées sur la simplicité de code.
+- Critère d'acceptation "au moins un des deux rôles" en conditions mobiles réelles (pas les deux systématiquement) : suffisant pour les cartes qui réutilisent un mécanisme déjà validé en carte 3, pas pour valider un nouveau mécanisme de transport lui-même.
 - Ordre simplifié pour le scénario de coupure réseau : couper le réseau avant l'action plutôt qu'immédiatement après, plus simple à exécuter en solo et validant la même garantie de réconciliation.
