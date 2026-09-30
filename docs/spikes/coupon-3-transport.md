@@ -142,15 +142,42 @@ Ne pas mélanger temps HTTP, temps humain, et temps d'affichage.
 
 | Scénario (répéter dans les deux modes) | Vérification | Résultat réel |
 |---|---|---|
-| Deux écrans actifs, 4G/5G | Aller vendeur→acheteur et retour décision | À mesurer |
-| Couper le réseau acheteur 15 s, envoyer pendant coupure | Demande retrouvée au retour, aucun succès fictif | À mesurer |
-| Couper le réseau vendeur autour de la décision | Décision retrouvée à la reprise | À mesurer |
-| Verrouiller l'acheteur 30 s / changer d'application | Rien de garanti caché ; relecture au retour | À mesurer |
-| Verrouiller >90 s | Demande expirée, aucune acceptation tardive | À mesurer |
-| Wi-Fi → réseau mobile | Reconnexion puis état cohérent | À mesurer |
-| Fermer/réouvrir le lien original | Snapshot courant sans dépendre d'un ancien Broadcast | À mesurer |
-| Mode polling seul | Même résultat métier sans socket | À mesurer |
+| Deux écrans actifs, 4G/5G | Aller vendeur→acheteur et retour décision | OK dans les deux modes (voir mesures ci-dessous) |
+| Couper le réseau acheteur 15 s, envoyer pendant coupure | Demande retrouvée au retour, aucun succès fictif | OK — coupure réelle de 62 s, `read:resume` retrouve la révision créée pendant l'absence, décision normale ensuite |
+| Couper le réseau vendeur autour de la décision | Décision retrouvée à la reprise | Vu côté acheteur seulement (décision bien émise) ; log vendeur perdu (voir note plus bas) — non re-testé, risque jugé faible car même mécanisme générique que la ligne au-dessus |
+| Verrouiller l'acheteur 30 s / changer d'application | Rien de garanti caché ; relecture au retour | Non testé isolément (scénario sauté pendant la série) — couvert indirectement par le cas >90 s ci-dessous, mécanisme identique |
+| Verrouiller >90 s | Demande expirée, aucune acceptation tardive | OK — verrouillage réel de 108 s, révision +2 au retour (transition automatique vers `expiree`), aucune tentative d'acceptation tardive enregistrée |
+| Wi-Fi → réseau mobile | Reconnexion puis état cohérent | OK — plusieurs cycles fallback/reconnect sur ~24 s pendant la bascule, aucune régression de révision, état stable ensuite |
+| Fermer/réouvrir le lien original | Snapshot courant sans dépendre d'un ancien Broadcast | OK sur le principe (rechargement retombe directement sur la révision courante) — mais a vidé le journal en mémoire du vendeur pour cette série (comportement attendu, cf. section sécurité : journal jamais persisté) |
+| Mode polling seul | Même résultat métier sans socket | OK — série complète (20 acceptées + 5 refusées) rejouée en polling, aucune anomalie |
 
-Clôture : joindre les exports/mesures, décider avec le lead si quota limitant,
-confirmer ou remplacer le candidat et mettre la PR ready uniquement après validation
-fonctionnelle. Carte maintenue hors Done tant que cette preuve n'existe pas.
+**Mesures réelles (2 téléphones, réseau mobile réel, 30 septembre 2026)** — vendeur
+Galaxy S24 Ultra/Orange 5G, acheteur Galaxy S24+/Bouygues 5G, tunnel HTTPS cloudflared
+vers un build de prod (`vite preview`, sans client HMR — le dev server générait des
+rechargements complets intempestifs à travers le tunnel gratuit) :
+
+| Mode | write-http-round-trip vendeur (médiane/p95/max) | write-http-round-trip acheteur (médiane/p95/max) |
+|---|---:|---:|
+| Broadcast | 472 / 572 / 589 ms | 486 / 682 / 727 ms |
+| Polling 1 s | 430 / 525 / 527 ms | 449 / 585 / 763 ms |
+
+25 demandes par mode et par rôle (20 acceptées + 5 refusées), aucune perte ni
+doublon de révision détecté. Sur ce périmètre (aller-retour HTTP propre à chaque
+rôle), les deux modes sont comparables en conditions réelles — contrairement à
+l'écart net observé sur Mac (666 ms vs 1255 ms). La latence de propagation
+unidirectionnelle vers l'autre appareil reste non mesurée (nécessiterait le
+filmage à deux caméras prévu par le protocole, non réalisé cette fois).
+
+**Lacunes assumées** : le scénario « verrouillage 30 s » n'a pas été rejoué
+séparément, et le journal vendeur des scénarios coupure/verrouillage/Wi-Fi a été
+perdu lors du test de fermeture/réouverture du lien (fait avant d'exporter — à
+faire après, en dernier, la prochaine fois). Décision du lead avec l'utilisateur
+le 30 septembre 2026 : ne pas rejouer ces cas, le mécanisme de reconnexion/
+relecture (`paymentTransport.ts`) étant générique aux deux rôles et déjà validé
+deux fois sous des durées de coupure différentes (62 s et 108 s).
+
+Clôture (30 septembre 2026) : candidat confirmé — **Broadcast comme signal de
+changement + relecture serveur, avec repli polling** — aucun problème bloquant
+constaté sur les scénarios rejoués. Flag serveur `COUPON_SPIKE_ENABLED` redésactivé
+sur staging après la campagne de test. Carte Trello 3 à repasser en Done après revue
+lead tech de la PR (code déjà livré depuis le 22 septembre, revue non encore faite).
