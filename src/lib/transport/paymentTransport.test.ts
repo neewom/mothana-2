@@ -1,0 +1,131 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createPaymentTransport, TransportAccessError } from './paymentTransport'
+
+afterEach(() => { vi.useRealTimers() })
+function harness(mode: 'polling' | 'broadcast' = 'broadcast') {
+  vi.useFakeTimers()
+  let hint = () => {}
+  let connected: (ready: boolean) => void = () => {}
+  const cleanup = vi.fn()
+  const read = vi.fn<(signal: AbortSignal) => Promise<{ revision: number }>>(async () => ({ revision: 0 }))
+  const onSnapshot = vi.fn()
+  const onEvent = vi.fn()
+  const subscribe = vi.fn((notify: () => void, status: (ready: boolean) => void) => {
+    hint = notify; connected = status; return cleanup
+  })
+  const transport = createPaymentTransport({ mode, read, onSnapshot, onEvent, subscribe })
+  return { transport, read, onSnapshot, onEvent, subscribe, cleanup, hint: () => hint(), connected: (ready: boolean) => connected(ready) }
+}
+describe('payment transport', () => {
+  it('polls without opening a socket, deduplicates unchanged revisions', async () => {
+    const h = harness('polling')
+    h.transport.start()
+    await vi.advanceTimersByTimeAsync(3100)
+    expect(h.subscribe).not.toHaveBeenCalled()
+    expect(h.read).toHaveBeenCalledTimes(4)
+    expect(h.onSnapshot).toHaveBeenCalledTimes(1)
+    h.transport.stop()
+    await vi.advanceTimersByTimeAsync(10000)
+    expect(h.read).toHaveBeenCalledTimes(4)
+  })
+  it('uses a Broadcast only as a hint to re-read authoritative state', async () => {
+    const h = harness()
+    h.transport.start()
+    await vi.advanceTimersByTimeAsync(300)
+    h.read.mockResolvedValue({ revision: 1 })
+    h.hint()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(h.onSnapshot).toHaveBeenLastCalledWith({ revision: 1 }, 'broadcast')
+    h.read.mockResolvedValue({ revision: 0 })
+    await vi.advanceTimersByTimeAsync(300)
+    h.hint()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(h.onSnapshot).toHaveBeenCalledTimes(2)
+    h.transport.stop()
+  })
+  it('reconciles missed messages and accelerates polling after socket failure', async () => {
+    const h = harness()
+    h.transport.start()
+    await vi.advanceTimersByTimeAsync(1)
+    h.connected(true)
+    await vi.advanceTimersByTimeAsync(1)
+    const before = h.read.mock.calls.length
+    h.read.mockResolvedValue({ revision: 2 })
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(h.read.mock.calls.length).toBe(before + 1)
+    expect(h.onSnapshot).toHaveBeenLastCalledWith({ revision: 2 }, 'poll')
+    h.connected(false)
+    await vi.advanceTimersByTimeAsync(1)
+    const after = h.read.mock.calls.length
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(h.read.mock.calls.length).toBe(after + 1)
+    h.transport.stop()
+  })
+  it('suspends background/offline work then re-reads and resubscribes', async () => {
+    const h = harness()
+    h.transport.start()
+    await vi.advanceTimersByTimeAsync(1)
+    h.transport.setAvailability(false, true)
+    expect(h.cleanup).toHaveBeenCalledTimes(1)
+    const count = h.read.mock.calls.length
+    await vi.advanceTimersByTimeAsync(20000)
+    expect(h.read).toHaveBeenCalledTimes(count)
+    h.read.mockResolvedValue({ revision: 1 })
+    h.transport.setAvailability(true, true)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(h.subscribe).toHaveBeenCalledTimes(2)
+    expect(h.onSnapshot).toHaveBeenLastCalledWith({ revision: 1 }, 'resume')
+    h.transport.stop()
+  })
+  it('serializes a hint racing a read and reconciles the queued update', async () => {
+    const h = harness()
+    let resolve!: (value: { revision: number }) => void
+    h.read.mockImplementationOnce(() => new Promise(r => { resolve = r }))
+    h.transport.start()
+    h.hint(); h.hint(); h.hint()
+    expect(h.read).toHaveBeenCalledTimes(1)
+    resolve({ revision: 0 })
+    h.read.mockResolvedValue({ revision: 1 })
+    await vi.advanceTimersByTimeAsync(300)
+    expect(h.read).toHaveBeenCalledTimes(2)
+    expect(h.onSnapshot).toHaveBeenLastCalledWith({ revision: 1 }, 'broadcast')
+    h.transport.stop()
+  })
+  it('backs off failures and stops permanently on revoked/expired access', async () => {
+    const h = harness('polling')
+    h.read.mockRejectedValueOnce(new Error('network'))
+    h.transport.start()
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(h.read).toHaveBeenCalledTimes(1)
+    h.read.mockRejectedValueOnce(new TransportAccessError('denied'))
+    await vi.advanceTimersByTimeAsync(20000)
+    expect(h.read).toHaveBeenCalledTimes(2)
+    h.transport.setAvailability(true, true)
+    await h.transport.refresh('resume')
+    expect(h.read).toHaveBeenCalledTimes(2)
+  })
+  it('resumes immediately after aborting an in-flight background read', async () => {
+    const h = harness('polling')
+    h.read.mockImplementationOnce(signal => new Promise((_, reject) => {
+      signal.addEventListener('abort', () => reject(new Error('aborted')))
+    }))
+    h.transport.start()
+    h.transport.setAvailability(false, true)
+    h.transport.setAvailability(true, true)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(h.read).toHaveBeenCalledTimes(2)
+    expect(h.onSnapshot).toHaveBeenLastCalledWith({ revision: 0 }, 'resume')
+    h.transport.stop()
+  })
+  it('does not deliver a read completed after cleanup', async () => {
+    const h = harness()
+    let resolve!: (value: { revision: number }) => void
+    h.read.mockImplementationOnce(() => new Promise(r => { resolve = r }))
+    h.transport.start()
+    h.transport.stop()
+    resolve({ revision: 1 })
+    await vi.advanceTimersByTimeAsync(10)
+    expect(h.onSnapshot).not.toHaveBeenCalled()
+    expect(h.read.mock.calls[0][0].aborted).toBe(true)
+  })
+})
