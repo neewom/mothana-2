@@ -15,6 +15,7 @@ export interface PortefeuilleMovement {
 }
 
 export interface PortefeuilleBuyerState {
+  revision: number
   portefeuille: {
     codePublic: string
     soldeCentimes: number
@@ -52,13 +53,17 @@ export function portefeuilleJson(body: unknown, status = 200): Response {
   })
 }
 
+export function isPortefeuilleSecretHash(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)
+}
+
 async function parseSecretHash(req: Request): Promise<string | null> {
   const raw = await req.text()
   if (raw.length > 512) return null
 
   try {
     const body = JSON.parse(raw) as { secret_hash?: unknown }
-    return typeof body.secret_hash === 'string' && /^[0-9a-f]{64}$/.test(body.secret_hash)
+    return isPortefeuilleSecretHash(body.secret_hash)
       ? body.secret_hash
       : null
   } catch {
@@ -66,7 +71,7 @@ async function parseSecretHash(req: Request): Promise<string | null> {
   }
 }
 
-function adminClient(): SupabaseClient {
+export function portefeuilleAdminClient(): SupabaseClient {
   return createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -94,7 +99,7 @@ export async function readPortefeuilleBuyerState(
     return { ok: false, response: portefeuilleJson({ error: 'SERVICE_INDISPONIBLE' }, 503) }
   }
 
-  const { data, error } = await adminClient().rpc('lire_portefeuille_par_secret_hash', {
+  const { data, error } = await portefeuilleAdminClient().rpc('lire_portefeuille_par_secret_hash', {
     p_secret_hash: secretHash,
     p_ip_hash: ipHash,
     p_scope: scope,
@@ -124,14 +129,14 @@ export async function readPortefeuilleBuyerState(
     return { ok: false, response: portefeuilleJson({ error: 'LIEN_INVALIDE' }, 404) }
   }
 
-  const { portefeuille, evenement, mouvements, demandeEnAttente } = result
-  if (!portefeuille || !evenement || !Array.isArray(mouvements)) {
+  const { revision, portefeuille, evenement, mouvements, demandeEnAttente } = result
+  if (typeof revision !== 'number' || !portefeuille || !evenement || !Array.isArray(mouvements)) {
     console.error('Portefeuille read returned an invalid shape')
     return { ok: false, response: portefeuilleJson({ error: 'SERVICE_INDISPONIBLE' }, 503) }
   }
 
   return {
     ok: true,
-    state: { portefeuille, evenement, mouvements, demandeEnAttente: demandeEnAttente ?? null },
+    state: { revision, portefeuille, evenement, mouvements, demandeEnAttente: demandeEnAttente ?? null },
   }
 }

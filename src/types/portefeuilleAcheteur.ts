@@ -8,6 +8,7 @@ export interface MouvementPortefeuilleAcheteur {
 }
 
 export interface PortefeuilleAcheteurState {
+  revision: number
   portefeuille: {
     codePublic: string
     soldeCentimes: number
@@ -21,6 +22,12 @@ export interface PortefeuilleAcheteurState {
     organisationNom: string
   }
   mouvements: MouvementPortefeuilleAcheteur[]
+  demandeEnAttente: {
+    id: string
+    montantCentimes: number
+    expireLe: string
+    createdAt: string
+  } | null
 }
 
 export type PortefeuilleAcheteurError =

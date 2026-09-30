@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import type { Html5Qrcode } from 'html5-qrcode'
+import {
+  PAYMENT_CHANGED_EVENT,
+  paymentRequestRevision,
+  sellerPaymentTopic,
+} from '../lib/couponPaymentRealtime'
 import { supabase } from '../lib/supabaseClient'
+import { createPaymentTransport } from '../lib/transport/paymentTransport'
 import {
   eurosToCentimes,
   isValidWalletCode,
@@ -14,9 +20,11 @@ import { formatCentimes, formatPeriodeEvenement } from '../lib/portefeuilleAchet
 import { disposeQrScanner } from '../lib/qrScannerLifecycle'
 import { cn } from '../lib/utils'
 import type { Evenement } from '../types/evenement'
+import type { SyncReason, TransportSnapshot } from '../types/paymentTransport'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import { StatusNotice } from './ui/status-notice'
 
 type OpenEvent = Pick<Evenement, 'id' | 'nom' | 'date_evenement' | 'date_fin' | 'statut'>
 
@@ -37,6 +45,12 @@ interface PaymentRequestRow {
   statut: PaymentRequestStatus
   montant_centimes: number
   expire_le: string
+  updated_at: string
+}
+
+interface SellerPaymentSnapshot extends TransportSnapshot {
+  statut: PaymentRequestStatus
+  expireLe: string
 }
 
 interface CurrentPaymentRequest {
@@ -62,17 +76,35 @@ function effectiveStatus(row: PaymentRequestRow): PaymentRequestStatus {
   return row.statut
 }
 
-function requestStatusClasses(status: PaymentRequestStatus): string {
-  if (status === 'validee') return 'border-success-border bg-success-tint text-success'
-  if (status === 'en_attente') return 'border-warning-border bg-warning-tint text-warning'
-  if (status === 'refusee') return 'border-stamp/25 bg-stamp/[0.04] text-stamp'
-  return 'border-paper-border bg-paper text-ink-muted'
+async function readPaymentRequest(requestId: string, signal: AbortSignal): Promise<SellerPaymentSnapshot> {
+  const { data, error } = await supabase
+    .from('demandes_paiement')
+    .select('id, statut, montant_centimes, expire_le, updated_at')
+    .eq('id', requestId)
+    .abortSignal(signal)
+    .single()
+
+  if (error || !data) throw new Error('PAYMENT_REQUEST_READ_FAILED')
+  const row = data as PaymentRequestRow
+  const statut = effectiveStatus(row)
+  return {
+    revision: paymentRequestRevision(row.updated_at, row.expire_le, row.statut),
+    statut,
+    expireLe: row.expire_le,
+  }
+}
+
+function requestStatusTone(status: PaymentRequestStatus): 'neutral' | 'warning' | 'success-emphasis' | 'danger-emphasis' {
+  if (status === 'validee') return 'success-emphasis'
+  if (status === 'refusee') return 'danger-emphasis'
+  if (status === 'en_attente' || status === 'expiree') return 'warning'
+  return 'neutral'
 }
 
 function requestStatusDescription(status: PaymentRequestStatus): string {
   switch (status) {
     case 'en_attente':
-      return 'Demandez à l’acheteur de valider sur son téléphone, puis vérifiez le statut ici.'
+      return 'Demandez à l’acheteur de valider sur son téléphone. Le résultat apparaîtra automatiquement.'
     case 'validee':
       return 'Le paiement a été accepté et le portefeuille a été débité.'
     case 'refusee':
@@ -106,6 +138,8 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
   const [cancelling, setCancelling] = useState(false)
   const [statusNote, setStatusNote] = useState<string | null>(null)
   const [request, setRequest] = useState<CurrentPaymentRequest | null>(null)
+  const sellerRefreshRef = useRef<((reason: SyncReason) => Promise<void>) | null>(null)
+  const trackedRequestId = request?.statut === 'en_attente' ? request.id : null
 
   const loadEvents = useCallback(async () => {
     setLoadingEvents(true)
@@ -161,6 +195,64 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
   useEffect(() => {
     if (inputMode !== 'scan') void stopScanner()
   }, [inputMode, stopScanner])
+
+  useEffect(() => {
+    if (!trackedRequestId) return
+
+    const transport = createPaymentTransport<SellerPaymentSnapshot>({
+      mode: 'broadcast',
+      read: (signal) => readPaymentRequest(trackedRequestId, signal),
+      subscribe: (hint, connected) => {
+        const channel = supabase
+          .channel(sellerPaymentTopic(trackedRequestId), { config: { private: false } })
+          .on('broadcast', { event: PAYMENT_CHANGED_EVENT }, hint)
+          .subscribe((status) => connected(status === 'SUBSCRIBED'))
+        return () => { void supabase.removeChannel(channel) }
+      },
+      onSnapshot: (snapshot, reason) => {
+        setRequest((current) => current?.id === trackedRequestId
+          ? { ...current, statut: snapshot.statut, expireLe: snapshot.expireLe }
+          : current)
+        if (snapshot.statut === 'en_attente' && reason === 'mutation') {
+          const time = new Intl.DateTimeFormat('fr-FR', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+          }).format(new Date())
+          setStatusNote(`Toujours en attente — vérifié à ${time}.`)
+        } else if (snapshot.statut !== 'en_attente') {
+          setStatusNote('Décision reçue automatiquement.')
+        }
+      },
+      onEvent: (event) => {
+        if (event.event === 'broadcast-connected') {
+          setStatusNote('Suivi automatique actif.')
+        } else if (event.event === 'offline') {
+          setStatusNote('Hors ligne — le suivi reprendra automatiquement à la reconnexion.')
+        } else if (event.event === 'read-error' || event.event === 'broadcast-fallback') {
+          setStatusNote('Connexion instable — vérification automatique en cours.')
+        }
+      },
+      pollMs: 1000,
+      reconcileMs: 5000,
+    })
+
+    sellerRefreshRef.current = transport.refresh
+    const updateAvailability = () => {
+      transport.setAvailability(document.visibilityState === 'visible', navigator.onLine)
+    }
+    document.addEventListener('visibilitychange', updateAvailability)
+    window.addEventListener('online', updateAvailability)
+    window.addEventListener('offline', updateAvailability)
+    updateAvailability()
+    transport.start()
+
+    return () => {
+      if (sellerRefreshRef.current === transport.refresh) sellerRefreshRef.current = null
+      document.removeEventListener('visibilitychange', updateAvailability)
+      window.removeEventListener('online', updateAvailability)
+      window.removeEventListener('offline', updateAvailability)
+      transport.stop()
+    }
+  }, [trackedRequestId])
 
   function switchInputMode(mode: 'scan' | 'manual') {
     inputModeRef.current = mode
@@ -297,34 +389,15 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
       statut: 'en_attente',
       expireLe: null,
     })
+    setStatusNote('Connexion au suivi automatique…')
     setSaving(false)
   }
 
   async function checkStatus() {
-    if (!request) return
+    if (!request || !sellerRefreshRef.current) return
     setChecking(true)
     setError(null)
-    setStatusNote(null)
-
-    const { data, error: queryError } = await supabase
-      .from('demandes_paiement')
-      .select('id, statut, montant_centimes, expire_le')
-      .eq('id', request.id)
-      .single()
-
-    if (queryError || !data) {
-      setError('Le statut n’a pas pu être vérifié. Réessayez.')
-      setChecking(false)
-      return
-    }
-
-    const row = data as PaymentRequestRow
-    const statut = effectiveStatus(row)
-    setRequest((current) => current ? { ...current, statut, expireLe: row.expire_le } : current)
-    if (statut === 'en_attente') {
-      const time = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date())
-      setStatusNote(`Toujours en attente — vérifié à ${time}.`)
-    }
+    await sellerRefreshRef.current('mutation')
     setChecking(false)
   }
 
@@ -368,8 +441,8 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
 
   if (loadError) {
     return (
-      <div className="rounded-sm border border-stamp/25 bg-stamp/[0.04] p-6 text-center">
-        <p role="alert" className="text-sm text-stamp">{loadError}</p>
+      <div className="text-center">
+        <StatusNotice tone="danger" role="alert">{loadError}</StatusNotice>
         <Button type="button" className="mt-4" onClick={() => void loadEvents()}>
           Réessayer
         </Button>
@@ -402,11 +475,12 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
           <p className="mt-1 text-sm text-ink-muted">{request.evenementNom}</p>
         </div>
 
+        <StatusNotice tone={requestStatusTone(request.statut)} heading={paymentRequestStatusLabel(request.statut)}>
+          <p>{requestStatusDescription(request.statut)}</p>
+          {statusNote && <p className="mt-2 text-xs font-medium opacity-80">{statusNote}</p>}
+        </StatusNotice>
+
         <div className="rounded-sm border border-paper-border bg-white">
-          <div className={cn('border-b px-5 py-5', requestStatusClasses(request.statut))} aria-live="polite">
-            <p className="text-lg font-semibold">{paymentRequestStatusLabel(request.statut)}</p>
-            <p className="mt-1 text-sm leading-6">{requestStatusDescription(request.statut)}</p>
-          </div>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-4 px-5 py-5 text-sm">
             <div>
               <dt className="font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">Montant</dt>
@@ -417,13 +491,12 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
               <dd className="mt-1 break-all font-registre-mono text-sm font-semibold text-ink">{request.codePublic}</dd>
             </div>
           </dl>
-          {statusNote && <p className="border-t border-paper-border px-5 py-3 text-sm text-ink-muted" aria-live="polite">{statusNote}</p>}
-          {error && <p role="alert" className="mx-5 mb-5 rounded-sm border border-stamp/25 bg-stamp/[0.04] px-3 py-2 text-sm text-stamp">{error}</p>}
+          {error && <StatusNotice tone="danger" role="alert" className="mx-5 mb-5">{error}</StatusNotice>}
           <div className="grid gap-3 border-t border-paper-border px-5 py-4 sm:grid-cols-2">
             {isPending ? (
               <>
                 <Button type="button" onClick={() => void checkStatus()} disabled={checking || cancelling} className="w-full">
-                  {checking ? 'Vérification…' : 'Vérifier le statut'}
+                  {checking ? 'Actualisation…' : 'Actualiser maintenant'}
                 </Button>
                 <Button type="button" variant="danger" onClick={() => void cancelRequest()} disabled={checking || cancelling} className="w-full">
                   {cancelling ? 'Annulation…' : 'Annuler la demande'}
@@ -448,8 +521,8 @@ export default function BenevoleEvenement({ organisationId }: BenevoleEvenementP
       </div>
 
       <form onSubmit={createRequest} className="space-y-6 rounded-sm border border-paper-border bg-white p-5 sm:p-6">
-        {error && <p role="alert" className="rounded-sm border border-stamp/25 bg-stamp/[0.04] px-3 py-2 text-sm text-stamp">{error}</p>}
-        {scanMessage && <p role="status" className="rounded-sm border border-success-border bg-success-tint px-3 py-2 text-sm text-success">{scanMessage}</p>}
+        {error && <StatusNotice tone="danger" role="alert">{error}</StatusNotice>}
+        {scanMessage && <StatusNotice tone="success">{scanMessage}</StatusNotice>}
 
         <div className="space-y-1.5">
           <Label htmlFor="seller-event">Événement</Label>
