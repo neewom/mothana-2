@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import CreditManuelModal from '../components/CreditManuelModal'
 import EvenementAfficheModal from '../components/EvenementAfficheModal'
 import EvenementModal from '../components/EvenementModal'
@@ -123,6 +124,9 @@ function EvenementRow({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1 pl-[68px] sm:pl-0">
+        <Button asChild variant="secondary" size="sm">
+          <Link to={`/admin/evenements/${evenement.id}`}>Détails</Link>
+        </Button>
         {evenement.statut === 'ouvert' && (
           <Button type="button" variant="secondary" size="sm" onClick={onCredit}>
             Créditer
