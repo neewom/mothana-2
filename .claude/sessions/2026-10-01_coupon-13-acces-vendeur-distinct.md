@@ -12,13 +12,20 @@
 
 ## Reste à faire
 
-- Arbitrer le blocker sécurité ci-dessous avec le lead tech avant de passer la PR en « ready for review ».
-- Après arbitrage : ajuster le test/périmètre si nécessaire, relancer les validations, pousser le commit final, passer la PR en review et publier le commentaire Trello « Prête pour review ».
+- Merge sur go explicite de l'utilisateur.
 - Après merge seulement : déplacer la carte vers Done et ajouter l'entrée correspondante dans `docs/journal-avancement.md` dans la même action.
 
 ## Blockers
 
-- Deux RPC préexistantes hors des 4 points autorisés, `next_participant_id_externe(uuid)` et `next_adherent_id_externe(uuid)`, sont `security definer`, sans garde d'organisation, et accordées à tout rôle PostgreSQL `authenticated`. Un JWT vendeur peut donc les appeler pour lire/faire avancer une séquence dons/adhésions. Point signalé sur la PR #199 ; aucune modification hors périmètre effectuée sans arbitrage.
+- Résolu. Deux RPC préexistantes hors des 4 points autorisés, `next_participant_id_externe(uuid)` et `next_adherent_id_externe(uuid)`, étaient `security definer`, sans garde d'organisation, et accordées à tout rôle PostgreSQL `authenticated`. Un JWT vendeur pouvait donc les appeler pour faire avancer une séquence dons/adhésions de n'importe quelle organisation. Point signalé par Codex sur la PR #199 sans modification hors périmètre ; arbitré et corrigé par le lead tech dans la même PR (migration `next_id_externe_organisation_guard.sql`, garde identique à `creer_credit_manuel` : admin de l'organisation ciblée ou super-admin). Validé par 3 tests SQL transactionnels sur staging (admin propre organisation OK, admin autre organisation refusé, vendeur refusé) — aucune régression sur le chemin légitime (`AdherentModal.tsx`/`ParticipantModal.tsx`, admin-only).
+
+## Revue lead tech
+
+- Code relu intégralement (migration, 2 Edge Functions, contexte Auth, routes, écran vendeur, section paramètres) : propre, exactement le périmètre cadré respecté en dehors du blocker ci-dessus.
+- `tsc -b`, 48 tests Vitest, lint ciblé, `deno check` verts (après ajout du correctif).
+- Validation staging par le lead tech : connexion vendeur réelle (PIN généré par Codex pendant son propre test) sur le worktree de revue (port 5175) → écran isolé « Encaisser sur un portefeuille » uniquement, aucune trace dons/adhésion, zéro erreur console.
+- Suggestion non bloquante postée sur la PR : contrairement au bénévole, une expiration de session vendeur ne préserve pas l'état (pas d'overlay de ressaisie PIN) — impact faible, pas de blocage.
+- PR #199 approuvée, prête à merger.
 
 ## Décisions
 
