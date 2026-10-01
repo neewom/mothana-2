@@ -5,6 +5,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { getCanonicalSiteUrl } from '../lib/environment'
+import { classifyMailingRecipients, type MailingRecipientGroups } from '../lib/mailingRecipients'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import ScrollShadowX from '../components/ScrollShadowX'
@@ -16,7 +17,7 @@ import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
-import { Dialog, DialogContent } from '../components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../components/ui/dialog'
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
 const MAX_ATTACHMENTS = 3
@@ -57,6 +58,36 @@ interface MailingTemplate {
   corps_html: string
 }
 
+interface MailingContactRow {
+  id: string
+  nom: string
+  prenom: string | null
+  courriel: string | null
+  tags: string[]
+  mailing_opt_out: boolean
+}
+
+type ApercuCategory = keyof MailingRecipientGroups<MailingContactRow>
+
+const APERCU_COPY: Record<ApercuCategory, { title: string; description: string }> = {
+  deliverable: {
+    title: 'Destinataires de la campagne',
+    description: 'Ces adhérents recevront la campagne.',
+  },
+  missingEmail: {
+    title: 'Contacts exclus — email manquant',
+    description: "Ces adhérents n'ont pas d'adresse email renseignée.",
+  },
+  invalidEmail: {
+    title: 'Contacts exclus — email invalide',
+    description: "Ces adhérents ont une adresse email dont le format n'est pas valide.",
+  },
+  optedOut: {
+    title: 'Contacts refusés',
+    description: "Ces adhérents ont refusé de recevoir les campagnes mailing.",
+  },
+}
+
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
@@ -72,10 +103,6 @@ function fileToBase64(file: File): Promise<string> {
     reader.readAsDataURL(file)
   })
 }
-
-// Doit rester cohérente avec la validation de send-mailing-brevo (Edge Function) :
-// l'aperçu avant envoi doit refléter exactement ce qui sera réellement envoyé/exclu.
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const PLACEHOLDERS = [
   { key: 'prenom', label: 'Prénom' },
@@ -150,11 +177,19 @@ export default function CampagneMailingPage() {
   const [availableTags, setAvailableTags] = useState<string[]>([])
   const [piecesJointes, setPiecesJointes] = useState<PieceJointeState[]>([])
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
-  const [destinatairesCount, setDestinatairesCount] = useState<{ avecEmail: number; exclus: number } | null>(null)
-  const [destinatairesApercu, setDestinatairesApercu] = useState<
-    { id: string; nom: string; prenom: string | null; courriel: string }[]
-  >([])
-  const [apercuOpen, setApercuOpen] = useState(false)
+  const [destinatairesCount, setDestinatairesCount] = useState<{
+    avecEmail: number
+    emailManquant: number
+    emailInvalide: number
+    optOut: number
+  } | null>(null)
+  const [recipientGroups, setRecipientGroups] = useState<MailingRecipientGroups<MailingContactRow>>({
+    deliverable: [],
+    missingEmail: [],
+    invalidEmail: [],
+    optedOut: [],
+  })
+  const [apercuCategory, setApercuCategory] = useState<ApercuCategory | null>(null)
   const [editingAdherent, setEditingAdherent] = useState<Adherent | undefined>(undefined)
   const [adherentModalOpen, setAdherentModalOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -374,9 +409,8 @@ export default function CampagneMailingPage() {
     const requestId = ++destinatairesRequestIdRef.current
     let query = supabase
       .from('adherents')
-      .select('id, nom, prenom, courriel, tags')
+      .select('id, nom, prenom, courriel, tags, mailing_opt_out')
       .eq('organisation_id', organisationId)
-      .eq('mailing_opt_out', false)
     // Sélectionner une liste prime sur le statut actif/archivé (envoie à tous les
     // porteurs du tag, peu importe leur statut) — cf. cadrage.
     if (tagEnvoi) {
@@ -386,18 +420,23 @@ export default function CampagneMailingPage() {
     }
     const { data } = await query
     if (requestId !== destinatairesRequestIdRef.current) return
-    const rows = (data ?? []) as { id: string; nom: string; prenom: string | null; courriel: string | null; tags: string[] }[]
+    const rows = (data ?? []) as MailingContactRow[]
     const filtered = excludeTag ? rows.filter((a) => !(a.tags ?? []).includes(excludeTag)) : rows
-    const avecEmail = filtered.filter((a) => a.courriel && EMAIL_REGEX.test(a.courriel.trim()))
-    setDestinatairesCount({ avecEmail: avecEmail.length, exclus: filtered.length - avecEmail.length })
-    setDestinatairesApercu(avecEmail.map((a) => ({ id: a.id, nom: a.nom, prenom: a.prenom, courriel: a.courriel! })))
+    const groups = classifyMailingRecipients(filtered)
+    setDestinatairesCount({
+      avecEmail: groups.deliverable.length,
+      emailManquant: groups.missingEmail.length,
+      emailInvalide: groups.invalidEmail.length,
+      optOut: groups.optedOut.length,
+    })
+    setRecipientGroups(groups)
   }, [organisationId, filtreStatut, tagEnvoi, excludeTag])
 
   async function handleApercuRowClick(id: string) {
     const { data } = await supabase.from('adherents').select('*').eq('id', id).single()
     if (!data) return
     setEditingAdherent(data as Adherent)
-    setApercuOpen(false)
+    setApercuCategory(null)
     setAdherentModalOpen(true)
   }
 
@@ -714,18 +753,46 @@ export default function CampagneMailingPage() {
           </div>
 
           {destinatairesCount && (
-            <p className="text-xs text-ink-faint">
-              {destinatairesCount.avecEmail} destinataire{destinatairesCount.avecEmail > 1 ? 's' : ''} avec email
-              {destinatairesCount.exclus > 0 && ` — ${destinatairesCount.exclus} exclu${destinatairesCount.exclus > 1 ? 's' : ''} (email manquant)`}
-              {destinatairesCount.avecEmail > 0 && (
-                <>
+            <div className="space-y-1 text-xs text-ink-faint">
+              <p>
+                {destinatairesCount.avecEmail} destinataire{destinatairesCount.avecEmail !== 1 ? 's' : ''} avec email
+                {destinatairesCount.avecEmail > 0 && (
+                  <>
+                    {' — '}
+                    <button type="button" onClick={() => setApercuCategory('deliverable')} className="rounded-sm font-medium text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70">
+                      Voir la liste ({destinatairesCount.avecEmail})
+                    </button>
+                  </>
+                )}
+              </p>
+              {destinatairesCount.emailManquant > 0 && (
+                <p>
+                  {destinatairesCount.emailManquant} exclu{destinatairesCount.emailManquant > 1 ? 's' : ''} — email manquant
                   {' — '}
-                  <button type="button" onClick={() => setApercuOpen(true)} className="font-medium text-stamp hover:underline">
-                    Voir la liste ({destinatairesCount.avecEmail})
+                  <button type="button" onClick={() => setApercuCategory('missingEmail')} className="rounded-sm font-medium text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70">
+                    Voir la liste ({destinatairesCount.emailManquant})
                   </button>
-                </>
+                </p>
               )}
-            </p>
+              {destinatairesCount.emailInvalide > 0 && (
+                <p>
+                  {destinatairesCount.emailInvalide} exclu{destinatairesCount.emailInvalide > 1 ? 's' : ''} — email invalide
+                  {' — '}
+                  <button type="button" onClick={() => setApercuCategory('invalidEmail')} className="rounded-sm font-medium text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70">
+                    Voir la liste ({destinatairesCount.emailInvalide})
+                  </button>
+                </p>
+              )}
+              {destinatairesCount.optOut > 0 && (
+                <p>
+                  {destinatairesCount.optOut} contact{destinatairesCount.optOut > 1 ? 's' : ''} refusé{destinatairesCount.optOut > 1 ? 's' : ''}
+                  {' — '}
+                  <button type="button" onClick={() => setApercuCategory('optedOut')} className="rounded-sm font-medium text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70">
+                    Voir la liste ({destinatairesCount.optOut})
+                  </button>
+                </p>
+              )}
+            </div>
           )}
 
           {!configured && (
@@ -932,10 +999,17 @@ export default function CampagneMailingPage() {
         initial={brevoConfig}
       />
 
-      <Dialog open={apercuOpen} onOpenChange={(next) => { if (!next) setApercuOpen(false) }}>
-        <DialogContent className="max-w-lg" aria-describedby={undefined}>
+      <Dialog open={apercuCategory !== null} onOpenChange={(next) => { if (!next) setApercuCategory(null) }}>
+        <DialogContent className="max-w-lg">
           <div className="flex max-h-[80vh] flex-col p-6">
-            <h2 className="font-registre text-lg font-semibold text-ink">Destinataires de la campagne</h2>
+            <DialogTitle>
+              {apercuCategory ? APERCU_COPY[apercuCategory].title : ''}
+            </DialogTitle>
+            {apercuCategory && (
+              <DialogDescription className="mt-1">
+                {APERCU_COPY[apercuCategory].description}
+              </DialogDescription>
+            )}
             <div className="mt-4 flex-1 overflow-y-auto">
               <ScrollShadowX>
                 <Table>
@@ -946,10 +1020,22 @@ export default function CampagneMailingPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {destinatairesApercu.map((a) => (
-                      <TableRow key={a.id} onClick={() => handleApercuRowClick(a.id)} className="cursor-pointer hover:bg-paper-border/20">
-                        <TableCell className="font-medium text-ink">{a.prenom ? `${a.prenom} ${a.nom}` : a.nom}</TableCell>
-                        <TableCell className="break-all text-ink-muted">{a.courriel}</TableCell>
+                    {(apercuCategory ? recipientGroups[apercuCategory] : []).map((a) => (
+                      <TableRow
+                        key={a.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleApercuRowClick(a.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            handleApercuRowClick(a.id)
+                          }
+                        }}
+                        className="cursor-pointer hover:bg-paper-border/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stamp/70"
+                      >
+                        <TableCell className="whitespace-nowrap font-medium text-ink">{a.prenom ? `${a.prenom} ${a.nom}` : a.nom}</TableCell>
+                        <TableCell className="break-all text-ink-muted">{a.courriel?.trim() || 'Non renseigné'}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -957,7 +1043,7 @@ export default function CampagneMailingPage() {
               </ScrollShadowX>
             </div>
             <div className="mt-5 flex justify-end">
-              <Button type="button" variant="secondary" onClick={() => setApercuOpen(false)}>
+              <Button type="button" variant="secondary" onClick={() => setApercuCategory(null)}>
                 Fermer
               </Button>
             </div>
