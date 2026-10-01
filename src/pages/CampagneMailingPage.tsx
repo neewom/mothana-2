@@ -1015,8 +1015,11 @@ export default function CampagneMailingPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Destinataire</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead>{apercuCategory === 'deliverable' ? 'Destinataire' : 'Adhérent'}</TableHead>
+                      {apercuCategory !== 'missingEmail' && <TableHead>Email</TableHead>}
+                      <TableHead className="w-10">
+                        <span className="sr-only">Ouvrir la fiche</span>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1025,6 +1028,7 @@ export default function CampagneMailingPage() {
                         key={a.id}
                         role="button"
                         tabIndex={0}
+                        aria-label={`Ouvrir la fiche de ${a.prenom ? `${a.prenom} ${a.nom}` : a.nom}`}
                         onClick={() => handleApercuRowClick(a.id)}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' || event.key === ' ') {
@@ -1035,7 +1039,14 @@ export default function CampagneMailingPage() {
                         className="cursor-pointer hover:bg-paper-border/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stamp/70"
                       >
                         <TableCell className="whitespace-nowrap font-medium text-ink">{a.prenom ? `${a.prenom} ${a.nom}` : a.nom}</TableCell>
-                        <TableCell className="break-all text-ink-muted">{a.courriel?.trim() || 'Non renseigné'}</TableCell>
+                        {apercuCategory !== 'missingEmail' && (
+                          <TableCell className="min-w-48 break-words text-ink-muted">{a.courriel?.trim() || 'Non renseigné'}</TableCell>
+                        )}
+                        <TableCell className="w-10 text-right text-ink-faint">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
