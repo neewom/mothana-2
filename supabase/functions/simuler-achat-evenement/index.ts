@@ -192,48 +192,56 @@ Deno.serve(async (req) => {
       return json({ error: 'COMMANDE_DEJA_TRAITEE' }, 409)
     }
 
-    const secretHash = await sha256(activation.secret)
-    const { data: stateData, error: stateError } = await admin.rpc('lire_portefeuille_par_secret_hash', {
-      p_secret_hash: secretHash,
-      p_ip_hash: await sha256(`simulated-purchase:${order.id}`),
-      p_scope: 'pdf',
-    })
-    const stateResult = stateData as WalletStateResult | null
-    if (stateError || !stateResult?.ok || !stateResult.portefeuille || !stateResult.evenement
-      || !Array.isArray(stateResult.mouvements) || typeof stateResult.revision !== 'number') {
-      console.error('Simulated purchase: wallet state unavailable:', stateError?.code ?? stateResult?.reason)
-      return json({ error: 'GENERATION_PDF_IMPOSSIBLE' }, 502)
-    }
-
-    const state: PortefeuilleBuyerState = {
-      revision: stateResult.revision,
-      portefeuille: stateResult.portefeuille,
-      evenement: stateResult.evenement,
-      mouvements: stateResult.mouvements,
-      demandeEnAttente: stateResult.demandeEnAttente ?? null,
-    }
+    // Le crédit est déjà appliqué à ce stade (activation.secret prouve que la
+    // RPC a bien débité la commande). Le lien reste valable même si le PDF ou
+    // l'email échouent ensuite : ne jamais faire dépendre la réponse de leur
+    // succès, pour ne pas créer un portefeuille crédité mais inaccessible.
     const walletUrl = `${siteUrl}/p#${encodeURIComponent(activation.secret)}`
-    const pdf = await generatePortefeuilleQrPdf(state)
-    const emailResult = await sendViaResend(
-      email,
-      `Votre portefeuille — ${state.evenement.nom}`,
-      purchaseEmailHtml(
-        state.evenement.organisationNom,
-        state.evenement.nom,
-        body.montant_centimes as number,
-        walletUrl,
-      ),
-      {
-        tags: [{ name: 'commande_id', value: order.id }],
-        attachments: [{
-          filename: `portefeuille-${activation.code_public}.pdf`,
-          content: bytesToBase64(new Uint8Array(pdf)),
-        }],
-      },
-    )
-    if (!emailResult.ok) {
-      console.error('Simulated purchase: Resend failed:', emailResult.detail)
-      return json({ error: 'EMAIL_NON_ENVOYE' }, 502)
+    let emailEnvoye = false
+
+    try {
+      const secretHash = await sha256(activation.secret)
+      const { data: stateData, error: stateError } = await admin.rpc('lire_portefeuille_par_secret_hash', {
+        p_secret_hash: secretHash,
+        p_ip_hash: await sha256(`simulated-purchase:${order.id}`),
+        p_scope: 'pdf',
+      })
+      const stateResult = stateData as WalletStateResult | null
+      if (stateError || !stateResult?.ok || !stateResult.portefeuille || !stateResult.evenement
+        || !Array.isArray(stateResult.mouvements) || typeof stateResult.revision !== 'number') {
+        throw new Error(`wallet state unavailable: ${stateError?.code ?? stateResult?.reason}`)
+      }
+
+      const state: PortefeuilleBuyerState = {
+        revision: stateResult.revision,
+        portefeuille: stateResult.portefeuille,
+        evenement: stateResult.evenement,
+        mouvements: stateResult.mouvements,
+        demandeEnAttente: stateResult.demandeEnAttente ?? null,
+      }
+      const pdf = await generatePortefeuilleQrPdf(state)
+      const emailResult = await sendViaResend(
+        email,
+        `Votre portefeuille — ${state.evenement.nom}`,
+        purchaseEmailHtml(
+          state.evenement.organisationNom,
+          state.evenement.nom,
+          body.montant_centimes as number,
+          walletUrl,
+        ),
+        {
+          tags: [{ name: 'commande_id', value: order.id }],
+          attachments: [{
+            filename: `portefeuille-${activation.code_public}.pdf`,
+            content: bytesToBase64(new Uint8Array(pdf)),
+          }],
+        },
+      )
+      if (!emailResult.ok) throw new Error(`Resend failed: ${emailResult.detail}`)
+      emailEnvoye = true
+    } catch (notificationError) {
+      // Best-effort : le crédit reste acquis, seule la notification échoue.
+      console.error('Simulated purchase: notification failed:', notificationError instanceof Error ? notificationError.message : notificationError)
     }
 
     return json({
@@ -241,7 +249,7 @@ Deno.serve(async (req) => {
       portefeuille_url: walletUrl,
       code_public: activation.code_public,
       montant_centimes: body.montant_centimes,
-      email_envoye: true,
+      email_envoye: emailEnvoye,
     })
   } catch (error) {
     console.error('Simulated purchase error:', error instanceof Error ? error.message : 'unknown')
