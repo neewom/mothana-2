@@ -6,6 +6,7 @@ import FeatureGuard from './components/FeatureGuard'
 import HomePage from './pages/HomePage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import BenevoleLoginPage from './pages/BenevoleLoginPage'
+import VendeurLoginPage from './pages/VendeurLoginPage'
 import DemandeAdhesionPage from './pages/DemandeAdhesionPage'
 import DesinscriptionMailingPage from './pages/DesinscriptionMailingPage'
 import DecouvrirPage from './pages/DecouvrirPage'
@@ -14,6 +15,7 @@ import PortefeuillePage from './pages/PortefeuillePage'
 import EvenementAchatPage from './pages/EvenementAchatPage'
 import AdminLayout from './pages/AdminLayout'
 import BenevolePage from './pages/BenevolePage'
+import VendeurPage from './pages/VendeurPage'
 import DashboardPage from './pages/DashboardPage'
 import DonsPage from './pages/DonsPage'
 import DonsReguliersPage from './pages/DonsReguliersPage'
@@ -43,6 +45,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/mot-de-passe/nouveau" element={<ResetPasswordPage />} />
         <Route path="/login/benevole" element={<BenevoleLoginPage />} />
+        <Route path="/login/vendeur" element={<VendeurLoginPage />} />
         <Route path="/adhesion/:slug" element={<DemandeAdhesionPage />} />
         <Route path="/desinscription" element={<DesinscriptionMailingPage />} />
         <Route path="/decouvrir" element={<DecouvrirPage />} />
@@ -90,6 +93,11 @@ function App() {
         {/* Benevole (protected) */}
         <Route element={<ProtectedRoute allowedRoles={['benevole']} />}>
           <Route path="/benevole" element={<BenevolePage />} />
+        </Route>
+
+        {/* Vendeur événement (protected) */}
+        <Route element={<ProtectedRoute allowedRoles={['vendeur']} />}>
+          <Route path="/vendeur" element={<VendeurPage />} />
         </Route>
       </Routes>
     </AuthProvider>

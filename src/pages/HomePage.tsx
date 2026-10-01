@@ -47,6 +47,7 @@ export default function HomePage() {
     if (auth.type === 'super_admin') navigate('/super-admin', { replace: true })
     else if (auth.type === 'admin') navigate('/admin', { replace: true })
     else if (auth.type === 'benevole') navigate('/benevole', { replace: true })
+    else if (auth.type === 'vendeur') navigate('/vendeur', { replace: true })
   }, [auth.type, navigate])
 
   async function handleSubmit(e: FormEvent) {
@@ -86,7 +87,7 @@ export default function HomePage() {
     setForgotMessage(null)
   }
 
-  if (auth.type === 'loading' || auth.type === 'super_admin' || auth.type === 'admin' || auth.type === 'benevole') {
+  if (auth.type === 'loading' || auth.type === 'super_admin' || auth.type === 'admin' || auth.type === 'benevole' || auth.type === 'vendeur') {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-paper">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
@@ -231,6 +232,12 @@ export default function HomePage() {
           Vous êtes bénévole ?{' '}
           <Link to="/login/benevole" className="font-medium text-stamp hover:underline">
             Accéder avec votre code PIN
+          </Link>
+        </p>
+        <p className="mt-2 text-center text-sm text-ink-faint">
+          Vous êtes vendeur sur un événement ?{' '}
+          <Link to="/login/vendeur" className="font-medium text-stamp hover:underline">
+            Accéder à l'espace vendeur
           </Link>
         </p>
       </div>

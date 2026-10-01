@@ -10,6 +10,13 @@ function generatePin(): string {
   return String(Math.floor(100000 + Math.random() * 900000))
 }
 
+type PinRole = 'benevole' | 'vendeur'
+
+const pinRoleConfig: Record<PinRole, { column: string; emailPrefix: string }> = {
+  benevole: { column: 'code_pin_benevole', emailPrefix: 'benevole' },
+  vendeur: { column: 'code_pin_vendeur_evenement', emailPrefix: 'vendeur' },
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -47,7 +54,16 @@ Deno.serve(async (req) => {
     })
 
     // Caller must be admin for an organisation, or super-admin with an explicit organisation_id
-    const { organisation_id } = await req.json().catch(() => ({}))
+    const { organisation_id, role: requestedRole = 'benevole' } = await req.json().catch(() => ({}))
+    if (requestedRole !== 'benevole' && requestedRole !== 'vendeur') {
+      return new Response(
+        JSON.stringify({ error: 'Role PIN invalide' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const role: PinRole = requestedRole
+    const roleConfig = pinRoleConfig[role]
     const resolved = await resolveOrganisationId(adminClient, user, organisation_id)
 
     if (!resolved) {
@@ -67,7 +83,7 @@ Deno.serve(async (req) => {
       const { data: existing } = await adminClient
         .from('organisations')
         .select('id')
-        .eq('code_pin_benevole', newPin)
+        .eq(roleConfig.column, newPin)
         .neq('id', organisationId)
         .single()
 
@@ -79,7 +95,7 @@ Deno.serve(async (req) => {
     // Update organisation PIN
     const { error: updateOrgErr } = await adminClient
       .from('organisations')
-      .update({ code_pin_benevole: newPin })
+      .update({ [roleConfig.column]: newPin })
       .eq('id', organisationId)
 
     if (updateOrgErr) {
@@ -90,21 +106,21 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Update the bénévole Auth account password (email convention: benevole-{org_id}@mothana.internal)
-    const benevoleEmail = `benevole-${organisationId}@mothana.internal`
+    // Update the dedicated Auth account password when it already exists.
+    const accountEmail = `${roleConfig.emailPrefix}-${organisationId}@mothana.internal`
 
     // Find the user by email
     const { data: { users }, error: listErr } = await adminClient.auth.admin.listUsers()
 
     if (!listErr) {
-      const benevoleUser = users.find((u) => u.email === benevoleEmail)
-      if (benevoleUser) {
+      const pinUser = users.find((u) => u.email === accountEmail)
+      if (pinUser) {
         const { error: updateAuthErr } = await adminClient.auth.admin.updateUserById(
-          benevoleUser.id,
+          pinUser.id,
           { password: newPin },
         )
         if (updateAuthErr) {
-          console.error('update benevole auth password:', updateAuthErr)
+          console.error('update PIN auth password:', updateAuthErr)
           // Non-blocking: PIN in DB is updated, log and continue
         }
       }
