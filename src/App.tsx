@@ -22,6 +22,7 @@ import DonsReguliersPage from './pages/DonsReguliersPage'
 import ParticipantsPage from './pages/ParticipantsPage'
 import ActivitesPage from './pages/ActivitesPage'
 import EvenementsPage from './pages/EvenementsPage'
+import EvenementDetailPage from './pages/EvenementDetailPage'
 import RecusFiscauxPage from './pages/RecusFiscauxPage'
 import AdherentsPage from './pages/AdherentsPage'
 import DemandesAdhesionPage from './pages/DemandesAdhesionPage'
@@ -75,6 +76,7 @@ function App() {
             </Route>
             <Route element={<FeatureGuard feature="evenements" />}>
               <Route path="evenements" element={<EvenementsPage />} />
+              <Route path="evenements/:id" element={<EvenementDetailPage />} />
             </Route>
             <Route path="parametres" element={<ParametresOrganisationPage />} />
             <Route path="parametres/fiscal" element={<ParametresFiscalPage />} />
