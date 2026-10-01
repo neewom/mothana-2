@@ -171,6 +171,21 @@ begin
   exception when insufficient_privilege then null;
   end;
 
+  -- Trouvé en développant cette carte : ces deux RPC n'avaient aucune garde
+  -- interne et étaient grantées à authenticated en bloc — un vendeur ne doit
+  -- jamais pouvoir avancer la numérotation adhérents/donateurs.
+  begin
+    perform public.next_adherent_id_externe('13000000-0000-0000-0000-000000000001'::uuid);
+    raise exception 'TEST: next_adherent_id_externe vendeur autorisée';
+  exception when insufficient_privilege then null;
+  end;
+
+  begin
+    perform public.next_participant_id_externe('13000000-0000-0000-0000-000000000001'::uuid);
+    raise exception 'TEST: next_participant_id_externe vendeur autorisée';
+  exception when insufficient_privilege then null;
+  end;
+
   -- Les RPC métier d'import refusent aussi l'absence de contexte admin.
   begin
     perform public.import_upsert_dons('[]'::jsonb, null);
