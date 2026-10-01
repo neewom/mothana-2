@@ -10,6 +10,7 @@
 - Parcours complet validé sur le serveur Codex 5174 et staging avec l’événement `association-demo-staging/coupon-4-demo` : achat fictif 5 €, commande `payee` et référence `simulation:...`, email accepté par Resend vers `delivered@resend.dev` avec payload PDF joint, portefeuille visible immédiatement à 5 €.
 - Continuité vendeur temps réel validée avec deux sessions navigateur : demande 2 € depuis l’espace bénévole, réception automatique côté portefeuille, acceptation acheteur, résultat vendeur « Décision reçue automatiquement », solde final 3 € et deux mouvements visibles.
 - Validation locale : build (`tsc -b` + Vite), 48 tests Vitest, lint ciblé, `deno check`, `git diff --check`, `graphify update .` et détecteur Impeccable verts ; inspection navigateur de la page publique effectuée.
+- Commit final poussé ; PR #197 passée en « ready for review » et commentaire « Prête pour review » publié sur Trello.
 
 ## Reste à faire
 
