@@ -53,6 +53,13 @@ function getBenevoleOrgFromUser(user: User): string | null {
   return typeof orgId === 'string' ? orgId : null
 }
 
+function getVendeurOrgFromUser(user: User): string | null {
+  const appMeta = user.app_metadata as Record<string, unknown> | undefined
+  if (appMeta?.role !== 'vendeur') return null
+  const orgId = appMeta?.organisation_id
+  return typeof orgId === 'string' ? orgId : null
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>({ type: 'loading' })
   const [viewingOrgId, setViewingOrgId] = useState<string | null>(
@@ -85,6 +92,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const benevoleOrgId = getBenevoleOrgFromUser(user)
         if (benevoleOrgId) {
           setAuth({ type: 'benevole', organisationId: benevoleOrgId })
+          return
+        }
+
+        const vendeurOrgId = getVendeurOrgFromUser(user)
+        if (vendeurOrgId) {
+          setAuth({ type: 'vendeur', organisationId: vendeurOrgId })
           return
         }
 
@@ -128,6 +141,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const benevoleOrgId = getBenevoleOrgFromUser(session.user)
         if (benevoleOrgId) {
           setAuth({ type: 'benevole', organisationId: benevoleOrgId })
+          return
+        }
+        const vendeurOrgId = getVendeurOrgFromUser(session.user)
+        if (vendeurOrgId) {
+          setAuth({ type: 'vendeur', organisationId: vendeurOrgId })
           return
         }
         if (isSuperAdmin(session.user)) {
@@ -220,6 +238,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   )
 
+  const loginVendeur = useCallback(
+    async (pin: string): Promise<{ error: string | null }> => {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/verify-pin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ pin, role: 'vendeur' }),
+        })
+        const json = await res.json()
+        if (!res.ok || !json.access_token) {
+          return { error: json.error ?? 'Code PIN invalide' }
+        }
+
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: json.access_token,
+          refresh_token: json.refresh_token,
+        })
+        if (sessionError) {
+          return { error: sessionError.message }
+        }
+
+        setAuth({ type: 'vendeur', organisationId: json.organisation_id })
+        return { error: null }
+      } catch (err) {
+        console.error(err)
+        return { error: 'Erreur réseau. Veuillez réessayer.' }
+      }
+    },
+    []
+  )
+
   const logout = useCallback(async () => {
     await supabase.auth.signOut()
     setAuth({ type: 'unauthenticated' })
@@ -228,7 +280,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ auth, viewingOrgId, setViewingOrg, loginAdmin, loginBenevole, logout }}>
+    <AuthContext.Provider value={{ auth, viewingOrgId, setViewingOrg, loginAdmin, loginBenevole, loginVendeur, logout }}>
       {children}
     </AuthContext.Provider>
   )

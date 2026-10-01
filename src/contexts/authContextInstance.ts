@@ -7,6 +7,7 @@ export type AuthState =
   | { type: 'super_admin'; user: User }
   | { type: 'admin'; user: User; organisationId: string; role: 'admin' | 'contributeur' }
   | { type: 'benevole'; organisationId: string }
+  | { type: 'vendeur'; organisationId: string }
 
 export interface AuthContextValue {
   auth: AuthState
@@ -14,6 +15,7 @@ export interface AuthContextValue {
   setViewingOrg: (orgId: string | null) => void
   loginAdmin: (email: string, password: string) => Promise<{ error: string | null; authType?: 'super_admin' | 'admin' }>
   loginBenevole: (pin: string) => Promise<{ error: string | null }>
+  loginVendeur: (pin: string) => Promise<{ error: string | null }>
   logout: () => Promise<void>
 }
 

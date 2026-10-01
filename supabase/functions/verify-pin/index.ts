@@ -11,6 +11,13 @@ interface VerifyPinRateLimitResult {
   reason?: 'ACCES_INVALIDE' | 'RATE_LIMIT'
 }
 
+type PinRole = 'benevole' | 'vendeur'
+
+const pinRoleConfig: Record<PinRole, { column: string; emailPrefix: string }> = {
+  benevole: { column: 'code_pin_benevole', emailPrefix: 'benevole' },
+  vendeur: { column: 'code_pin_vendeur_evenement', emailPrefix: 'vendeur' },
+}
+
 function jsonResponse(
   body: unknown,
   status = 200,
@@ -33,13 +40,20 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { pin } = await req.json()
+    const { pin, role: requestedRole = 'benevole' } = await req.json()
     if (!pin) {
       return new Response(
         JSON.stringify({ error: 'PIN manquant' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
+
+    if (requestedRole !== 'benevole' && requestedRole !== 'vendeur') {
+      return jsonResponse({ error: 'Rôle PIN invalide' }, 400)
+    }
+
+    const role: PinRole = requestedRole
+    const roleConfig = pinRoleConfig[role]
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -89,7 +103,7 @@ Deno.serve(async (req) => {
     const { data: org, error: orgError } = await adminClient
       .from('organisations')
       .select('id, archived_at')
-      .eq('code_pin_benevole', pin)
+      .eq(roleConfig.column, pin)
       .single()
 
     if (orgError || !org) {
@@ -106,12 +120,12 @@ Deno.serve(async (req) => {
       )
     }
 
-    const benevoleEmail = `benevole-${org.id}@mothana.internal`
-    const appMetadata = { role: 'benevole', organisation_id: org.id }
+    const accountEmail = `${roleConfig.emailPrefix}-${org.id}@mothana.internal`
+    const appMetadata = { role, organisation_id: org.id }
 
-    // 2. Ensure the dedicated bénévole Auth account exists (idempotent)
+    // 2. Ensure the dedicated PIN-role Auth account exists (idempotent)
     const { error: createError } = await adminClient.auth.admin.createUser({
-      email: benevoleEmail,
+      email: accountEmail,
       password: pin,
       email_confirm: true,
       app_metadata: appMetadata,
@@ -122,21 +136,21 @@ Deno.serve(async (req) => {
       console.error('createUser:', createError.message)
     }
 
-    // 3. Sign in as the bénévole account using the PIN as password
+    // 3. Sign in as the dedicated account using the PIN as password
     // Use a plain client (anon key) for signInWithPassword
     const anonClient = createClient(supabaseUrl, anonKey, {
       auth: { persistSession: false },
     })
 
     let signInData = await anonClient.auth.signInWithPassword({
-      email: benevoleEmail,
+      email: accountEmail,
       password: pin,
     })
 
     if (signInData.error || !signInData.data.session) {
       console.error('signInWithPassword:', signInData.error?.message)
       return new Response(
-        JSON.stringify({ error: 'Erreur de connexion bénévole' }),
+        JSON.stringify({ error: 'Erreur de connexion' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
@@ -150,7 +164,7 @@ Deno.serve(async (req) => {
     // token already handed out).
     const currentMetadata = signInData.data.user.app_metadata
     const metadataStale =
-      currentMetadata?.role !== 'benevole' || currentMetadata?.organisation_id !== org.id
+      currentMetadata?.role !== role || currentMetadata?.organisation_id !== org.id
 
     if (metadataStale) {
       await adminClient.auth.admin.updateUserById(signInData.data.user.id, {
@@ -158,14 +172,14 @@ Deno.serve(async (req) => {
       })
 
       signInData = await anonClient.auth.signInWithPassword({
-        email: benevoleEmail,
+        email: accountEmail,
         password: pin,
       })
 
       if (signInData.error || !signInData.data.session) {
         console.error('signInWithPassword (post-fixup):', signInData.error?.message)
         return new Response(
-          JSON.stringify({ error: 'Erreur de connexion bénévole' }),
+          JSON.stringify({ error: 'Erreur de connexion' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         )
       }

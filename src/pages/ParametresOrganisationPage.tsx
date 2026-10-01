@@ -30,6 +30,8 @@ async function uploadAssetFile(organisationId: string, identifiant: string, file
 interface OrgSettings {
   nom: string
   code_pin_benevole: string
+  code_pin_vendeur_evenement: string | null
+  fonctionnalites_activees: { evenements?: boolean } | null
   modele_recu_pdf: ModeleRecu
 }
 
@@ -52,6 +54,13 @@ export default function ParametresOrganisationPage() {
   const [pinLoading, setPinLoading] = useState(false)
   const [pinError, setPinError] = useState<string | null>(null)
   const [pinSuccess, setPinSuccess] = useState(false)
+
+  // PIN vendeur événement
+  const [vendeurPin, setVendeurPin] = useState('')
+  const [vendeurPinVisible, setVendeurPinVisible] = useState(false)
+  const [vendeurPinLoading, setVendeurPinLoading] = useState(false)
+  const [vendeurPinError, setVendeurPinError] = useState<string | null>(null)
+  const [vendeurPinSuccess, setVendeurPinSuccess] = useState(false)
 
   // Identité visuelle (président + assets) — modele_recu_pdf est partagé avec
   // Paramètres > Fiscal, toujours relire/réécrire l'objet complet (voir types/index.ts).
@@ -79,7 +88,7 @@ export default function ParametresOrganisationPage() {
 
       const { data, error } = await supabase
         .from('organisations')
-        .select('nom, code_pin_benevole, modele_recu_pdf')
+        .select('nom, code_pin_benevole, code_pin_vendeur_evenement, fonctionnalites_activees, modele_recu_pdf')
         .eq('id', organisationId)
         .single()
 
@@ -95,6 +104,7 @@ export default function ParametresOrganisationPage() {
       setSettings(raw)
       setNom(raw.nom)
       setPin(raw.code_pin_benevole ?? '')
+      setVendeurPin(raw.code_pin_vendeur_evenement ?? '')
       setModele({ ...DEFAULT_MODELE, ...modeleRaw })
       setLoading(false)
     }
@@ -183,6 +193,43 @@ export default function ParametresOrganisationPage() {
     setPinSuccess(true)
     setTimeout(() => setPinSuccess(false), 4000)
     setPinLoading(false)
+  }
+
+  async function handleRegenerateVendeurPin() {
+    setVendeurPinLoading(true)
+    setVendeurPinError(null)
+    setVendeurPinSuccess(false)
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      setVendeurPinError('Session expirée')
+      setVendeurPinLoading(false)
+      return
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+    const res = await fetch(`${supabaseUrl}/functions/v1/update-pin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+      },
+      body: JSON.stringify({ organisation_id: organisationId, role: 'vendeur' }),
+    })
+
+    const json = await res.json()
+    if (!res.ok) {
+      setVendeurPinError(json.error ?? 'Erreur inconnue')
+      setVendeurPinLoading(false)
+      return
+    }
+
+    setVendeurPin(json.new_pin)
+    setVendeurPinVisible(true)
+    setVendeurPinSuccess(true)
+    setTimeout(() => setVendeurPinSuccess(false), 4000)
+    setVendeurPinLoading(false)
   }
 
   // ---------------------------------------------------------------------------
@@ -370,6 +417,68 @@ export default function ParametresOrganisationPage() {
           </div>
         </form>
       </ParametresSection>
+
+      {settings?.fonctionnalites_activees?.evenements && (
+        <ParametresSection
+          title="PIN vendeur événement"
+          description="Ce code donne accès uniquement à l'écran de demande de paiement Coupon. Il ne permet pas de saisir des dons ni de consulter les adhésions."
+        >
+          <div className="max-w-md space-y-4">
+            <div>
+              <Label>Code PIN vendeur</Label>
+              <div className="mt-1 flex items-center gap-2">
+                <div className="flex-1 rounded-sm border border-paper-border bg-paper px-3 py-2 font-registre-mono text-sm tracking-widest text-ink">
+                  {vendeurPin ? (vendeurPinVisible ? vendeurPin : '••••••') : 'Non généré'}
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  onClick={() => setVendeurPinVisible((visible) => !visible)}
+                  disabled={!vendeurPin}
+                  aria-label={vendeurPinVisible ? 'Masquer le PIN vendeur' : 'Afficher le PIN vendeur'}
+                >
+                  {vendeurPinVisible ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268-2.943 9.542-7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" variant="secondary" onClick={handleRegenerateVendeurPin} disabled={vendeurPinLoading}>
+                {vendeurPinLoading ? (
+                  <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                  </svg>
+                )}
+                {vendeurPin ? 'Régénérer le PIN vendeur' : 'Générer le PIN vendeur'}
+              </Button>
+              {vendeurPinSuccess && (
+                <span className="flex items-center gap-1.5 text-sm text-success">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  PIN vendeur généré — accès limité aux paiements événement
+                </span>
+              )}
+              {vendeurPinError && <span className="text-sm text-stamp">{vendeurPinError}</span>}
+            </div>
+          </div>
+        </ParametresSection>
+      )}
 
       <ParametresSection
         title="Code PIN bénévole"
