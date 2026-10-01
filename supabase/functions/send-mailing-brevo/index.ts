@@ -15,6 +15,10 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 // Limite Brevo /v3/smtp/email : jusqu'à 1000 destinataires personnalisés par appel (messageVersions).
 const BREVO_BATCH_SIZE = 1000
+// Validation simple (pas de RFC 5322 complet) : suffisante pour écarter les valeurs
+// clairement mal saisies (espace, domaine tronqué) qui font échouer tout le batch Brevo
+// (Brevo rejette l'intégralité de messageVersions si une seule adresse est invalide).
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 const MAX_ATTACHMENTS = 3
 
@@ -156,7 +160,7 @@ Deno.serve(async (req) => {
     const tousAdherents = ((adherentsData ?? []) as AdherentDestinataire[]).filter(
       (a) => !exclude_tag || !(a.tags ?? []).includes(exclude_tag),
     )
-    const destinataires = tousAdherents.filter((a) => a.courriel && a.courriel.trim() !== '')
+    const destinataires = tousAdherents.filter((a) => a.courriel && EMAIL_REGEX.test(a.courriel.trim()))
     const nombreExclus = tousAdherents.length - destinataires.length
 
     if (destinataires.length === 0) {
@@ -188,7 +192,7 @@ Deno.serve(async (req) => {
           subject: sujet,
           htmlContent: htmlContentAvecFooter,
           messageVersions: chunk.map((a) => ({
-            to: [{ email: a.courriel, name: [a.prenom, a.nom].filter(Boolean).join(' ') }],
+            to: [{ email: a.courriel.trim(), name: [a.prenom, a.nom].filter(Boolean).join(' ') }],
             params: {
               prenom: a.prenom ?? '',
               nom: a.nom,
