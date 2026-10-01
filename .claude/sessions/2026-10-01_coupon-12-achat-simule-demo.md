@@ -15,11 +15,12 @@
 - **Test bout en bout rejoué par le lead tech sur staging** (kill-switch réactivé temporairement, puis redésactivé et vérifié par appel live en 503) : achat 20 € sur `association-demo-staging/coupon-4-demo`, email reçu avec PDF, lien portefeuille menant à un solde correct, desktop + mobile (375px), zéro erreur console.
 - **Bug trouvé en testant** : un email factice non routable (`@example.com`) fait échouer Resend (502) *après* que le crédit a déjà été appliqué côté serveur — portefeuille crédité mais inaccessible, aucun recours admin pour réémettre le secret. Avec une vraie adresse, parcours rejoué sans accroc. Décision utilisateur : consigne opérationnelle pour la démo (toujours utiliser une adresse joignable), pas de correctif de code vu le délai.
 - PR #197 approuvée (commentaire posté sur la PR et sur Trello), mergée sur `dev` sur go explicite de l'utilisateur (2026-10-01). Carte Trello déplacée en Done, entrée ajoutée dans `docs/journal-avancement.md` dans la même action.
+- **Correctif du bug email** (2026-10-01, PR #198 mergée) : sur demande explicite de l'utilisateur après décision de laisser le mode simulation actif au-delà de la seule démo (exposition prolongée, pas juste une fenêtre de quelques minutes). `simuler-achat-evenement` : génération PDF + envoi email passés en best-effort après le crédit (qui est la seule chose qui compte pour la réponse) ; le lien portefeuille est désormais toujours renvoyé dès que le crédit est acquis, avec `email_envoye: false` sinon. Écran d'achat affiche le lien avec un avertissement (tone warning) plutôt qu'un message d'erreur bloquant. Codes `EMAIL_NON_ENVOYE`/`GENERATION_PDF_IMPOSSIBLE` retirés (inatteignables). Validé : `tsc -b`, 48 tests, lint ciblé, `deno check` verts ; redéployé sur staging, kill-switch réactivé temporairement puis redésactivé (vérifié par appel live en 503) ; cas `@example.com` rejoué avec succès (lien + avertissement affichés). Mergée sur go explicite. Journal et backlog `AGENTS.md` mis à jour dans la même action.
 
 ## Reste à faire
 
-- Pour la démo du 2026-10-02 : activer explicitement `SIMULATION_PAIEMENT_ACTIVE=true` juste avant, en utilisant uniquement de vraies adresses email pendant la démo (voir bug ci-dessus), puis remettre `false` immédiatement après.
-- Arrêter le serveur du worktree de revue (port 5175, PID 1064) une fois ce cycle de test/démo terminé.
+- Pour la démo du 2026-10-02 : activer explicitement `SIMULATION_PAIEMENT_ACTIVE=true` juste avant, puis remettre `false` immédiatement après (le bug email n'est plus bloquant mais la consigne « vraie adresse » reste la meilleure pratique).
+- Carte 11 (dashboard admin) : cadrage entamé avant la carte 12, mis en pause, à reprendre.
 
 ## Blockers
 
