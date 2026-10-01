@@ -11,12 +11,15 @@
 - Continuité vendeur temps réel validée avec deux sessions navigateur : demande 2 € depuis l’espace bénévole, réception automatique côté portefeuille, acceptation acheteur, résultat vendeur « Décision reçue automatiquement », solde final 3 € et deux mouvements visibles.
 - Validation locale : build (`tsc -b` + Vite), 48 tests Vitest, lint ciblé, `deno check`, `git diff --check`, `graphify update .` et détecteur Impeccable verts ; inspection navigateur de la page publique effectuée.
 - Commit final poussé ; PR #197 passée en « ready for review » et commentaire « Prête pour review » publié sur Trello.
+- **Revue lead tech** (worktree de revue, port 5175, branche checkoutée en détaché) : code relu intégralement, aucun bloquant (validation d'entrée complète, secret jamais loggé, lien portefeuille en fragment jamais transmis au serveur, RPC existantes réutilisées sans modification).
+- **Test bout en bout rejoué par le lead tech sur staging** (kill-switch réactivé temporairement, puis redésactivé et vérifié par appel live en 503) : achat 20 € sur `association-demo-staging/coupon-4-demo`, email reçu avec PDF, lien portefeuille menant à un solde correct, desktop + mobile (375px), zéro erreur console.
+- **Bug trouvé en testant** : un email factice non routable (`@example.com`) fait échouer Resend (502) *après* que le crédit a déjà été appliqué côté serveur — portefeuille crédité mais inaccessible, aucun recours admin pour réémettre le secret. Avec une vraie adresse, parcours rejoué sans accroc. Décision utilisateur : consigne opérationnelle pour la démo (toujours utiliser une adresse joignable), pas de correctif de code vu le délai.
+- PR #197 approuvée (commentaire posté sur la PR et sur Trello), mergée sur `dev` sur go explicite de l'utilisateur (2026-10-01). Carte Trello déplacée en Done, entrée ajoutée dans `docs/journal-avancement.md` dans la même action.
 
 ## Reste à faire
 
-- Le lead tech effectue l’unique revue complète ; intégrer ses éventuels retours.
-- Après merge seulement : déplacer la carte vers Done et ajouter l’entrée correspondante dans `docs/journal-avancement.md` dans la même action.
-- Pour la démo du 2026-10-02 : activer explicitement `SIMULATION_PAIEMENT_ACTIVE=true` juste avant, puis remettre `false` immédiatement après.
+- Pour la démo du 2026-10-02 : activer explicitement `SIMULATION_PAIEMENT_ACTIVE=true` juste avant, en utilisant uniquement de vraies adresses email pendant la démo (voir bug ci-dessus), puis remettre `false` immédiatement après.
+- Arrêter le serveur du worktree de revue (port 5175, PID 1064) une fois ce cycle de test/démo terminé.
 
 ## Blockers
 
