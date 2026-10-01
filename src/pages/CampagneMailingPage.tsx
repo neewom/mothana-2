@@ -502,7 +502,8 @@ export default function CampagneMailingPage() {
     const json = await res.json().catch(() => ({}))
 
     if (!res.ok) {
-      setSendError(json.error ?? 'Erreur inconnue')
+      const message = json.error ?? 'Erreur inconnue'
+      setSendError(json.detail ? `${message} : ${json.detail}` : message)
       setSending(false)
       return
     }
