@@ -502,7 +502,7 @@ export default function PortefeuillePage() {
                 <span className="text-sm text-ink-faint">QR code indisponible</span>
               )}
             </div>
-            <p className="mt-3 font-registre-mono text-lg font-semibold tracking-[0.13em]">{state.portefeuille.codePublic}</p>
+            <p className="mt-3 break-all font-registre-mono text-lg font-semibold tracking-[0.13em]">{state.portefeuille.codePublic}</p>
             <p className="mt-2 text-xs leading-5 text-ink-faint">Le vendeur peut saisir ce code si le scan ne fonctionne pas.</p>
             <Button type="button" variant="secondary" className="mt-5 w-full" onClick={() => void downloadPdf()} disabled={pdfState === 'loading'}>
               <DownloadIcon />
