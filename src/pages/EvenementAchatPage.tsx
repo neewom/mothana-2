@@ -253,9 +253,15 @@ export default function EvenementAchatPage() {
             <StatusNotice tone="success-emphasis" heading="Portefeuille crédité">
               Votre crédit de {amount !== null ? formatCentimes(amount) : ''} est disponible immédiatement.
             </StatusNotice>
-            <p className="mt-5 text-sm leading-6 text-ink-muted">
-              Un email avec le lien du portefeuille et le PDF QR a été envoyé à <strong className="text-ink">{email.trim()}</strong>.
-            </p>
+            {result?.email_envoye ? (
+              <p className="mt-5 text-sm leading-6 text-ink-muted">
+                Un email avec le lien du portefeuille et le PDF QR a été envoyé à <strong className="text-ink">{email.trim()}</strong>.
+              </p>
+            ) : (
+              <StatusNotice tone="warning" className="mt-5 text-left" heading="L'email n'a pas pu être envoyé">
+                Votre crédit est bien disponible — utilisez le lien ci-dessous dès maintenant et gardez-le précieusement, vous ne pourrez pas le retrouver autrement.
+              </StatusNotice>
+            )}
             {result?.portefeuille_url && (
               <Button asChild className="mt-6">
                 <a href={result.portefeuille_url}>Ouvrir mon portefeuille</a>

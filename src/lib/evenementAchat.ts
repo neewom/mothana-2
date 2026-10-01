@@ -8,8 +8,6 @@ export type AchatSimuleErrorCode =
   | 'MODULE_DESACTIVE'
   | 'MONTANT_INVALIDE'
   | 'EMAIL_INVALIDE'
-  | 'EMAIL_NON_ENVOYE'
-  | 'GENERATION_PDF_IMPOSSIBLE'
   | 'COMMANDE_DEJA_TRAITEE'
   | 'SERVICE_INDISPONIBLE'
   | 'REQUETE_INVALIDE'
@@ -39,10 +37,6 @@ export function achatSimuleErrorMessage(code: string | null): string {
       return "Ce montant n'est plus proposé. Actualisez la page et réessayez."
     case 'EMAIL_INVALIDE':
       return "L'adresse email n'est pas valide."
-    case 'EMAIL_NON_ENVOYE':
-      return "Le crédit a été créé, mais l'email n'a pas pu être envoyé. Contactez l'organisateur avant de réessayer."
-    case 'GENERATION_PDF_IMPOSSIBLE':
-      return "Le crédit a été créé, mais le PDF n'a pas pu être généré. Contactez l'organisateur avant de réessayer."
     case 'COMMANDE_DEJA_TRAITEE':
       return "Cette opération a déjà crédité un portefeuille. Consultez l'email reçu ou contactez l'organisateur avant de réessayer."
     case 'REQUETE_INVALIDE':
