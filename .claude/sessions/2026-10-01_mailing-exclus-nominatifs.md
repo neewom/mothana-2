@@ -8,16 +8,16 @@
 - Chaque compteur non vide possède son CTA « Voir la liste » ; la modale nominative affiche la catégorie correspondante et chaque ligne ouvre la fiche adhérent complète, au clic comme au clavier.
 - La règle de validation email a été centralisée dans `src/lib/mailingRecipients.ts`, avec quatre tests unitaires couvrant la distinction manquant/invalide, la priorité opt-out et l'exclusivité des groupes.
 - Validation locale verte : `tsc -b`, lint ciblé, 55 tests Vitest, build Vite, `git diff --check`, détecteur Impeccable et `graphify update .`.
+- Validation fonctionnelle/UX directe obtenue de l'utilisateur sur le port 5174 ; PR #204 passée en ready for review et commentaire « prête pour review » publié sur Trello.
 
 ## Reste à faire
 
-- Validation fonctionnelle/UX directe par l'utilisateur sur `http://100.107.87.80:5174/admin/adherents/campagne-mailing` pendant que la PR reste en draft.
-- Après validation utilisateur : passer la PR #204 en ready for review et publier le commentaire Trello « prête pour review ».
-- Après revue lead tech et autorisation explicite : merge, déplacement Trello vers Done et entrée correspondante dans `docs/journal-avancement.md` dans la même action.
+- Revue complète par le lead tech, puis corrections éventuelles dans cette même PR.
+- Après approbation lead tech et autorisation explicite utilisateur : merge, déplacement Trello vers Done et entrée correspondante dans `docs/journal-avancement.md` dans la même action.
 
 ## Blockers
 
-- Aucun blocker code. L'inspection visuelle automatisée avec des données réelles n'a pas été possible dans le navigateur intégré, qui ne disposait pas d'une session admin locale et est resté sur le chargement d'authentification ; aucune erreur console n'a été relevée.
+- Aucun blocker. La limitation d'inspection automatisée avec une session admin réelle a été levée par la validation directe de l'utilisateur sur l'environnement 5174.
 
 ## Décisions
 
