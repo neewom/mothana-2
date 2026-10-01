@@ -1,5 +1,21 @@
 export type EvenementStatut = 'brouillon' | 'ouvert' | 'clos'
 
+export interface EvenementPublic {
+  id: string
+  nom: string
+  date_evenement: string
+  montants_credit_centimes: number[]
+  nom_organisation: string
+}
+
+export interface AchatSimuleResponse {
+  ok: true
+  portefeuille_url?: string
+  code_public?: string
+  montant_centimes?: number
+  email_envoye?: boolean
+}
+
 export interface Evenement {
   id: string
   organisation_id: string

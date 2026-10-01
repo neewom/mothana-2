@@ -9,11 +9,21 @@ export interface SendResult {
   id?: string
 }
 
+export interface ResendAttachment {
+  filename: string
+  content: string
+}
+
+interface SendOptions {
+  tags?: { name: string; value: string }[]
+  attachments?: ResendAttachment[]
+}
+
 export async function sendViaResend(
   to: string,
   subject: string,
   html: string,
-  options?: { tags?: { name: string; value: string }[] },
+  options?: SendOptions,
 ): Promise<SendResult> {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -27,6 +37,7 @@ export async function sendViaResend(
       subject,
       html,
       ...(options?.tags ? { tags: options.tags } : {}),
+      ...(options?.attachments ? { attachments: options.attachments } : {}),
     }),
   })
 
