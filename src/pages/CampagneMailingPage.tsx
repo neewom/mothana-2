@@ -73,6 +73,10 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
+// Doit rester cohérente avec la validation de send-mailing-brevo (Edge Function) :
+// l'aperçu avant envoi doit refléter exactement ce qui sera réellement envoyé/exclu.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 const PLACEHOLDERS = [
   { key: 'prenom', label: 'Prénom' },
   { key: 'nom', label: 'Nom' },
@@ -384,7 +388,7 @@ export default function CampagneMailingPage() {
     if (requestId !== destinatairesRequestIdRef.current) return
     const rows = (data ?? []) as { id: string; nom: string; prenom: string | null; courriel: string | null; tags: string[] }[]
     const filtered = excludeTag ? rows.filter((a) => !(a.tags ?? []).includes(excludeTag)) : rows
-    const avecEmail = filtered.filter((a) => a.courriel && a.courriel.trim() !== '')
+    const avecEmail = filtered.filter((a) => a.courriel && EMAIL_REGEX.test(a.courriel.trim()))
     setDestinatairesCount({ avecEmail: avecEmail.length, exclus: filtered.length - avecEmail.length })
     setDestinatairesApercu(avecEmail.map((a) => ({ id: a.id, nom: a.nom, prenom: a.prenom, courriel: a.courriel! })))
   }, [organisationId, filtreStatut, tagEnvoi, excludeTag])
