@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { achatSimuleErrorMessage, isEvenementPublic } from './evenementAchat'
+import {
+  achatSimuleErrorMessage,
+  DEMANDE_LIEN_CONFIRMATION,
+  isEvenementPublic,
+} from './evenementAchat'
 
 describe('isEvenementPublic', () => {
   const event = {
@@ -34,5 +38,14 @@ describe('achatSimuleErrorMessage', () => {
   it('ne promet pas un email lors de la reprise d’une commande déjà traitée', () => {
     expect(achatSimuleErrorMessage('COMMANDE_DEJA_TRAITEE')).toContain('déjà crédité')
     expect(achatSimuleErrorMessage('COMMANDE_DEJA_TRAITEE')).not.toContain('envoyé')
+  })
+})
+
+describe('DEMANDE_LIEN_CONFIRMATION', () => {
+  it('reste générique et ne confirme jamais qu’une adresse possède un portefeuille', () => {
+    expect(DEMANDE_LIEN_CONFIRMATION).toBe(
+      'Si un portefeuille existe pour cette adresse, un email a été envoyé.',
+    )
+    expect(DEMANDE_LIEN_CONFIRMATION).not.toContain('Votre portefeuille existe')
   })
 })

@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2'
 import type { PortefeuilleBuyerState } from '../_shared/portefeuilleAccess.ts'
 import { generatePortefeuilleQrPdf } from '../_shared/portefeuilleQrPdf.ts'
 import { sendViaResend } from '../_shared/resend.ts'
+import { normaliseSiteUrl } from '../_shared/siteUrl.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,8 +14,6 @@ const corsHeaders = {
 // les fixtures historiques du projet utilisent notamment une version à zéro.
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,24}$/
-const LOCAL_DEMO_HOSTS = new Set(['localhost', '127.0.0.1', '100.107.87.80'])
-const PUBLIC_HOSTS = new Set(['samakan.fr', 'www.samakan.fr', 'test.samakan.fr'])
 
 interface PurchaseBody {
   evenement_id?: unknown
@@ -72,20 +71,6 @@ function bytesToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize))
   }
   return btoa(binary)
-}
-
-function normaliseSiteUrl(value: unknown): string | null {
-  if (typeof value !== 'string' || value.length > 200) return null
-  try {
-    const url = new URL(value)
-    const isLocalDemo = LOCAL_DEMO_HOSTS.has(url.hostname)
-    if (!isLocalDemo && !PUBLIC_HOSTS.has(url.hostname)) return null
-    if (!isLocalDemo && url.protocol !== 'https:') return null
-    if (isLocalDemo && !['http:', 'https:'].includes(url.protocol)) return null
-    return url.origin
-  } catch {
-    return null
-  }
 }
 
 async function sha256(value: string): Promise<string> {
@@ -222,7 +207,7 @@ Deno.serve(async (req) => {
       const pdf = await generatePortefeuilleQrPdf(state)
       const emailResult = await sendViaResend(
         email,
-        `Votre portefeuille — ${state.evenement.nom}`,
+        `Votre portefeuille — ${state.evenement.nom} (réf. ${order.id.replaceAll('-', '').slice(0, 6)})`,
         purchaseEmailHtml(
           state.evenement.organisationNom,
           state.evenement.nom,

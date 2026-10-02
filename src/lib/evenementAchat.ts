@@ -12,6 +12,9 @@ export type AchatSimuleErrorCode =
   | 'SERVICE_INDISPONIBLE'
   | 'REQUETE_INVALIDE'
 
+export const DEMANDE_LIEN_CONFIRMATION =
+  'Si un portefeuille existe pour cette adresse, un email a été envoyé.'
+
 export function isEvenementPublic(value: unknown): value is EvenementPublic {
   if (!value || typeof value !== 'object') return false
   const event = value as Partial<EvenementPublic>
