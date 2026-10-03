@@ -5,7 +5,11 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { StatusNotice } from '../components/ui/status-notice'
 import { getCanonicalSiteUrl } from '../lib/environment'
-import { achatSimuleErrorMessage, isEvenementPublic } from '../lib/evenementAchat'
+import {
+  achatSimuleErrorMessage,
+  DEMANDE_LIEN_CONFIRMATION,
+  isEvenementPublic,
+} from '../lib/evenementAchat'
 import { formatCentimes } from '../lib/portefeuilleAcheteur'
 import { supabase } from '../lib/supabaseClient'
 import { isValidEmail } from '../lib/textFormat'
@@ -44,7 +48,12 @@ export default function EvenementAchatPage() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AchatSimuleResponse | null>(null)
   const [idempotencyKey] = useState(() => crypto.randomUUID())
+  const [recoveryEmail, setRecoveryEmail] = useState('')
+  const [recoverySubmitting, setRecoverySubmitting] = useState(false)
+  const [recoverySubmitted, setRecoverySubmitted] = useState(false)
+  const [recoveryValidationError, setRecoveryValidationError] = useState(false)
   const emailInvalid = email.length > 0 && !isValidEmail(email.trim())
+  const recoveryEmailInvalid = recoveryEmail.length > 0 && !isValidEmail(recoveryEmail.trim())
 
   useEffect(() => {
     let cancelled = false
@@ -128,6 +137,41 @@ export default function EvenementAchatPage() {
       setError(achatSimuleErrorMessage('SERVICE_INDISPONIBLE'))
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function handleWalletLinkRecovery(event_: FormEvent) {
+    event_.preventDefault()
+    if (!event || recoverySubmitting) return
+
+    const normalizedEmail = recoveryEmail.trim()
+    if (!isValidEmail(normalizedEmail)) {
+      setRecoveryValidationError(true)
+      return
+    }
+
+    setRecoverySubmitting(true)
+    setRecoveryValidationError(false)
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/demander-lien-portefeuille`, {
+        method: 'POST',
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          evenement_id: event.id,
+          email: normalizedEmail,
+          site_url: getCanonicalSiteUrl(),
+        }),
+      })
+    } catch {
+      // Le message reste volontairement identique à celui du serveur : le
+      // navigateur ne doit jamais révéler si l'adresse est titulaire.
+    } finally {
+      setRecoverySubmitting(false)
+      setRecoverySubmitted(true)
     }
   }
 
@@ -269,6 +313,66 @@ export default function EvenementAchatPage() {
             )}
           </section>
         )}
+
+        <section className="mt-5 rounded-sm border border-paper-border bg-white p-5 sm:p-6">
+          <h2 className="text-lg font-semibold">J’ai déjà un portefeuille ?</h2>
+          <p className="mt-1 text-sm leading-6 text-ink-muted">
+            Retrouvez votre lien d’accès par email.
+          </p>
+
+          {recoverySubmitted ? (
+            <div className="mt-4">
+              <StatusNotice tone="success" heading="Demande prise en compte">
+                {DEMANDE_LIEN_CONFIRMATION}
+              </StatusNotice>
+              <Button
+                type="button"
+                variant="secondary"
+                className="mt-4 w-full"
+                onClick={() => {
+                  setRecoveryEmail('')
+                  setRecoverySubmitted(false)
+                  setRecoveryValidationError(false)
+                }}
+              >
+                Utiliser une autre adresse
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleWalletLinkRecovery} className="mt-4 space-y-4">
+              <div>
+                <Label htmlFor="recovery-email">Adresse email</Label>
+                <Input
+                  id="recovery-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  required
+                  value={recoveryEmail}
+                  onChange={(event_) => {
+                    setRecoveryEmail(event_.target.value)
+                    setRecoveryValidationError(false)
+                  }}
+                  aria-invalid={recoveryEmailInvalid || recoveryValidationError}
+                  placeholder="vous@exemple.fr"
+                  className="mt-1"
+                />
+              </div>
+              {recoveryValidationError && (
+                <StatusNotice tone="danger" role="alert">
+                  Renseignez une adresse email valide.
+                </StatusNotice>
+              )}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={!isValidEmail(recoveryEmail.trim()) || recoverySubmitting}
+              >
+                {recoverySubmitting ? 'Envoi de la demande…' : 'Retrouver mon lien'}
+              </Button>
+            </form>
+          )}
+        </section>
       </div>
     </main>
   )
