@@ -1,7 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.108.2'
+import {
+  scheduleBackgroundTask,
+  type BackgroundTaskRuntime,
+} from '../_shared/backgroundTask.ts'
 import { hashClientIp } from '../_shared/rateLimit.ts'
 import { sendViaResend } from '../_shared/resend.ts'
 import { normaliseSiteUrl } from '../_shared/siteUrl.ts'
+
+// Global fourni par le runtime Supabase. La déclaration locale évite d'importer
+// tout le paquet de types functions-js uniquement pour cette primitive.
+declare const EdgeRuntime: BackgroundTaskRuntime
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,6 +74,33 @@ function recoveryEmailHtml(
 </body></html>`
 }
 
+async function sendRecoveryEmail(
+  email: string,
+  eventName: string,
+  organisationName: string,
+  walletUrl: string,
+  sendId: string,
+): Promise<void> {
+  try {
+    const reference = sendId.replaceAll('-', '').slice(0, 6)
+    const emailResult = await sendViaResend(
+      email,
+      `Votre portefeuille — ${eventName} (réf. ${reference})`,
+      recoveryEmailHtml(organisationName, eventName, walletUrl),
+      { tags: [{ name: 'secret_id', value: sendId }] },
+    )
+
+    if (!emailResult.ok) {
+      console.error('Wallet link recovery: Resend failed:', emailResult.detail)
+    }
+  } catch (error) {
+    console.error(
+      'Wallet link recovery: Resend threw:',
+      error instanceof Error ? error.message : 'unknown',
+    )
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return genericResponse()
@@ -120,21 +155,19 @@ Deno.serve(async (req) => {
     }
 
     const walletUrl = `${siteUrl}/p#${encodeURIComponent(result.secret)}`
-    const reference = result.envoi_id.replaceAll('-', '').slice(0, 6)
-    const emailResult = await sendViaResend(
-      email,
-      `Votre portefeuille — ${result.evenement_nom} (réf. ${reference})`,
-      recoveryEmailHtml(
-        result.organisation_nom,
-        result.evenement_nom,
+    const eventName = result.evenement_nom
+    const organisationName = result.organisation_nom
+    const sendId = result.envoi_id
+    scheduleBackgroundTask(
+      EdgeRuntime,
+      () => sendRecoveryEmail(
+        email,
+        eventName,
+        organisationName,
         walletUrl,
+        sendId,
       ),
-      { tags: [{ name: 'secret_id', value: result.envoi_id }] },
     )
-
-    if (!emailResult.ok) {
-      console.error('Wallet link recovery: Resend failed:', emailResult.detail)
-    }
   } catch (error) {
     console.error('Wallet link recovery failed:', error instanceof Error ? error.message : 'unknown')
   }
