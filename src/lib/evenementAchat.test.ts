@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { achatSimuleErrorMessage, isEvenementPublic } from './evenementAchat'
+import {
+  achatSimuleErrorMessage,
+  isEvenementPublic,
+} from './evenementAchat'
 
 describe('isEvenementPublic', () => {
   const event = {

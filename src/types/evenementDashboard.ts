@@ -12,6 +12,8 @@ export interface PortefeuilleEvenement {
   code_public: string
   solde_centimes: number
   gele: boolean
+  email_modifie_le: string | null
+  email_modifie_par: string | null
   created_at: string
   updated_at: string
 }

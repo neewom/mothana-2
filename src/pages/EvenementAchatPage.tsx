@@ -5,10 +5,14 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { StatusNotice } from '../components/ui/status-notice'
 import { getCanonicalSiteUrl } from '../lib/environment'
-import { achatSimuleErrorMessage, isEvenementPublic } from '../lib/evenementAchat'
+import {
+  achatSimuleErrorMessage,
+  isEvenementPublic,
+} from '../lib/evenementAchat'
 import { formatCentimes } from '../lib/portefeuilleAcheteur'
 import { supabase } from '../lib/supabaseClient'
 import { isValidEmail } from '../lib/textFormat'
+import { generateUUID } from '../lib/uuid'
 import type { AchatSimuleResponse, EvenementPublic } from '../types/evenement'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
@@ -43,7 +47,7 @@ export default function EvenementAchatPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AchatSimuleResponse | null>(null)
-  const [idempotencyKey] = useState(() => crypto.randomUUID())
+  const [idempotencyKey] = useState(generateUUID)
   const emailInvalid = email.length > 0 && !isValidEmail(email.trim())
 
   useEffect(() => {
@@ -269,6 +273,7 @@ export default function EvenementAchatPage() {
             )}
           </section>
         )}
+
       </div>
     </main>
   )

@@ -16,6 +16,8 @@ const portefeuille = (overrides: Partial<PortefeuilleEvenement> = {}): Portefeui
   code_public: 'ABC2345678',
   solde_centimes: 900,
   gele: false,
+  email_modifie_le: null,
+  email_modifie_par: null,
   created_at: '2026-10-01T10:00:00Z',
   updated_at: '2026-10-01T10:00:00Z',
   ...overrides,

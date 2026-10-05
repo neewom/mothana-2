@@ -4,12 +4,15 @@ import ScrollShadowX from '../components/ScrollShadowX'
 import Toast from '../components/Toast'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
 import { StatusNotice } from '../components/ui/status-notice'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
+import { copyTextToClipboard } from '../lib/clipboard'
+import { getCanonicalSiteUrl } from '../lib/environment'
 import {
   calculerStatsEvenement,
   filtrerPortefeuilles,
@@ -19,6 +22,11 @@ import {
 } from '../lib/evenementDashboard'
 import { formatCentimes, formatPeriodeEvenement } from '../lib/portefeuilleAcheteur'
 import { supabase } from '../lib/supabaseClient'
+import { isValidEmail } from '../lib/textFormat'
+import {
+  walletAccessResendErrorMessage,
+  type WalletAccessResendResponse,
+} from '../lib/walletAccessResend'
 import type { Evenement } from '../types/evenement'
 import type {
   CommandeEvenement,
@@ -114,6 +122,14 @@ export default function EvenementDetailPage() {
   const [freezingWalletId, setFreezingWalletId] = useState<string | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<PortefeuilleEvenement | null>(null)
   const [revoking, setRevoking] = useState(false)
+  const [resendTarget, setResendTarget] = useState<PortefeuilleEvenement | null>(null)
+  const [resendEmail, setResendEmail] = useState('')
+  const [resendRevokeOld, setResendRevokeOld] = useState(false)
+  const [resendSubmittingAction, setResendSubmittingAction] = useState<'email' | 'link' | null>(null)
+  const [resendError, setResendError] = useState<string | null>(null)
+  const [resendLink, setResendLink] = useState<string | null>(null)
+  const [resendEmailSent, setResendEmailSent] = useState(false)
+  const resendEmailInvalid = resendEmail.length > 0 && !isValidEmail(resendEmail.trim())
 
   const fetchData = useCallback(async (showLoading = true) => {
     if (!organisationId || !evenementId) return
@@ -140,7 +156,7 @@ export default function EvenementDetailPage() {
         fetchAllPages<PortefeuilleEvenement>(async (from, to) => {
           const result = await supabase
             .from('portefeuilles')
-            .select('id, organisation_id, evenement_id, email, code_public, solde_centimes, gele, created_at, updated_at')
+            .select('id, organisation_id, evenement_id, email, code_public, solde_centimes, gele, email_modifie_le, email_modifie_par, created_at, updated_at')
             .eq('organisation_id', organisationId)
             .eq('evenement_id', evenementId)
             .order('email')
@@ -264,6 +280,77 @@ export default function EvenementDetailPage() {
       setRevokeTarget(null)
     }
     setRevoking(false)
+  }
+
+  function openResendAccess(portefeuille: PortefeuilleEvenement) {
+    setResendTarget(portefeuille)
+    setResendEmail(portefeuille.email)
+    setResendRevokeOld(false)
+    setResendSubmittingAction(null)
+    setResendError(null)
+    setResendLink(null)
+    setResendEmailSent(false)
+  }
+
+  function closeResendAccess() {
+    if (resendSubmittingAction) return
+    setResendTarget(null)
+    setResendEmail('')
+    setResendRevokeOld(false)
+    setResendError(null)
+    setResendLink(null)
+    setResendEmailSent(false)
+  }
+
+  async function resendAccess(action: 'email' | 'link') {
+    if (!resendTarget || resendSubmittingAction) return
+    const normalizedEmail = resendEmail.trim().toLowerCase()
+    if (!isValidEmail(normalizedEmail)) {
+      setResendError('Renseignez une adresse email valide.')
+      return
+    }
+
+    setResendSubmittingAction(action)
+    setResendError(null)
+    setResendLink(null)
+    setResendEmailSent(false)
+
+    const { data: response, error: invocationError } = await supabase.functions.invoke<WalletAccessResendResponse>(
+      'renvoyer-acces-portefeuille',
+      {
+        body: {
+          portefeuille_id: resendTarget.id,
+          nouvel_email: normalizedEmail,
+          revoquer_anciens: resendRevokeOld,
+          envoyer_email: action === 'email',
+          site_url: getCanonicalSiteUrl(),
+        },
+      },
+    )
+
+    if (invocationError || !response) {
+      setResendError(walletAccessResendErrorMessage(null))
+      setResendSubmittingAction(null)
+      return
+    }
+
+    if (!response.ok) {
+      setResendError(walletAccessResendErrorMessage(response.error ?? null))
+      if (response.error === 'EMAIL_NON_ENVOYE' && response.portefeuille_url) {
+        setResendLink(response.portefeuille_url)
+        await fetchData(false)
+      }
+      setResendSubmittingAction(null)
+      return
+    }
+
+    await fetchData(false)
+    if (action === 'email') {
+      setResendEmailSent(true)
+    } else if (response.portefeuille_url) {
+      setResendLink(response.portefeuille_url)
+    }
+    setResendSubmittingAction(null)
   }
 
   if (loading) {
@@ -405,7 +492,7 @@ export default function EvenementDetailPage() {
           <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun portefeuille ne correspond à cette recherche.</p>
         ) : (
           <ScrollShadowX>
-            <Table className="min-w-[1080px]">
+            <Table className="min-w-[1240px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Email</TableHead>
@@ -439,9 +526,17 @@ export default function EvenementDetailPage() {
                         <div className="flex justify-end gap-2 whitespace-nowrap">
                           <Button
                             type="button"
+                            size="sm"
+                            disabled={freezing || revoking || resendSubmittingAction !== null}
+                            onClick={() => openResendAccess(portefeuille)}
+                          >
+                            Renvoyer l’accès
+                          </Button>
+                          <Button
+                            type="button"
                             variant="secondary"
                             size="sm"
-                            disabled={freezing || revoking}
+                            disabled={freezing || revoking || resendSubmittingAction !== null}
                             onClick={() => void toggleFreeze(portefeuille)}
                           >
                             {freezing ? 'Mise à jour…' : portefeuille.gele ? 'Dégeler' : 'Geler'}
@@ -450,7 +545,7 @@ export default function EvenementDetailPage() {
                             type="button"
                             variant="danger"
                             size="sm"
-                            disabled={secrets.actifs === 0 || freezing || revoking}
+                            disabled={secrets.actifs === 0 || freezing || revoking || resendSubmittingAction !== null}
                             onClick={() => {
                               setRevokeError(null)
                               setRevokeTarget(portefeuille)
@@ -552,6 +647,135 @@ export default function EvenementDetailPage() {
           </ScrollShadowX>
         )}
       </section>
+
+      <Dialog
+        open={resendTarget !== null}
+        onOpenChange={(next) => {
+          if (!next) closeResendAccess()
+        }}
+      >
+        <DialogContent className="max-w-lg" aria-describedby="resend-access-description">
+          {resendTarget && (
+            <>
+              <DialogHeader className="shrink-0 pr-12">
+                <DialogTitle>Renvoyer l’accès au portefeuille</DialogTitle>
+                <DialogDescription id="resend-access-description" className="mt-1">
+                  Générez un lien neuf pour {resendTarget.email}.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+                <StatusNotice tone="warning" heading="Vérification indispensable">
+                  Vérifiez l’identité de la personne avant de modifier l’adresse ou de transmettre le lien : il permet de dépenser le solde du portefeuille.
+                </StatusNotice>
+
+                <div>
+                  <Label htmlFor="resend-wallet-email">Adresse email</Label>
+                  <Input
+                    id="resend-wallet-email"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={resendEmail}
+                    disabled={resendEmailSent || resendLink !== null}
+                    onChange={(event) => {
+                      setResendEmail(event.target.value)
+                      setResendError(null)
+                    }}
+                    aria-invalid={resendEmailInvalid}
+                    aria-describedby="resend-wallet-email-help"
+                    className="mt-1"
+                  />
+                  <p id="resend-wallet-email-help" className={`mt-1.5 text-xs ${resendEmailInvalid ? 'text-stamp' : 'text-ink-faint'}`}>
+                    La correction met à jour le portefeuille, pas l’historique de la commande.
+                  </p>
+                </div>
+
+                <label className="flex items-start gap-3 rounded-sm border border-paper-border bg-white p-3 text-sm text-ink-muted">
+                  <input
+                    type="checkbox"
+                    checked={resendRevokeOld}
+                    disabled={resendEmailSent || resendLink !== null}
+                    onChange={(event) => setResendRevokeOld(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
+                  />
+                  <span>
+                    <span className="block font-medium text-ink">Révoquer les anciens liens</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-ink-faint">
+                      À cocher si le téléphone a été perdu ou volé. Les anciens accès cesseront immédiatement de fonctionner.
+                    </span>
+                  </span>
+                </label>
+
+                {resendEmailSent && (
+                  <StatusNotice tone="success" heading="Email envoyé">
+                    Un nouveau lien d’accès a été envoyé à {resendEmail.trim().toLowerCase()}.
+                  </StatusNotice>
+                )}
+
+                {resendError && (
+                  <StatusNotice tone="danger" role="alert">
+                    {resendError}
+                  </StatusNotice>
+                )}
+
+                {resendLink && (
+                  <div>
+                    <Label htmlFor="resend-wallet-link">Nouveau lien — affiché une seule fois</Label>
+                    <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        id="resend-wallet-link"
+                        value={resendLink}
+                        readOnly
+                        className="font-registre-mono text-xs"
+                        onFocus={(event) => event.currentTarget.select()}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={async () => {
+                          const copied = await copyTextToClipboard(resendLink)
+                          showToast(copied ? 'Lien copié' : 'Copie impossible : sélectionnez le lien manuellement.')
+                        }}
+                      >
+                        Copier
+                      </Button>
+                    </div>
+                    <p className="mt-1.5 text-xs text-ink-faint">
+                      Fermer cette fenêtre effacera le lien de l’écran.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex shrink-0 flex-col-reverse gap-3 border-t border-paper-border px-6 py-4 sm:flex-row sm:justify-end">
+                <Button type="button" variant="secondary" disabled={resendSubmittingAction !== null} onClick={closeResendAccess}>
+                  {resendEmailSent || resendLink ? 'Terminer' : 'Annuler'}
+                </Button>
+                {!resendEmailSent && !resendLink && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={!isValidEmail(resendEmail.trim()) || resendSubmittingAction !== null}
+                      onClick={() => void resendAccess('link')}
+                    >
+                      {resendSubmittingAction === 'link' ? 'Génération…' : 'Afficher le lien'}
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={!isValidEmail(resendEmail.trim()) || resendSubmittingAction !== null}
+                      onClick={() => void resendAccess('email')}
+                    >
+                      {resendSubmittingAction === 'email' ? 'Envoi…' : 'Envoyer par email'}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={revokeTarget !== null}
