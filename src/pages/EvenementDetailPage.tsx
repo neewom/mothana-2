@@ -733,9 +733,9 @@ export default function EvenementDetailPage() {
                       <Button
                         type="button"
                         variant="secondary"
-                        onClick={() => {
-                          copyTextToClipboard(resendLink)
-                          showToast('Lien copié')
+                        onClick={async () => {
+                          const copied = await copyTextToClipboard(resendLink)
+                          showToast(copied ? 'Lien copié' : 'Copie impossible : sélectionnez le lien manuellement.')
                         }}
                       >
                         Copier
