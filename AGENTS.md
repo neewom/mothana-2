@@ -186,6 +186,7 @@ Boîte à idées de l'utilisateur — il y note à la volée ses demandes d'évo
 - Liste "Backlog" (`6a9de5d6feb9f5af27ab5240`) : idées pas encore cadrées
 - Liste "Todo" (`6a4ec9ad1fb154cfc45c858d`) : cadrées, prêtes à prioriser
 - Liste "Done" (`6a4ec9b1939cbad2bfc0da8c`)
+- **Ordre des listes** : "Todo" puis "Done" sont **toujours les deux dernières listes** du board. Toute nouvelle liste (batch, épique, retours de PR, thème…) se crée **avant "Todo"** — vérifier les positions après création (l'API place une liste en fin de board par défaut)
 - Listes "Batch — ..." : groupes de cartes à dev enchaîné sans confirmation/merge intermédiaire (voir règle "batch dev" ci-dessus) — créées à la discrétion de l'utilisateur, signal fiable = l'existence de la liste elle-même, pas de jugement à faire sur si des cartes hors liste sont "assez indépendantes" pour être enchaînées
 - Listes "Pr \<numéro\>" : retours de QA sur une PR précise, une carte par retour, remplie par l'utilisateur pendant ses tests — à traiter en un seul passage groupé, un seul commit/push sur la PR existante, puis archiver la liste
 - Liste "Amélioration UX/UI" (`6ac36b6a3a4c8db3a8272439`) : cartes issues de la passe UX/UI du 2026-10-05 — pas la sémantique "batch dev"
