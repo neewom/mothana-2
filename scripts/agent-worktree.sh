@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Crée (une seule fois) le worktree persistant d'un agent : ../mothana-2-<agent>
-# Usage : scripts/agent-worktree.sh <agent>   (ex. codex, review)
+# Usage : scripts/agent-worktree.sh <agent>   (ex. claude-dev, review)
 # Ensuite, par carte : cd ../mothana-2-<agent> && git switch -c <branche> origin/dev
 set -euo pipefail
 
