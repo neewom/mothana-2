@@ -29,13 +29,21 @@ Contexte projet et règles de fonctionnement, lus par tout agent de code travail
 - **Avant toute action corrective sur une carte Trello jugée mal classée** : `grep` l'URL/le nom de la carte sur **l'ensemble** de `.claude/sessions/*.md`, pas seulement le fichier de session le plus récent — un sujet peut se refermer dans une session ultérieure à celle qui l'a initialement cadré
 - **Ne jamais affirmer l'état d'une PR ou d'une carte (mergée, en draft, ready for review) de mémoire** — vérifier sur une source vivante avant de l'énoncer : `gh pr view <numéro> --json state,mergedAt,isDraft` (après `git fetch` si le worktree local peut être en retard), ou à défaut la dernière entrée du fichier de session/`docs/journal-avancement.md`. Deux occurrences confirmées de PR annoncées à tort comme non mergées alors qu'elles l'étaient (2026-09-22 carte 2 ; 2026-09-28 PR #194) — dans les deux cas une affirmation non vérifiée, pas juste un problème de session réutilisée (le 28/09 s'est produit dans une session neuve)
 
+### Dimensionnement
+
+Avant de démarrer une tâche, l'agent annonce son ordre de grandeur et ses jalons :
+
+- **S** : correction localisée, typiquement 1 à 3 fichiers, avec tests ciblés
+- **M** : plusieurs composants ou de la logique métier, avec tests complets et QA
+- **L** : changement transversal, migration ou décision d'architecture ; découper en sous-tâches avant de coder
+
+La taille d'une carte cadrée figure en tête de son titre Trello, entre crochets : `[S]`, `[M]` ou `[L]` (repris de Panda Scoring, 2026-10-08). Elle est posée au cadrage et corrigée si le périmètre change.
+
 ---
 
 ## Organisation à deux agents : lead tech / dev
 
 Deux sessions d'agent travaillent sur ce dépôt depuis la même machine, chacune dans son worktree. **Depuis le 2026-10-07, les deux rôles sont tenus par deux sessions Claude Code** (Codex est écarté du workflow, décision de l'utilisateur) : la session **lead tech / PO / reviewer** (worktree de revue `../mothana-2-review`) et la session **dev** (worktree `../mothana-2-claude-dev`). Fonctionnement repris de Panda Scoring, où il est en place depuis le même jour. Le rôle est attribué **par session**, au lancement, par le message de démarrage de l'utilisateur, pas par l'outil : une session qui lit ce fichier sans rôle attribué demande lequel elle tient (piège constaté sur Panda Scoring : une session dev lancée dans le checkout principal, sans rôle explicite, s'est crue lead tech).
-
-**Indisponibilité (quota) — pas de handoff automatique.** Si un agent est à court de tokens en cours de carte, l'autre **n'enchaîne pas** de lui-même sur son rôle : on attend son retour par défaut. Le handoff (l'autre agent reprend les deux rôles, PR sans revue indépendante) reste possible mais seulement sur demande explicite de l'utilisateur au moment où la situation se présente, jamais présumé.
 
 **Coordination directe entre sessions** : les deux sessions s'échangent des messages (`SendMessage`, nom exact lu dans `ListAgents` : « RC mac mini - Mothana - TL » / « RC mac mini - Mothana - dev »). Le dev prévient le lead tech quand une PR passe en « ready for review », avec ses points d'attention ; le lead tech lui renvoie le résumé de sa revue (bloquants / OK / enchaîne). Les traces durables restent les commentaires de PR, Trello et `.claude/sessions/` : un message entre sessions ne remplace jamais le commentaire de revue. Deux sessions au même nom rendent l'adressage ambigu : fermer l'ancienne. Une session en mode de permissions « prompting » peut garder un message en attente d'approbation de l'utilisateur : le signaler.
 
@@ -48,6 +56,7 @@ Deux sessions d'agent travaillent sur ce dépôt depuis la même machine, chacun
 - **Traite lui-même ses retours de revue mécaniques** : duplication, renommage, nettoyage, cohérence avec `DESIGN.md`, tests manquants sur du code existant, sans ambiguïté sur la solution. Restent au dev : tout ce qui touche au comportement, au périmètre, à la logique métier, à la sécurité/RLS ou au modèle de données, ou qui demande de choisir entre plusieurs solutions. Conditions : uniquement sur une PR « ready for review » que le dev a quittée ; commit séparé sur la branche de la PR ; `tsc -b`, `npm test` et lint ciblé verts ; commentaire de revue posté quand même, avec la mention « corrigé par le lead tech », et signalé au dev (message + carte Trello) avant qu'il reprenne la branche.
 - **Ne surveille pas les PR** (ni abonnement, ni polling GitHub) : la revue démarre quand **le dev (message direct) ou l'utilisateur le prévient** que la PR est « ready for review » ; le lead tech vérifie alors l'état réel (`gh pr view <n> --json state,isDraft`) avant de commencer. Seul filet : `SendMessage` avec `notify_when_idle: true` (sans message) vers la session dev, qui avertit une fois quand elle s'arrête (fin de batch, permission en attente, quota).
 - Dans un batch dont l'utilisateur a donné le go, coordonne le dev directement (retours de revue, enchaînement des cartes : le dev peut avancer la carte suivante pendant la revue de la précédente). Ne démarre jamais de lui-même une carte ou un batch sans le go de l'utilisateur.
+- Prévient l'utilisateur par un message clair **en tête de réponse** aux moments clés (batch prêt à tester, décision attendue, blocage), pour qu'il le voie sans lire tout le fil.
 - Tient **son propre fichier de session**, distinct de celui du dev (éviter les conflits quand le dev édite le sien sur ses branches).
 
 ### Dev
