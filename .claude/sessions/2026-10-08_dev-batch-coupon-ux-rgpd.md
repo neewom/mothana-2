@@ -27,3 +27,12 @@ Go utilisateur transmis par le lead tech (session « Mothana - TL ») pour les 2
 
 ## Blockers
 - Aucun.
+
+## Carte RGPD — https://trello.com/c/OJvbKKKV — PR #210 (draft, cible feat/coupon-ux-detail-evenement)
+- Branche `feat/coupon-rgpd` créée depuis `origin/feat/coupon-ux-detail-evenement`, PR draft #210, commentaire Trello « Dev en cours ».
+- pg_cron disponible sur staging (1.6.4, pas encore installé).
+- Questions remontées au lead tech :
+  - Q1 : date de départ des 18 mois (pas de `clos_le` en base) — reco `date_fin + N mois`.
+  - Q2 : effet de l'anonymisation sur les liens déjà émis — reco : révoquer + refuser les crédits.
+  - Q3 : cible du lien « politique de confidentialité » (rien n'existe) — reco : URL configurable par organisation.
+- **Blocker** : l'écriture du fichier de migration (`coupon_rgpd_anonymisation.sql`, avec une tâche pg_cron quotidienne) a été refusée par le mode auto (« Account & Standing-Rule Changes »). Rien n'a été écrit ni appliqué. Il faut une décision de l'utilisateur : validation explicite, ou livraison sans la planification (l'utilisateur lance alors lui-même `cron.schedule`).
