@@ -25,16 +25,16 @@ export default function JournalActionLabel({ entry, showTable = true, showName =
   return (
     <>
       {diffLines.length > 0 ? (
-        <Tooltip triggerClassName="font-medium text-slate-900" content={diffLines.join('\n')}>
+        <Tooltip triggerClassName="font-medium text-ink" content={diffLines.join('\n')}>
           {actionLabel}
         </Tooltip>
       ) : (
-        <span className="font-medium text-slate-900">{actionLabel}</span>
+        <span className="font-medium text-ink">{actionLabel}</span>
       )}
       {showTable && (
-        <span className="text-slate-500"> · {TABLE_CIBLE_LABELS[entry.table_cible as TableCibleJournal] ?? entry.table_cible}</span>
+        <span className="text-ink-faint"> · {TABLE_CIBLE_LABELS[entry.table_cible as TableCibleJournal] ?? entry.table_cible}</span>
       )}
-      {showName && <span className="text-slate-500"> — {describeJournalEntry(entry)}</span>}
+      {showName && <span className="text-ink-faint"> — {describeJournalEntry(entry)}</span>}
     </>
   )
 }

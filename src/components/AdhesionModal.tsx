@@ -136,7 +136,7 @@ export default function AdhesionModal({ open, onClose, onSaved, adherent }: Adhe
                 />
               </div>
               <div>
-                <Label htmlFor="adhesion-mode" className="block">Mode de paiement</Label>
+                <Label htmlFor="adhesion-mode">Mode de paiement</Label>
                 <Select
                   id="adhesion-mode"
                   value={modePaiement}

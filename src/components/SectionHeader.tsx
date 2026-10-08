@@ -23,15 +23,15 @@ export default function SectionHeader({
 }: SectionHeaderProps) {
   return (
     <div
-      className={`flex flex-col gap-3 border-b border-slate-200 px-6 py-4 sm:flex-row sm:justify-between ${
+      className={`flex flex-col gap-3 border-b border-paper-border px-6 py-4 sm:flex-row sm:justify-between ${
         description ? 'sm:items-start' : 'sm:items-center'
       } ${reserveCloseButton ? 'pr-14' : ''}`}
     >
       <div className="min-w-0">
-        <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+        <h2 id={titleId} className="text-lg font-semibold text-ink">
           {title}
         </h2>
-        {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
+        {description && <p className="mt-0.5 text-xs text-ink-faint">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>

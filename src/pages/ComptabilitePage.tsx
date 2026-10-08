@@ -26,8 +26,8 @@ const ACCENT = CATEGORICAL[0]
 const CONTEXT_GRAY = '#52514e' // encre secondaire — année N-1, "contexte" (emphasis job)
 const GOOD = '#067606' // assombri depuis #0ca30c — la valeur d'origine n'atteignait que 3.35:1 sur blanc, sous le seuil AA (4.5:1) pour le texte de variation des StatCard
 const CRITICAL = '#d03b3b'
-const GRID_STROKE = '#e2e8f0' // slate-200
-const AXIS_STROKE = '#94a3b8' // slate-400
+const GRID_STROKE = '#e8e4dc' // paper-border
+const AXIS_STROKE = '#726860' // ink-faint
 
 const MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 

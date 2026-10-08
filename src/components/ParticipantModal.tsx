@@ -248,7 +248,7 @@ export default function ParticipantModal({
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="pm-civilite" className="block">Civilité</Label>
+              <Label htmlFor="pm-civilite">Civilité</Label>
               <Select
                 id="pm-civilite"
                 value={civilite}
