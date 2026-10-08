@@ -20,6 +20,7 @@ import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import ScrollShadowX from '../components/ScrollShadowX'
+import SortableTableHead from '../components/SortableTableHead'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -153,32 +154,6 @@ function useParticipants(organisationId: string): ParticipantsData {
 }
 
 // ---------------------------------------------------------------------------
-// SortableHead
-// ---------------------------------------------------------------------------
-
-interface SortableHeadProps {
-  field: SortField
-  label: string
-  sortField: SortField
-  sortDirection: 'asc' | 'desc'
-  onSort: (field: SortField) => void
-  align?: 'left' | 'right'
-  className?: string
-}
-
-function SortableHead({ field, label, sortField, sortDirection, onSort, align = 'left', className }: SortableHeadProps) {
-  return (
-    <TableHead
-      onClick={() => onSort(field)}
-      className={cn('cursor-pointer select-none hover:text-ink', align === 'right' && 'text-right', className)}
-    >
-      {label}
-      {sortField === field && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
-    </TableHead>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // DetailPanel
 // ---------------------------------------------------------------------------
 
@@ -204,7 +179,7 @@ function DetailPanel({
   const p = participant.personnes
 
   return (
-    <div className="flex h-full flex-col font-registre">
+    <div className="flex min-h-0 flex-1 flex-col font-registre">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-paper-border px-6 py-4">
         <h2 className="text-lg font-semibold text-ink">Détail du donateur</h2>
@@ -219,7 +194,7 @@ function DetailPanel({
       </div>
 
       {/* Body */}
-      <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
         {/* Identity */}
         <div>
           {p.civilite && (
@@ -599,10 +574,10 @@ export default function ParticipantsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <SortableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
-                      <SortableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <SortableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <SortableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="hidden md:table-cell" />
+                      <SortableTableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
+                      <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableTableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="hidden md:table-cell" />
                       <TableHead />
                     </TableRow>
                   </TableHeader>

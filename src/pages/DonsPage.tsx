@@ -20,6 +20,8 @@ import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import SortableTableHead from '../components/SortableTableHead'
+import { DON_SORT_DEFAUT, directionInitialeDon, nomDonateur, trierDons, type DonSortField, type SortDirection } from '../lib/donsSort'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -59,12 +61,6 @@ function formatDate(iso: string): string {
 function formatDateShort(iso: string): string {
   const [year, month, day] = iso.split('-')
   return `${day}/${month}/${year}`
-}
-
-function participantName(don: Don): string {
-  const p = don.profils_participant?.personnes
-  if (!p) return '—'
-  return p.prenom ? `${p.prenom} ${p.nom}` : p.nom
 }
 
 type Shortcut = '30j' | '90j' | 'mois' | 'annee' | 'tout'
@@ -352,6 +348,25 @@ export default function DonsPage() {
     })
   }, [dons, dateDebut, dateFin, filterParticipant, filterActivite, filterMode])
 
+  // Tri appliqué après les filtres et avant la pagination (le chargement suit l'ordre des id).
+  const [sortField, setSortField] = useState<DonSortField>(DON_SORT_DEFAUT.field)
+  const [sortDirection, setSortDirection] = useState<SortDirection>(DON_SORT_DEFAUT.direction)
+
+  function toggleSort(field: DonSortField) {
+    if (field === sortField) {
+      setSortDirection((direction) => (direction === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortDirection(directionInitialeDon(field))
+    }
+    setCurrentPage(1)
+  }
+
+  const sortedDons = useMemo(
+    () => trierDons(filteredDons, sortField, sortDirection),
+    [filteredDons, sortField, sortDirection],
+  )
+
   // Stats computed from filtered dons
   const stats = useMemo(() => {
     const total = filteredDons.reduce((sum, d) => sum + d.montant, 0)
@@ -370,8 +385,8 @@ export default function DonsPage() {
 
   const paginatedDons = useMemo(() => {
     const start = (safePage - 1) * pageSize
-    return filteredDons.slice(start, start + pageSize)
-  }, [filteredDons, safePage, pageSize])
+    return sortedDons.slice(start, start + pageSize)
+  }, [sortedDons, safePage, pageSize])
 
   function openAdd() {
     setEditingDon(undefined)
@@ -394,9 +409,10 @@ export default function DonsPage() {
   }
 
   function handleExport() {
-    const rows = filteredDons.map((don) => ({
+    // L'export suit l'ordre affiché.
+    const rows = sortedDons.map((don) => ({
       Date: formatDateShort(don.date),
-      Donateur: participantName(don),
+      Donateur: nomDonateur(don),
       'Activité': don.activites?.nom ?? '',
       Montant: don.montant.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       'Mode de paiement': MODE_PAIEMENT_LABELS[don.mode_paiement],
@@ -600,10 +616,10 @@ export default function DonsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Donateur</TableHead>
+                      <SortableTableHead field="date" label="Date" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                       <TableHead className="hidden md:table-cell">Activité</TableHead>
-                      <TableHead className="text-right">Montant</TableHead>
+                      <SortableTableHead field="montant" label="Montant" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
                       <TableHead className="hidden md:table-cell">Mode</TableHead>
                       <TableHead />
                     </TableRow>
@@ -622,7 +638,7 @@ export default function DonsPage() {
                           {formatDate(don.date)}
                         </TableCell>
                         <TableCell className="font-medium text-ink">
-                          {participantName(don)}
+                          {nomDonateur(don)}
                         </TableCell>
                         <TableCell className="hidden text-ink-faint md:table-cell">
                           {don.activites?.nom ?? '—'}
