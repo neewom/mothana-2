@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
+import MentionDonneesAcheteur from '../components/MentionDonneesAcheteur'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { StatusNotice } from '../components/ui/status-notice'
+import { dateFinConservation } from '../lib/couponRgpd'
 import { getCanonicalSiteUrl } from '../lib/environment'
 import {
   achatSimuleErrorMessage,
@@ -210,6 +212,12 @@ export default function EvenementAchatPage() {
               <p id="email-help" className={`mt-1.5 text-xs ${emailInvalid ? 'text-stamp' : 'text-ink-faint'}`}>
                 Le lien vers votre portefeuille et son QR code seront envoyés à cette adresse.
               </p>
+              <MentionDonneesAcheteur
+                organisationNom={event.nom_organisation}
+                conserveJusquau={dateFinConservation(event.date_fin, event.conservation_evenements_mois)}
+                urlPolitique={event.url_politique_confidentialite}
+                className="mt-2"
+              />
             </div>
 
             {error && <StatusNotice tone="danger" role="alert">{error}</StatusNotice>}

@@ -18,6 +18,8 @@ export function walletAccessResendErrorMessage(code: string | null): string {
       return 'Vous n’avez pas les droits nécessaires pour renvoyer cet accès.'
     case 'PORTEFEUILLE_INTROUVABLE':
       return 'Ce portefeuille n’existe plus. Actualisez la page et réessayez.'
+    case 'PORTEFEUILLE_ANONYMISE':
+      return 'Cet acheteur a été anonymisé : aucun nouvel accès ne peut lui être envoyé.'
     case 'EMAIL_NON_ENVOYE':
       return 'L’email n’a pas pu être envoyé. Le nouveau lien a tout de même été créé : copiez-le ci-dessous pour le transmettre manuellement.'
     default:

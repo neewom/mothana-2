@@ -15,6 +15,10 @@ export interface PortefeuilleEvenement {
   gele: boolean
   email_modifie_le: string | null
   email_modifie_par: string | null
+  /** Acheteur anonymisé (RGPD) : email remplacé, accès révoqués, plus de renvoi ni de crédit. */
+  anonymise_le: string | null
+  /** null quand l'anonymisation vient de la purge automatique. */
+  anonymise_par: string | null
   created_at: string
   updated_at: string
 }

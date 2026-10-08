@@ -65,10 +65,26 @@ export function filtrerPortefeuilles(
   const terme = recherche.trim().toLocaleLowerCase('fr-FR')
   if (!terme) return portefeuilles
 
+  // L'adresse de remplacement d'un acheteur anonymisé ne doit pas remonter en recherche.
   return portefeuilles.filter((portefeuille) =>
-    portefeuille.email.toLocaleLowerCase('fr-FR').includes(terme)
+    (!portefeuille.anonymise_le && portefeuille.email.toLocaleLowerCase('fr-FR').includes(terme))
       || portefeuille.code_public.toLocaleLowerCase('fr-FR').includes(terme),
   )
+}
+
+export const LIBELLE_ACHETEUR_ANONYMISE = 'Acheteur anonymisé'
+
+// Domaine des adresses de remplacement posées par anonymiser_portefeuille_interne (SQL).
+const DOMAINE_ANONYMISE = '@anonyme.invalid'
+
+/** Email d'une commande à afficher : les commandes sans portefeuille sont anonymisées aussi. */
+export function emailCommandeAffiche(email: string): string {
+  return email.endsWith(DOMAINE_ANONYMISE) ? LIBELLE_ACHETEUR_ANONYMISE : email
+}
+
+/** Email à afficher : jamais l'adresse de remplacement d'un acheteur anonymisé. */
+export function emailAffiche(portefeuille: Pick<PortefeuilleEvenement, 'email' | 'anonymise_le'>): string {
+  return portefeuille.anonymise_le ? LIBELLE_ACHETEUR_ANONYMISE : portefeuille.email
 }
 
 export interface ResumeAccesPortefeuille {

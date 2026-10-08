@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import ParametresSection from '../components/ParametresSection'
+import CouponDonneesPersonnellesSection from '../components/CouponDonneesPersonnellesSection'
 import { slugifyIdentifiant, type OrganisationAsset } from '../lib/organisationAssets'
 import { DEFAULT_MODELE } from '../lib/modeleRecu'
 import type { ModeleRecu } from '../types'
@@ -478,6 +479,10 @@ export default function ParametresOrganisationPage() {
             </div>
           </div>
         </ParametresSection>
+      )}
+
+      {settings?.fonctionnalites_activees?.evenements && (
+        <CouponDonneesPersonnellesSection organisationId={organisationId} />
       )}
 
       <ParametresSection

@@ -28,6 +28,7 @@ const REASON_MESSAGES: Record<string, string> = {
   EVENEMENT_CLOS: 'Cet événement est clos et ne peut plus recevoir de crédit.',
   EVENEMENT_NON_OUVERT: 'Ouvrez l’événement avant d’enregistrer une vente au guichet.',
   MONTANT_INVALIDE: 'Le montant doit être supérieur à 0.',
+  PORTEFEUILLE_ANONYMISE: 'Cet acheteur a été anonymisé : son portefeuille ne peut plus être crédité.',
   PORTEFEUILLE_GELE: 'Ce portefeuille est gelé et ne peut pas être crédité.',
   PORTEFEUILLE_INTROUVABLE: 'Le portefeuille demandé est introuvable.',
 }
@@ -80,7 +81,10 @@ export default function CreditManuelModal({
     })
 
     if (rpcError) {
-      setError(rpcError.message.includes('ACCES_INTERDIT') ? REASON_MESSAGES.ACCES_INTERDIT : rpcError.message)
+      // Exceptions SQL connues (ACCES_INTERDIT, et PORTEFEUILLE_ANONYMISE levé par le trigger
+      // du journal) traduites ; sinon le message brut, comme avant.
+      const known = Object.keys(REASON_MESSAGES).find((code) => rpcError.message.includes(code))
+      setError(known ? REASON_MESSAGES[known] : rpcError.message)
       setSaving(false)
       return
     }

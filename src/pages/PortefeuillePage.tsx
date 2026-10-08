@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
+import MentionDonneesAcheteur from '../components/MentionDonneesAcheteur'
 import { Button } from '../components/ui/button'
 import { StatusNotice } from '../components/ui/status-notice'
 import {
@@ -15,6 +16,7 @@ import {
   hashPortefeuilleSecret,
   libelleMouvement,
 } from '../lib/portefeuilleAcheteur'
+import { dateFinConservation } from '../lib/couponRgpd'
 import { supabase } from '../lib/supabaseClient'
 import type { SyncReason } from '../types/paymentTransport'
 import type {
@@ -555,7 +557,13 @@ export default function PortefeuillePage() {
         </div>
 
         <footer className="mt-6 border-t border-paper-border pt-4 text-xs leading-5 text-ink-faint">
-          Gardez ce lien privé : il donne accès au solde et à l’historique de ce portefeuille.
+          <p>Gardez ce lien privé : il donne accès au solde et à l’historique de ce portefeuille.</p>
+          <MentionDonneesAcheteur
+            organisationNom={state.evenement.organisationNom}
+            conserveJusquau={dateFinConservation(state.evenement.dateFin, state.evenement.conservationMois)}
+            urlPolitique={state.evenement.urlPolitiqueConfidentialite}
+            className="mt-1"
+          />
         </footer>
       </div>
     </main>

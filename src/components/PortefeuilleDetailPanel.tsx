@@ -1,5 +1,5 @@
 import type { ResumeAccesPortefeuille } from '../lib/evenementDashboard'
-import { libelleMoyenPaiement, libelleMouvementAdmin, libelleStatutCommande } from '../lib/evenementDashboard'
+import { emailAffiche, libelleMoyenPaiement, libelleMouvementAdmin, libelleStatutCommande } from '../lib/evenementDashboard'
 import { formatCentimes } from '../lib/portefeuilleAcheteur'
 import type {
   AuteursParId,
@@ -22,6 +22,7 @@ interface PortefeuilleDetailPanelProps {
   onResend: () => void
   onToggleFreeze: () => void
   onRevoke: () => void
+  onAnonymize: () => void
 }
 
 function formatDateTime(value: string): string {
@@ -52,11 +53,14 @@ export default function PortefeuilleDetailPanel({
   onResend,
   onToggleFreeze,
   onRevoke,
+  onAnonymize,
 }: PortefeuilleDetailPanelProps) {
   const actifs = acces?.actifs ?? 0
   const dernier = acces?.dernier ?? null
   const auteurCorrection = portefeuille.email_modifie_par ? auteurs.get(portefeuille.email_modifie_par) : undefined
   const auteurDernierLien = dernier?.cree_par ? auteurs.get(dernier.cree_par) : undefined
+  const anonymise = portefeuille.anonymise_le !== null
+  const auteurAnonymisation = portefeuille.anonymise_par ? auteurs.get(portefeuille.anonymise_par) : undefined
 
   return (
     <div className="flex h-full min-h-0 flex-col font-registre">
@@ -77,8 +81,16 @@ export default function PortefeuilleDetailPanel({
       <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
         <div>
           <SectionLabel>Identité</SectionLabel>
-          <p className="mt-1 break-all font-semibold text-ink">{portefeuille.email}</p>
-          {portefeuille.email_modifie_le && (
+          <p className="mt-1 break-all font-semibold text-ink">{emailAffiche(portefeuille)}</p>
+          {portefeuille.anonymise_le && (
+            <p className="mt-0.5 text-xs text-ink-faint">
+              Anonymisé le {formatDateTime(portefeuille.anonymise_le)}
+              {portefeuille.anonymise_par
+                ? auteurAnonymisation ? ` par ${auteurAnonymisation}` : ' par un administrateur'
+                : ' automatiquement (fin de la durée de conservation)'}
+            </p>
+          )}
+          {!anonymise && portefeuille.email_modifie_le && (
             <p className="mt-0.5 text-xs text-ink-faint">
               Adresse corrigée le {formatDateTime(portefeuille.email_modifie_le)}
               {auteurCorrection ? ` par ${auteurCorrection}` : ''}
@@ -167,16 +179,25 @@ export default function PortefeuilleDetailPanel({
 
       <div className="space-y-2 border-t border-paper-border px-6 py-4">
         <div className="flex gap-2">
-          <Button type="button" className="flex-1" disabled={busy} onClick={onResend}>
-            Renvoyer l’accès
-          </Button>
+          {!anonymise && (
+            <Button type="button" className="flex-1" disabled={busy} onClick={onResend}>
+              Renvoyer l’accès
+            </Button>
+          )}
           <Button type="button" variant="secondary" className="flex-1" disabled={busy} onClick={onToggleFreeze}>
             {freezing ? 'Mise à jour…' : portefeuille.gele ? 'Dégeler' : 'Geler'}
           </Button>
         </div>
-        <Button type="button" variant="danger" className="w-full" disabled={busy || actifs === 0} onClick={onRevoke}>
-          Révoquer tous les accès
-        </Button>
+        {!anonymise && (
+          <>
+            <Button type="button" variant="danger" className="w-full" disabled={busy || actifs === 0} onClick={onRevoke}>
+              Révoquer tous les accès
+            </Button>
+            <Button type="button" variant="danger" className="w-full" disabled={busy} onClick={onAnonymize}>
+              Anonymiser cet acheteur
+            </Button>
+          </>
+        )}
       </div>
     </div>
   )
