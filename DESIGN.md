@@ -207,6 +207,24 @@ Radius unique et discret (`rounded-sm`, 6px) sur l'ensemble des éléments inter
 ### Alert Banners (signature component)
 Bandeau pleine largeur en tête de section pour une action requise ou un avertissement bloquant (ex. reçus fiscaux à régénérer, doublon d'adhérent détecté) : fond `warning-tint`, bordure `warning-border`, texte `warning`/`warning` foncé. Distinct des messages d'erreur simples (fond `stamp/[0.04]`, texte `stamp`), réservé aux situations où une action de l'utilisateur est explicitement attendue.
 
+## Garde-fous lint
+
+Les règles de ce système sont vérifiées par ESLint (`eslint.design-system.js`, carte DS 4) :
+
+- **Import de l'ancien `Modal`** interdit : toute modale passe par `ui/dialog`.
+- **Palette Tailwind brute interdite dans `src/`** (`indigo-`, `slate-`, `gray-`, `red-`, `green-`, `amber-`, `blue-`…, avec ou sans préfixe `hover:`/`md:`) et **`rounded-lg|xl|2xl|3xl`** : utiliser les tokens (`paper`, `ink`, `stamp`, `warning`, `success`) et `rounded-sm`.
+- **Hex en dur interdits dans `src/components` et `src/pages`** : utiliser une classe de token.
+
+`npm run lint:ds` ne lance que ces règles, et tourne en tête de `npm run build` : un manquement fait échouer le build Vercel. Les commentaires `eslint-disable` y sont ignorés, une règle ne se contourne pas en ligne.
+
+**Ajouter une exception hex** (seulement pour un rendu hors DOM de l'app, où une classe ne s'applique pas : impression, canvas, props de graphique) : ajouter **une ligne** au tableau `HEX_EXCEPTIONS` de `eslint.design-system.js`, avec le chemin du fichier et sa raison en commentaire :
+
+```js
+'src/components/MonApercu.tsx', // aperçu imprimable (HTML autonome)
+```
+
+L'exception couvre tout le fichier ; elle se justifie en revue de PR. Les modèles et rendus dans `src/lib` (Cerfa, carte adhérent, aperçus) ne sont pas concernés par la règle hex. Pas d'exception prévue pour la palette brute ni pour `rounded-lg` : migrer vers les tokens.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -219,6 +237,7 @@ Bandeau pleine largeur en tête de section pour une action requise ou un avertis
 - **Do** retirer un CTA de ligne qui duplique le clic sur la ligne (ouvre déjà la même modale/le même panneau) — dernière colonne réduite à un chevron, actions de gestion déplacées dans la modale/le panneau (voir Tables).
 
 ### Don't:
+- **Don't** contourner un garde-fou lint du design system : corriger avec les tokens, ou ajouter une exception hex justifiée (voir Garde-fous lint).
 - **Don't** mélanger un bouton `Button` (stamp/`rounded-sm`) dans un composant par ailleurs resté sur l'ancien système (indigo/`rounded-lg`) — le résultat bâtard est plus incohérent que l'état actuel ; migrer le composant entier ou ne pas le toucher.
 - **Don't** utiliser `title` HTML natif pour une infobulle sur un placeholder — utiliser le composant `Tooltip.tsx` existant.
 - **Don't** ajouter d'ombre à une carte de contenu sans qu'elle superpose réellement un autre élément (voir The Structural Shadow Rule).
