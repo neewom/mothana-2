@@ -17,14 +17,19 @@ export default function ParametresEquipePage() {
       </div>
 
       {auth.type === 'admin' && auth.role === 'admin' ? (
-        <ParametresSection title="Contributeurs" description="Comptes supplémentaires ayant les mêmes accès que vous, sans droit de gestion des comptes.">
+        <ParametresSection
+          title="Comptes de l'organisation"
+          description="Administrateurs et contributeurs. Les contributeurs ont les mêmes accès que vous, sans droit de gestion des comptes."
+        >
           <AdminAccountsManager
             organisationId={auth.organisationId}
-            filterRoles={['contributeur']}
-            heading="Contributeurs de l'organisation"
+            showRoleBadge
+            manageableRoles={['contributeur']}
+            readOnlyNote="Les comptes administrateurs sont gérés par Samakan : contactez-nous pour en ajouter ou en retirer un."
+            heading="Comptes actifs"
             addButtonLabel="Ajouter un contributeur"
             newFormTitle="Nouveau contributeur"
-            emptyLabel="Aucun contributeur pour cette organisation."
+            emptyLabel="Aucun compte pour cette organisation."
           />
         </ParametresSection>
       ) : (
