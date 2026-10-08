@@ -171,8 +171,11 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
       {open && (
         <div className="ml-4 mt-1 space-y-1 border-l border-white/10 pl-4">
           {group.items.map((item) => (
+            <div key={item.to}>
+            {item.section && (
+              <p className="px-3 pb-1 pt-2 font-registre-mono text-[10px] uppercase tracking-wide text-paper/50">{item.section}</p>
+            )}
             <NavLink
-              key={item.to}
               to={item.to}
               end={item.end}
               onClick={onClose}
@@ -190,6 +193,7 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
                 </>
               )}
             </NavLink>
+            </div>
           ))}
         </div>
       )}
@@ -238,7 +242,15 @@ export default function AdminLayout() {
 
   const isSuperAdminViewing = auth.type === 'super_admin'
   const navCounters = useLoadNavCounters(organisationId, fonctionnalitesActivees)
-  const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES, navCounters)
+  const canManageTeam = auth.type === 'admin' && auth.role === 'admin'
+  const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES, navCounters, { canManageTeam })
+  const location = useLocation()
+
+  // Ferme le tiroir mobile à chaque changement de page (y compris une navigation confirmée
+  // par le garde « modifications non enregistrées », qui ne passe pas par le onClick du lien).
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [location.pathname])
 
   useEffect(() => {
     if (!organisationId) return
