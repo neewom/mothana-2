@@ -11,7 +11,10 @@ Session lead tech (« Mothana - TL »). Fichier distinct de celui du dev.
 - Recherche web paiement consignée sur la carte 6 (seuil ACPR par émetteur, précédents cashless HelloAsso, exploration API HelloAsso) ; contact HelloAsso **en suspens**.
 - Nouvelle carte Coupon « Report du solde vers l'événement suivant » (zfXIwdkh), non cadrée, bloquée par l'avis juridique.
 
-## Reste à faire — ⚠️ action planifiée
+## Promotion faite le 2026-10-08 (PR #212)
+Garde-fous 1-5 vérifiés et appliqués ; 14 migrations + 7 Edge Functions en prod ; incident `PORTEFEUILLE_RATE_LIMIT_KEY` manquant en prod (verify-pin 503) corrigé dans la foulée. Dump prod d'avant promotion conservé localement (scratchpad de session). Instance permanente 5173 retirée (PR #211) ; PR exclusivement doc mergées directement par le lead tech.
+
+## (Historique) Reste à faire — action planifiée
 **Batch UX + RGPD mergé le 2026-10-08 → prochaine étape : promotion `dev` → `main` EN BLOC (décision utilisateur 2026-10-08), Coupon tel quel**, avec ces garde-fous :
 1. **Vérifier que `SIMULATION_PAIEMENT_ACTIVE` n'est PAS défini/actif dans les secrets Edge Functions de prod** (achat gratuit illimité sinon). Ne jamais le copier depuis staging.
 2. **Vérifier que le flag `evenements` reste désactivé pour toutes les organisations de prod** (défaut false) — le module ne doit être visible par personne.

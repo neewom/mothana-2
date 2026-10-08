@@ -101,6 +101,11 @@ feature→`dev` :
 - **`dev` → `main` (promotion)** : dump de sauvegarde **prod**, migration rejouée sur prod,
   déploiement Edge Function si besoin — même geste que pour toute migration prod déjà pratiquée,
   rattaché explicitement à ce moment de promotion.
+- **Secrets Edge Functions** : avant de déployer une fonction en prod, comparer `supabase secrets list`
+  de staging et de prod (noms seulement) et poser en prod tout secret nouveau requis, avec une valeur
+  **propre à la prod** (jamais copiée de staging), sauf les secrets de test qui ne doivent jamais exister en prod
+  (`SIMULATION_PAIEMENT_ACTIVE`, `COUPON_SPIKE_ENABLED`). Incident du 2026-10-08 : `PORTEFEUILLE_RATE_LIMIT_KEY`
+  absent en prod → `verify-pin` en 503, connexion bénévole cassée jusqu'à la pose du secret.
 - **Feature rejetée en recette** (jamais promue) : la prod n'a jamais été touchée, pas de rollback
   nécessaire — la base staging reste synthétique et jetable si besoin de revenir en arrière dessus.
 
