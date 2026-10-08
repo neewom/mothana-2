@@ -24,6 +24,10 @@ interface AdminAccountsManagerProps {
   filterRoles?: Array<'admin' | 'contributeur'>
   /** Afficher un badge de rôle sur chaque ligne (utile quand la liste mélange plusieurs rôles). */
   showRoleBadge?: boolean
+  /** Rôles sur lesquels l'utilisateur peut agir (désactiver/réactiver) ; les autres sont en lecture seule. Tous par défaut. */
+  manageableRoles?: Array<'admin' | 'contributeur'>
+  /** Mention affichée sous la liste quand certains comptes sont en lecture seule. */
+  readOnlyNote?: string
   heading?: string
   addButtonLabel?: string
   newFormTitle?: string
@@ -32,7 +36,7 @@ interface AdminAccountsManagerProps {
 }
 
 const ROLE_LABELS: Record<AccountRow['role'], string> = {
-  admin: 'Admin',
+  admin: 'Administrateur',
   contributeur: 'Contributeur',
 }
 
@@ -40,6 +44,8 @@ export default function AdminAccountsManager({
   organisationId,
   filterRoles,
   showRoleBadge = false,
+  manageableRoles,
+  readOnlyNote,
   heading = 'Comptes admin',
   addButtonLabel = 'Ajouter un admin',
   newFormTitle = 'Nouveau compte admin',
@@ -167,6 +173,7 @@ export default function AdminAccountsManager({
                   </div>
                   <div className="ml-4 flex flex-shrink-0 items-center gap-3">
                     {account.is_banned && <Badge variant="stamp">Désactivé</Badge>}
+                    {manageableRoles && !manageableRoles.includes(account.role) ? null : (
                     <Button
                       type="button"
                       variant="secondary"
@@ -180,10 +187,14 @@ export default function AdminAccountsManager({
                         ? 'Réactiver'
                         : 'Désactiver'}
                     </Button>
+                    )}
                   </div>
                 </li>
               ))}
             </ul>
+          )}
+          {readOnlyNote && accounts.some((account) => manageableRoles && !manageableRoles.includes(account.role)) && (
+            <p className="font-registre text-xs text-ink-faint">{readOnlyNote}</p>
           )}
           {disabledCount > 0 && (
             <button

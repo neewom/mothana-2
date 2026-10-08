@@ -361,6 +361,7 @@ export default function AdminLayout() {
             <AccountMenu
               nomAffiche={isSuperAdminViewing ? 'Super-admin' : nomAffiche}
               email={userEmail}
+              roleLabel={auth.type === 'admin' ? (auth.role === 'admin' ? 'Administrateur' : 'Contributeur') : null}
               showAccountLink={!isSuperAdminViewing}
               onLogout={isSuperAdminViewing ? undefined : () => void handleLogout()}
             />
