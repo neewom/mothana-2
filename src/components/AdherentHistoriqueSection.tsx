@@ -36,28 +36,28 @@ export default function AdherentHistoriqueSection({ organisationId, adherentId }
   }, [load])
 
   return (
-    <details className="rounded-lg border border-slate-200">
-      <summary className="cursor-pointer select-none rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+    <details className="rounded-sm border border-paper-border bg-white">
+      <summary className="cursor-pointer select-none rounded-sm px-3 py-2 font-registre text-sm font-medium text-ink-muted hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70">
         Historique{entries.length > 0 ? ` (${entries.length})` : ''}
       </summary>
-      <div className="border-t border-slate-200 px-3 py-2">
-        {error && <p className="text-sm text-red-700">Erreur : {error}</p>}
+      <div className="border-t border-paper-border px-3 py-2">
+        {error && <p role="alert" className="text-sm text-stamp">Erreur : {error}</p>}
 
         {loading ? (
           <div className="flex items-center justify-center py-4">
-            <div className="h-5 w-5 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+            <div className="h-5 w-5 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
           </div>
         ) : entries.length === 0 ? (
-          <p className="py-2 text-sm text-slate-500">Aucun historique pour l'instant.</p>
+          <p className="py-2 text-sm text-ink-faint">Aucun historique pour l'instant.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-paper-border-muted">
             {entries.map((entry) => (
               <li key={entry.id} className="py-2 text-sm">
                 <div className="flex items-center justify-between gap-3">
                   <JournalActionLabel entry={entry} showTable={false} showName={false} />
-                  <span className="shrink-0 text-xs text-slate-500">{formatDateTime(entry.created_at)}</span>
+                  <span className="shrink-0 font-registre-mono text-xs text-ink-faint">{formatDateTime(entry.created_at)}</span>
                 </div>
-                <p className="mt-0.5 text-xs text-slate-500">Par {entry.auteur_nom ?? '—'}</p>
+                <p className="mt-0.5 text-xs text-ink-faint">Par {entry.auteur_nom ?? '—'}</p>
               </li>
             ))}
           </ul>
