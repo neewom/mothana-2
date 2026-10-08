@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import type { Civilite, ProfilParticipant } from '../types'
 import { CIVILITE_OPTIONS } from '../lib/civilite'
 import { generateUUID } from '../lib/uuid'
-import { isValidEmail } from '../lib/textFormat'
+import { isValidEmail, sanitizePhone } from '../lib/textFormat'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
@@ -309,7 +309,7 @@ export default function ParticipantModal({
 
             <div className="space-y-1.5">
               <Label htmlFor="pm-tel">Téléphone</Label>
-              {/* type="tel" sans filtrage des chiffres : les donateurs peuvent avoir un numéro
+              {/* Chiffres, espaces et un « + » en tête : les donateurs peuvent avoir un numéro
                   international (+66, +856…) que sanitizeDigits amputerait du « + ». */}
               <Input
                 id="pm-tel"
@@ -317,7 +317,7 @@ export default function ParticipantModal({
                 inputMode="tel"
                 autoComplete="tel"
                 value={telephone}
-                onChange={(e) => setTelephone(e.target.value)}
+                onChange={(e) => setTelephone(sanitizePhone(e.target.value))}
                 placeholder="06 00 00 00 00"
               />
             </div>
