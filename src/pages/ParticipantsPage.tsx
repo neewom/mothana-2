@@ -21,6 +21,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import ScrollShadowX from '../components/ScrollShadowX'
 import SortableTableHead from '../components/SortableTableHead'
+import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -316,6 +317,8 @@ export default function ParticipantsPage() {
 
   // Selected participant for detail panel
   const [selectedParticipant, setSelectedParticipant] = useState<ProfilParticipant | null>(null)
+  // Lien profond depuis la recherche globale : ?id=<profil_participant_id> ouvre le panneau.
+  useDeepLinkSelection(loading ? null : participants, setSelectedParticipant)
   const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
 
   useEffect(() => {

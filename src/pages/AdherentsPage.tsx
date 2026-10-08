@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
@@ -238,6 +239,34 @@ export default function AdherentsPage() {
     setEditingAdherent(a)
     setAdherentModalOpen(true)
   }
+
+  // Lien profond depuis la recherche globale : ?id=<adherent_id>. La liste étant paginée côté
+  // serveur, la fiche est chargée directement (dans l'organisation courante) puis ouverte.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const linkedAdherentId = searchParams.get('id')
+  useEffect(() => {
+    if (!linkedAdherentId || !organisationId) return
+    let cancelled = false
+    void supabase
+      .from('adherents')
+      .select('*')
+      .eq('id', linkedAdherentId)
+      .eq('organisation_id', organisationId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        if (data) {
+          setEditingAdherent(data as Adherent)
+          setAdherentModalOpen(true)
+        }
+        setSearchParams((current) => {
+          const next = new URLSearchParams(current)
+          next.delete('id')
+          return next
+        }, { replace: true })
+      })
+    return () => { cancelled = true }
+  }, [linkedAdherentId, organisationId, setSearchParams])
 
   function handleAdherentSaved(saved: Adherent) {
     const wasEdit = !!editingAdherent

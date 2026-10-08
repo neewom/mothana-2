@@ -10,6 +10,7 @@ import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
+import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
 import {
   Dialog,
   DialogContent,
@@ -387,6 +388,9 @@ export default function ActivitesPage() {
     setEditing(a)
     setModalOpen(true)
   }
+
+  // Lien profond depuis la recherche globale : ?id=<activite_id> ouvre la fiche.
+  useDeepLinkSelection(loading ? null : activites, openEdit)
 
   function openDelete(a: Activite) {
     setDeleteConfirm(a)
