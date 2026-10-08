@@ -127,6 +127,9 @@ Deno.serve(async (req) => {
       const knownError = ['EMAIL_DEJA_UTILISE', 'EMAIL_INVALIDE', 'PORTEFEUILLE_INTROUVABLE']
         .find((code) => error.message.includes(code))
       if (knownError) return json({ ok: false, error: knownError })
+      // Collision concurrente : deux corrections simultanées vers la même adresse passent
+      // le contrôle préalable de la RPC, la contrainte unique (evenement, email) tranche.
+      if (error.code === '23505') return json({ ok: false, error: 'EMAIL_DEJA_UTILISE' })
       if (error.code === '42501' || error.message.includes('ACCES_INTERDIT')) {
         return json({ error: 'ACCES_INTERDIT' }, 403)
       }

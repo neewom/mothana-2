@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { MouvementPortefeuilleAdmin, PortefeuilleEvenement } from '../types/evenementDashboard'
+import type { MouvementPortefeuilleAdmin, PortefeuilleEvenement, SecretPortefeuilleAdmin } from '../types/evenementDashboard'
 import {
   calculerStatsEvenement,
   filtrerPortefeuilles,
   libelleMoyenPaiement,
   libelleMouvementAdmin,
   libelleStatutCommande,
+  resumerAccesParPortefeuille,
 } from './evenementDashboard'
 
 const portefeuille = (overrides: Partial<PortefeuilleEvenement> = {}): PortefeuilleEvenement => ({
@@ -72,5 +73,28 @@ describe('dashboard admin événement', () => {
     expect(libelleStatutCommande('en_attente_paiement')).toBe('En attente')
     expect(libelleStatutCommande('remboursee')).toBe('Remboursée')
     expect(libelleMoyenPaiement('manuel')).toBe('Crédit manuel')
+  })
+})
+
+describe('resumerAccesParPortefeuille', () => {
+  const secret = (overrides: Partial<SecretPortefeuilleAdmin> = {}): SecretPortefeuilleAdmin => ({
+    id: 'secret-1',
+    portefeuille_id: 'portefeuille-1',
+    revoque_le: null,
+    created_at: '2026-10-01T10:00:00Z',
+    cree_par: null,
+    ...overrides,
+  })
+
+  it('compte les liens actifs et retient le plus récent, même révoqué', () => {
+    const resumes = resumerAccesParPortefeuille([
+      secret({ id: 'achat' }),
+      secret({ id: 'renvoi', created_at: '2026-10-03T09:00:00Z', cree_par: 'admin-1', revoque_le: '2026-10-04T09:00:00Z' }),
+      secret({ id: 'autre', portefeuille_id: 'portefeuille-2' }),
+    ])
+
+    expect(resumes.get('portefeuille-1')).toMatchObject({ actifs: 1, total: 2, dernier: { id: 'renvoi', cree_par: 'admin-1' } })
+    expect(resumes.get('portefeuille-2')).toMatchObject({ actifs: 1, total: 1 })
+    expect(resumes.get('portefeuille-3')).toBeUndefined()
   })
 })

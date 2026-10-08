@@ -88,6 +88,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
   const [donsActifs, setDonsActifs] = useState(true)
   const [adherentsActifs, setAdherentsActifs] = useState(true)
   const [evenementsActifs, setEvenementsActifs] = useState(false)
+  const [creditManuelActif, setCreditManuelActif] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -97,7 +98,8 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
   const [initialDonsActifs, setInitialDonsActifs] = useState(true)
   const [initialAdherentsActifs, setInitialAdherentsActifs] = useState(true)
   const [initialEvenementsActifs, setInitialEvenementsActifs] = useState(false)
-  const isDirty = nom !== initialNom || donsActifs !== initialDonsActifs || adherentsActifs !== initialAdherentsActifs || evenementsActifs !== initialEvenementsActifs
+  const [initialCreditManuelActif, setInitialCreditManuelActif] = useState(false)
+  const isDirty = nom !== initialNom || donsActifs !== initialDonsActifs || adherentsActifs !== initialAdherentsActifs || evenementsActifs !== initialEvenementsActifs || creditManuelActif !== initialCreditManuelActif
 
   useEffect(() => {
     if (open) {
@@ -109,6 +111,8 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
       setInitialAdherentsActifs(org?.fonctionnalites_activees.adherents ?? true)
       setEvenementsActifs(org?.fonctionnalites_activees.evenements ?? false)
       setInitialEvenementsActifs(org?.fonctionnalites_activees.evenements ?? false)
+      setCreditManuelActif(org?.fonctionnalites_activees.credit_manuel ?? false)
+      setInitialCreditManuelActif(org?.fonctionnalites_activees.credit_manuel ?? false)
       setError(null)
     }
   }, [open, org])
@@ -121,7 +125,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
     if (isEdit && org) {
       const { error: err } = await supabase
         .from('organisations')
-        .update({ nom, fonctionnalites_activees: { ...org.fonctionnalites_activees, dons: donsActifs, adherents: adherentsActifs, evenements: evenementsActifs } })
+        .update({ nom, fonctionnalites_activees: { ...org.fonctionnalites_activees, dons: donsActifs, adherents: adherentsActifs, evenements: evenementsActifs, credit_manuel: creditManuelActif } })
         .eq('id', org.id)
       if (err) { setError(err.message); setSaving(false); return }
     } else {
@@ -260,6 +264,20 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
                     />
                     Porte-monnaie événementiel
                   </label>
+                  {evenementsActifs && (
+                    <label className="ml-6 flex items-start gap-2 font-registre text-sm text-ink">
+                      <input
+                        type="checkbox"
+                        checked={creditManuelActif}
+                        onChange={(e) => setCreditManuelActif(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+                      />
+                      <span>
+                        Crédit manuel de portefeuille
+                        <span className="block text-xs text-ink-faint">Crédit sans encaissement en ligne : à n’activer que pour une association de confiance.</span>
+                      </span>
+                    </label>
+                  )}
                 </div>
               </div>
             )}
@@ -418,6 +436,7 @@ export default function SuperAdminPage() {
         dons: (o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null)?.dons ?? true,
         adherents: (o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null)?.adherents ?? true,
         evenements: (o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null)?.evenements ?? false,
+        credit_manuel: (o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null)?.credit_manuel ?? false,
       },
       nb_participants: participantsByOrg[o.id] ?? 0,
       nb_adherents: adherentsByOrg[o.id] ?? 0,

@@ -1,3 +1,4 @@
+import type { Activite } from './index'
 import type { Evenement } from './evenement'
 
 export type MouvementPortefeuilleType = 'credit_initial' | 'credit_recharge' | 'debit'
@@ -48,7 +49,13 @@ export interface SecretPortefeuilleAdmin {
   id: string
   portefeuille_id: string
   revoque_le: string | null
+  created_at: string
+  /** Admin ayant généré le lien ; null = lien créé à l'achat. */
+  cree_par: string | null
 }
+
+/** Nom affiché des comptes de l'organisation, pour attribuer une action (lien généré, adresse corrigée). */
+export type AuteursParId = Map<string, string>
 
 export interface EvenementDashboardData {
   evenement: Evenement
@@ -56,4 +63,8 @@ export interface EvenementDashboardData {
   mouvements: MouvementPortefeuilleAdmin[]
   commandes: CommandeEvenement[]
   secrets: SecretPortefeuilleAdmin[]
+  organisationSlug: string
+  auteurs: AuteursParId
+  /** Pour la modale de modification de l'événement (rattachement à une activité). */
+  activites: Activite[]
 }
