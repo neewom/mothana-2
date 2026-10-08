@@ -106,7 +106,7 @@ Mothana (marque publique : Samakan) est une application de gestion des dons pour
 - **Frontend** : React + TypeScript + Vite, Tailwind CSS, React Router
 - **Backend** : Supabase (PostgreSQL + Auth + Storage + Edge Functions)
 - **Client JS** : `@supabase/supabase-js`
-- **Hébergement** : Vercel Pro (frontend) + Supabase Pro (backend)
+- **Hébergement** : Vercel Pro (frontend) + Supabase **plan gratuit** (backend, 2 projets : prod `bocqfdhmxmleracrwvbu` et staging/recette `cxngcmvxktddhyxboyyx` — corrigé le 2026-10-08, la mention « Supabase Pro » était fausse). Conséquences : pas de sauvegarde automatique (faire un `pg_dump` avant toute opération prod), projet mis en pause après 1 semaine d'inactivité, 500 Mo de base, logs conservés 1 h, limite de 2 projets gratuits atteinte
 - **Génération PDF** : Gotenberg (HTML→PDF, Railway/Render) — remplace pdf-lib
 
 ---
