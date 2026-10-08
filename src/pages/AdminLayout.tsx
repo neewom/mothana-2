@@ -11,6 +11,8 @@ import { supabase } from '../lib/supabaseClient'
 import RecetteBanner from '../components/RecetteBanner'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
+import AccountMenu from '../components/AccountMenu'
+import Tooltip from '../components/Tooltip'
 
 interface NavLinkItem {
   type: 'link'
@@ -172,7 +174,7 @@ function buildNavItems(flags: FonctionnalitesActivees): NavEntry[] {
       { label: 'Fiscalité', to: '/admin/parametres/fiscal' },
       ...(flags.adherents ? [{ label: 'Adhérents', to: '/admin/parametres/adherents' }] : []),
       { label: 'Historique', to: '/admin/parametres/suivi' },
-      { label: 'Mon compte', to: '/admin/parametres/compte' },
+      // « Mon compte » vit dans le menu compte de la barre du haut (la route reste valide).
     ],
   })
 
@@ -271,6 +273,7 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [organisationNom, setOrganisationNom] = useState<string | null>(null)
+  const [nomAffiche, setNomAffiche] = useState<string | null>(null)
 
   const isSuperAdminViewing = auth.type === 'super_admin'
   const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES)
@@ -286,6 +289,21 @@ export default function AdminLayout() {
         if (data) setOrganisationNom((data as { nom: string }).nom)
       })
   }, [organisationId])
+
+  const userId = auth.type === 'admin' || auth.type === 'super_admin' ? auth.user.id : null
+  const userEmail = auth.type === 'admin' || auth.type === 'super_admin' ? auth.user.email ?? null : null
+
+  useEffect(() => {
+    if (auth.type !== 'admin' || !userId) return
+    void supabase
+      .from('profils_organisation')
+      .select('nom_affiche')
+      .eq('utilisateur_id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setNomAffiche((data as { nom_affiche: string | null } | null)?.nom_affiche ?? null)
+      })
+  }, [auth.type, userId])
 
   async function handleLogout() {
     await logout()
@@ -340,31 +358,34 @@ export default function AdminLayout() {
           </div>
         )}
 
-        {/* Top bar */}
-        <header className="flex h-16 items-center justify-between border-b border-paper-border bg-white px-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="rounded-sm p-1.5 text-ink-faint hover:bg-paper lg:hidden"
-            >
-              <MenuIcon />
-            </button>
-            <span className="text-sm font-medium text-ink-faint">
-              Organisation:{' '}
-              <span className="font-semibold text-ink">{organisationNom ?? organisationId ?? '—'}</span>
-            </span>
+        {/* Top bar — une seule ligne à toutes les largeurs : nom d'organisation tronqué (nom
+            complet en infobulle), aide et compte regroupés dans le menu compte. */}
+        <header className="flex h-16 items-center gap-3 border-b border-paper-border bg-white px-4">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Ouvrir le menu"
+            className="shrink-0 rounded-sm p-1.5 text-ink-faint hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70 lg:hidden"
+          >
+            <MenuIcon />
+          </button>
+          <div className="flex min-w-0 flex-1">
+            <Tooltip bare placement="bottom" className="min-w-0 max-w-full" content={organisationNom ?? organisationId ?? '—'} triggerClassName="block truncate font-registre text-sm font-semibold text-ink">
+              {organisationNom ?? organisationId ?? '—'}
+            </Tooltip>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" asChild>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
               <a href="/aide" target="_blank" rel="noopener noreferrer">
-                Besoin d'aide ?
+                Aide
               </a>
             </Button>
-            {!isSuperAdminViewing && (
-              <Button variant="secondary" size="sm" onClick={handleLogout}>
-                Se déconnecter
-              </Button>
-            )}
+            <AccountMenu
+              nomAffiche={isSuperAdminViewing ? 'Super-admin' : nomAffiche}
+              email={userEmail}
+              showAccountLink={!isSuperAdminViewing}
+              onLogout={isSuperAdminViewing ? undefined : () => void handleLogout()}
+            />
           </div>
         </header>
 
