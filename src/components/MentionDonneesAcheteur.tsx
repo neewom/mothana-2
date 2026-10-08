@@ -19,7 +19,7 @@ export default function MentionDonneesAcheteur({
   return (
     <p className={`text-xs leading-5 text-ink-faint ${className ?? ''}`}>
       Votre email est utilisé par {organisationNom} uniquement pour vous envoyer l’accès à votre portefeuille.
-      Le crédit restant est utilisable jusqu’au {date} ; vos données sont ensuite anonymisées.
+      Vos données sont conservées jusqu’au {date}, puis anonymisées.
       {urlPolitique && urlPolitiqueValide(urlPolitique) && (
         <>
           {' '}
