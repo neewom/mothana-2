@@ -6,6 +6,8 @@ import {
   libelleMoyenPaiement,
   libelleMouvementAdmin,
   libelleStatutCommande,
+  emailAffiche,
+  emailCommandeAffiche,
   resumerAccesParPortefeuille,
 } from './evenementDashboard'
 
@@ -19,6 +21,8 @@ const portefeuille = (overrides: Partial<PortefeuilleEvenement> = {}): Portefeui
   gele: false,
   email_modifie_le: null,
   email_modifie_par: null,
+  anonymise_le: null,
+  anonymise_par: null,
   created_at: '2026-10-01T10:00:00Z',
   updated_at: '2026-10-01T10:00:00Z',
   ...overrides,
@@ -96,5 +100,21 @@ describe('resumerAccesParPortefeuille', () => {
     expect(resumes.get('portefeuille-1')).toMatchObject({ actifs: 1, total: 2, dernier: { id: 'renvoi', cree_par: 'admin-1' } })
     expect(resumes.get('portefeuille-2')).toMatchObject({ actifs: 1, total: 1 })
     expect(resumes.get('portefeuille-3')).toBeUndefined()
+  })
+})
+
+describe('portefeuille anonymisé', () => {
+  const anonymise = portefeuille({ email: 'efface+abc@anonyme.invalid', anonymise_le: '2026-10-08T10:00:00Z' })
+
+  it('n’affiche jamais l’adresse de remplacement', () => {
+    expect(emailAffiche(anonymise)).toBe('Acheteur anonymisé')
+    expect(emailAffiche(portefeuille())).toBe('acheteur@example.com')
+    expect(emailCommandeAffiche('efface+abc@anonyme.invalid')).toBe('Acheteur anonymisé')
+    expect(emailCommandeAffiche('acheteur@example.com')).toBe('acheteur@example.com')
+  })
+
+  it('ne remonte pas en recherche par email, seulement par code', () => {
+    expect(filtrerPortefeuilles([anonymise], 'efface')).toEqual([])
+    expect(filtrerPortefeuilles([anonymise], 'abc2345')).toEqual([anonymise])
   })
 })

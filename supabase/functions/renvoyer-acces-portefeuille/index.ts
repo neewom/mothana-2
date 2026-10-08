@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
     })
 
     if (error) {
-      const knownError = ['EMAIL_DEJA_UTILISE', 'EMAIL_INVALIDE', 'PORTEFEUILLE_INTROUVABLE']
+      const knownError = ['EMAIL_DEJA_UTILISE', 'EMAIL_INVALIDE', 'PORTEFEUILLE_INTROUVABLE', 'PORTEFEUILLE_ANONYMISE']
         .find((code) => error.message.includes(code))
       if (knownError) return json({ ok: false, error: knownError })
       // Collision concurrente : deux corrections simultanées vers la même adresse passent

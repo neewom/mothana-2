@@ -4,8 +4,12 @@ export interface EvenementPublic {
   id: string
   nom: string
   date_evenement: string
+  date_fin: string
   montants_credit_centimes: number[]
   nom_organisation: string
+  /** Durée de conservation de l'organisation, aussi validité du crédit restant. */
+  conservation_evenements_mois: number
+  url_politique_confidentialite: string | null
 }
 
 export interface AchatSimuleResponse {

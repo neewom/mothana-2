@@ -18,7 +18,10 @@ export function isEvenementPublic(value: unknown): value is EvenementPublic {
   return typeof event.id === 'string'
     && typeof event.nom === 'string'
     && typeof event.date_evenement === 'string'
+    && typeof event.date_fin === 'string'
     && typeof event.nom_organisation === 'string'
+    && Number.isInteger(event.conservation_evenements_mois)
+    && (event.url_politique_confidentialite === null || typeof event.url_politique_confidentialite === 'string')
     && Array.isArray(event.montants_credit_centimes)
     && event.montants_credit_centimes.length > 0
     && event.montants_credit_centimes.every((amount) => Number.isInteger(amount) && amount > 0)

@@ -19,6 +19,8 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
 import {
   calculerStatsEvenement,
+  emailAffiche,
+  emailCommandeAffiche,
   filtrerPortefeuilles,
   libelleMoyenPaiement,
   libelleMouvementAdmin,
@@ -128,6 +130,9 @@ export default function EvenementDetailPage() {
   const [freezingWalletId, setFreezingWalletId] = useState<string | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<PortefeuilleEvenement | null>(null)
   const [revoking, setRevoking] = useState(false)
+  const [anonymizeTarget, setAnonymizeTarget] = useState<PortefeuilleEvenement | null>(null)
+  const [anonymizing, setAnonymizing] = useState(false)
+  const [anonymizeError, setAnonymizeError] = useState<string | null>(null)
   const [resendTarget, setResendTarget] = useState<PortefeuilleEvenement | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [afficheOpen, setAfficheOpen] = useState(false)
@@ -161,7 +166,7 @@ export default function EvenementDetailPage() {
         fetchAllPages<PortefeuilleEvenement>(async (from, to) => {
           const result = await supabase
             .from('portefeuilles')
-            .select('id, organisation_id, evenement_id, email, code_public, solde_centimes, gele, email_modifie_le, email_modifie_par, created_at, updated_at')
+            .select('id, organisation_id, evenement_id, email, code_public, solde_centimes, gele, email_modifie_le, email_modifie_par, anonymise_le, anonymise_par, created_at, updated_at')
             .eq('organisation_id', organisationId)
             .eq('evenement_id', evenementId)
             .order('email')
@@ -302,7 +307,7 @@ export default function EvenementDetailPage() {
     return () => window.removeEventListener('resize', recompute)
   }, [panelOpen])
 
-  const busy = freezingWalletId !== null || revoking || resendTarget !== null
+  const busy = freezingWalletId !== null || revoking || anonymizing || resendTarget !== null
 
   async function toggleFreeze(portefeuille: PortefeuilleEvenement) {
     setActionError(null)
@@ -314,7 +319,7 @@ export default function EvenementDetailPage() {
     })
 
     if (result.error) {
-      setActionError(`Le portefeuille de ${portefeuille.email} n’a pas pu être ${nextFrozen ? 'gelé' : 'dégelé'}. Réessayez.`)
+      setActionError(`Le portefeuille de ${emailAffiche(portefeuille)} n’a pas pu être ${nextFrozen ? 'gelé' : 'dégelé'}. Réessayez.`)
     } else {
       await fetchData(false)
       showToast(`Portefeuille ${nextFrozen ? 'gelé' : 'dégelé'}`)
@@ -338,6 +343,28 @@ export default function EvenementDetailPage() {
       setRevokeTarget(null)
     }
     setRevoking(false)
+  }
+
+  async function anonymize() {
+    if (!anonymizeTarget) return
+    setAnonymizeError(null)
+    setAnonymizing(true)
+    const result = await supabase.rpc('anonymiser_portefeuille', {
+      p_portefeuille_id: anonymizeTarget.id,
+    })
+
+    if (result.error) {
+      setAnonymizeError(
+        result.error.code === '42501'
+          ? 'Vous n’avez pas les droits nécessaires pour anonymiser cet acheteur.'
+          : 'L’acheteur n’a pas pu être anonymisé. Réessayez.',
+      )
+    } else {
+      await fetchData(false)
+      showToast('Acheteur anonymisé')
+      setAnonymizeTarget(null)
+    }
+    setAnonymizing(false)
   }
 
   if (loading) {
@@ -396,6 +423,10 @@ export default function EvenementDetailPage() {
       onRevoke={() => {
         setRevokeError(null)
         setRevokeTarget(selectedWallet)
+      }}
+      onAnonymize={() => {
+        setAnonymizeError(null)
+        setAnonymizeTarget(selectedWallet)
       }}
     />
   )
@@ -483,7 +514,7 @@ export default function EvenementDetailPage() {
                 <TableBody>
                   {remainingWallets.map((portefeuille) => (
                     <TableRow key={portefeuille.id}>
-                      <TableCell className="whitespace-nowrap font-medium text-ink">{portefeuille.email}</TableCell>
+                      <TableCell className="whitespace-nowrap font-medium text-ink">{emailAffiche(portefeuille)}</TableCell>
                       <TableCell className="hidden whitespace-nowrap font-registre-mono text-xs text-ink-muted md:table-cell">{portefeuille.code_public}</TableCell>
                       <TableCell className="whitespace-nowrap text-right font-registre-mono font-semibold tabular-nums text-ink">
                         {formatCentimes(portefeuille.solde_centimes)}
@@ -566,7 +597,7 @@ export default function EvenementDetailPage() {
                           >
                             <TableCell className="whitespace-nowrap font-medium text-ink">
                               <span className="inline-flex items-center gap-2">
-                                {portefeuille.email}
+                                <span className={portefeuille.anonymise_le ? 'italic text-ink-faint' : undefined}>{emailAffiche(portefeuille)}</span>
                                 {portefeuille.gele && <Badge variant="stamp">Gelé</Badge>}
                               </span>
                             </TableCell>
@@ -630,7 +661,7 @@ export default function EvenementDetailPage() {
                       return (
                         <TableRow key={mouvement.id}>
                           <TableCell className="whitespace-nowrap font-registre-mono text-xs text-ink-faint">{formatDateTime(mouvement.created_at)}</TableCell>
-                          <TableCell className="whitespace-nowrap text-ink-muted">{portefeuille?.email ?? 'Portefeuille inconnu'}</TableCell>
+                          <TableCell className="whitespace-nowrap text-ink-muted">{portefeuille ? emailAffiche(portefeuille) : 'Portefeuille inconnu'}</TableCell>
                           <TableCell className="whitespace-nowrap text-ink-muted">{libelleMouvementAdmin(mouvement.type)}</TableCell>
                           <TableCell className={`whitespace-nowrap text-right font-registre-mono font-semibold tabular-nums ${isDebit ? 'text-ink' : 'text-success'}`}>
                             {isDebit ? '−' : '+'}{formatCentimes(mouvement.montant_centimes)}
@@ -673,7 +704,7 @@ export default function EvenementDetailPage() {
                     {commandes.map((commande) => (
                       <TableRow key={commande.id}>
                         <TableCell className="whitespace-nowrap font-registre-mono text-xs text-ink-faint">{formatDateTime(commande.created_at)}</TableCell>
-                        <TableCell className="whitespace-nowrap font-medium text-ink">{commande.email}</TableCell>
+                        <TableCell className="whitespace-nowrap font-medium text-ink">{emailCommandeAffiche(commande.email)}</TableCell>
                         <TableCell className="whitespace-nowrap text-ink-muted">{libelleMoyenPaiement(commande.moyen_paiement)}</TableCell>
                         <TableCell>
                           <Badge variant={commande.statut === 'payee' ? 'success' : commande.statut === 'en_attente_paiement' ? 'warning' : 'neutral'}>
@@ -760,6 +791,58 @@ export default function EvenementDetailPage() {
                 </Button>
                 <Button type="button" variant="destructive" disabled={revoking} onClick={() => void revokeSecrets()}>
                   {revoking ? 'Révocation…' : 'Révoquer tous les accès'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={anonymizeTarget !== null}
+        onOpenChange={(next) => {
+          if (!next && !anonymizing) {
+            setAnonymizeTarget(null)
+            setAnonymizeError(null)
+          }
+        }}
+      >
+        <DialogContent aria-describedby={undefined}>
+          {anonymizeTarget && (
+            <div className="overflow-y-auto p-6">
+              <DialogTitle>Anonymiser cet acheteur</DialogTitle>
+              <p className="mt-2 text-sm text-ink-muted">
+                L’adresse <span className="break-all font-medium text-ink">{anonymizeTarget.email}</span> sera
+                définitivement effacée du portefeuille et de ses commandes. Tous ses liens d’accès seront révoqués :
+                il ne pourra plus recevoir de nouvel accès ni de crédit. Les mouvements et le solde restent conservés.
+              </p>
+              {anonymizeTarget.solde_centimes > 0 && (
+                <StatusNotice tone="warning" heading={`${formatCentimes(anonymizeTarget.solde_centimes)} restants`} className="mt-4">
+                  À rembourser avant d’anonymiser : l’acheteur ne pourra plus dépenser ce solde.
+                </StatusNotice>
+              )}
+              <StatusNotice tone="warning" className="mt-3">
+                Cette action est irréversible.
+              </StatusNotice>
+              {anonymizeError && (
+                <StatusNotice tone="danger" role="alert" className="mt-3">
+                  {anonymizeError}
+                </StatusNotice>
+              )}
+              <div className="mt-5 flex justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={anonymizing}
+                  onClick={() => {
+                    setAnonymizeTarget(null)
+                    setAnonymizeError(null)
+                  }}
+                >
+                  Annuler
+                </Button>
+                <Button type="button" variant="destructive" disabled={anonymizing} onClick={() => void anonymize()}>
+                  {anonymizing ? 'Anonymisation…' : 'Anonymiser définitivement'}
                 </Button>
               </div>
             </div>

@@ -20,6 +20,9 @@ export interface PortefeuilleAcheteurState {
     dateFin: string
     statut: 'brouillon' | 'ouvert' | 'clos'
     organisationNom: string
+    /** Durée de conservation de l'organisation (mois après dateFin), aussi validité du crédit. */
+    conservationMois: number
+    urlPolitiqueConfidentialite: string | null
   }
   mouvements: MouvementPortefeuilleAcheteur[]
   demandeEnAttente: {
