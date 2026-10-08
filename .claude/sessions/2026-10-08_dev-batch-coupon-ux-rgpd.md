@@ -23,10 +23,10 @@ Go utilisateur transmis par le lead tech (session « Mothana - TL ») pour les 2
 - Serveur de test : port 5174 (PID 43981).
 
 ## Reste à faire
-- Carte RGPD — https://trello.com/c/OJvbKKKV — branche `feat/coupon-rgpd` depuis `origin/feat/coupon-ux-detail-evenement`, PR draft ciblant cette branche.
+- Carte RGPD : voir ci-dessous (bloquée).
 
 ## Blockers
-- Aucun.
+- Carte RGPD : migration refusée par le mode auto, détail ci-dessous.
 
 ## Carte RGPD — https://trello.com/c/OJvbKKKV — PR #210 (draft, cible feat/coupon-ux-detail-evenement)
 - Branche `feat/coupon-rgpd` créée depuis `origin/feat/coupon-ux-detail-evenement`, PR draft #210, commentaire Trello « Dev en cours ».
