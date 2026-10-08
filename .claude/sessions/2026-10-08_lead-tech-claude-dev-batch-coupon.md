@@ -32,3 +32,15 @@ La promotion embarque aussi des correctifs de sécurité qui protègent la prod 
 - Purge RGPD : cron Supabase quotidien.
 - Batch empilé UX → RGPD.
 - Promotion Coupon en bloc après le batch, avec les garde-fous ci-dessus.
+
+## Suite de session (après la promotion Coupon)
+- Étude Neon vs Supabase : migration écartée. Supabase réorganisé : prod seule en organisation « Chithda » passée en **Pro** (sauvegardes quotidiennes, plus de pause), recette dans « Chithda recette » en gratuit ; projet `pagode-coupon` supprimé après sauvegarde par l'utilisateur.
+- Instance permanente 5173 retirée : l'utilisateur teste uniquement via les liens worktree + plans de test du lead tech. PR exclusivement doc : mergées directement par le lead tech.
+- Listes Trello « In progress » / « To review » ajoutées par l'utilisateur et intégrées au workflow.
+- Quota Vercel atteint (compte gratuit partagé avec Panda Scoring) → previews coupées, seuls `dev` et `main` déploient (#224).
+- Batch « Tri des dons + design system » mergé sur `dev` ; correctif import de dons promu seul en prod (#225). Listes Trello du batch et « Uniformisation design system » archivées (vides).
+
+## Reste à faire
+- Batchs UX suivants, dans l'ordre validé : **Navigation** (barre du haut [M] → menu [M] → Paramètres [L] → recherche globale [L]) puis **Pages de liste** (gabarit [L] → filtres Adhérents [M] → retouches [M]). Cartes dans la liste « Amélioration UX/UI », tailles posées, tickets à relire contre le code avant chaque go.
+- Batch design system et tri des dons : sur `dev`, pas encore en prod (prochaine promotion).
+- Carte 6 Coupon (paiement) : contact HelloAsso en suspens.
