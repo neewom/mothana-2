@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../hooks/useAuth'
+import type { FonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { DEFAULT_CERFA_TEMPLATES } from '../lib/defaultCerfaTemplates'
 import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS, DEFAULT_CARTE_ADHERENT_NOM } from '../lib/defaultCarteAdherentTemplate'
@@ -26,11 +27,6 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface FonctionnalitesActivees {
-  dons: boolean
-  adherents: boolean
-}
 
 interface OrgRow {
   id: string
@@ -91,6 +87,8 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
   const [nom, setNom] = useState('')
   const [donsActifs, setDonsActifs] = useState(true)
   const [adherentsActifs, setAdherentsActifs] = useState(true)
+  const [evenementsActifs, setEvenementsActifs] = useState(false)
+  const [creditManuelActif, setCreditManuelActif] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -99,7 +97,9 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
   const [initialNom, setInitialNom] = useState('')
   const [initialDonsActifs, setInitialDonsActifs] = useState(true)
   const [initialAdherentsActifs, setInitialAdherentsActifs] = useState(true)
-  const isDirty = nom !== initialNom || donsActifs !== initialDonsActifs || adherentsActifs !== initialAdherentsActifs
+  const [initialEvenementsActifs, setInitialEvenementsActifs] = useState(false)
+  const [initialCreditManuelActif, setInitialCreditManuelActif] = useState(false)
+  const isDirty = nom !== initialNom || donsActifs !== initialDonsActifs || adherentsActifs !== initialAdherentsActifs || evenementsActifs !== initialEvenementsActifs || creditManuelActif !== initialCreditManuelActif
 
   useEffect(() => {
     if (open) {
@@ -109,6 +109,10 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
       setInitialDonsActifs(org?.fonctionnalites_activees.dons ?? true)
       setAdherentsActifs(org?.fonctionnalites_activees.adherents ?? true)
       setInitialAdherentsActifs(org?.fonctionnalites_activees.adherents ?? true)
+      setEvenementsActifs(org?.fonctionnalites_activees.evenements ?? false)
+      setInitialEvenementsActifs(org?.fonctionnalites_activees.evenements ?? false)
+      setCreditManuelActif(org?.fonctionnalites_activees.credit_manuel ?? false)
+      setInitialCreditManuelActif(org?.fonctionnalites_activees.credit_manuel ?? false)
       setError(null)
     }
   }, [open, org])
@@ -121,7 +125,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
     if (isEdit && org) {
       const { error: err } = await supabase
         .from('organisations')
-        .update({ nom, fonctionnalites_activees: { dons: donsActifs, adherents: adherentsActifs } })
+        .update({ nom, fonctionnalites_activees: { ...org.fonctionnalites_activees, dons: donsActifs, adherents: adherentsActifs, evenements: evenementsActifs, credit_manuel: creditManuelActif } })
         .eq('id', org.id)
       if (err) { setError(err.message); setSaving(false); return }
     } else {
@@ -251,6 +255,29 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
                     />
                     Adhérents
                   </label>
+                  <label className="flex items-center gap-2 font-registre text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={evenementsActifs}
+                      onChange={(e) => setEvenementsActifs(e.target.checked)}
+                      className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+                    />
+                    Porte-monnaie événementiel
+                  </label>
+                  {evenementsActifs && (
+                    <label className="ml-6 flex items-start gap-2 font-registre text-sm text-ink">
+                      <input
+                        type="checkbox"
+                        checked={creditManuelActif}
+                        onChange={(e) => setCreditManuelActif(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+                      />
+                      <span>
+                        Crédit manuel de portefeuille
+                        <span className="block text-xs text-ink-faint">Crédit sans encaissement en ligne : à n’activer que pour une association de confiance.</span>
+                      </span>
+                    </label>
+                  )}
                 </div>
               </div>
             )}
@@ -405,8 +432,11 @@ export default function SuperAdminPage() {
       created_at: o.created_at,
       archived_at: o.archived_at,
       fonctionnalites_activees: {
+        ...(o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null),
         dons: (o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null)?.dons ?? true,
         adherents: (o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null)?.adherents ?? true,
+        evenements: (o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null)?.evenements ?? false,
+        credit_manuel: (o.fonctionnalites_activees as Partial<FonctionnalitesActivees> | null)?.credit_manuel ?? false,
       },
       nb_participants: participantsByOrg[o.id] ?? 0,
       nb_adherents: adherentsByOrg[o.id] ?? 0,

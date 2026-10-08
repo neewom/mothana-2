@@ -6,17 +6,23 @@ import FeatureGuard from './components/FeatureGuard'
 import HomePage from './pages/HomePage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import BenevoleLoginPage from './pages/BenevoleLoginPage'
+import VendeurLoginPage from './pages/VendeurLoginPage'
 import DemandeAdhesionPage from './pages/DemandeAdhesionPage'
 import DesinscriptionMailingPage from './pages/DesinscriptionMailingPage'
 import DecouvrirPage from './pages/DecouvrirPage'
 import AidePage from './pages/AidePage'
+import PortefeuillePage from './pages/PortefeuillePage'
+import EvenementAchatPage from './pages/EvenementAchatPage'
 import AdminLayout from './pages/AdminLayout'
 import BenevolePage from './pages/BenevolePage'
+import VendeurPage from './pages/VendeurPage'
 import DashboardPage from './pages/DashboardPage'
 import DonsPage from './pages/DonsPage'
 import DonsReguliersPage from './pages/DonsReguliersPage'
 import ParticipantsPage from './pages/ParticipantsPage'
 import ActivitesPage from './pages/ActivitesPage'
+import EvenementsPage from './pages/EvenementsPage'
+import EvenementDetailPage from './pages/EvenementDetailPage'
 import RecusFiscauxPage from './pages/RecusFiscauxPage'
 import AdherentsPage from './pages/AdherentsPage'
 import DemandesAdhesionPage from './pages/DemandesAdhesionPage'
@@ -40,11 +46,13 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/mot-de-passe/nouveau" element={<ResetPasswordPage />} />
         <Route path="/login/benevole" element={<BenevoleLoginPage />} />
+        <Route path="/login/vendeur" element={<VendeurLoginPage />} />
         <Route path="/adhesion/:slug" element={<DemandeAdhesionPage />} />
         <Route path="/desinscription" element={<DesinscriptionMailingPage />} />
         <Route path="/decouvrir" element={<DecouvrirPage />} />
         <Route path="/aide" element={<AidePage />} />
-
+        <Route path="/p" element={<PortefeuillePage />} />
+        <Route path="/e/:organisationSlug/:evenementSlug" element={<EvenementAchatPage />} />
         {/* Admin (protected) */}
         <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
           <Route path="/admin" element={<AdminLayout />}>
@@ -66,6 +74,10 @@ function App() {
             <Route element={<FeatureGuard feature={['dons', 'adherents']} />}>
               <Route path="activites" element={<ActivitesPage />} />
             </Route>
+            <Route element={<FeatureGuard feature="evenements" />}>
+              <Route path="evenements" element={<EvenementsPage />} />
+              <Route path="evenements/:id" element={<EvenementDetailPage />} />
+            </Route>
             <Route path="parametres" element={<ParametresOrganisationPage />} />
             <Route path="parametres/fiscal" element={<ParametresFiscalPage />} />
             <Route path="parametres/suivi" element={<ParametresSuiviPage />} />
@@ -83,6 +95,11 @@ function App() {
         {/* Benevole (protected) */}
         <Route element={<ProtectedRoute allowedRoles={['benevole']} />}>
           <Route path="/benevole" element={<BenevolePage />} />
+        </Route>
+
+        {/* Vendeur événement (protected) */}
+        <Route element={<ProtectedRoute allowedRoles={['vendeur']} />}>
+          <Route path="/vendeur" element={<VendeurPage />} />
         </Route>
       </Routes>
     </AuthProvider>

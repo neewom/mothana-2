@@ -2,7 +2,11 @@ import { useState, useEffect, type ReactElement } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useOrganisationId } from '../hooks/useOrganisationId'
-import { useFonctionnalitesActivees, type FonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
+import {
+  DEFAULT_FONCTIONNALITES,
+  useFonctionnalitesActivees,
+  type FonctionnalitesActivees,
+} from '../hooks/useFonctionnalitesActivees'
 import { supabase } from '../lib/supabaseClient'
 import RecetteBanner from '../components/RecetteBanner'
 import { cn } from '../lib/utils'
@@ -68,6 +72,15 @@ function ActivitesIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+    </svg>
+  )
+}
+
+function EvenementsIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 8.25h16.5M5.25 4.5h13.5A1.5 1.5 0 0120.25 6v13.5H3.75V6a1.5 1.5 0 011.5-1.5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 12h3v3h-3z" />
     </svg>
   )
 }
@@ -140,6 +153,10 @@ function buildNavItems(flags: FonctionnalitesActivees): NavEntry[] {
 
   if (flags.dons || flags.adherents) {
     items.push({ type: 'link', label: 'Activités', to: '/admin/activites', icon: <ActivitesIcon /> })
+  }
+
+  if (flags.evenements) {
+    items.push({ type: 'link', label: 'Portefeuille événement', to: '/admin/evenements', icon: <EvenementsIcon /> })
   }
 
   if (flags.dons) {
@@ -256,7 +273,7 @@ export default function AdminLayout() {
   const [organisationNom, setOrganisationNom] = useState<string | null>(null)
 
   const isSuperAdminViewing = auth.type === 'super_admin'
-  const navItems = buildNavItems(fonctionnalitesActivees ?? { dons: true, adherents: true })
+  const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES)
 
   useEffect(() => {
     if (!organisationId) return

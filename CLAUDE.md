@@ -12,7 +12,7 @@ En complément d'`AGENTS.md`, Claude Code dispose d'un système de mémoire auto
 
 ## Outils spécifiques à Claude Code
 
-- Skill `.claude/skills/webapp-testing/` disponible pour les vérifications navigateur (Playwright Python) — son propre helper `scripts/with_server.py` sait démarrer/arrêter un serveur, mais **ne pas l'utiliser dans ce projet** puisqu'une instance tourne déjà en permanence (voir `AGENTS.md` → Environnement de développement) : suivre la branche "serveur déjà en cours → reconnaissance puis action" de son arbre de décision, jamais la branche "démarrer un serveur"
+- Skill `.claude/skills/webapp-testing/` disponible pour les vérifications navigateur (Playwright Python) — son propre helper `scripts/with_server.py` sait démarrer/arrêter un serveur, mais **ne pas l'utiliser dans ce projet** : les vérifications se font sur le serveur du worktree de revue (5175) ou du dev (5174), démarré et arrêté par PID exact (voir `AGENTS.md` → Environnement de développement et Isolation) — suivre la branche "serveur déjà en cours → reconnaissance puis action" de son arbre de décision
 
 ---
 

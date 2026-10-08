@@ -12,3 +12,13 @@ export function filterActivites(activites: Activite[], search: string): Activite
   if (!search.trim()) return activites
   return activites.filter((a) => matchesActiviteSearch(a, search))
 }
+
+export function findExactActivite(activites: Activite[], search: string): Activite | undefined {
+  const normalized = search.trim().toLocaleLowerCase('fr-FR')
+  if (!normalized) return undefined
+  return activites.find((activite) => activite.nom.trim().toLocaleLowerCase('fr-FR') === normalized)
+}
+
+export function filterUpcomingDatedActivites(activites: Activite[], todayIso: string): Activite[] {
+  return activites.filter((activite) => activite.date_debut !== null && activite.date_debut >= todayIso)
+}

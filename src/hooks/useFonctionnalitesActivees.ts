@@ -4,9 +4,17 @@ import { supabase } from '../lib/supabaseClient'
 export interface FonctionnalitesActivees {
   dons: boolean
   adherents: boolean
+  evenements: boolean
+  /** Crédit manuel de portefeuille (sans encaissement) : activable par le super-admin seul. */
+  credit_manuel: boolean
 }
 
-const DEFAULT_FONCTIONNALITES: FonctionnalitesActivees = { dons: true, adherents: true }
+export const DEFAULT_FONCTIONNALITES: FonctionnalitesActivees = {
+  dons: true,
+  adherents: true,
+  evenements: false,
+  credit_manuel: false,
+}
 
 /**
  * null tant que non chargé — les appelants doivent traiter null comme

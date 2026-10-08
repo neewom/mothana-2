@@ -1,0 +1,56 @@
+{
+  "measuredAt": "2026-09-22T15:31:10.890Z",
+  "environment": "One Mac / Node clients, staging, NOT two mobile phones; polling phase starts at action",
+  "samples": [
+    {
+      "mode": "broadcast",
+      "requestMs": 723,
+      "decisionMs": 560
+    },
+    {
+      "mode": "broadcast",
+      "requestMs": 677,
+      "decisionMs": 609
+    },
+    {
+      "mode": "broadcast",
+      "requestMs": 666,
+      "decisionMs": 630
+    },
+    {
+      "mode": "broadcast",
+      "requestMs": 644,
+      "decisionMs": 669
+    },
+    {
+      "mode": "broadcast",
+      "requestMs": 572,
+      "decisionMs": 526
+    },
+    {
+      "mode": "polling",
+      "requestMs": 1250,
+      "decisionMs": 1247
+    },
+    {
+      "mode": "polling",
+      "requestMs": 1235,
+      "decisionMs": 1271
+    },
+    {
+      "mode": "polling",
+      "requestMs": 1281,
+      "decisionMs": 1295
+    },
+    {
+      "mode": "polling",
+      "requestMs": 1271,
+      "decisionMs": 1253
+    },
+    {
+      "mode": "polling",
+      "requestMs": 1255,
+      "decisionMs": 1226
+    }
+  ]
+}
