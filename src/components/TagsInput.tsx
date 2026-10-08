@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from 'react'
+import { Input } from './ui/input'
 
 interface TagsInputProps {
   tags: string[]
@@ -42,14 +43,14 @@ export default function TagsInput({ tags, onChange, availableTags, placeholder }
           {tags.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700"
+              className="inline-flex items-center gap-1 rounded-full bg-stamp/10 px-2.5 py-0.5 font-registre-mono text-[11px] font-medium text-stamp"
             >
               {tag}
               <button
                 type="button"
                 onClick={() => removeTag(tag)}
                 aria-label={`Retirer la liste ${tag}`}
-                className="text-indigo-400 hover:text-indigo-700"
+                className="rounded-full text-stamp/60 hover:text-stamp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
               >
                 ×
               </button>
@@ -58,14 +59,13 @@ export default function TagsInput({ tags, onChange, availableTags, placeholder }
         </div>
       )}
 
-      <input
+      <Input
         type="text"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={() => addTag(input)}
         placeholder={placeholder ?? 'Nouvelle liste, puis Entrée…'}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
       />
 
       {suggestions.length > 0 && (
@@ -75,7 +75,7 @@ export default function TagsInput({ tags, onChange, availableTags, placeholder }
               key={tag}
               type="button"
               onClick={() => addTag(tag)}
-              className="rounded-full border border-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              className="rounded-full border border-paper-border bg-white px-2.5 py-0.5 font-registre-mono text-[11px] font-medium text-ink-muted hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
             >
               + {tag}
             </button>

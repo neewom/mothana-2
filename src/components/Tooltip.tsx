@@ -32,13 +32,13 @@ export default function Tooltip({ content, children, triggerClassName, bare = fa
         <button
           type="button"
           {...handlers}
-          className={`cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2 ${triggerClassName ?? ''}`}
+          className={`cursor-help rounded-sm underline decoration-dotted decoration-ink-faint underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70 ${triggerClassName ?? ''}`}
         >
           {children}
         </button>
       )}
       {open && (
-        <div className="absolute bottom-full left-0 z-30 mb-1.5 w-max max-w-xs whitespace-pre-line rounded-lg bg-slate-900 px-3 py-2 text-xs leading-relaxed text-white shadow-lg">
+        <div className="absolute bottom-full left-0 z-30 mb-1.5 w-max max-w-xs whitespace-pre-line rounded-sm bg-ink px-3 py-2 font-registre text-xs leading-relaxed text-paper shadow-lg">
           {content}
         </div>
       )}

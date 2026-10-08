@@ -451,10 +451,10 @@ export default function ActivitesPage() {
         review, the verdict, and DESIGN.md.
       */}
       {/*
-        Canvas papier en pleine page : AdminLayout.tsx (partagé par les 23 autres pages,
-        hors scope de ce pilote) impose bg-slate-100 + main.p-6 — on déborde de cette marge
-        (-m-6/p-6) pour que le ton papier de la direction couvre tout le viewport, pas
-        seulement l'intérieur des cartes (trouvé en revue de finition).
+        Canvas papier en pleine page : on déborde de la marge main.p-6 d'AdminLayout.tsx
+        (-m-6/p-6) pour que le fond papier couvre tout le viewport, pas seulement l'intérieur
+        des cartes (trouvé en revue de finition du pilote ; AdminLayout est depuis passé
+        lui aussi sur bg-paper).
       */}
       <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
         {/* Page title */}

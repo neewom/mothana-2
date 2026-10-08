@@ -159,6 +159,7 @@ Source de vérité : `supabase/migrations/*.sql` (`docs/schema-mothana.sql` n'es
 - `tsc -b` (pas `tsc --noEmit` seul, insuffisant sur ce projet — tsconfig racine vide, `-b` matche la commande de build Vercel)
 - `npm test` (Vitest, `src/lib/participantSearch.test.ts` en référence) pour tout changement touchant une fonction couverte par des tests unitaires
 - Lint ciblé sur les fichiers touchés au minimum — le lint global reste rouge sur 6 erreurs préexistantes hors périmètre (`DonFichiers.tsx`, `TemplateRecuEditorModal.tsx`), pas un bloqueur pour une PR qui n'y touche pas
+- `npm run lint:ds` (garde-fous du design system : palette Tailwind brute, `rounded-lg`, ancien `Modal`, hex en dur) — doit être vert : il tourne en tête de `npm run build`, un échec casse le déploiement Vercel, et sans preview il ne se verrait qu'au merge sur `dev`. Exception hex : une ligne dans `HEX_EXCEPTIONS` (`eslint.design-system.js`), cf. `DESIGN.md` § Garde-fous lint
 
 ---
 
