@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
+import { designSystemRules } from './eslint.design-system.js'
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -26,4 +27,6 @@ export default defineConfig([
       'react-hooks/set-state-in-effect': 'off',
     },
   },
+  // Garde-fous du design system (aussi lancés seuls par `npm run lint:ds`, en tête du build).
+  ...designSystemRules,
 ])
