@@ -73,7 +73,7 @@ Introduit le 2026-09-22 après constat que les allers-retours systématiques via
 - Si la revue remonte un ajustement fonctionnel (pas juste une correction technique), la PR peut repasser en draft pour un nouveau tour direct utilisateur ↔ dev.
 
 ### Utilisateur
-Seul à donner le go de démarrage d'une carte ou d'un batch, seul à merger. Toute PR passe par la revue du lead tech avant son test. Lance les deux sessions, chacune dans son worktree, et leur attribue leur rôle par le message de démarrage (ex. `cd ../mothana-2-claude-dev && claude --remote-control "Mothana - dev"`) ; n'a plus à faire le relais entre les sessions (messages directs). Reste le seul à approuver les actions que le mode de permissions d'une session bloque.
+Seul à donner le go de démarrage d'une carte ou d'un batch, seul à valider une PR (son « ok » après test) ; le merge lui-même peut être fait par le lead tech (voir Git — workflow). Toute PR passe par la revue du lead tech avant son test. Lance les deux sessions, chacune dans son worktree, et leur attribue leur rôle par le message de démarrage (ex. `cd ../mothana-2-claude-dev && claude --remote-control "Mothana - dev"`) ; n'a plus à faire le relais entre les sessions (messages directs). Reste le seul à approuver les actions que le mode de permissions d'une session bloque.
 
 ### Ticket de dev
 Section `## Ticket dev` dans la description de la carte Trello : objectif · périmètre (inclus / exclu) · zones du code concernées (issues de graphify) · décisions déjà prises · contraintes (RLS et bypass super-admin, flag, conventions) · critères d'acceptation vérifiables · ce que le dev peut trancher seul / ce qu'il doit remonter.
@@ -175,7 +175,8 @@ Source de vérité : `supabase/migrations/*.sql` (`docs/schema-mothana.sql` n'es
 ## Git — workflow
 
 Règles générales, valables quel que soit l'agent :
-- Ne jamais merger une PR sans autorisation explicite de l'utilisateur, même testée/validée manuellement
+- **Merge d'une PR de feature** (règle assouplie le 2026-10-08, décision utilisateur, Mothana uniquement) : jamais sans le **« ok » explicite de l'utilisateur** après son test. Une fois cet « ok » donné, **le lead tech merge lui-même** (revue lead tech sans bloquant requise) — hors batch dev. **Dans un batch dev**, l'utilisateur merge lui-même, sauf quand un merge est nécessaire au déroulement de la revue du batch (ex. merger la PR amont d'un batch empilé pour débloquer la suivante) : le lead tech le fait alors, toujours après l'« ok » de l'utilisateur. Le dev ne merge jamais. Après merge : `git pull` de `dev`, carte Trello en Done + entrée du journal dans la même respiration
+- Ne jamais merger une PR sans l'« ok » explicite de l'utilisateur, même testée/validée manuellement par un agent
 - Avant de démarrer un nouveau développement, vérifier s'il y a des PR ouvertes ; si oui et sans rapport direct, informer l'utilisateur et demander confirmation
 - Un blocage trouvé en testant une PR ouverte (même dans un fichier sans rapport direct) se corrige dans **cette même PR**, pas dans une PR séparée
 - Dès qu'un développement est jugé terminé (fonctionnel, testé), pousser la branche et **ouvrir une PR automatiquement**, sans attendre qu'on le demande. **Sans exception**, y compris pour un correctif ponctuel codé directement par le lead tech (pas de carte, pas de dev) — même quand une revue indépendante n'a pas de sens puisque c'est le même agent qui a écrit et vérifié le changement : la PR reste la trace et le point de rollback. Écart constaté le 2026-09-22 (3 commits Activités poussés directement sur `dev`) — ne pas reproduire
