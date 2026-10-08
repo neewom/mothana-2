@@ -107,7 +107,7 @@ export default function CouponDonneesPersonnellesSection({ organisationId }: Cou
           <p id="coupon-conservation-help" className={`mt-1.5 text-xs ${moisInvalid ? 'text-stamp' : 'text-ink-faint'}`}>
             {moisInvalid
               ? `Entre ${CONSERVATION_MOIS_MIN} et ${CONSERVATION_MOIS_MAX} mois.`
-              : 'Comptée à partir de la fin de l’événement. Passé ce délai, les acheteurs sont anonymisés automatiquement et le crédit restant n’est plus utilisable.'}
+              : 'Comptée à partir de la fin de l’événement. Passé ce délai, les acheteurs sont anonymisés automatiquement.'}
           </p>
         </div>
 
