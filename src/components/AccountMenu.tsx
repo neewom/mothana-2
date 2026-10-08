@@ -1,3 +1,4 @@
+import { Badge } from './ui/badge'
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { accountInitials } from '../lib/accountInitials'
@@ -6,6 +7,8 @@ import { cn } from '../lib/utils'
 interface AccountMenuProps {
   nomAffiche: string | null
   email: string | null
+  /** Rôle affiché sous l'identité (« Administrateur », « Contributeur »). */
+  roleLabel?: string | null
   /** Absent en mode « Consulter » super-admin : ni compte d'organisation ni déconnexion depuis cette vue. */
   onLogout?: () => void
   showAccountLink: boolean
@@ -19,7 +22,7 @@ const ITEM_CLASS =
  * Se déconnecter. Ouverture au clic ou au clavier (Entrée, Espace, flèche bas), navigation aux
  * flèches, fermeture par Échap (focus rendu au bouton) ou clic extérieur.
  */
-export default function AccountMenu({ nomAffiche, email, onLogout, showAccountLink }: AccountMenuProps) {
+export default function AccountMenu({ nomAffiche, email, roleLabel, onLogout, showAccountLink }: AccountMenuProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -104,6 +107,7 @@ export default function AccountMenu({ nomAffiche, email, onLogout, showAccountLi
           <div className="border-b border-paper-border-muted px-4 py-3">
             <p className="truncate font-registre text-sm font-medium text-ink">{nomAffiche?.trim() || 'Compte'}</p>
             {email && <p className="truncate font-registre-mono text-[11px] text-ink-faint">{email}</p>}
+            {roleLabel && <Badge variant="neutral" className="mt-1.5">{roleLabel}</Badge>}
           </div>
           {showAccountLink && (
             <Link to="/admin/parametres/compte" role="menuitem" tabIndex={-1} className={ITEM_CLASS} onClick={() => close(false)}>
