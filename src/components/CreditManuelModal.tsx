@@ -23,6 +23,7 @@ interface CreditManuelModalProps {
 
 const REASON_MESSAGES: Record<string, string> = {
   ACCES_INTERDIT: 'Votre compte n’est pas autorisé à créditer ce portefeuille.',
+  CREDIT_MANUEL_DESACTIVE: 'Le crédit manuel n’est pas activé pour cette organisation.',
   AUTRE_EVENEMENT: 'Ce portefeuille appartient à un autre événement.',
   EMAIL_INVALIDE: 'Saisissez une adresse email valide.',
   EVENEMENT_CLOS: 'Cet événement est clos et ne peut plus recevoir de crédit.',

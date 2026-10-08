@@ -14,6 +14,7 @@ import { Input } from '../components/ui/input'
 import { StatusNotice } from '../components/ui/status-notice'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 import { Tabs } from '../components/ui/tabs'
+import { useAdminOutletContext } from '../hooks/useAdminOutletContext'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
 import {
@@ -114,6 +115,7 @@ function KeyFigure({ label, value, hint, className }: { label: string; value: st
 export default function EvenementDetailPage() {
   const { id: evenementId } = useParams<{ id: string }>()
   const organisationId = useOrganisationId()
+  const { fonctionnalitesActivees } = useAdminOutletContext()
   const { toast, showToast, dismissToast } = useToast()
   const [data, setData] = useState<EvenementDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -402,6 +404,8 @@ export default function EvenementDetailPage() {
   const { evenement, portefeuilles, mouvements, commandes } = data
   const statusVariant = evenement.statut === 'ouvert' ? 'success' : evenement.statut === 'clos' ? 'neutral' : 'warning'
   const statusLabel = evenement.statut === 'ouvert' ? 'Ouvert' : evenement.statut === 'clos' ? 'Clos' : 'Brouillon'
+  // Crédit sans encaissement : activé par le super-admin seulement (refusé aussi côté base).
+  const canCredit = evenement.statut === 'ouvert' && fonctionnalitesActivees?.credit_manuel === true
   const publicUrl = `/e/${encodeURIComponent(data.organisationSlug)}/${encodeURIComponent(evenement.slug)}`
 
   const panel = selectedWallet && (
@@ -454,21 +458,17 @@ export default function EvenementDetailPage() {
                 rel="noopener noreferrer"
                 className="rounded-sm font-medium text-stamp underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
               >
-                Voir la page publique ↗
+                Page d’achat en ligne ↗
               </a>
             </p>
           </div>
+          {/* Actions sur l'événement uniquement ; celles sur les portefeuilles vivent dans leur onglet. */}
           <div className="flex shrink-0 flex-wrap gap-2">
-            {evenement.statut === 'ouvert' && (
-              <Button type="button" variant="secondary" size="sm" onClick={() => setCreditOpen(true)}>
-                Créditer
-              </Button>
-            )}
             <Button type="button" variant="secondary" size="sm" onClick={() => setAfficheOpen(true)}>
-              Affiche
+              Affiche QR code
             </Button>
             <Button type="button" variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
-              Modifier
+              Modifier l’événement
             </Button>
           </div>
         </div>
@@ -550,7 +550,7 @@ export default function EvenementDetailPage() {
             className={cn('flex gap-6', panelOpen && 'items-start')}
           >
             <section className="min-w-0 flex-1 overflow-hidden rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
-              <div className="border-b border-paper-border px-4 py-4 md:px-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-paper-border px-4 py-4 md:px-6">
                 <Input
                   type="search"
                   value={walletSearch}
@@ -559,6 +559,11 @@ export default function EvenementDetailPage() {
                   aria-label="Rechercher un portefeuille"
                   className="w-full md:w-72"
                 />
+                {canCredit && (
+                  <Button type="button" onClick={() => setCreditOpen(true)}>
+                    Créditer un portefeuille
+                  </Button>
+                )}
               </div>
               {portefeuilles.length === 0 ? (
                 <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun portefeuille créé pour cet événement.</p>
