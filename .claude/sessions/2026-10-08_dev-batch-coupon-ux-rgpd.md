@@ -23,10 +23,11 @@ Go utilisateur transmis par le lead tech (session « Mothana - TL ») pour les 2
 - Serveur de test : port 5174 (PID 43981).
 
 ## Reste à faire
-- Carte RGPD : voir ci-dessous (bloquée).
+- Revue lead tech de #210, tests utilisateur de #209 puis #210, merges (manuels).
+- Promotion en prod : la migration RGPD active pg_cron et crée le job de purge.
 
 ## Blockers
-- Carte RGPD : migration refusée par le mode auto, détail ci-dessous.
+- Aucun (le blocage mode auto sur la migration RGPD est levé, voir ci-dessous).
 
 ## Carte RGPD — https://trello.com/c/OJvbKKKV — PR #210 (draft, cible feat/coupon-ux-detail-evenement)
 - Branche `feat/coupon-rgpd` créée depuis `origin/feat/coupon-ux-detail-evenement`, PR draft #210, commentaire Trello « Dev en cours ».
@@ -36,3 +37,15 @@ Go utilisateur transmis par le lead tech (session « Mothana - TL ») pour les 2
   - Q2 : effet de l'anonymisation sur les liens déjà émis — reco : révoquer + refuser les crédits.
   - Q3 : cible du lien « politique de confidentialité » (rien n'existe) — reco : URL configurable par organisation.
 - **Blocker** : l'écriture du fichier de migration (`coupon_rgpd_anonymisation.sql`, avec une tâche pg_cron quotidienne) a été refusée par le mode auto (« Account & Standing-Rule Changes »). Rien n'a été écrit ni appliqué. Il faut une décision de l'utilisateur : validation explicite, ou livraison sans la planification (l'utilisateur lance alors lui-même `cron.schedule`).
+
+### Suite (même jour)
+- Réponses lead tech/utilisateur : Q1 → `date_fin + N mois` ; Q2 → liens révoqués + crédit refusé, solde affiché dans la confirmation ; Q3 → `organisations.url_politique_confidentialite`.
+- **Blocker levé** : l'utilisateur a désactivé le mode auto, la migration `coupon_rgpd_anonymisation.sql` a été écrite telle quelle (cron compris) et appliquée sur staging. Job `purger-donnees-evenements` actif (03:17 chaque jour) ; première échéance réelle sur staging : 2028-04-05.
+- Edge Function `renvoyer-acces-portefeuille` redéployée sur staging (v5).
+- Critères vérifiés en SQL (transaction annulée) et dans le navigateur. Donnée de test laissée sur staging : portefeuille `rgpd-ui-test@example.test` (5 €), anonymisé pendant le test.
+- PR #210 passée en « ready for review ».
+
+## Décisions (RGPD)
+- Garde-fous par triggers (email figé, aucun nouveau secret ni mouvement) plutôt que réécriture de chaque RPC existante.
+- Adresse de remplacement `efface+<id>@anonyme.invalid` (TLD .invalid réservé) ; les commandes orphelines de même adresse sur le même événement sont aussi anonymisées. Limite : une commande orpheline passée avec une adresse corrigée depuis n'est pas retrouvée.
+- Validation d'URL côté front plus stricte que le CHECK SQL (exige un nom de domaine avec un point).
