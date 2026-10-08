@@ -5,12 +5,15 @@ export interface FonctionnalitesActivees {
   dons: boolean
   adherents: boolean
   evenements: boolean
+  /** Crédit manuel de portefeuille (sans encaissement) : activable par le super-admin seul. */
+  credit_manuel: boolean
 }
 
 export const DEFAULT_FONCTIONNALITES: FonctionnalitesActivees = {
   dons: true,
   adherents: true,
   evenements: false,
+  credit_manuel: false,
 }
 
 /**

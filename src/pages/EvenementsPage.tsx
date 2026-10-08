@@ -6,6 +6,7 @@ import EvenementModal from '../components/EvenementModal'
 import Toast from '../components/Toast'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
+import { useAdminOutletContext } from '../hooks/useAdminOutletContext'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
 import { cn } from '../lib/utils'
@@ -80,11 +81,13 @@ function CalendarIcon() {
 
 function EvenementRow({
   evenement,
+  creditManuelActif,
   onCredit,
   onPoster,
   onEdit,
 }: {
   evenement: Evenement
+  creditManuelActif: boolean
   onCredit: () => void
   onPoster: () => void
   onEdit: () => void
@@ -127,7 +130,7 @@ function EvenementRow({
         <Button asChild variant="secondary" size="sm">
           <Link to={`/admin/evenements/${evenement.id}`}>Détails</Link>
         </Button>
-        {evenement.statut === 'ouvert' && (
+        {evenement.statut === 'ouvert' && creditManuelActif && (
           <Button type="button" variant="secondary" size="sm" onClick={onCredit}>
             Créditer
           </Button>
@@ -145,6 +148,8 @@ function EvenementRow({
 
 export default function EvenementsPage() {
   const organisationId = useOrganisationId()
+  const { fonctionnalitesActivees } = useAdminOutletContext()
+  const creditManuelActif = fonctionnalitesActivees?.credit_manuel === true
   const { toast, showToast, dismissToast } = useToast()
   const [evenements, setEvenements] = useState<Evenement[]>([])
   const [activites, setActivites] = useState<Activite[]>([])
@@ -253,6 +258,7 @@ export default function EvenementsPage() {
                   <EvenementRow
                     key={evenement.id}
                     evenement={evenement}
+                    creditManuelActif={creditManuelActif}
                     onCredit={() => setCreditEvent(evenement)}
                     onPoster={() => setAfficheEvent(evenement)}
                     onEdit={() => openEdit(evenement)}
@@ -276,6 +282,7 @@ export default function EvenementsPage() {
                   <EvenementRow
                     key={evenement.id}
                     evenement={evenement}
+                    creditManuelActif={creditManuelActif}
                     onCredit={() => setCreditEvent(evenement)}
                     onPoster={() => setAfficheEvent(evenement)}
                     onEdit={() => openEdit(evenement)}
