@@ -4,6 +4,7 @@ import type {
   MouvementPortefeuilleAdmin,
   MouvementPortefeuilleType,
   PortefeuilleEvenement,
+  SecretPortefeuilleAdmin,
 } from '../types/evenementDashboard'
 
 export interface EvenementDashboardStats {
@@ -68,4 +69,25 @@ export function filtrerPortefeuilles(
     portefeuille.email.toLocaleLowerCase('fr-FR').includes(terme)
       || portefeuille.code_public.toLocaleLowerCase('fr-FR').includes(terme),
   )
+}
+
+export interface ResumeAccesPortefeuille {
+  actifs: number
+  total: number
+  /** Lien le plus récent, révoqué ou non ; null si aucun lien n'a jamais été généré. */
+  dernier: SecretPortefeuilleAdmin | null
+}
+
+export function resumerAccesParPortefeuille(
+  secrets: SecretPortefeuilleAdmin[],
+): Map<string, ResumeAccesPortefeuille> {
+  const resumes = new Map<string, ResumeAccesPortefeuille>()
+  for (const secret of secrets) {
+    const resume = resumes.get(secret.portefeuille_id) ?? { actifs: 0, total: 0, dernier: null }
+    resume.total += 1
+    if (!secret.revoque_le) resume.actifs += 1
+    if (!resume.dernier || secret.created_at > resume.dernier.created_at) resume.dernier = secret
+    resumes.set(secret.portefeuille_id, resume)
+  }
+  return resumes
 }

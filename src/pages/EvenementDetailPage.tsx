@@ -1,32 +1,33 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import CreditManuelModal from '../components/CreditManuelModal'
+import EvenementAfficheModal from '../components/EvenementAfficheModal'
+import EvenementModal from '../components/EvenementModal'
+import PortefeuilleDetailPanel from '../components/PortefeuilleDetailPanel'
+import RenvoyerAccesPortefeuilleModal from '../components/RenvoyerAccesPortefeuilleModal'
 import ScrollShadowX from '../components/ScrollShadowX'
 import Toast from '../components/Toast'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog'
 import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
 import { StatusNotice } from '../components/ui/status-notice'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
+import { Tabs } from '../components/ui/tabs'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
-import { copyTextToClipboard } from '../lib/clipboard'
-import { getCanonicalSiteUrl } from '../lib/environment'
 import {
   calculerStatsEvenement,
   filtrerPortefeuilles,
   libelleMoyenPaiement,
   libelleMouvementAdmin,
   libelleStatutCommande,
+  resumerAccesParPortefeuille,
 } from '../lib/evenementDashboard'
 import { formatCentimes, formatPeriodeEvenement } from '../lib/portefeuilleAcheteur'
 import { supabase } from '../lib/supabaseClient'
-import { isValidEmail } from '../lib/textFormat'
-import {
-  walletAccessResendErrorMessage,
-  type WalletAccessResendResponse,
-} from '../lib/walletAccessResend'
+import { cn } from '../lib/utils'
+import type { Activite } from '../types'
 import type { Evenement } from '../types/evenement'
 import type {
   CommandeEvenement,
@@ -37,6 +38,8 @@ import type {
 } from '../types/evenementDashboard'
 
 const PAGE_SIZE = 1000
+
+type Onglet = 'portefeuilles' | 'mouvements' | 'commandes'
 
 interface PageResult<T> {
   data: T[] | null
@@ -75,11 +78,11 @@ function LoadingState() {
         <div className="h-8 w-64 max-w-full animate-pulse rounded-sm bg-paper-border" />
         <div className="h-4 w-48 animate-pulse rounded-sm bg-paper-border-muted" />
       </div>
-      <div className="grid overflow-hidden rounded-sm border border-paper-border bg-white sm:grid-cols-3">
+      <div className="grid grid-cols-3 overflow-hidden rounded-sm border border-paper-border bg-white">
         {[0, 1, 2].map((item) => (
-          <div key={item} className="space-y-3 border-t border-paper-border p-5 first:border-t-0 sm:border-l sm:border-t-0 sm:first:border-l-0">
-            <div className="h-3 w-24 animate-pulse rounded-sm bg-paper-border" />
-            <div className="h-7 w-32 animate-pulse rounded-sm bg-paper-border-muted" />
+          <div key={item} className="space-y-3 border-l border-paper-border p-3 first:border-l-0 sm:p-5">
+            <div className="h-3 w-16 animate-pulse rounded-sm bg-paper-border sm:w-24" />
+            <div className="h-6 w-20 animate-pulse rounded-sm bg-paper-border-muted sm:w-32" />
           </div>
         ))}
       </div>
@@ -88,22 +91,20 @@ function LoadingState() {
   )
 }
 
-function SectionHeader({
-  title,
-  description,
-  children,
-}: {
-  title: string
-  description: string
-  children?: React.ReactNode
-}) {
+function Chevron() {
   return (
-    <div className="flex flex-col gap-3 border-b border-paper-border px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
-      <div>
-        <h2 className="text-lg font-semibold text-ink">{title}</h2>
-        <p className="mt-0.5 text-sm text-ink-faint">{description}</p>
-      </div>
-      {children}
+    <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+  )
+}
+
+function KeyFigure({ label, value, hint, className }: { label: string; value: string; hint: string; className?: string }) {
+  return (
+    <div className={cn('min-w-0 p-3 sm:p-5', className)}>
+      <dt className="font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">{label}</dt>
+      <dd className="mt-1 font-registre-mono text-base font-semibold tabular-nums text-ink sm:mt-2 sm:text-2xl">{value}</dd>
+      <p className="mt-1 hidden text-xs text-ink-faint sm:block">{hint}</p>
     </div>
   )
 }
@@ -118,18 +119,20 @@ export default function EvenementDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [revokeError, setRevokeError] = useState<string | null>(null)
+  const [onglet, setOnglet] = useState<Onglet>('portefeuilles')
   const [walletSearch, setWalletSearch] = useState('')
+  const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null)
+  const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
   const [freezingWalletId, setFreezingWalletId] = useState<string | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<PortefeuilleEvenement | null>(null)
   const [revoking, setRevoking] = useState(false)
   const [resendTarget, setResendTarget] = useState<PortefeuilleEvenement | null>(null)
-  const [resendEmail, setResendEmail] = useState('')
-  const [resendRevokeOld, setResendRevokeOld] = useState(false)
-  const [resendSubmittingAction, setResendSubmittingAction] = useState<'email' | 'link' | null>(null)
-  const [resendError, setResendError] = useState<string | null>(null)
-  const [resendLink, setResendLink] = useState<string | null>(null)
-  const [resendEmailSent, setResendEmailSent] = useState(false)
-  const resendEmailInvalid = resendEmail.length > 0 && !isValidEmail(resendEmail.trim())
+  const [editOpen, setEditOpen] = useState(false)
+  const [afficheOpen, setAfficheOpen] = useState(false)
+  const [creditOpen, setCreditOpen] = useState(false)
+  // Rechargement différé à la fermeture : CreditManuelModal se réinitialise quand l'objet
+  // événement change, ce qui effacerait son écran de résultat (code public).
+  const creditedRef = useRef(false)
 
   const fetchData = useCallback(async (showLoading = true) => {
     if (!organisationId || !evenementId) return
@@ -152,7 +155,7 @@ export default function EvenementDetailPage() {
         return
       }
 
-      const [portefeuilles, commandes] = await Promise.all([
+      const [portefeuilles, commandes, organisationResult, activitesResult, profilsResult] = await Promise.all([
         fetchAllPages<PortefeuilleEvenement>(async (from, to) => {
           const result = await supabase
             .from('portefeuilles')
@@ -173,7 +176,16 @@ export default function EvenementDetailPage() {
             .range(from, to)
           return { data: result.data as CommandeEvenement[] | null, error: result.error }
         }),
+        supabase.from('organisations').select('slug').eq('id', organisationId).single(),
+        supabase.from('activites').select('id, nom, organisation_id, date_debut, date_fin').eq('organisation_id', organisationId),
+        // Noms affichés des comptes de l'organisation (RLS scopée à l'organisation), pour
+        // attribuer une correction d'adresse ou un lien généré — sans lire auth.users.
+        supabase.from('profils_organisation').select('utilisateur_id, nom_affiche').eq('organisation_id', organisationId),
       ])
+
+      if (organisationResult.error) throw new Error(organisationResult.error.message)
+      if (activitesResult.error) throw new Error(activitesResult.error.message)
+      if (profilsResult.error) throw new Error(profilsResult.error.message)
 
       const walletIds = portefeuilles.map((portefeuille) => portefeuille.id)
       const [mouvements, secrets] = walletIds.length === 0
@@ -192,7 +204,7 @@ export default function EvenementDetailPage() {
             fetchAllPages<SecretPortefeuilleAdmin>(async (from, to) => {
               const result = await supabase
                 .from('secrets_portefeuille')
-                .select('id, portefeuille_id, revoque_le')
+                .select('id, portefeuille_id, revoque_le, created_at, cree_par')
                 .eq('organisation_id', organisationId)
                 .in('portefeuille_id', walletIds)
                 .order('created_at', { ascending: false })
@@ -201,12 +213,20 @@ export default function EvenementDetailPage() {
             }),
           ])
 
+      const profils = (profilsResult.data ?? []) as { utilisateur_id: string; nom_affiche: string | null }[]
       setData({
         evenement: eventResult.data as Evenement,
         portefeuilles,
         commandes,
         mouvements,
         secrets,
+        organisationSlug: (organisationResult.data as { slug: string }).slug,
+        auteurs: new Map(
+          profils
+            .filter((profil) => profil.nom_affiche?.trim())
+            .map((profil) => [profil.utilisateur_id, profil.nom_affiche!.trim()]),
+        ),
+        activites: (activitesResult.data as unknown as Activite[]) ?? [],
       })
     } catch {
       setError('Les informations de cet événement n’ont pas pu être chargées.')
@@ -227,16 +247,10 @@ export default function EvenementDetailPage() {
     () => new Map((data?.portefeuilles ?? []).map((portefeuille) => [portefeuille.id, portefeuille])),
     [data],
   )
-  const secretCounts = useMemo(() => {
-    const counts = new Map<string, { total: number; actifs: number }>()
-    for (const secret of data?.secrets ?? []) {
-      const current = counts.get(secret.portefeuille_id) ?? { total: 0, actifs: 0 }
-      current.total += 1
-      if (!secret.revoque_le) current.actifs += 1
-      counts.set(secret.portefeuille_id, current)
-    }
-    return counts
-  }, [data])
+  const accesParPortefeuille = useMemo(
+    () => resumerAccesParPortefeuille(data?.secrets ?? []),
+    [data],
+  )
   const filteredWallets = useMemo(
     () => filtrerPortefeuilles(data?.portefeuilles ?? [], walletSearch),
     [data, walletSearch],
@@ -245,6 +259,48 @@ export default function EvenementDetailPage() {
     () => (data?.portefeuilles ?? []).filter((portefeuille) => portefeuille.solde_centimes > 0),
     [data],
   )
+  // Dérivé des données (et non stocké) pour refléter immédiatement un gel ou un renvoi.
+  const selectedWallet = selectedWalletId ? walletById.get(selectedWalletId) ?? null : null
+  const selectedMouvements = useMemo(
+    () => (data?.mouvements ?? []).filter((mouvement) => mouvement.portefeuille_id === selectedWalletId),
+    [data, selectedWalletId],
+  )
+  const selectedCommandes = useMemo(
+    () => (data?.commandes ?? []).filter((commande) => commande.portefeuille_id === selectedWalletId),
+    [data, selectedWalletId],
+  )
+
+  useEffect(() => {
+    if (selectedWallet) {
+      const timer = setTimeout(() => setMobilePanelVisible(true), 10)
+      return () => clearTimeout(timer)
+    }
+    setMobilePanelVisible(false)
+  }, [selectedWallet])
+
+  // Panneau desktop — hauteur plafonnée à l'espace réellement disponible (même logique
+  // que ParticipantsPage), le corps du panneau scrolle seul.
+  const desktopPanelRef = useRef<HTMLDivElement>(null)
+  const [desktopPanelMaxHeight, setDesktopPanelMaxHeight] = useState<number | undefined>(undefined)
+  const panelOpen = selectedWallet !== null && onglet === 'portefeuilles'
+
+  useLayoutEffect(() => {
+    if (!panelOpen) return
+
+    function recompute() {
+      const el = desktopPanelRef.current
+      if (!el) return
+      const top = el.getBoundingClientRect().top
+      if (top <= 0) return
+      setDesktopPanelMaxHeight(Math.max(300, window.innerHeight - top - 24))
+    }
+
+    recompute()
+    window.addEventListener('resize', recompute)
+    return () => window.removeEventListener('resize', recompute)
+  }, [panelOpen])
+
+  const busy = freezingWalletId !== null || revoking || resendTarget !== null
 
   async function toggleFreeze(portefeuille: PortefeuilleEvenement) {
     setActionError(null)
@@ -280,77 +336,6 @@ export default function EvenementDetailPage() {
       setRevokeTarget(null)
     }
     setRevoking(false)
-  }
-
-  function openResendAccess(portefeuille: PortefeuilleEvenement) {
-    setResendTarget(portefeuille)
-    setResendEmail(portefeuille.email)
-    setResendRevokeOld(false)
-    setResendSubmittingAction(null)
-    setResendError(null)
-    setResendLink(null)
-    setResendEmailSent(false)
-  }
-
-  function closeResendAccess() {
-    if (resendSubmittingAction) return
-    setResendTarget(null)
-    setResendEmail('')
-    setResendRevokeOld(false)
-    setResendError(null)
-    setResendLink(null)
-    setResendEmailSent(false)
-  }
-
-  async function resendAccess(action: 'email' | 'link') {
-    if (!resendTarget || resendSubmittingAction) return
-    const normalizedEmail = resendEmail.trim().toLowerCase()
-    if (!isValidEmail(normalizedEmail)) {
-      setResendError('Renseignez une adresse email valide.')
-      return
-    }
-
-    setResendSubmittingAction(action)
-    setResendError(null)
-    setResendLink(null)
-    setResendEmailSent(false)
-
-    const { data: response, error: invocationError } = await supabase.functions.invoke<WalletAccessResendResponse>(
-      'renvoyer-acces-portefeuille',
-      {
-        body: {
-          portefeuille_id: resendTarget.id,
-          nouvel_email: normalizedEmail,
-          revoquer_anciens: resendRevokeOld,
-          envoyer_email: action === 'email',
-          site_url: getCanonicalSiteUrl(),
-        },
-      },
-    )
-
-    if (invocationError || !response) {
-      setResendError(walletAccessResendErrorMessage(null))
-      setResendSubmittingAction(null)
-      return
-    }
-
-    if (!response.ok) {
-      setResendError(walletAccessResendErrorMessage(response.error ?? null))
-      if (response.error === 'EMAIL_NON_ENVOYE' && response.portefeuille_url) {
-        setResendLink(response.portefeuille_url)
-        await fetchData(false)
-      }
-      setResendSubmittingAction(null)
-      return
-    }
-
-    await fetchData(false)
-    if (action === 'email') {
-      setResendEmailSent(true)
-    } else if (response.portefeuille_url) {
-      setResendLink(response.portefeuille_url)
-    }
-    setResendSubmittingAction(null)
   }
 
   if (loading) {
@@ -390,6 +375,26 @@ export default function EvenementDetailPage() {
   const { evenement, portefeuilles, mouvements, commandes } = data
   const statusVariant = evenement.statut === 'ouvert' ? 'success' : evenement.statut === 'clos' ? 'neutral' : 'warning'
   const statusLabel = evenement.statut === 'ouvert' ? 'Ouvert' : evenement.statut === 'clos' ? 'Clos' : 'Brouillon'
+  const publicUrl = `/e/${encodeURIComponent(data.organisationSlug)}/${encodeURIComponent(evenement.slug)}`
+
+  const panel = selectedWallet && (
+    <PortefeuilleDetailPanel
+      portefeuille={selectedWallet}
+      acces={accesParPortefeuille.get(selectedWallet.id)}
+      auteurs={data.auteurs}
+      mouvements={selectedMouvements}
+      commandes={selectedCommandes}
+      busy={busy}
+      freezing={freezingWalletId === selectedWallet.id}
+      onClose={() => setSelectedWalletId(null)}
+      onResend={() => setResendTarget(selectedWallet)}
+      onToggleFreeze={() => void toggleFreeze(selectedWallet)}
+      onRevoke={() => {
+        setRevokeError(null)
+        setRevokeTarget(selectedWallet)
+      }}
+    />
+  )
 
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
@@ -402,13 +407,40 @@ export default function EvenementDetailPage() {
             Événements
           </Link>
         </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">{evenement.nom}</h1>
-          <Badge variant={statusVariant}>{statusLabel}</Badge>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-bold text-ink md:text-3xl">{evenement.nom}</h1>
+              <Badge variant={statusVariant}>{statusLabel}</Badge>
+            </div>
+            <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+              <span className="font-registre-mono text-ink-faint">
+                {formatPeriodeEvenement(evenement.date_evenement, evenement.date_fin)}
+              </span>
+              <a
+                href={publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-sm font-medium text-stamp underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
+              >
+                Voir la page publique ↗
+              </a>
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {evenement.statut === 'ouvert' && (
+              <Button type="button" variant="secondary" size="sm" onClick={() => setCreditOpen(true)}>
+                Créditer
+              </Button>
+            )}
+            <Button type="button" variant="secondary" size="sm" onClick={() => setAfficheOpen(true)}>
+              Affiche
+            </Button>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+              Modifier
+            </Button>
+          </div>
         </div>
-        <p className="mt-1 font-registre-mono text-sm text-ink-faint">
-          {formatPeriodeEvenement(evenement.date_evenement, evenement.date_fin)} · /{evenement.slug}
-        </p>
       </header>
 
       {actionError && (
@@ -417,22 +449,15 @@ export default function EvenementDetailPage() {
         </StatusNotice>
       )}
 
-      <dl className="grid overflow-hidden rounded-sm border border-paper-border bg-white sm:grid-cols-3">
-        <div className="p-5">
-          <dt className="font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">Crédit vendu</dt>
-          <dd className="mt-2 font-registre-mono text-2xl font-semibold tabular-nums text-ink">{formatCentimes(stats.venduCentimes)}</dd>
-          <p className="mt-1 text-xs text-ink-faint">Crédits initialement vendus et recharges</p>
-        </div>
-        <div className="border-t border-paper-border p-5 sm:border-l sm:border-t-0">
-          <dt className="font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">Dépensé</dt>
-          <dd className="mt-2 font-registre-mono text-2xl font-semibold tabular-nums text-ink">{formatCentimes(stats.depenseCentimes)}</dd>
-          <p className="mt-1 text-xs text-ink-faint">Paiements validés auprès des vendeurs</p>
-        </div>
-        <div className="border-t border-paper-border p-5 sm:border-l sm:border-t-0">
-          <dt className="font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">Restant</dt>
-          <dd className="mt-2 font-registre-mono text-2xl font-semibold tabular-nums text-ink">{formatCentimes(stats.restantCentimes)}</dd>
-          <p className="mt-1 text-xs text-ink-faint">Solde cumulé des {portefeuilles.length} portefeuille{portefeuilles.length !== 1 ? 's' : ''}</p>
-        </div>
+      <dl className="grid grid-cols-3 overflow-hidden rounded-sm border border-paper-border bg-white">
+        <KeyFigure label="Vendu" value={formatCentimes(stats.venduCentimes)} hint="Crédits initialement vendus et recharges" />
+        <KeyFigure label="Dépensé" value={formatCentimes(stats.depenseCentimes)} hint="Paiements validés auprès des vendeurs" className="border-l border-paper-border" />
+        <KeyFigure
+          label="Restant"
+          value={formatCentimes(stats.restantCentimes)}
+          hint={`Solde cumulé des ${portefeuilles.length} portefeuille${portefeuilles.length !== 1 ? 's' : ''}`}
+          className="border-l border-paper-border"
+        />
       </dl>
 
       {evenement.statut === 'clos' && (
@@ -447,11 +472,11 @@ export default function EvenementDetailPage() {
             <p className="px-4 py-8 text-center text-sm text-ink-faint md:px-6">Aucun solde restant à traiter.</p>
           ) : (
             <ScrollShadowX>
-              <Table className="min-w-[680px]">
+              <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Email</TableHead>
-                    <TableHead>Code public</TableHead>
+                    <TableHead className="hidden md:table-cell">Code public</TableHead>
                     <TableHead className="text-right">Solde restant</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -459,7 +484,7 @@ export default function EvenementDetailPage() {
                   {remainingWallets.map((portefeuille) => (
                     <TableRow key={portefeuille.id}>
                       <TableCell className="whitespace-nowrap font-medium text-ink">{portefeuille.email}</TableCell>
-                      <TableCell className="whitespace-nowrap font-registre-mono text-xs text-ink-muted">{portefeuille.code_public}</TableCell>
+                      <TableCell className="hidden whitespace-nowrap font-registre-mono text-xs text-ink-muted md:table-cell">{portefeuille.code_public}</TableCell>
                       <TableCell className="whitespace-nowrap text-right font-registre-mono font-semibold tabular-nums text-ink">
                         {formatCentimes(portefeuille.solde_centimes)}
                       </TableCell>
@@ -472,310 +497,223 @@ export default function EvenementDetailPage() {
         </section>
       )}
 
-      <section aria-labelledby="portefeuilles-title" className="overflow-hidden rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
-        <SectionHeader
-          title="Portefeuilles"
-          description={`${portefeuilles.length} portefeuille${portefeuilles.length !== 1 ? 's' : ''} associé${portefeuilles.length !== 1 ? 's' : ''} à l’événement`}
-        >
-          <Input
-            type="search"
-            value={walletSearch}
-            onChange={(event) => setWalletSearch(event.target.value)}
-            placeholder="Rechercher par email ou code"
-            aria-label="Rechercher un portefeuille"
-            className="w-full md:w-72"
-          />
-        </SectionHeader>
-        {portefeuilles.length === 0 ? (
-          <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun portefeuille créé pour cet événement.</p>
-        ) : filteredWallets.length === 0 ? (
-          <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun portefeuille ne correspond à cette recherche.</p>
-        ) : (
-          <ScrollShadowX>
-            <Table className="min-w-[1240px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Code public</TableHead>
-                  <TableHead className="text-right">Solde</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead>Accès acheteur</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredWallets.map((portefeuille) => {
-                  const secrets = secretCounts.get(portefeuille.id) ?? { total: 0, actifs: 0 }
-                  const freezing = freezingWalletId === portefeuille.id
-                  return (
-                    <TableRow key={portefeuille.id}>
-                      <TableCell className="whitespace-nowrap font-medium text-ink">{portefeuille.email}</TableCell>
-                      <TableCell className="whitespace-nowrap font-registre-mono text-xs text-ink-muted">{portefeuille.code_public}</TableCell>
-                      <TableCell className="whitespace-nowrap text-right font-registre-mono font-semibold tabular-nums text-ink">
-                        {formatCentimes(portefeuille.solde_centimes)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={portefeuille.gele ? 'stamp' : 'success'}>{portefeuille.gele ? 'Gelé' : 'Actif'}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={secrets.actifs > 0 ? 'success' : 'neutral'}>
-                          {secrets.actifs > 0 ? `${secrets.actifs} actif${secrets.actifs > 1 ? 's' : ''}` : secrets.total > 0 ? 'Révoqué' : 'Aucun accès'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-2 whitespace-nowrap">
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={freezing || revoking || resendSubmittingAction !== null}
-                            onClick={() => openResendAccess(portefeuille)}
-                          >
-                            Renvoyer l’accès
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            disabled={freezing || revoking || resendSubmittingAction !== null}
-                            onClick={() => void toggleFreeze(portefeuille)}
-                          >
-                            {freezing ? 'Mise à jour…' : portefeuille.gele ? 'Dégeler' : 'Geler'}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="danger"
-                            size="sm"
-                            disabled={secrets.actifs === 0 || freezing || revoking || resendSubmittingAction !== null}
-                            onClick={() => {
-                              setRevokeError(null)
-                              setRevokeTarget(portefeuille)
-                            }}
-                          >
-                            Révoquer les accès
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </ScrollShadowX>
-        )}
-      </section>
-
-      <section aria-labelledby="mouvements-title" className="overflow-hidden rounded-sm border border-paper-border bg-white">
-        <SectionHeader
-          title="Historique des mouvements"
-          description={`${mouvements.length} mouvement${mouvements.length !== 1 ? 's' : ''}, du plus récent au plus ancien`}
+      <div>
+        <Tabs
+          aria-label="Contenu de l’événement"
+          idPrefix="evenement"
+          value={onglet}
+          onChange={setOnglet}
+          items={[
+            { value: 'portefeuilles', label: 'Portefeuilles', count: portefeuilles.length },
+            { value: 'mouvements', label: 'Mouvements', count: mouvements.length },
+            { value: 'commandes', label: 'Commandes', count: commandes.length },
+          ]}
+          className="mb-4"
         />
-        {mouvements.length === 0 ? (
-          <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun mouvement enregistré.</p>
-        ) : (
-          <ScrollShadowX>
-            <Table className="min-w-[900px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Portefeuille</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Montant</TableHead>
-                  <TableHead className="text-right">Solde après</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mouvements.map((mouvement) => {
-                  const portefeuille = walletById.get(mouvement.portefeuille_id)
-                  const isDebit = mouvement.type === 'debit'
-                  return (
-                    <TableRow key={mouvement.id}>
-                      <TableCell className="whitespace-nowrap font-registre-mono text-xs text-ink-faint">{formatDateTime(mouvement.created_at)}</TableCell>
-                      <TableCell className="whitespace-nowrap text-ink-muted">{portefeuille?.email ?? 'Portefeuille inconnu'}</TableCell>
-                      <TableCell className="whitespace-nowrap text-ink-muted">{libelleMouvementAdmin(mouvement.type)}</TableCell>
-                      <TableCell className={`whitespace-nowrap text-right font-registre-mono font-semibold tabular-nums ${isDebit ? 'text-ink' : 'text-success'}`}>
-                        {isDebit ? '−' : '+'}{formatCentimes(mouvement.montant_centimes)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-right font-registre-mono tabular-nums text-ink-muted">
-                        {formatCentimes(mouvement.solde_apres_centimes)}
-                      </TableCell>
+
+        {onglet === 'portefeuilles' && (
+          <div
+            role="tabpanel"
+            id="evenement-panel-portefeuilles"
+            aria-labelledby="evenement-tab-portefeuilles"
+            className={cn('flex gap-6', panelOpen && 'items-start')}
+          >
+            <section className="min-w-0 flex-1 overflow-hidden rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+              <div className="border-b border-paper-border px-4 py-4 md:px-6">
+                <Input
+                  type="search"
+                  value={walletSearch}
+                  onChange={(event) => setWalletSearch(event.target.value)}
+                  placeholder="Rechercher par email ou code"
+                  aria-label="Rechercher un portefeuille"
+                  className="w-full md:w-72"
+                />
+              </div>
+              {portefeuilles.length === 0 ? (
+                <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun portefeuille créé pour cet événement.</p>
+              ) : filteredWallets.length === 0 ? (
+                <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun portefeuille ne correspond à cette recherche.</p>
+              ) : (
+                <ScrollShadowX>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Email</TableHead>
+                        <TableHead className={panelOpen ? 'hidden' : 'hidden md:table-cell'}>Code public</TableHead>
+                        <TableHead className="text-right">Solde</TableHead>
+                        <TableHead className="hidden sm:table-cell">Accès</TableHead>
+                        <TableHead className="w-8" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredWallets.map((portefeuille) => {
+                        const acces = accesParPortefeuille.get(portefeuille.id)
+                        const actifs = acces?.actifs ?? 0
+                        const selected = portefeuille.id === selectedWalletId
+                        return (
+                          <TableRow
+                            key={portefeuille.id}
+                            onClick={() => setSelectedWalletId(selected ? null : portefeuille.id)}
+                            className={cn(
+                              'cursor-pointer hover:bg-paper-border/20',
+                              selected && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]'
+                            )}
+                          >
+                            <TableCell className="whitespace-nowrap font-medium text-ink">
+                              <span className="inline-flex items-center gap-2">
+                                {portefeuille.email}
+                                {portefeuille.gele && <Badge variant="stamp">Gelé</Badge>}
+                              </span>
+                            </TableCell>
+                            {/* Masqué quand le panneau est ouvert : le code y figure, et la table garde sa place. */}
+                            <TableCell className={cn('hidden whitespace-nowrap font-registre-mono text-xs text-ink-muted', !panelOpen && 'md:table-cell')}>{portefeuille.code_public}</TableCell>
+                            <TableCell className="whitespace-nowrap text-right font-registre-mono font-semibold tabular-nums text-ink">
+                              {formatCentimes(portefeuille.solde_centimes)}
+                            </TableCell>
+                            <TableCell className="hidden whitespace-nowrap font-registre-mono text-xs text-ink-muted sm:table-cell">
+                              {actifs > 0 ? `${actifs} lien${actifs > 1 ? 's' : ''}` : (acces?.total ?? 0) > 0 ? 'Révoqué' : 'Aucun'}
+                            </TableCell>
+                            <TableCell className="text-right text-ink-faint">
+                              <Chevron />
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </ScrollShadowX>
+              )}
+            </section>
+
+            {panelOpen && (
+              <div
+                ref={desktopPanelRef}
+                className="hidden w-80 flex-shrink-0 rounded-sm border border-paper-border bg-white lg:sticky lg:top-6 lg:flex lg:max-h-[calc(100vh-3rem)] lg:flex-col"
+                style={{ minHeight: '400px', ...(desktopPanelMaxHeight ? { maxHeight: desktopPanelMaxHeight } : {}) }}
+              >
+                {panel}
+              </div>
+            )}
+          </div>
+        )}
+
+        {onglet === 'mouvements' && (
+          <section
+            role="tabpanel"
+            id="evenement-panel-mouvements"
+            aria-labelledby="evenement-tab-mouvements"
+            className="overflow-hidden rounded-sm border border-paper-border bg-white"
+          >
+            {mouvements.length === 0 ? (
+              <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun mouvement enregistré.</p>
+            ) : (
+              <ScrollShadowX>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Portefeuille</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">Montant</TableHead>
+                      <TableHead className="text-right">Solde après</TableHead>
                     </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </ScrollShadowX>
+                  </TableHeader>
+                  <TableBody>
+                    {mouvements.map((mouvement) => {
+                      const portefeuille = walletById.get(mouvement.portefeuille_id)
+                      const isDebit = mouvement.type === 'debit'
+                      return (
+                        <TableRow key={mouvement.id}>
+                          <TableCell className="whitespace-nowrap font-registre-mono text-xs text-ink-faint">{formatDateTime(mouvement.created_at)}</TableCell>
+                          <TableCell className="whitespace-nowrap text-ink-muted">{portefeuille?.email ?? 'Portefeuille inconnu'}</TableCell>
+                          <TableCell className="whitespace-nowrap text-ink-muted">{libelleMouvementAdmin(mouvement.type)}</TableCell>
+                          <TableCell className={`whitespace-nowrap text-right font-registre-mono font-semibold tabular-nums ${isDebit ? 'text-ink' : 'text-success'}`}>
+                            {isDebit ? '−' : '+'}{formatCentimes(mouvement.montant_centimes)}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-right font-registre-mono tabular-nums text-ink-muted">
+                            {formatCentimes(mouvement.solde_apres_centimes)}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </ScrollShadowX>
+            )}
+          </section>
         )}
-      </section>
 
-      <section aria-labelledby="commandes-title" className="overflow-hidden rounded-sm border border-paper-border bg-white">
-        <SectionHeader
-          title="Commandes"
-          description={`${commandes.length} commande${commandes.length !== 1 ? 's' : ''}, tous statuts confondus`}
-        />
-        {commandes.length === 0 ? (
-          <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucune commande enregistrée.</p>
-        ) : (
-          <ScrollShadowX>
-            <Table className="min-w-[940px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Moyen</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Montant</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {commandes.map((commande) => (
-                  <TableRow key={commande.id}>
-                    <TableCell className="whitespace-nowrap font-registre-mono text-xs text-ink-faint">{formatDateTime(commande.created_at)}</TableCell>
-                    <TableCell className="whitespace-nowrap font-medium text-ink">{commande.email}</TableCell>
-                    <TableCell className="whitespace-nowrap text-ink-muted">{libelleMoyenPaiement(commande.moyen_paiement)}</TableCell>
-                    <TableCell>
-                      <Badge variant={commande.statut === 'payee' ? 'success' : commande.statut === 'en_attente_paiement' ? 'warning' : 'neutral'}>
-                        {libelleStatutCommande(commande.statut)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-right font-registre-mono font-semibold tabular-nums text-ink">
-                      {formatCentimes(commande.montant_centimes)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollShadowX>
+        {onglet === 'commandes' && (
+          <section
+            role="tabpanel"
+            id="evenement-panel-commandes"
+            aria-labelledby="evenement-tab-commandes"
+            className="overflow-hidden rounded-sm border border-paper-border bg-white"
+          >
+            {commandes.length === 0 ? (
+              <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucune commande enregistrée.</p>
+            ) : (
+              <ScrollShadowX>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Moyen</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead className="text-right">Montant</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {commandes.map((commande) => (
+                      <TableRow key={commande.id}>
+                        <TableCell className="whitespace-nowrap font-registre-mono text-xs text-ink-faint">{formatDateTime(commande.created_at)}</TableCell>
+                        <TableCell className="whitespace-nowrap font-medium text-ink">{commande.email}</TableCell>
+                        <TableCell className="whitespace-nowrap text-ink-muted">{libelleMoyenPaiement(commande.moyen_paiement)}</TableCell>
+                        <TableCell>
+                          <Badge variant={commande.statut === 'payee' ? 'success' : commande.statut === 'en_attente_paiement' ? 'warning' : 'neutral'}>
+                            {libelleStatutCommande(commande.statut)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-right font-registre-mono font-semibold tabular-nums text-ink">
+                          {formatCentimes(commande.montant_centimes)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollShadowX>
+            )}
+          </section>
         )}
-      </section>
+      </div>
 
-      <Dialog
-        open={resendTarget !== null}
-        onOpenChange={(next) => {
-          if (!next) closeResendAccess()
+      {/* Panneau mobile (tiroir) — même animation que ParticipantsPage */}
+      {panelOpen && (
+        <div className="fixed inset-0 z-30 lg:hidden">
+          <div className="absolute inset-0 bg-ink/40" onClick={() => setSelectedWalletId(null)} />
+          <div
+            className={cn(
+              'absolute inset-y-0 right-0 flex w-full max-w-sm flex-col bg-white shadow-xl transition-transform duration-200',
+              mobilePanelVisible ? 'translate-x-0' : 'translate-x-full'
+            )}
+          >
+            {panel}
+          </div>
+        </div>
+      )}
+
+      <RenvoyerAccesPortefeuilleModal
+        portefeuille={resendTarget}
+        onClose={() => setResendTarget(null)}
+        onSent={(email) => {
+          setResendTarget(null)
+          showToast(`Nouveau lien envoyé à ${email}`)
+          void fetchData(false)
         }}
-      >
-        <DialogContent className="max-w-lg" aria-describedby="resend-access-description">
-          {resendTarget && (
-            <>
-              <DialogHeader className="shrink-0 pr-12">
-                <DialogTitle>Renvoyer l’accès au portefeuille</DialogTitle>
-                <DialogDescription id="resend-access-description" className="mt-1">
-                  Générez un lien neuf pour {resendTarget.email}.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-                <StatusNotice tone="warning" heading="Vérification indispensable">
-                  Vérifiez l’identité de la personne avant de modifier l’adresse ou de transmettre le lien : il permet de dépenser le solde du portefeuille.
-                </StatusNotice>
-
-                <div>
-                  <Label htmlFor="resend-wallet-email">Adresse email</Label>
-                  <Input
-                    id="resend-wallet-email"
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    value={resendEmail}
-                    disabled={resendEmailSent || resendLink !== null}
-                    onChange={(event) => {
-                      setResendEmail(event.target.value)
-                      setResendError(null)
-                    }}
-                    aria-invalid={resendEmailInvalid}
-                    aria-describedby="resend-wallet-email-help"
-                    className="mt-1"
-                  />
-                  <p id="resend-wallet-email-help" className={`mt-1.5 text-xs ${resendEmailInvalid ? 'text-stamp' : 'text-ink-faint'}`}>
-                    La correction met à jour le portefeuille, pas l’historique de la commande.
-                  </p>
-                </div>
-
-                <label className="flex items-start gap-3 rounded-sm border border-paper-border bg-white p-3 text-sm text-ink-muted">
-                  <input
-                    type="checkbox"
-                    checked={resendRevokeOld}
-                    disabled={resendEmailSent || resendLink !== null}
-                    onChange={(event) => setResendRevokeOld(event.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
-                  />
-                  <span>
-                    <span className="block font-medium text-ink">Révoquer les anciens liens</span>
-                    <span className="mt-0.5 block text-xs leading-5 text-ink-faint">
-                      À cocher si le téléphone a été perdu ou volé. Les anciens accès cesseront immédiatement de fonctionner.
-                    </span>
-                  </span>
-                </label>
-
-                {resendEmailSent && (
-                  <StatusNotice tone="success" heading="Email envoyé">
-                    Un nouveau lien d’accès a été envoyé à {resendEmail.trim().toLowerCase()}.
-                  </StatusNotice>
-                )}
-
-                {resendError && (
-                  <StatusNotice tone="danger" role="alert">
-                    {resendError}
-                  </StatusNotice>
-                )}
-
-                {resendLink && (
-                  <div>
-                    <Label htmlFor="resend-wallet-link">Nouveau lien — affiché une seule fois</Label>
-                    <div className="mt-1 flex flex-col gap-2 sm:flex-row">
-                      <Input
-                        id="resend-wallet-link"
-                        value={resendLink}
-                        readOnly
-                        className="font-registre-mono text-xs"
-                        onFocus={(event) => event.currentTarget.select()}
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={async () => {
-                          const copied = await copyTextToClipboard(resendLink)
-                          showToast(copied ? 'Lien copié' : 'Copie impossible : sélectionnez le lien manuellement.')
-                        }}
-                      >
-                        Copier
-                      </Button>
-                    </div>
-                    <p className="mt-1.5 text-xs text-ink-faint">
-                      Fermer cette fenêtre effacera le lien de l’écran.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex shrink-0 flex-col-reverse gap-3 border-t border-paper-border px-6 py-4 sm:flex-row sm:justify-end">
-                <Button type="button" variant="secondary" disabled={resendSubmittingAction !== null} onClick={closeResendAccess}>
-                  {resendEmailSent || resendLink ? 'Terminer' : 'Annuler'}
-                </Button>
-                {!resendEmailSent && !resendLink && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={!isValidEmail(resendEmail.trim()) || resendSubmittingAction !== null}
-                      onClick={() => void resendAccess('link')}
-                    >
-                      {resendSubmittingAction === 'link' ? 'Génération…' : 'Afficher le lien'}
-                    </Button>
-                    <Button
-                      type="button"
-                      disabled={!isValidEmail(resendEmail.trim()) || resendSubmittingAction !== null}
-                      onClick={() => void resendAccess('email')}
-                    >
-                      {resendSubmittingAction === 'email' ? 'Envoi…' : 'Envoyer par email'}
-                    </Button>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+        onLinkCreated={() => void fetchData(false)}
+        onCopyResult={showToast}
+      />
 
       <Dialog
         open={revokeTarget !== null}
@@ -796,7 +734,7 @@ export default function EvenementDetailPage() {
                 L’acheteur perdra immédiatement l’accès à son portefeuille avec ces liens.
               </p>
               <StatusNotice tone="warning" className="mt-4">
-                Cette action est irréversible. La réémission d’un accès n’est pas disponible dans cette version.
+                Cette action est irréversible. Vous pourrez ensuite renvoyer un nouvel accès depuis le détail du portefeuille.
               </StatusNotice>
               {revokeError && (
                 <StatusNotice tone="danger" role="alert" className="mt-3">
@@ -823,6 +761,39 @@ export default function EvenementDetailPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <EvenementModal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        organisationId={organisationId}
+        activites={data.activites}
+        evenement={evenement}
+        onSaved={(message) => {
+          showToast(message)
+          void fetchData(false)
+        }}
+      />
+      <EvenementAfficheModal
+        open={afficheOpen}
+        onClose={() => setAfficheOpen(false)}
+        evenement={afficheOpen ? evenement : null}
+        organisationSlug={data.organisationSlug}
+      />
+      <CreditManuelModal
+        open={creditOpen}
+        onClose={() => {
+          setCreditOpen(false)
+          if (creditedRef.current) {
+            creditedRef.current = false
+            void fetchData(false)
+          }
+        }}
+        evenement={creditOpen ? evenement : null}
+        onCredited={(message) => {
+          creditedRef.current = true
+          showToast(message)
+        }}
+      />
 
       {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
     </div>
