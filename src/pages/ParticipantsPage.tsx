@@ -179,7 +179,7 @@ function DetailPanel({
   const p = participant.personnes
 
   return (
-    <div className="flex h-full flex-col font-registre">
+    <div className="flex min-h-0 flex-1 flex-col font-registre">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-paper-border px-6 py-4">
         <h2 className="text-lg font-semibold text-ink">Détail du donateur</h2>
@@ -194,7 +194,7 @@ function DetailPanel({
       </div>
 
       {/* Body */}
-      <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
         {/* Identity */}
         <div>
           {p.civilite && (
