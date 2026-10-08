@@ -36,6 +36,7 @@ import ParametresSuiviPage from './pages/ParametresSuiviPage'
 import ParametresCompteAdminPage from './pages/ParametresCompteAdminPage'
 import SuperAdminLayout from './pages/SuperAdminLayout'
 import SuperAdminPage from './pages/SuperAdminPage'
+import LegacyRedirect from './components/LegacyRedirect'
 
 
 function App() {
@@ -62,22 +63,29 @@ function App() {
               <Route path="dons-reguliers" element={<DonsReguliersPage />} />
               <Route path="participants" element={<ParticipantsPage />} />
               <Route path="recus" element={<RecusFiscauxPage />} />
-              <Route path="comptabilite" element={<ComptabilitePage />} />
+              <Route path="statistiques" element={<ComptabilitePage />} />
             </Route>
             <Route element={<FeatureGuard feature="adherents" />}>
               <Route path="adherents" element={<AdherentsPage />} />
               <Route path="adherents/demandes" element={<DemandesAdhesionPage />} />
-              <Route path="adherents/campagne-mailing" element={<CampagneMailingPage />} />
-              <Route path="adherents/campagne-courrier" element={<CampagneCourrierPage />} />
+              <Route path="communication/emailing" element={<CampagneMailingPage />} />
+              <Route path="communication/courrier" element={<CampagneCourrierPage />} />
               <Route path="parametres/adherents" element={<ParametresAdherentsPage />} />
             </Route>
             <Route element={<FeatureGuard feature={['dons', 'adherents']} />}>
               <Route path="activites" element={<ActivitesPage />} />
             </Route>
             <Route element={<FeatureGuard feature="evenements" />}>
-              <Route path="evenements" element={<EvenementsPage />} />
-              <Route path="evenements/:id" element={<EvenementDetailPage />} />
+              <Route path="activites/porte-monnaie" element={<EvenementsPage />} />
+              <Route path="activites/porte-monnaie/:id" element={<EvenementDetailPage />} />
             </Route>
+            {/* Anciennes adresses (réorganisation du menu, 2026-10) : redirigées vers les nouvelles,
+                hors FeatureGuard — la page cible applique sa propre garde de module. */}
+            <Route path="comptabilite" element={<LegacyRedirect to="/admin/statistiques" />} />
+            <Route path="adherents/campagne-mailing" element={<LegacyRedirect to="/admin/communication/emailing" />} />
+            <Route path="adherents/campagne-courrier" element={<LegacyRedirect to="/admin/communication/courrier" />} />
+            <Route path="evenements" element={<LegacyRedirect to="/admin/activites/porte-monnaie" />} />
+            <Route path="evenements/:id" element={<LegacyRedirect to="/admin/activites/porte-monnaie/:id" />} />
             <Route path="parametres" element={<ParametresOrganisationPage />} />
             <Route path="parametres/fiscal" element={<ParametresFiscalPage />} />
             <Route path="parametres/suivi" element={<ParametresSuiviPage />} />

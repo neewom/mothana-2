@@ -20,6 +20,7 @@ import { Button } from '../components/ui/button'
 import { Textarea } from '../components/ui/textarea'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
+import { useNavCountersContext } from '../hooks/useNavCounters'
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -48,6 +49,7 @@ const TABS: { value: Tab; label: string }[] = [
 export default function DemandesAdhesionPage() {
   const organisationId = useOrganisationId()
   const { toast, showToast, dismissToast } = useToast()
+  const { refreshNavCounters } = useNavCountersContext()
 
   const [tab, setTab] = useState<Tab>('en_attente')
   const [demandes, setDemandes] = useState<DemandeAdhesion[]>([])
@@ -140,6 +142,7 @@ export default function DemandesAdhesionPage() {
       })
     }
     fetchDemandes()
+    refreshNavCounters()
   }
 
   async function handleRefuse() {
@@ -177,6 +180,7 @@ export default function DemandesAdhesionPage() {
     setRefusingDemande(null)
     setMotifRefus('')
     fetchDemandes()
+    refreshNavCounters()
   }
 
   return (

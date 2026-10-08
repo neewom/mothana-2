@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useAdminOutletContext } from '../hooks/useAdminOutletContext'
-import { moisManquants, anneeMoisDeDate } from '../lib/donsReguliers'
+import { compterDonsReguliersAConfirmer } from '../lib/donsReguliers'
 import { cn } from '../lib/utils'
 import type { Adherent } from '../types'
 import AdherentModal from '../components/AdherentModal'
@@ -157,16 +157,7 @@ export default function DashboardPage() {
 
       const engagements = (engagementsRes.data ?? []) as { id: string; jour_prelevement: number; date_debut: string; date_fin: string | null }[]
       const donsGeneres = (donsGeneresRes.data ?? []) as { don_regulier_id: string; date: string }[]
-      const moisDejaGeneresParEngagement = new Map<string, Set<string>>()
-      for (const d of donsGeneres) {
-        if (!d.don_regulier_id) continue
-        if (!moisDejaGeneresParEngagement.has(d.don_regulier_id)) moisDejaGeneresParEngagement.set(d.don_regulier_id, new Set())
-        moisDejaGeneresParEngagement.get(d.don_regulier_id)!.add(anneeMoisDeDate(d.date))
-      }
-      const totalAConfirmer = engagements.reduce(
-        (sum, e) => sum + moisManquants(e, moisDejaGeneresParEngagement.get(e.id) ?? new Set()).length,
-        0
-      )
+      const totalAConfirmer = compterDonsReguliersAConfirmer(engagements, donsGeneres)
       setDonsReguliersAConfirmer(totalAConfirmer)
       setStatutsUrl((organisationRes.data as { statuts_url: string | null } | null)?.statuts_url ?? null)
 

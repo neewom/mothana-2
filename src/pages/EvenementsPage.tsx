@@ -84,7 +84,7 @@ function EvenementRow({ evenement }: { evenement: Evenement }) {
   return (
     <li className="border-t border-paper-border-muted first:border-t-0">
       <Link
-        to={`/admin/evenements/${evenement.id}`}
+        to={`/admin/activites/porte-monnaie/${evenement.id}`}
         className={cn(
           'flex items-center gap-3 px-4 py-4 transition-colors hover:bg-paper-border/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stamp/70 md:px-6',
           isClosed && 'py-3'
@@ -178,7 +178,7 @@ export default function EvenementsPage() {
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       <header className="flex items-baseline justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Portefeuille événement</h1>
+          <h1 className="text-2xl font-bold text-ink md:text-3xl">Porte-monnaie</h1>
           <p className="mt-1 font-registre-mono text-sm text-ink-faint">
             {evenements.length} événement{evenements.length !== 1 ? 's' : ''}
           </p>

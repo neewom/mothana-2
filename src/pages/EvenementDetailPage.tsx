@@ -381,7 +381,7 @@ export default function EvenementDetailPage() {
         <StatusNotice tone="warning" heading="Événement introuvable">
           <p>Cet événement n’existe pas ou n’appartient pas à l’organisation consultée.</p>
           <Button asChild variant="secondary" className="mt-3">
-            <Link to="/admin/evenements">Retour aux événements</Link>
+            <Link to="/admin/activites/porte-monnaie">Retour au porte-monnaie</Link>
           </Button>
         </StatusNotice>
       </div>
@@ -435,11 +435,11 @@ export default function EvenementDetailPage() {
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       <header>
         <Button asChild variant="ghost" size="sm" className="-ml-3 mb-2">
-          <Link to="/admin/evenements">
+          <Link to="/admin/activites/porte-monnaie">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="h-4 w-4" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
             </svg>
-            Événements
+            Porte-monnaie
           </Link>
         </Button>
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
