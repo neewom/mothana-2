@@ -61,8 +61,8 @@ Deux sessions d'agent travaillent sur ce dépôt depuis la même machine, chacun
 
 ### Dev
 - Ne démarre qu'une carte **cadrée + ticket rédigé + go explicite de l'utilisateur**.
-- Au démarrage : crée la branche dans son worktree (`git switch -c <branche> origin/dev`), **ouvre immédiatement une PR en draft** vers `dev` (même quasi vide) puis pose un commentaire Trello « Dev en cours — Claude Code dev, branche <nom>, PR #<numéro> » : une carte = un seul agent à la fois.
-- Implémente, teste, pousse ses commits sur cette même PR, puis la **repasse en « ready for review »** + commentaire « prête pour review » (fichier de session aussi), **prévient le lead tech par message direct**, intègre ses retours.
+- Au démarrage : crée la branche dans son worktree (`git switch -c <branche> origin/dev`), **ouvre immédiatement une PR en draft** vers `dev` (même quasi vide) puis pose un commentaire Trello « Dev en cours — Claude Code dev, branche <nom>, PR #<numéro> » et **déplace la carte dans « In progress »** : une carte = un seul agent à la fois.
+- Implémente, teste, pousse ses commits sur cette même PR, puis la **repasse en « ready for review »** + commentaire « prête pour review » (fichier de session aussi), **déplace la carte dans « To review »**, **prévient le lead tech par message direct**, intègre ses retours. Une PR repassée en draft (itération fonctionnelle) ramène la carte dans « In progress ».
 - Sur toute ambiguïté touchant architecture, sécurité, périmètre ou modèle de données : remonter (message au lead tech + trace en commentaire de PR ou Trello) au lieu de trancher seul — que la PR soit encore en draft ou non.
 
 ### Boucle d'itération fonctionnelle/UX
@@ -200,8 +200,10 @@ Boîte à idées de l'utilisateur — il y note à la volée ses demandes d'évo
 
 - Liste "Backlog" (`6a9de5d6feb9f5af27ab5240`) : idées pas encore cadrées
 - Liste "Todo" (`6a4ec9ad1fb154cfc45c858d`) : cadrées, prêtes à prioriser
-- Liste "Done" (`6a4ec9b1939cbad2bfc0da8c`)
-- **Ordre des listes** : "Todo" puis "Done" sont **toujours les deux dernières listes** du board. Toute nouvelle liste (batch, épique, retours de PR, thème…) se crée **avant "Todo"** — vérifier les positions après création (l'API place une liste en fin de board par défaut)
+- Liste "In progress" (`6ac7cbdc33212dd42717ae97`) : carte en cours de dev (PR en draft) — le dev l'y déplace au démarrage
+- Liste "To review" (`6ac7cbcd30f2681d38594749`) : PR « ready for review » — revue du lead tech puis test utilisateur ; le dev l'y déplace au passage ready
+- Liste "Done" (`6a4ec9b1939cbad2bfc0da8c`) : le lead tech y déplace la carte après le merge (avec l'entrée du journal)
+- **Ordre des listes** : "Todo", "In progress", "To review" puis "Done" sont **toujours les quatre dernières listes** du board, dans cet ordre (listes ajoutées par l'utilisateur le 2026-10-08). Toute nouvelle liste (batch, épique, retours de PR, thème…) se crée **avant "Todo"** — vérifier les positions après création (l'API place une liste en fin de board par défaut)
 - Listes "Batch — ..." : groupes de cartes à dev enchaîné sans confirmation/merge intermédiaire (voir règle "batch dev" ci-dessus) — créées à la discrétion de l'utilisateur, signal fiable = l'existence de la liste elle-même, pas de jugement à faire sur si des cartes hors liste sont "assez indépendantes" pour être enchaînées
 - Listes "Pr \<numéro\>" : retours de QA sur une PR précise, une carte par retour, remplie par l'utilisateur pendant ses tests — à traiter en un seul passage groupé, un seul commit/push sur la PR existante, puis archiver la liste
 - Liste "Amélioration UX/UI" (`6ac36b6a3a4c8db3a8272439`) : cartes issues de la passe UX/UI du 2026-10-05 — pas la sémantique "batch dev"
