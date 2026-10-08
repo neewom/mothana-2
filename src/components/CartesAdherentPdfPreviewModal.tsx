@@ -1,5 +1,5 @@
-import Modal from './Modal'
-import SectionHeader from './SectionHeader'
+import { Button } from './ui/button'
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog'
 
 interface CartesAdherentPdfPreviewModalProps {
   open: boolean
@@ -16,8 +16,6 @@ export default function CartesAdherentPdfPreviewModal({
   filename,
   count,
 }: CartesAdherentPdfPreviewModalProps) {
-  if (!open) return null
-
   function handleDownload() {
     const link = document.createElement('a')
     link.href = pdfUrl
@@ -28,39 +26,24 @@ export default function CartesAdherentPdfPreviewModal({
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      maxWidthClassName="max-w-3xl"
-      labelledBy="cartes-pdf-preview-title"
-      heightClassName="h-[85vh] min-h-[560px]"
-    >
-      <SectionHeader
-        titleId="cartes-pdf-preview-title"
-        reserveCloseButton
-        title={`Aperçu — ${count} carte${count > 1 ? 's' : ''}`}
-        actions={
-          <>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-            >
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
+      <DialogContent className="h-[85vh] min-h-[560px] max-w-3xl" aria-describedby={undefined}>
+        {/* Titre à gauche, actions à droite ; empilés sous sm. pr-12 réserve le bouton Fermer. */}
+        <div className="flex shrink-0 flex-col gap-3 border-b border-paper-border px-6 py-4 pr-12 sm:flex-row sm:items-center sm:justify-between">
+          <DialogTitle>{`Aperçu — ${count} carte${count > 1 ? 's' : ''}`}</DialogTitle>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>
               Fermer
-            </button>
-            <button
-              type="button"
-              onClick={handleDownload}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            >
+            </Button>
+            <Button type="button" onClick={handleDownload}>
               Télécharger le PDF
-            </button>
-          </>
-        }
-      />
-      <div className="flex-1 overflow-hidden p-6">
-        <iframe title="Aperçu des cartes adhérent" src={pdfUrl} className="h-full w-full rounded-lg border border-slate-200" />
-      </div>
-    </Modal>
+            </Button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-hidden p-6">
+          <iframe title="Aperçu des cartes adhérent" src={pdfUrl} className="h-full w-full rounded-sm border border-paper-border" />
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

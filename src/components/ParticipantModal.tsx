@@ -3,7 +3,14 @@ import { supabase } from '../lib/supabaseClient'
 import type { Civilite, ProfilParticipant } from '../types'
 import { CIVILITE_OPTIONS } from '../lib/civilite'
 import { generateUUID } from '../lib/uuid'
-import Modal from './Modal'
+import { isValidEmail } from '../lib/textFormat'
+import { cn } from '../lib/utils'
+import { Button } from './ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
+import { Select } from './ui/select'
+import { Textarea } from './ui/textarea'
 
 interface ParticipantModalProps {
   open: boolean
@@ -11,8 +18,6 @@ interface ParticipantModalProps {
   onSaved: (participant: ProfilParticipant) => void
   participant?: ProfilParticipant
   organisationId: string
-  /** Voir Modal.tsx — à passer quand ce modal s'ouvre par-dessus un Dialog déjà migré (ex. depuis DonModal). */
-  elevated?: boolean
 }
 
 export default function ParticipantModal({
@@ -21,7 +26,6 @@ export default function ParticipantModal({
   onSaved,
   participant,
   organisationId,
-  elevated,
 }: ParticipantModalProps) {
   const isEdit = !!participant
 
@@ -40,6 +44,7 @@ export default function ParticipantModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const emailInvalid = email.length > 0 && !isValidEmail(email.trim())
   const isFoyer = civilite === 4
   const hasNoPrenom = civilite === 5 || civilite === 6
 
@@ -76,11 +81,13 @@ export default function ParticipantModal({
     }
   }, [open, participant])
 
-  if (!open) return null
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    if (emailInvalid) {
+      setError("Le format de l'adresse email est invalide.")
+      return
+    }
     setSaving(true)
 
     if (isEdit && participant) {
@@ -226,221 +233,132 @@ export default function ParticipantModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} labelledBy="participant-modal-title" elevated={elevated}>
-        <div className="border-b border-slate-200 px-6 py-4">
-          <h2 id="participant-modal-title" className="text-lg font-semibold text-slate-900">
-            {isEdit ? 'Modifier le donateur' : 'Ajouter un donateur'}
-          </h2>
-        </div>
+    <Dialog open={open} onOpenChange={(next) => { if (!next && !saving) onClose() }}>
+      <DialogContent className="max-w-md" aria-describedby={undefined}>
+        <DialogHeader className="shrink-0 pr-12">
+          <DialogTitle>{isEdit ? 'Modifier le donateur' : 'Ajouter un donateur'}</DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
-          <div className="space-y-4 overflow-y-auto p-6">
-          {error && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex-1 space-y-4 overflow-y-auto p-6">
+            {error && (
+              <div role="alert" className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="pm-civilite" className="block">Civilité</Label>
+              <Select
+                id="pm-civilite"
+                value={civilite}
+                onChange={(e) => {
+                  const value = e.target.value ? (Number(e.target.value) as Civilite) : ''
+                  setCivilite(value)
+                  if (value === 5 || value === 6) setPrenom('')
+                }}
+                className="w-full"
+              >
+                <option value="">Non renseigné</option>
+                {CIVILITE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </Select>
             </div>
-          )}
 
-          {/* Civilité */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Civilité
-            </label>
-            <select
-              value={civilite}
-              onChange={(e) => {
-                const value = e.target.value ? (Number(e.target.value) as Civilite) : ''
-                setCivilite(value)
-                if (value === 5 || value === 6) setPrenom('')
-              }}
-              className="select-field w-full rounded-lg border border-slate-300 py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">Non renseigné</option>
-              {CIVILITE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="pm-nom">
+                Nom <span className="text-stamp">*</span>
+              </Label>
+              <Input id="pm-nom" type="text" required value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Dupont" />
+            </div>
 
-          {/* Nom */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Nom <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={nom}
-              onChange={(e) => setNom(e.target.value)}
-              placeholder="Dupont"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+            {!hasNoPrenom && (
+              <div className="space-y-1.5">
+                <Label htmlFor="pm-prenom">Prénom</Label>
+                <Input id="pm-prenom" type="text" value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Jean" />
+              </div>
+            )}
 
-          {/* Prénom */}
-          {!hasNoPrenom && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Prénom
-              </label>
-              <input
-                type="text"
-                value={prenom}
-                onChange={(e) => setPrenom(e.target.value)}
-                placeholder="Jean"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            {isFoyer && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="pm-nom2">Nom 2</Label>
+                  <Input id="pm-nom2" type="text" value={nom2} onChange={(e) => setNom2(e.target.value)} placeholder="Dupont" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="pm-prenom2">Prénom 2</Label>
+                  <Input id="pm-prenom2" type="text" value={prenom2} onChange={(e) => setPrenom2(e.target.value)} placeholder="Marie" />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="pm-email">Email</Label>
+              <Input
+                id="pm-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="jean.dupont@exemple.fr"
+                aria-invalid={emailInvalid}
+                className={cn(emailInvalid && 'border-stamp focus-visible:ring-stamp/70')}
+              />
+              {emailInvalid && <p className="font-registre-mono text-[11px] text-stamp">Format d'email invalide.</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="pm-tel">Téléphone</Label>
+              {/* type="tel" sans filtrage des chiffres : les donateurs peuvent avoir un numéro
+                  international (+66, +856…) que sanitizeDigits amputerait du « + ». */}
+              <Input
+                id="pm-tel"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={telephone}
+                onChange={(e) => setTelephone(e.target.value)}
+                placeholder="06 00 00 00 00"
               />
             </div>
-          )}
 
-          {/* Co-signataire (foyer) */}
-          {isFoyer && (
+            <div className="space-y-1.5">
+              <Label htmlFor="pm-adresse">Adresse</Label>
+              <Input id="pm-adresse" type="text" value={adresse} onChange={(e) => setAdresse(e.target.value)} placeholder="12 rue des Lilas" />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Nom 2
-                </label>
-                <input
-                  type="text"
-                  value={nom2}
-                  onChange={(e) => setNom2(e.target.value)}
-                  placeholder="Dupont"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+              <div className="space-y-1.5">
+                <Label htmlFor="pm-cp">Code postal</Label>
+                <Input id="pm-cp" type="text" value={codePostal} onChange={(e) => setCodePostal(e.target.value)} placeholder="75000" />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Prénom 2
-                </label>
-                <input
-                  type="text"
-                  value={prenom2}
-                  onChange={(e) => setPrenom2(e.target.value)}
-                  placeholder="Marie"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+              <div className="space-y-1.5">
+                <Label htmlFor="pm-ville">Ville</Label>
+                <Input id="pm-ville" type="text" value={ville} onChange={(e) => setVille(e.target.value)} placeholder="Paris" />
               </div>
             </div>
-          )}
 
-          {/* Email */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="jean.dupont@exemple.fr"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          {/* Téléphone */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Téléphone
-            </label>
-            <input
-              type="text"
-              value={telephone}
-              onChange={(e) => setTelephone(e.target.value)}
-              placeholder="06 00 00 00 00"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          {/* Adresse */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Adresse
-            </label>
-            <input
-              type="text"
-              value={adresse}
-              onChange={(e) => setAdresse(e.target.value)}
-              placeholder="12 rue des Lilas"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          {/* Code postal / Ville */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Code postal
-              </label>
-              <input
-                type="text"
-                value={codePostal}
-                onChange={(e) => setCodePostal(e.target.value)}
-                placeholder="75000"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+            <div className="space-y-1.5">
+              <Label htmlFor="pm-pays">Pays</Label>
+              <Input id="pm-pays" type="text" value={pays} onChange={(e) => setPays(e.target.value)} placeholder="France" />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Ville
-              </label>
-              <input
-                type="text"
-                value={ville}
-                onChange={(e) => setVille(e.target.value)}
-                placeholder="Paris"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+
+            <div className="space-y-1.5">
+              <Label htmlFor="pm-notes">Notes</Label>
+              <Textarea id="pm-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Notes libres…" />
             </div>
           </div>
 
-          {/* Pays */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Pays
-            </label>
-            <input
-              type="text"
-              value={pays}
-              onChange={(e) => setPays(e.target.value)}
-              placeholder="France"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Notes
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              placeholder="Notes libres…"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          </div>
-
-          {/* Actions — sticky, ombre portée vers le haut pour signaler le contenu scrollable au-dessus */}
-          <div className="flex shrink-0 justify-end gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4 shadow-[0_-4px_6px_-4px_rgba(0,0,0,0.1)]">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-            >
+          <div className="flex shrink-0 justify-end gap-3 border-t border-paper-border bg-white px-6 py-4">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
               Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-            >
+            </Button>
+            <Button type="submit" disabled={saving}>
               {saving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
+            </Button>
           </div>
         </form>
-    </Modal>
+      </DialogContent>
+    </Dialog>
   )
 }
