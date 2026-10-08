@@ -89,7 +89,7 @@ Mothana s'adresse à des admins d'association, des bénévoles sur le terrain et
 
 **Historique** : ce système remplace une première itération (indigo/`rounded-lg`, encore documentée dans les versions précédentes de ce fichier). La migration a eu lieu page par page sur environ 25 PR (pilote sur `ActivitesPage`, généralisation validée ensuite), toutes les pages admin/bénévole/super-admin/publiques étant désormais sur ce système. Historique détaillé : `docs/journal-avancement.md` (entrées "Rollout shadcn/ui").
 
-**Dette connue — composants partagés non migrés ("seams")** : quelques composants transverses, ouverts depuis des pages déjà migrées, sont restés sur l'ancien système (ancien wrapper `Modal.tsx`, inputs et boutons indigo/slate) faute d'être rattachés à une seule page du rollout : `AdhesionModal`, `AssignerListeModal`, `CartesAdherentPdfPreviewModal`, `ImportWizard`, `ParticipantModal`, `ParticipantAutocomplete`, `AdherentHistoriqueSection`, `TagsInput`. Corriger un bouton isolé dans ces fichiers sans migrer le composant entier (wrapper de modale, champs, typographie) donnerait un résultat bâtard plus incohérent que l'état actuel — la remise à niveau de chacun est un chantier à part entière (même ampleur qu'une page du rollout initial), pas une simple retouche de couleur de bouton.
+**Dette des composants partagés ("seams") — soldée** : les derniers composants restés sur l'ancien système (ancien wrapper `Modal.tsx`, indigo/slate) — `AdhesionModal`, `AssignerListeModal`, `CartesAdherentPdfPreviewModal`, `ImportWizard`, `ParticipantModal`, `ParticipantAutocomplete`, `AdherentHistoriqueSection`, `TagsInput`, ainsi que `Toast`, `Tooltip`, `JournalActionLabel` — ont été migrés par l'épique design system (cartes DS 1, 2 et 3, 2026-10). `Modal.tsx` a été supprimé : toute modale passe par `ui/dialog`.
 
 **Key Characteristics:**
 - Surfaces plates au repos (bordure fine `paper-border`, coins à peine adoucis `rounded-sm`), aucune décoration gratuite.
@@ -216,7 +216,6 @@ Bandeau pleine largeur en tête de section pour une action requise ou un avertis
 - **Do** utiliser `type="tel"` avec filtrage des chiffres pour tout champ téléphone — jamais `type="number"` (perd les zéros initiaux).
 - **Do** utiliser `ScrollShadowX` pour tout tableau susceptible de déborder horizontalement, y compris les tableaux à une seule colonne de contenu (nom + actions) — jamais de bascule en cartes empilées mobile (`block`/`table-row`).
 - **Do** garder le contenu sur fond clair même quand la sidebar de navigation est sombre — le contraste sidebar/contenu est un repère spatial, pas une invitation à assombrir le reste de l'UI.
-- **Do**, avant de corriger un bouton isolé dans un composant partagé, vérifier si le composant entier est déjà migré vers ce système — sinon, traiter la migration comme un chantier à part (voir la liste des seams ci-dessus), pas une retouche ponctuelle.
 - **Do** retirer un CTA de ligne qui duplique le clic sur la ligne (ouvre déjà la même modale/le même panneau) — dernière colonne réduite à un chevron, actions de gestion déplacées dans la modale/le panneau (voir Tables).
 
 ### Don't:
