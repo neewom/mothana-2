@@ -20,6 +20,7 @@ import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import ScrollShadowX from '../components/ScrollShadowX'
+import SortableTableHead from '../components/SortableTableHead'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -150,32 +151,6 @@ function useParticipants(organisationId: string): ParticipantsData {
     upsertParticipant,
     removeParticipant,
   }
-}
-
-// ---------------------------------------------------------------------------
-// SortableHead
-// ---------------------------------------------------------------------------
-
-interface SortableHeadProps {
-  field: SortField
-  label: string
-  sortField: SortField
-  sortDirection: 'asc' | 'desc'
-  onSort: (field: SortField) => void
-  align?: 'left' | 'right'
-  className?: string
-}
-
-function SortableHead({ field, label, sortField, sortDirection, onSort, align = 'left', className }: SortableHeadProps) {
-  return (
-    <TableHead
-      onClick={() => onSort(field)}
-      className={cn('cursor-pointer select-none hover:text-ink', align === 'right' && 'text-right', className)}
-    >
-      {label}
-      {sortField === field && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
-    </TableHead>
-  )
 }
 
 // ---------------------------------------------------------------------------
@@ -599,10 +574,10 @@ export default function ParticipantsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <SortableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
-                      <SortableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <SortableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <SortableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="hidden md:table-cell" />
+                      <SortableTableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
+                      <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableTableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="hidden md:table-cell" />
                       <TableHead />
                     </TableRow>
                   </TableHeader>
