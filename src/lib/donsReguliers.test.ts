@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { compterDonsReguliersAConfirmer } from './donsReguliers'
+import { compterDonsReguliersAConfirmer, periodeEngagement } from './donsReguliers'
 
 describe('compterDonsReguliersAConfirmer', () => {
   beforeEach(() => {
@@ -22,5 +22,12 @@ describe('compterDonsReguliersAConfirmer', () => {
 
   it('renvoie 0 sans engagement', () => {
     expect(compterDonsReguliersAConfirmer([], [])).toBe(0)
+  })
+})
+
+describe('periodeEngagement', () => {
+  it('écrit la période en clair', () => {
+    expect(periodeEngagement('2026-05-01', null)).toBe('depuis le 01/05/2026, sans date de fin')
+    expect(periodeEngagement('2026-05-01', '2026-12-31')).toBe('du 01/05/2026 au 31/12/2026')
   })
 })
