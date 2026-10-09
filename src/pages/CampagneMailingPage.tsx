@@ -9,15 +9,15 @@ import { classifyMailingRecipients, type MailingRecipientGroups } from '../lib/m
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import ScrollShadowX from '../components/ScrollShadowX'
-import BrevoConfigModal, { type BrevoConfigValues } from '../components/BrevoConfigModal'
 import AdherentModal from '../components/AdherentModal'
 import type { Adherent } from '../types'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
-import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../components/ui/dialog'
+import { Link } from 'react-router-dom'
+import { StatusNotice } from '../components/ui/status-notice'
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
 const MAX_ATTACHMENTS = 3
@@ -164,9 +164,7 @@ export default function CampagneMailingPage() {
 
   // Config Brevo
   const [configLoading, setConfigLoading] = useState(true)
-  const [brevoConfig, setBrevoConfig] = useState<BrevoConfigValues>({ apiKey: '', expediteurNom: '', expediteurEmail: '' })
   const [configured, setConfigured] = useState(false)
-  const [brevoModalOpen, setBrevoModalOpen] = useState(false)
 
   // Composition
   const [sujet, setSujet] = useState('')
@@ -280,11 +278,6 @@ export default function CampagneMailingPage() {
         .single()
 
       const raw = data as BrevoConfig | null
-      setBrevoConfig({
-        apiKey: raw?.brevo_api_key ?? '',
-        expediteurNom: raw?.brevo_expediteur_nom ?? '',
-        expediteurEmail: raw?.brevo_expediteur_email ?? '',
-      })
       setConfigured(!!(raw?.brevo_api_key && raw.brevo_expediteur_nom && raw.brevo_expediteur_email))
       setConfigLoading(false)
     }
@@ -460,12 +453,6 @@ export default function CampagneMailingPage() {
       })
   }, [organisationId])
 
-  function handleConfigSaved(values: BrevoConfigValues) {
-    setBrevoConfig(values)
-    setConfigured(!!(values.apiKey.trim() && values.expediteurNom.trim() && values.expediteurEmail.trim()))
-    showToast('Configuration Brevo enregistrée')
-  }
-
   function handleAttachmentsChange(files: FileList | null) {
     setAttachmentError(null)
     if (!files || files.length === 0) return
@@ -575,23 +562,14 @@ export default function CampagneMailingPage() {
         <p className="mt-1 text-sm text-ink-muted">Envoyez une campagne d'information à vos adhérents via Brevo.</p>
       </div>
 
-      <SectionCard
-        title="Configuration Brevo"
-        description="Compte Brevo de votre organisation, utilisé pour l'envoi des campagnes."
-      >
-        <div className="flex items-center gap-3">
-          <Badge variant={configured ? 'success' : 'neutral'}>
-            {configured ? 'Configuré' : 'Non configuré'}
-          </Badge>
-          <Button type="button" variant="secondary" onClick={() => setBrevoModalOpen(true)}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Configurer
-          </Button>
-        </div>
-      </SectionCard>
+      {!configLoading && !configured && (
+        <StatusNotice tone="warning" heading="Brevo n’est pas configuré">
+          L’envoi des campagnes passe par le compte Brevo de votre organisation.{' '}
+          <Link to="/admin/parametres/integrations" className="font-medium underline underline-offset-2">
+            Configurer Brevo dans Paramètres › Intégrations
+          </Link>
+        </StatusNotice>
+      )}
 
       <SectionCard
         title="Nouvelle campagne"
@@ -797,7 +775,8 @@ export default function CampagneMailingPage() {
 
           {!configured && (
             <p className="rounded-sm border border-warning-border bg-warning-tint px-4 py-3 text-sm text-warning">
-              Configurez d'abord la clé API Brevo et l'expéditeur ci-dessus.
+              Configurez d'abord la clé API Brevo et l'expéditeur dans{' '}
+              <Link to="/admin/parametres/integrations" className="font-medium underline underline-offset-2">Paramètres › Intégrations</Link>.
             </p>
           )}
 
@@ -991,13 +970,6 @@ export default function CampagneMailingPage() {
         </DialogContent>
       </Dialog>
 
-      <BrevoConfigModal
-        open={brevoModalOpen}
-        onClose={() => setBrevoModalOpen(false)}
-        onSaved={handleConfigSaved}
-        organisationId={organisationId}
-        initial={brevoConfig}
-      />
 
       <Dialog open={apercuCategory !== null} onOpenChange={(next) => { if (!next) setApercuCategory(null) }}>
         <DialogContent className="max-w-lg">

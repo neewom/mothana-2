@@ -30,9 +30,13 @@ import CampagneMailingPage from './pages/CampagneMailingPage'
 import CampagneCourrierPage from './pages/CampagneCourrierPage'
 import ComptabilitePage from './pages/ComptabilitePage'
 import ParametresOrganisationPage from './pages/ParametresOrganisationPage'
-import ParametresFiscalPage from './pages/ParametresFiscalPage'
-import ParametresAdherentsPage from './pages/ParametresAdherentsPage'
-import ParametresSuiviPage from './pages/ParametresSuiviPage'
+import ParametresRecusFiscauxPage from './pages/ParametresRecusFiscauxPage'
+import ParametresAdhesionsPage from './pages/ParametresAdhesionsPage'
+import ParametresJournalPage from './pages/ParametresJournalPage'
+import ParametresPorteMonnaiePage from './pages/ParametresPorteMonnaiePage'
+import ParametresEquipePage from './pages/ParametresEquipePage'
+import ParametresCodesPinPage from './pages/ParametresCodesPinPage'
+import ParametresIntegrationsPage from './pages/ParametresIntegrationsPage'
 import ParametresCompteAdminPage from './pages/ParametresCompteAdminPage'
 import SuperAdminLayout from './pages/SuperAdminLayout'
 import SuperAdminPage from './pages/SuperAdminPage'
@@ -64,13 +68,15 @@ function App() {
               <Route path="participants" element={<ParticipantsPage />} />
               <Route path="recus" element={<RecusFiscauxPage />} />
               <Route path="statistiques" element={<ComptabilitePage />} />
+              <Route path="parametres/recus-fiscaux" element={<ParametresRecusFiscauxPage />} />
             </Route>
             <Route element={<FeatureGuard feature="adherents" />}>
               <Route path="adherents" element={<AdherentsPage />} />
               <Route path="adherents/demandes" element={<DemandesAdhesionPage />} />
               <Route path="communication/emailing" element={<CampagneMailingPage />} />
               <Route path="communication/courrier" element={<CampagneCourrierPage />} />
-              <Route path="parametres/adherents" element={<ParametresAdherentsPage />} />
+              <Route path="parametres/adhesions" element={<ParametresAdhesionsPage />} />
+              <Route path="parametres/integrations" element={<ParametresIntegrationsPage />} />
             </Route>
             <Route element={<FeatureGuard feature={['dons', 'adherents']} />}>
               <Route path="activites" element={<ActivitesPage />} />
@@ -78,6 +84,7 @@ function App() {
             <Route element={<FeatureGuard feature="evenements" />}>
               <Route path="activites/porte-monnaie" element={<EvenementsPage />} />
               <Route path="activites/porte-monnaie/:id" element={<EvenementDetailPage />} />
+              <Route path="parametres/porte-monnaie" element={<ParametresPorteMonnaiePage />} />
             </Route>
             {/* Anciennes adresses (réorganisation du menu, 2026-10) : redirigées vers les nouvelles,
                 hors FeatureGuard — la page cible applique sa propre garde de module. */}
@@ -86,9 +93,13 @@ function App() {
             <Route path="adherents/campagne-courrier" element={<LegacyRedirect to="/admin/communication/courrier" />} />
             <Route path="evenements" element={<LegacyRedirect to="/admin/activites/porte-monnaie" />} />
             <Route path="evenements/:id" element={<LegacyRedirect to="/admin/activites/porte-monnaie/:id" />} />
+            <Route path="parametres/fiscal" element={<LegacyRedirect to="/admin/parametres/recus-fiscaux" />} />
+            <Route path="parametres/adherents" element={<LegacyRedirect to="/admin/parametres/adhesions" />} />
+            <Route path="parametres/suivi" element={<LegacyRedirect to="/admin/parametres/journal" />} />
             <Route path="parametres" element={<ParametresOrganisationPage />} />
-            <Route path="parametres/fiscal" element={<ParametresFiscalPage />} />
-            <Route path="parametres/suivi" element={<ParametresSuiviPage />} />
+            <Route path="parametres/equipe" element={<ParametresEquipePage />} />
+            <Route path="parametres/codes-pin" element={<ParametresCodesPinPage />} />
+            <Route path="parametres/journal" element={<ParametresJournalPage />} />
             <Route path="parametres/compte" element={<ParametresCompteAdminPage />} />
           </Route>
         </Route>

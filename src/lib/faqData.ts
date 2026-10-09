@@ -133,7 +133,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'Que faut-il configurer avant de générer un premier reçu fiscal ?',
         answer:
-          "Dans Paramètres > Fiscalité : nom, adresse, RNA ou SIREN, objet social et mention légale d'éligibilité de l'organisation. Tant que l'un de ces champs manque, aucun reçu ne peut être généré (message explicite sur la page Reçus fiscaux).",
+          "Dans Paramètres > Organisation : nom, adresse, RNA ou SIREN et objet social ; dans Paramètres > Reçus fiscaux : la mention légale d'éligibilité. Tant que l'un de ces champs manque, aucun reçu ne peut être généré (message explicite sur la page Reçus fiscaux).",
       },
       {
         question: 'Comment générer un reçu fiscal ?',
@@ -168,7 +168,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'J’ai oublié le code PIN bénévole, comment le retrouver ?',
         answer:
-          "Un administrateur peut l'afficher (icône œil) ou le régénérer depuis Paramètres > Organisation.",
+          "Un administrateur peut l'afficher (icône œil) ou le régénérer depuis Paramètres > Codes PIN.",
       },
       {
         question: 'Que peut faire un bénévole une fois connecté ?',

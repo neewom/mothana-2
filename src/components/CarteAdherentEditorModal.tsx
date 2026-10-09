@@ -356,7 +356,7 @@ export default function CarteAdherentEditorModal({
                   </div>
                   {assetTags.length === 0 && (
                     <p className="mt-1.5 font-registre text-xs text-ink-faint">
-                      Aucun asset configuré — ajoutez-en dans Paramètres › Identité visuelle pour obtenir des placeholders
+                      Aucun asset configuré — ajoutez-en dans Paramètres › Organisation (Visuels) pour obtenir des placeholders
                       <code className="mx-1 rounded-sm bg-paper-border/40 px-1">{'{{asset_...}}'}</code>
                       ici.
                     </p>

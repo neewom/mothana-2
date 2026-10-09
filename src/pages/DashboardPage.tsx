@@ -263,7 +263,7 @@ export default function DashboardPage() {
 
       {adherentsActifs && statutsUrl === null && (
         <Link
-          to="/admin/parametres/adherents"
+          to="/admin/parametres/adhesions"
           className="flex flex-col gap-4 rounded-sm border-2 border-warning-border bg-warning-tint px-6 py-5 transition-colors hover:bg-warning-tint/70 sm:flex-row sm:items-center"
         >
           <div className="flex items-center gap-4 sm:min-w-0 sm:flex-1">

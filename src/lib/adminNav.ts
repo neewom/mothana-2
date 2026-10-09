@@ -17,12 +17,26 @@ export interface NavGroup {
   type: 'group'
   label: string
   icon: NavIconName
-  items: { label: string; to: string; end?: boolean; count?: number | null }[]
+  items: NavGroupItem[]
+}
+
+export interface NavGroupItem {
+  label: string
+  to: string
+  end?: boolean
+  count?: number | null
+  /** Intertitre affiché avant le premier élément d'une section (sous-menu Paramètres). */
+  section?: string
 }
 
 export type NavEntry = NavLinkItem | NavGroup
 
-export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCounters): NavEntry[] {
+export interface NavOptions {
+  /** Admin de l'organisation (pas contributeur, pas super-admin en mode Consulter). */
+  canManageTeam: boolean
+}
+
+export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCounters, options: NavOptions = { canManageTeam: false }): NavEntry[] {
   const items: NavEntry[] = [
     { type: 'link', label: 'Accueil', to: '/admin', icon: 'home', end: true },
   ]
@@ -79,18 +93,18 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
     items.push({ type: 'link', label: 'Statistiques', to: '/admin/statistiques', icon: 'chart' })
   }
 
-  items.push({
-    type: 'group',
-    label: 'Paramètres',
-    icon: 'cog',
-    items: [
-      { label: 'Organisation', to: '/admin/parametres', end: true },
-      { label: 'Fiscalité', to: '/admin/parametres/fiscal' },
-      ...(flags.adherents ? [{ label: 'Adhérents', to: '/admin/parametres/adherents' }] : []),
-      { label: 'Historique', to: '/admin/parametres/suivi' },
-      // « Mon compte » vit dans le menu compte de la barre du haut (la route reste valide).
-    ],
-  })
+  // Paramètres rangés par sujet (simulation 6) ; « Mon compte » est dans le menu compte.
+  const parametres: NavGroupItem[] = [
+    { label: 'Organisation', to: '/admin/parametres', end: true, section: 'Association' },
+    ...(flags.dons ? [{ label: 'Reçus fiscaux', to: '/admin/parametres/recus-fiscaux' }] : []),
+    ...(flags.adherents ? [{ label: 'Adhésions', to: '/admin/parametres/adhesions' }] : []),
+    ...(flags.evenements ? [{ label: 'Porte-monnaie', to: '/admin/parametres/porte-monnaie' }] : []),
+    ...(options.canManageTeam ? [{ label: 'Équipe', to: '/admin/parametres/equipe', section: 'Accès' }] : []),
+    { label: 'Codes PIN', to: '/admin/parametres/codes-pin', ...(options.canManageTeam ? {} : { section: 'Accès' }) },
+    ...(flags.adherents ? [{ label: 'Intégrations', to: '/admin/parametres/integrations', section: 'Outils' }] : []),
+    { label: 'Journal des adhérents', to: '/admin/parametres/journal', ...(flags.adherents ? {} : { section: 'Outils' }) },
+  ]
+  items.push({ type: 'group', label: 'Paramètres', icon: 'cog', items: parametres })
 
   return items
 }

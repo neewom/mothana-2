@@ -1,3 +1,4 @@
+import GlobalSearch from '../components/GlobalSearch'
 import { useState, useEffect, type ReactElement } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -131,7 +132,7 @@ function NavCount({ count, active, label }: { count?: number | null; active?: bo
     <span
       aria-label={`${count} ${label}`}
       className={cn(
-        'ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 font-registre-mono text-[10px] font-semibold leading-none tabular-nums',
+        'ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 font-registre-mono text-[11px] font-semibold leading-none tabular-nums',
         active ? 'bg-white text-stamp' : 'bg-stamp text-white'
       )}
     >
@@ -171,8 +172,11 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
       {open && (
         <div className="ml-4 mt-1 space-y-1 border-l border-white/10 pl-4">
           {group.items.map((item) => (
+            <div key={item.to}>
+            {item.section && (
+              <p className="px-3 pb-1 pt-2 font-registre-mono text-[11px] uppercase tracking-wide text-paper/50">{item.section}</p>
+            )}
             <NavLink
-              key={item.to}
               to={item.to}
               end={item.end}
               onClick={onClose}
@@ -190,6 +194,7 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
                 </>
               )}
             </NavLink>
+            </div>
           ))}
         </div>
       )}
@@ -238,7 +243,15 @@ export default function AdminLayout() {
 
   const isSuperAdminViewing = auth.type === 'super_admin'
   const navCounters = useLoadNavCounters(organisationId, fonctionnalitesActivees)
-  const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES, navCounters)
+  const canManageTeam = auth.type === 'admin' && auth.role === 'admin'
+  const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES, navCounters, { canManageTeam })
+  const location = useLocation()
+
+  // Ferme le tiroir mobile à chaque changement de page (y compris une navigation confirmée
+  // par le garde « modifications non enregistrées », qui ne passe pas par le onClick du lien).
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [location.pathname])
 
   useEffect(() => {
     if (!organisationId) return
@@ -331,10 +344,13 @@ export default function AdminLayout() {
           >
             <MenuIcon />
           </button>
-          <div className="flex min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 sm:max-w-[16rem] sm:flex-none">
             <Tooltip bare placement="bottom" className="min-w-0 max-w-full" content={organisationNom ?? organisationId ?? '—'} triggerClassName="block truncate font-registre text-sm font-semibold text-ink">
               {organisationNom ?? organisationId ?? '—'}
             </Tooltip>
+          </div>
+          <div className="flex min-w-0 justify-end sm:flex-1">
+            <GlobalSearch organisationId={organisationId} />
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
