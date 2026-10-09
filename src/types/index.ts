@@ -153,9 +153,10 @@ export interface TemplateCarteAdherent {
   updated_at: string
 }
 
-// Colonne organisations.modele_recu_pdf (JSONB) — édité pour partie sur la sous-page
-// Paramètres > Organisation (president_nom/titre) et pour partie sur Paramètres > Fiscal
-// (le reste) : toujours relire/réécrire l'objet complet pour ne pas écraser l'autre moitié.
+// Colonne organisations.modele_recu_pdf (JSONB) — édité pour partie sur Paramètres >
+// Organisation (rna, siren, objet_social, president_nom/titre) et pour partie sur Paramètres >
+// Reçus fiscaux (mention_legale, numérotation, taux) : chaque page relit l'objet juste avant
+// d'écrire et ne remplace que ses propres champs.
 export interface ModeleRecu {
   rna: string
   siren: string

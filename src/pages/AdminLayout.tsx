@@ -1,35 +1,19 @@
+import GlobalSearch from '../components/GlobalSearch'
 import { useState, useEffect, type ReactElement } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useOrganisationId } from '../hooks/useOrganisationId'
-import {
-  DEFAULT_FONCTIONNALITES,
-  useFonctionnalitesActivees,
-  type FonctionnalitesActivees,
-} from '../hooks/useFonctionnalitesActivees'
+import { DEFAULT_FONCTIONNALITES, useFonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
 import { supabase } from '../lib/supabaseClient'
 import RecetteBanner from '../components/RecetteBanner'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import AccountMenu from '../components/AccountMenu'
 import Tooltip from '../components/Tooltip'
+import { NavCountersContext } from '../contexts/navCountersContext'
+import { buildNavItems, type NavEntry, type NavGroup, type NavIconName } from '../lib/adminNav'
+import { useLoadNavCounters } from '../hooks/useNavCounters'
 
-interface NavLinkItem {
-  type: 'link'
-  label: string
-  to: string
-  icon: ReactElement
-  end?: boolean
-}
-
-interface NavGroup {
-  type: 'group'
-  label: string
-  icon: ReactElement
-  items: { label: string; to: string; end?: boolean }[]
-}
-
-type NavEntry = NavLinkItem | NavGroup
 
 function HomeIcon() {
   return (
@@ -78,11 +62,10 @@ function ActivitesIcon() {
   )
 }
 
-function EvenementsIcon() {
+function MegaphoneIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 8.25h16.5M5.25 4.5h13.5A1.5 1.5 0 0120.25 6v13.5H3.75V6a1.5 1.5 0 011.5-1.5z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 12h3v3h-3z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 001.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 010 3.46" />
     </svg>
   )
 }
@@ -120,71 +103,41 @@ function XIcon() {
   )
 }
 
-function buildNavItems(flags: FonctionnalitesActivees): NavEntry[] {
-  const items: NavEntry[] = [
-    { type: 'link', label: 'Accueil', to: '/admin', icon: <HomeIcon />, end: true },
-  ]
+const NAV_ICONS: Record<NavIconName, () => ReactElement> = {
+  home: HomeIcon,
+  don: DonIcon,
+  idCard: IdCardIcon,
+  activites: ActivitesIcon,
+  megaphone: MegaphoneIcon,
+  chart: ChartIcon,
+  cog: CogIcon,
+}
 
-  if (flags.dons) {
-    items.push({
-      type: 'group',
-      label: 'Dons',
-      icon: <DonIcon />,
-      items: [
-        { label: 'Dons', to: '/admin/dons' },
-        { label: 'Dons réguliers', to: '/admin/dons-reguliers' },
-        { label: 'Donateurs', to: '/admin/participants' },
-        { label: 'Reçus fiscaux', to: '/admin/recus' },
-      ],
-    })
-  }
-
-  if (flags.adherents) {
-    items.push({
-      type: 'group',
-      label: 'Adhérents',
-      icon: <IdCardIcon />,
-      items: [
-        { label: 'Adhérents', to: '/admin/adherents', end: true },
-        { label: "Demandes d'adhésion", to: '/admin/adherents/demandes' },
-        { label: 'Campagne mailing', to: '/admin/adherents/campagne-mailing' },
-        { label: 'Campagne courrier', to: '/admin/adherents/campagne-courrier' },
-      ],
-    })
-  }
-
-  if (flags.dons || flags.adherents) {
-    items.push({ type: 'link', label: 'Activités', to: '/admin/activites', icon: <ActivitesIcon /> })
-  }
-
-  if (flags.evenements) {
-    items.push({ type: 'link', label: 'Portefeuille événement', to: '/admin/evenements', icon: <EvenementsIcon /> })
-  }
-
-  if (flags.dons) {
-    items.push({ type: 'link', label: 'Comptabilité', to: '/admin/comptabilite', icon: <ChartIcon /> })
-  }
-
-  items.push({
-    type: 'group',
-    label: 'Paramètres',
-    icon: <CogIcon />,
-    items: [
-      { label: 'Organisation', to: '/admin/parametres', end: true },
-      { label: 'Fiscalité', to: '/admin/parametres/fiscal' },
-      ...(flags.adherents ? [{ label: 'Adhérents', to: '/admin/parametres/adherents' }] : []),
-      { label: 'Historique', to: '/admin/parametres/suivi' },
-      // « Mon compte » vit dans le menu compte de la barre du haut (la route reste valide).
-    ],
-  })
-
-  return items
+function NavIcon({ name }: { name: NavIconName }) {
+  const Icon = NAV_ICONS[name]
+  return <Icon />
 }
 
 function navLinkClasses({ isActive }: { isActive: boolean }): string {
   return cn(
     'flex items-center gap-3 rounded-sm px-3 py-2 font-registre text-sm font-medium transition-colors',
     isActive ? 'bg-stamp text-white' : 'text-paper/70 hover:bg-white/10 hover:text-paper'
+  )
+}
+
+/** Pastille de compteur (alertes de l'accueil reprises dans le menu) ; rien sous 1. */
+function NavCount({ count, active, label }: { count?: number | null; active?: boolean; label: string }) {
+  if (!count || count < 1) return null
+  return (
+    <span
+      aria-label={`${count} ${label}`}
+      className={cn(
+        'ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 font-registre-mono text-[11px] font-semibold leading-none tabular-nums',
+        active ? 'bg-white text-stamp' : 'bg-stamp text-white'
+      )}
+    >
+      {count > 99 ? '99+' : count}
+    </span>
   )
 }
 
@@ -195,6 +148,7 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
   // manuelle ponctuelle (null = pas de préférence manuelle, suit la route).
   const [manualOpen, setManualOpen] = useState<boolean | null>(null)
   const open = manualOpen ?? isGroupActive
+  const groupCount = group.items.reduce((total, item) => total + (item.count ?? 0), 0)
 
   return (
     <div>
@@ -207,28 +161,40 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
         )}
       >
         <span className="flex items-center gap-3">
-          {group.icon}
+          <NavIcon name={group.icon} />
           {group.label}
         </span>
-        <ChevronDownIcon open={open} />
+        <span className="flex items-center gap-2">
+          {!open && <NavCount count={groupCount} label="élément(s) en attente" />}
+          <ChevronDownIcon open={open} />
+        </span>
       </button>
       {open && (
         <div className="ml-4 mt-1 space-y-1 border-l border-white/10 pl-4">
           {group.items.map((item) => (
+            <div key={item.to}>
+            {item.section && (
+              <p className="px-3 pb-1 pt-2 font-registre-mono text-[11px] uppercase tracking-wide text-paper/50">{item.section}</p>
+            )}
             <NavLink
-              key={item.to}
               to={item.to}
               end={item.end}
               onClick={onClose}
               className={({ isActive }) =>
                 cn(
-                  'block rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors',
+                  'flex items-center gap-2 rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors',
                   isActive ? 'bg-stamp text-white' : 'text-paper/70 hover:bg-white/10 hover:text-paper'
                 )
               }
             >
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  {item.label}
+                  <NavCount count={item.count} active={isActive} label="en attente" />
+                </>
+              )}
             </NavLink>
+            </div>
           ))}
         </div>
       )}
@@ -256,7 +222,7 @@ function Sidebar({ navItems, onClose }: { navItems: NavEntry[]; onClose?: () => 
             <NavGroupItem key={entry.label} group={entry} onClose={onClose} />
           ) : (
             <NavLink key={entry.to} to={entry.to} end={entry.end} onClick={onClose} className={navLinkClasses}>
-              {entry.icon}
+              <NavIcon name={entry.icon} />
               {entry.label}
             </NavLink>
           )
@@ -276,7 +242,16 @@ export default function AdminLayout() {
   const [nomAffiche, setNomAffiche] = useState<string | null>(null)
 
   const isSuperAdminViewing = auth.type === 'super_admin'
-  const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES)
+  const navCounters = useLoadNavCounters(organisationId, fonctionnalitesActivees)
+  const canManageTeam = auth.type === 'admin' && auth.role === 'admin'
+  const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES, navCounters, { canManageTeam })
+  const location = useLocation()
+
+  // Ferme le tiroir mobile à chaque changement de page (y compris une navigation confirmée
+  // par le garde « modifications non enregistrées », qui ne passe pas par le onClick du lien).
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [location.pathname])
 
   useEffect(() => {
     if (!organisationId) return
@@ -369,10 +344,13 @@ export default function AdminLayout() {
           >
             <MenuIcon />
           </button>
-          <div className="flex min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 sm:max-w-[16rem] sm:flex-none">
             <Tooltip bare placement="bottom" className="min-w-0 max-w-full" content={organisationNom ?? organisationId ?? '—'} triggerClassName="block truncate font-registre text-sm font-semibold text-ink">
               {organisationNom ?? organisationId ?? '—'}
             </Tooltip>
+          </div>
+          <div className="flex min-w-0 justify-end sm:flex-1">
+            <GlobalSearch organisationId={organisationId} />
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
@@ -392,7 +370,9 @@ export default function AdminLayout() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-6">
-          <Outlet context={{ fonctionnalitesActivees }} />
+          <NavCountersContext.Provider value={navCounters}>
+            <Outlet context={{ fonctionnalitesActivees }} />
+          </NavCountersContext.Provider>
         </main>
       </div>
     </div>

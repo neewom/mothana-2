@@ -12,6 +12,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
+import { useNavCountersContext } from '../hooks/useNavCounters'
 
 function todayISO(): string {
   return new Date().toISOString().split('T')[0]
@@ -317,6 +318,13 @@ export default function DonsReguliersPage() {
     if (organisationId) fetchAll()
   }, [organisationId, fetchAll])
 
+  // Rechargement après une action : la liste et la pastille « Dons réguliers » du menu.
+  const { refreshNavCounters } = useNavCountersContext()
+  function reload() {
+    void fetchAll()
+    refreshNavCounters()
+  }
+
   const moisDejaGeneresParEngagement = useMemo(() => {
     const map = new Map<string, Set<string>>()
     for (const d of donsGeneres) {
@@ -373,7 +381,7 @@ export default function DonsReguliersPage() {
       ? { statut: 'arrete' as const, date_fin: e.date_fin ?? todayISO() }
       : { statut: 'actif' as const }
     await supabase.from('dons_reguliers').update(payload).eq('id', e.id)
-    fetchAll()
+    reload()
   }
 
   async function handleDelete() {
@@ -391,7 +399,7 @@ export default function DonsReguliersPage() {
 
     setDeleting(false)
     setDeleteConfirm(null)
-    fetchAll()
+    reload()
   }
 
   const nombreCoches = lignesAConfirmer.filter((r) => checked[r.key]).length
@@ -432,7 +440,7 @@ export default function DonsReguliersPage() {
       return
     }
 
-    fetchAll()
+    reload()
   }
 
   return (
@@ -588,7 +596,7 @@ export default function DonsReguliersPage() {
       <DonRegulierModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSaved={fetchAll}
+        onSaved={reload}
         engagement={editing}
         participants={participants}
         activites={activites}

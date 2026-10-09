@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
@@ -7,7 +7,7 @@ import type { RecuFiscal, ProfilParticipant } from '../types'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { participantFullName, matchesParticipantSearch } from '../lib/participantSearch'
 import {
-  validateOrganisationCerfa,
+  pagesParametresACompleter, validateOrganisationCerfa,
   validateParticipantCerfa,
   type OrganisationFiscale,
   type ParticipantValidation,
@@ -345,7 +345,9 @@ export default function RecusFiscauxPage() {
   // Recherche
   // ---------------------------------------------------------------------------
 
-  const [search, setSearch] = useState('')
+  // ?q=<nom> (raccourci « Reçus fiscaux de … » de la recherche globale) pré-remplit la recherche.
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '')
 
   const filteredRows = useMemo(
     () => rows.filter((r) => matchesParticipantSearch(r.profil, search)),
@@ -425,9 +427,13 @@ export default function RecusFiscauxPage() {
             <span className="font-medium">Complétez les paramètres de votre organisation</span> pour pouvoir générer des reçus fiscaux
             {' '}— champs manquants : {orgMissing.join(', ')}.
           </p>
-          <Link to="/admin/parametres/fiscal" className="mt-1 inline-block font-medium underline hover:no-underline">
-            Aller aux paramètres
-          </Link>
+          <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+            {pagesParametresACompleter(orgMissing).map((page) => (
+              <Link key={page.to} to={page.to} className="font-medium underline hover:no-underline">
+                Compléter dans {page.label}
+              </Link>
+            ))}
+          </p>
         </div>
       )}
 
