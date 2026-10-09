@@ -288,6 +288,10 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
               <AdminAccountsManager
                 organisationId={org.id}
                 showRoleBadge
+                canManageRoles
+                heading="Comptes de l'organisation"
+                addButtonLabel="Ajouter un compte"
+                newFormTitle="Nouveau compte"
                 emptyLabel="Aucun compte pour cette organisation."
                 onAccountAdded={onAdminAdded}
               />
