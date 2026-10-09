@@ -519,10 +519,10 @@ export default function DonsPage() {
                         <TableCell className="whitespace-nowrap text-ink-muted">
                           {formatDate(don.date)}
                         </TableCell>
-                        <TableCell className="font-medium text-ink">
+                        <TableCell className="whitespace-nowrap font-medium text-ink">
                           {nomDonateur(don)}
                         </TableCell>
-                        <TableCell className="hidden text-ink-faint md:table-cell">
+                        <TableCell className="hidden whitespace-nowrap text-ink-faint md:table-cell">
                           {don.activites?.nom ?? '—'}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">

@@ -12,6 +12,8 @@ import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import DeclarationCerfaCard from '../components/DeclarationCerfaCard'
 import type { Don, ModePaiement } from '../types'
 import { Button } from '../components/ui/button'
+import { PageHeader } from '../components/ui/page-header'
+import { StatTiles } from '../components/ui/stat-tiles'
 
 // ---------------------------------------------------------------------------
 // Palette — voir le skill dataviz (references/palette.md), instance validée
@@ -24,8 +26,6 @@ import { Button } from '../components/ui/button'
 const CATEGORICAL = ['#2a78d6', '#008300', '#e87ba4', '#eda100'] as const // blue, green, magenta, yellow
 const ACCENT = CATEGORICAL[0]
 const CONTEXT_GRAY = '#52514e' // encre secondaire — année N-1, "contexte" (emphasis job)
-const GOOD = '#067606' // assombri depuis #0ca30c — la valeur d'origine n'atteignait que 3.35:1 sur blanc, sous le seuil AA (4.5:1) pour le texte de variation des StatCard
-const CRITICAL = '#d03b3b'
 const GRID_STROKE = '#e8e4dc' // paper-border
 const AXIS_STROKE = '#726860' // ink-faint
 
@@ -137,27 +137,6 @@ function useRecusForDeclaration(organisationId: string) {
 }
 
 // ---------------------------------------------------------------------------
-// StatCard
-// ---------------------------------------------------------------------------
-
-function StatCard({ label, value, delta }: { label: string; value: string; delta?: { pct: number; goodUp: boolean } }) {
-  const deltaColor = delta
-    ? (delta.pct >= 0) === delta.goodUp ? GOOD : CRITICAL
-    : undefined
-  return (
-    <div className="rounded-sm border border-paper-border bg-white p-5">
-      <p className="font-registre text-sm font-medium text-ink-faint">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-ink">{value}</p>
-      {delta && (
-        <p className="mt-1 font-registre text-sm font-medium" style={{ color: deltaColor }}>
-          {delta.pct >= 0 ? '↑' : '↓'} {Math.abs(delta.pct).toFixed(1)}% vs année précédente
-        </p>
-      )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Tooltip partagé — valeur en avant (Strong), nom de série en second,
 // repère de série en trait court (line key) plutôt qu'un carré de couleur.
 // ---------------------------------------------------------------------------
@@ -260,12 +239,11 @@ export default function ComptabilitePage() {
 
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-      {/* Page title + sélecteur d'année */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Statistiques</h1>
-          <p className="mt-1 text-sm text-ink-muted">Vue d'ensemble des dons collectés</p>
-        </div>
+      {/* Titre + sélecteur d'année (action de page) */}
+      <PageHeader
+        title="Statistiques"
+        subtitle="Vue d'ensemble des dons collectés"
+        actions={
         <div className="flex items-center gap-2">
           <Button type="button" variant="secondary" size="sm" onClick={() => setYear((y) => y - 1)} disabled={year <= minYear}>
             ‹
@@ -275,7 +253,8 @@ export default function ComptabilitePage() {
             ›
           </Button>
         </div>
-      </div>
+        }
+      />
 
       {error && (
         <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur : {error}</div>
@@ -288,15 +267,18 @@ export default function ComptabilitePage() {
       ) : (
         <>
           {/* Stats */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <StatCard label={`Total ${year}`} value={formatEur(stats.totalN)} />
-            <StatCard label={`Total ${year - 1}`} value={formatEur(stats.totalN1)} />
-            <StatCard
-              label="Évolution"
-              value={`${stats.variationPct >= 0 ? '+' : ''}${stats.variationPct.toFixed(1)}%`}
-              delta={{ pct: stats.variationPct, goodUp: true }}
-            />
-          </div>
+          <StatTiles
+            items={[
+              { label: `Total ${year}`, value: formatEur(stats.totalN) },
+              { label: `Total ${year - 1}`, value: formatEur(stats.totalN1) },
+              {
+                label: 'Évolution',
+                value: `${stats.variationPct >= 0 ? '+' : ''}${stats.variationPct.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`,
+                hint: `${stats.variationPct >= 0 ? '↑' : '↓'} par rapport à ${year - 1}`,
+                hintTone: stats.variationPct >= 0 ? 'success' : 'warning',
+              },
+            ]}
+          />
 
           {/* Courbe mensuelle N vs N-1 */}
           <div className="rounded-sm border border-paper-border bg-white p-5">

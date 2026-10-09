@@ -30,6 +30,8 @@ import {
 import { formatCentimes, formatPeriodeEvenement } from '../lib/portefeuilleAcheteur'
 import { supabase } from '../lib/supabaseClient'
 import { cn } from '../lib/utils'
+import { PageHeader } from '../components/ui/page-header'
+import { StatTiles } from '../components/ui/stat-tiles'
 import type { Activite } from '../types'
 import type { Evenement } from '../types/evenement'
 import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
@@ -100,16 +102,6 @@ function Chevron() {
     <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
     </svg>
-  )
-}
-
-function KeyFigure({ label, value, hint, className }: { label: string; value: string; hint: string; className?: string }) {
-  return (
-    <div className={cn('min-w-0 p-3 sm:p-5', className)}>
-      <dt className="font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">{label}</dt>
-      <dd className="mt-1 font-registre-mono text-base font-semibold tabular-nums text-ink sm:mt-2 sm:text-2xl">{value}</dd>
-      <p className="mt-1 hidden text-xs text-ink-faint sm:block">{hint}</p>
-    </div>
   )
 }
 
@@ -441,7 +433,8 @@ export default function EvenementDetailPage() {
 
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-      <header>
+      <PageHeader
+        before={
         <Button asChild variant="ghost" size="sm" className="-ml-3 mb-2">
           <Link to="/admin/activites/porte-monnaie">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="h-4 w-4" aria-hidden>
@@ -450,14 +443,12 @@ export default function EvenementDetailPage() {
             Porte-monnaie
           </Link>
         </Button>
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold text-ink md:text-3xl">{evenement.nom}</h1>
-              <Badge variant={statusVariant}>{statusLabel}</Badge>
-            </div>
-            <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-              <span className="font-registre-mono text-ink-faint">
+        }
+        title={evenement.nom}
+        badge={<Badge variant={statusVariant}>{statusLabel}</Badge>}
+        subtitle={
+            <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span>
                 {formatPeriodeEvenement(evenement.date_evenement, evenement.date_fin)}
               </span>
               <a
@@ -468,19 +459,20 @@ export default function EvenementDetailPage() {
               >
                 Page d’achat en ligne ↗
               </a>
-            </p>
-          </div>
-          {/* Actions sur l'événement uniquement ; celles sur les portefeuilles vivent dans leur onglet. */}
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={() => setAfficheOpen(true)}>
+            </span>
+        }
+        actions={
+          // Actions sur l'événement uniquement ; celles sur les portefeuilles vivent dans leur onglet.
+          <>
+            <Button type="button" variant="secondary" onClick={() => setAfficheOpen(true)}>
               Affiche QR code
             </Button>
-            <Button type="button" variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+            <Button type="button" onClick={() => setEditOpen(true)}>
               Modifier l’événement
             </Button>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {actionError && (
         <StatusNotice tone="danger" role="alert">
@@ -488,16 +480,17 @@ export default function EvenementDetailPage() {
         </StatusNotice>
       )}
 
-      <dl className="grid grid-cols-3 overflow-hidden rounded-sm border border-paper-border bg-white">
-        <KeyFigure label="Vendu" value={formatCentimes(stats.venduCentimes)} hint="Crédits initialement vendus et recharges" />
-        <KeyFigure label="Dépensé" value={formatCentimes(stats.depenseCentimes)} hint="Paiements validés auprès des vendeurs" className="border-l border-paper-border" />
-        <KeyFigure
-          label="Restant"
-          value={formatCentimes(stats.restantCentimes)}
-          hint={`Solde cumulé des ${portefeuilles.length} portefeuille${portefeuilles.length !== 1 ? 's' : ''}`}
-          className="border-l border-paper-border"
-        />
-      </dl>
+      <StatTiles
+        items={[
+          { label: 'Vendu', value: formatCentimes(stats.venduCentimes), hint: 'Crédits initialement vendus et recharges' },
+          { label: 'Dépensé', value: formatCentimes(stats.depenseCentimes), hint: 'Paiements validés auprès des vendeurs' },
+          {
+            label: 'Restant',
+            value: formatCentimes(stats.restantCentimes),
+            hint: `Solde cumulé des ${portefeuilles.length} portefeuille${portefeuilles.length !== 1 ? 's' : ''}`,
+          },
+        ]}
+      />
 
       {evenement.statut === 'clos' && (
         <section aria-labelledby="soldes-restants-title" className="overflow-hidden rounded-sm border border-paper-border bg-white">
