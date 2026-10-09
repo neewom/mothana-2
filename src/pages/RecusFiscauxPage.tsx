@@ -67,7 +67,12 @@ export default function RecusFiscauxPage() {
   const organisationId = useOrganisationId()
   const { toast, showToast, dismissToast } = useToast()
 
-  const [annee, setAnnee] = useState<number>(currentYear())
+  // ?annee=AAAA&q=<nom> : lien « Reçu » du détail d'un don, raccourci de la recherche globale.
+  const [searchParams] = useSearchParams()
+  const [annee, setAnnee] = useState<number>(() => {
+    const demandee = Number(searchParams.get('annee'))
+    return yearOptions().includes(demandee) ? demandee : currentYear()
+  })
   const [rows, setRows] = useState<ParticipantRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -345,8 +350,7 @@ export default function RecusFiscauxPage() {
   // Recherche
   // ---------------------------------------------------------------------------
 
-  // ?q=<nom> (raccourci « Reçus fiscaux de … » de la recherche globale) pré-remplit la recherche.
-  const [searchParams] = useSearchParams()
+  // ?q=<nom> pré-remplit la recherche.
   const [search, setSearch] = useState(() => searchParams.get('q') ?? '')
 
   const filteredRows = useMemo(
