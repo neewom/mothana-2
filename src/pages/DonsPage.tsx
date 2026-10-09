@@ -327,6 +327,11 @@ export default function DonsPage() {
     chips.push({ key: 'mode', label: 'Mode', value: mode?.label ?? filtres.mode, onRemove: () => appliquerFiltres({ ...filtres, mode: '' }) })
   }
 
+  // Largeur (critère du gabarit : rien hors écran à 1 400 px) : le mode n'apparaît qu'en très
+  // grand écran, l'activité disparaît quand le panneau de détail réduit le tableau ; les deux
+  // restent dans le panneau.
+  const activiteCol = selectedDon ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
+
   const totalCollecte = useMemo(() => dons.reduce((sum, d) => sum + d.montant, 0), [dons])
 
   // Tri appliqué après les filtres et avant la pagination (le chargement suit l'ordre des id).
@@ -500,10 +505,10 @@ export default function DonsPage() {
                     <TableRow>
                       <SortableTableHead field="date" label="Date" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                       <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <TableHead className="hidden md:table-cell">Activité</TableHead>
+                      <TableHead className={activiteCol}>Activité</TableHead>
                       <SortableTableHead field="montant" label="Montant" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
-                      <TableHead className="hidden md:table-cell">Mode</TableHead>
-                      <TableHead />
+                      <TableHead className="hidden 2xl:table-cell">Mode</TableHead>
+                      <TableHead className="hidden md:table-cell" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -517,21 +522,22 @@ export default function DonsPage() {
                         )}
                       >
                         <TableCell className="whitespace-nowrap text-ink-muted">
-                          {formatDate(don.date)}
+                          <span className="md:hidden">{formatDateShort(don.date)}</span>
+                          <span className="hidden md:inline">{formatDate(don.date)}</span>
                         </TableCell>
                         <TableCell className="whitespace-nowrap font-medium text-ink">
                           {nomDonateur(don)}
                         </TableCell>
-                        <TableCell className="hidden whitespace-nowrap text-ink-faint md:table-cell">
+                        <TableCell className={cn(activiteCol, 'whitespace-nowrap text-ink-faint')}>
                           {don.activites?.nom ?? '—'}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
                           {formatEur(don.montant)}
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
+                        <TableCell className="hidden 2xl:table-cell">
                           <Badge variant="neutral">{MODE_PAIEMENT_LABELS[don.mode_paiement]}</Badge>
                         </TableCell>
-                        <TableCell className="text-right text-ink-faint">
+                        <TableCell className="hidden text-right text-ink-faint md:table-cell">
                           <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                           </svg>
