@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
@@ -345,7 +345,9 @@ export default function RecusFiscauxPage() {
   // Recherche
   // ---------------------------------------------------------------------------
 
-  const [search, setSearch] = useState('')
+  // ?q=<nom> (raccourci « Reçus fiscaux de … » de la recherche globale) pré-remplit la recherche.
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '')
 
   const filteredRows = useMemo(
     () => rows.filter((r) => matchesParticipantSearch(r.profil, search)),

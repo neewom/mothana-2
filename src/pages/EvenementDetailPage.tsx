@@ -32,6 +32,7 @@ import { supabase } from '../lib/supabaseClient'
 import { cn } from '../lib/utils'
 import type { Activite } from '../types'
 import type { Evenement } from '../types/evenement'
+import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
 import type {
   CommandeEvenement,
   EvenementDashboardData,
@@ -268,6 +269,13 @@ export default function EvenementDetailPage() {
   )
   // Dérivé des données (et non stocké) pour refléter immédiatement un gel ou un renvoi.
   const selectedWallet = selectedWalletId ? walletById.get(selectedWalletId) ?? null : null
+
+  // Lien profond depuis la recherche globale : ?portefeuille=<id> ouvre son panneau.
+  const openWalletFromLink = useCallback((portefeuille: PortefeuilleEvenement) => {
+    setOnglet('portefeuilles')
+    setSelectedWalletId(portefeuille.id)
+  }, [])
+  useDeepLinkSelection(data?.portefeuilles ?? null, openWalletFromLink, 'portefeuille')
   const selectedMouvements = useMemo(
     () => (data?.mouvements ?? []).filter((mouvement) => mouvement.portefeuille_id === selectedWalletId),
     [data, selectedWalletId],
