@@ -4,6 +4,7 @@ import EvenementModal from '../components/EvenementModal'
 import Toast from '../components/Toast'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
+import { PageHeader } from '../components/ui/page-header'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
 import { cn } from '../lib/utils'
@@ -176,23 +177,22 @@ export default function EvenementsPage() {
 
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-      <header className="flex items-baseline justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Porte-monnaie</h1>
-          <p className="mt-1 font-registre-mono text-sm text-ink-faint">
-            {evenements.length} événement{evenements.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-      </header>
-
-      <div className="flex justify-end">
-        <Button type="button" onClick={openCreate}>
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Nouveau
-        </Button>
-      </div>
+      <PageHeader
+        title="Porte-monnaie"
+        subtitle={
+          loading
+            ? 'Chargement…'
+            : `${evenements.length} événement${evenements.length !== 1 ? 's' : ''} · ${evenements.filter((e) => e.statut === 'ouvert').length} ouvert${evenements.filter((e) => e.statut === 'ouvert').length > 1 ? 's' : ''}`
+        }
+        actions={
+          <Button type="button" onClick={openCreate}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Nouvel événement
+          </Button>
+        }
+      />
 
       {error && (
         <div role="alert" className="rounded-sm border border-stamp/25 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">
