@@ -590,10 +590,10 @@ export default function AdherentsPage() {
                           />
                         </TableCell>
                         {colonnesVisibles.includes('civilite') && (
-                          <TableCell className="text-ink-faint">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
+                          <TableCell className="whitespace-nowrap text-ink-faint">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
                         )}
-                        <TableCell className="font-medium text-ink">{a.nom}</TableCell>
-                        <TableCell className="text-ink-muted">{a.prenom ?? '—'}</TableCell>
+                        <TableCell className="whitespace-nowrap font-medium text-ink">{a.nom}</TableCell>
+                        <TableCell className="whitespace-nowrap text-ink-muted">{a.prenom ?? '—'}</TableCell>
                         {colonnesVisibles.includes('statut') && (
                           <TableCell>
                             <Badge variant="neutral">{a.statut === 'actif' ? 'Actif' : 'Archivé'}</Badge>
