@@ -14,6 +14,8 @@ import { Label } from './ui/label'
 
 interface CouponDonneesPersonnellesSectionProps {
   organisationId: string
+  /** Remonte l'état « modifié non enregistré » à la page (garde de sortie). */
+  onDirtyChange?: (dirty: boolean) => void
 }
 
 interface Settings {
@@ -22,7 +24,7 @@ interface Settings {
 }
 
 /** Paramètres RGPD du porte-monnaie événementiel (durée de conservation, politique de confidentialité). */
-export default function CouponDonneesPersonnellesSection({ organisationId }: CouponDonneesPersonnellesSectionProps) {
+export default function CouponDonneesPersonnellesSection({ organisationId, onDirtyChange }: CouponDonneesPersonnellesSectionProps) {
   const [saved, setSaved] = useState<Settings | null>(null)
   const [mois, setMois] = useState(String(CONSERVATION_MOIS_DEFAUT))
   const [url, setUrl] = useState('')
@@ -63,6 +65,10 @@ export default function CouponDonneesPersonnellesSection({ organisationId }: Cou
   const unchanged = saved !== null
     && saved.conservation_evenements_mois === moisNumber
     && saved.url_politique_confidentialite === normalizedUrl
+
+  useEffect(() => {
+    onDirtyChange?.(saved !== null && !unchanged)
+  }, [saved, unchanged, onDirtyChange])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -133,7 +139,7 @@ export default function CouponDonneesPersonnellesSection({ organisationId }: Cou
 
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={saving || saved === null || unchanged || mois.length === 0 || moisInvalid || urlInvalid}>
-            {saving ? 'Enregistrement…' : 'Enregistrer'}
+            {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
           </Button>
           {success && <span className="text-sm text-success">Enregistré</span>}
           {error && <span className="text-sm text-stamp">{error}</span>}

@@ -263,7 +263,7 @@ export default function ComptabilitePage() {
       {/* Page title + sélecteur d'année */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Comptabilité</h1>
+          <h1 className="text-2xl font-bold text-ink md:text-3xl">Statistiques</h1>
           <p className="mt-1 text-sm text-ink-muted">Vue d'ensemble des dons collectés</p>
         </div>
         <div className="flex items-center gap-2">

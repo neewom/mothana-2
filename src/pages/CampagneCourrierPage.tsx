@@ -247,7 +247,7 @@ export default function CampagneCourrierPage() {
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       <div>
-        <h1 className="text-2xl font-bold text-ink md:text-3xl">Campagne courrier</h1>
+        <h1 className="text-2xl font-bold text-ink md:text-3xl">Courrier</h1>
         <p className="mt-1 text-sm text-ink-muted">Générez une planche d'étiquettes adresse pour une campagne d'information papier.</p>
       </div>
 

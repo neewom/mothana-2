@@ -47,3 +47,23 @@ export function moisManquants(
 export function anneeMoisDeDate(iso: string): string {
   return iso.slice(0, 7)
 }
+
+/**
+ * Nombre de mois en attente de confirmation, tous engagements actifs confondus — même règle
+ * que la page Dons réguliers. Partagé par l'accueil et la pastille du menu.
+ */
+export function compterDonsReguliersAConfirmer(
+  engagements: { id: string; date_debut: string; date_fin: string | null; jour_prelevement: number }[],
+  donsGeneres: { don_regulier_id: string | null; date: string }[],
+): number {
+  const moisParEngagement = new Map<string, Set<string>>()
+  for (const don of donsGeneres) {
+    if (!don.don_regulier_id) continue
+    if (!moisParEngagement.has(don.don_regulier_id)) moisParEngagement.set(don.don_regulier_id, new Set())
+    moisParEngagement.get(don.don_regulier_id)!.add(anneeMoisDeDate(don.date))
+  }
+  return engagements.reduce(
+    (total, engagement) => total + moisManquants(engagement, moisParEngagement.get(engagement.id) ?? new Set()).length,
+    0,
+  )
+}
