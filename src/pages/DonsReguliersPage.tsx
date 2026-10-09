@@ -370,6 +370,8 @@ export default function DonsReguliersPage() {
   const selected = engagements.find((e) => e.id === selectedId) ?? null
   const actifs = engagements.filter((e) => e.statut === 'actif')
   const totalMensuel = actifs.reduce((sum, e) => sum + e.montant, 0)
+  // Période et activité restent dans le panneau quand il réduit le tableau (rien hors écran à 1 400 px).
+  const secondaryCol = selected ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
 
   async function handleToggleStatut(e: DonRegulier) {
     const payload = e.statut === 'actif'
@@ -566,9 +568,9 @@ export default function DonsReguliersPage() {
                       <TableHead>Donateur</TableHead>
                       <TableHead className="text-right">Montant</TableHead>
                       <TableHead>Statut</TableHead>
-                      <TableHead className="hidden md:table-cell">Période</TableHead>
-                      <TableHead className="hidden md:table-cell">Activité</TableHead>
-                      <TableHead />
+                      <TableHead className={secondaryCol}>Période</TableHead>
+                      <TableHead className={secondaryCol}>Activité</TableHead>
+                      <TableHead className="hidden md:table-cell" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -587,9 +589,9 @@ export default function DonsReguliersPage() {
                           <span className="ml-1 font-registre text-xs font-normal text-ink-faint">/ mois</span>
                         </TableCell>
                         <TableCell><StatutBadge statut={e.statut} /></TableCell>
-                        <TableCell className="hidden whitespace-nowrap text-ink-muted md:table-cell">{periodeEngagement(e.date_debut, e.date_fin)}</TableCell>
-                        <TableCell className="hidden whitespace-nowrap text-ink-faint md:table-cell">{e.activites?.nom ?? '—'}</TableCell>
-                        <TableCell className="text-right text-ink-faint">
+                        <TableCell className={cn(secondaryCol, 'whitespace-nowrap text-ink-muted')}>{periodeEngagement(e.date_debut, e.date_fin)}</TableCell>
+                        <TableCell className={cn(secondaryCol, 'whitespace-nowrap text-ink-faint')}>{e.activites?.nom ?? '—'}</TableCell>
+                        <TableCell className="hidden text-right text-ink-faint md:table-cell">
                           <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                           </svg>
