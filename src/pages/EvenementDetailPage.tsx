@@ -20,6 +20,8 @@ import {
   calculerStatsEvenement,
   emailAffiche,
   emailCommandeAffiche,
+  filtrerCommandes,
+  filtrerMouvements,
   filtrerPortefeuilles,
   libelleMoyenPaiement,
   libelleMouvementAdmin,
@@ -118,6 +120,8 @@ export default function EvenementDetailPage() {
   const [revokeError, setRevokeError] = useState<string | null>(null)
   const [onglet, setOnglet] = useState<Onglet>('portefeuilles')
   const [walletSearch, setWalletSearch] = useState('')
+  const [mouvementSearch, setMouvementSearch] = useState('')
+  const [commandeSearch, setCommandeSearch] = useState('')
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null)
   const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
   const [freezingWalletId, setFreezingWalletId] = useState<string | null>(null)
@@ -254,6 +258,14 @@ export default function EvenementDetailPage() {
   const filteredWallets = useMemo(
     () => filtrerPortefeuilles(data?.portefeuilles ?? [], walletSearch),
     [data, walletSearch],
+  )
+  const filteredMouvements = useMemo(
+    () => filtrerMouvements(data?.mouvements ?? [], walletById, mouvementSearch),
+    [data, walletById, mouvementSearch],
+  )
+  const filteredCommandes = useMemo(
+    () => filtrerCommandes(data?.commandes ?? [], walletById, commandeSearch),
+    [data, walletById, commandeSearch],
   )
   const remainingWallets = useMemo(
     () => (data?.portefeuilles ?? []).filter((portefeuille) => portefeuille.solde_centimes > 0),
@@ -634,8 +646,15 @@ export default function EvenementDetailPage() {
             aria-labelledby="evenement-tab-mouvements"
             className="overflow-hidden rounded-sm border border-paper-border bg-white"
           >
+            {mouvements.length > 0 && (
+              <ListToolbar
+                search={{ value: mouvementSearch, onChange: setMouvementSearch, placeholder: 'Rechercher par email ou code', label: 'Rechercher un mouvement' }}
+              />
+            )}
             {mouvements.length === 0 ? (
               <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun mouvement enregistré.</p>
+            ) : filteredMouvements.length === 0 ? (
+              <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun mouvement ne correspond à cette recherche.</p>
             ) : (
               <ScrollShadowX>
                 <Table>
@@ -649,7 +668,7 @@ export default function EvenementDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mouvements.map((mouvement) => {
+                    {filteredMouvements.map((mouvement) => {
                       const portefeuille = walletById.get(mouvement.portefeuille_id)
                       const isDebit = mouvement.type === 'debit'
                       return (
@@ -680,8 +699,15 @@ export default function EvenementDetailPage() {
             aria-labelledby="evenement-tab-commandes"
             className="overflow-hidden rounded-sm border border-paper-border bg-white"
           >
+            {commandes.length > 0 && (
+              <ListToolbar
+                search={{ value: commandeSearch, onChange: setCommandeSearch, placeholder: 'Rechercher par email ou code', label: 'Rechercher une commande' }}
+              />
+            )}
             {commandes.length === 0 ? (
               <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucune commande enregistrée.</p>
+            ) : filteredCommandes.length === 0 ? (
+              <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucune commande ne correspond à cette recherche.</p>
             ) : (
               <ScrollShadowX>
                 <Table>
@@ -695,7 +721,7 @@ export default function EvenementDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {commandes.map((commande) => (
+                    {filteredCommandes.map((commande) => (
                       <TableRow key={commande.id}>
                         <TableCell className="whitespace-nowrap font-registre-mono text-xs text-ink-faint">{formatDateTime(commande.created_at)}</TableCell>
                         <TableCell className="whitespace-nowrap font-medium text-ink">{emailCommandeAffiche(commande.email)}</TableCell>
