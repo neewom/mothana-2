@@ -25,6 +25,15 @@ import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
+import { Label } from '../components/ui/label'
+import { PageHeader } from '../components/ui/page-header'
+import { ListToolbar, FilterChips, type FilterChip } from '../components/ui/list-toolbar'
+import { FilterSheet } from '../components/ui/filter-sheet'
+import { ActionMenu } from '../components/ui/action-menu'
+import {
+  ADHERENTS_FILTRES_VIDES, libelleAdhesion, nombreFiltresAdherents, normaliserFiltresAdherents,
+  type AdherentsFiltres, type EmailFilter,
+} from '../lib/adherentsFiltres'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -39,30 +48,6 @@ function formatLocalisation(a: Adherent): string {
 }
 
 type StatutFilter = 'actif' | 'archive' | 'all'
-type EmailFilter = '' | 'avec' | 'sans'
-type StatutCycle = 'actif' | 'expire' | 'aucune'
-
-function statutCycleFor(adhesion: Adhesion | undefined, today: string): StatutCycle {
-  if (!adhesion) return 'aucune'
-  if (!adhesion.date_fin || adhesion.date_fin >= today) return 'actif'
-  return 'expire'
-}
-
-const STATUT_CYCLE_LABELS: Record<StatutCycle, string> = {
-  actif: 'Actif',
-  expire: 'Expiré',
-  aucune: 'Aucune adhésion',
-}
-
-// L'adhésion est un fait dérivé de dates (comme le cachet d'ActivitesPage) — la couleur
-// encode ici un vrai signal opérationnel (une adhésion expirée mérite l'ambre, convention
-// déjà actée sur le projet), contrairement au statut actif/archivé ci-dessous qui est un
-// simple classement manuel sans urgence.
-const STATUT_CYCLE_VARIANTS: Record<StatutCycle, 'success' | 'warning' | 'neutral'> = {
-  actif: 'success',
-  expire: 'warning',
-  aucune: 'neutral',
-}
 
 const PRINT_HELP_TEXT =
   "Planche A4 — imprimez sans mise à l'échelle (100 %) pour respecter les dimensions réelles des cartes (85,6 × 54 mm), puis découpez au massicot ou aux ciseaux."
@@ -88,15 +73,10 @@ export default function AdherentsPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [statutFilter, setStatutFilter] = useState<StatutFilter>('actif')
-  const [tagFilter, setTagFilter] = useState('')
-  const [excludeTagFilter, setExcludeTagFilter] = useState('')
-  const [emailFilter, setEmailFilter] = useState<EmailFilter>('')
-  const [codePostalInput, setCodePostalInput] = useState('')
-  const [codePostalFilter, setCodePostalFilter] = useState('')
-  const [villeInput, setVilleInput] = useState('')
-  const [villeFilter, setVilleFilter] = useState('')
-  const [paysInput, setPaysInput] = useState('')
-  const [paysFilter, setPaysFilter] = useState('')
+  // Filtres du tiroir : appliqués d'un coup (« Appliquer »), brouillon pendant l'édition.
+  const [filtres, setFiltres] = useState<AdherentsFiltres>(ADHERENTS_FILTRES_VIDES)
+  const [brouillon, setBrouillon] = useState<AdherentsFiltres>(ADHERENTS_FILTRES_VIDES)
+  const [filtresOpen, setFiltresOpen] = useState(false)
   const [pageSize, setPageSize] = useState(50)
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -131,17 +111,6 @@ export default function AdherentsPage() {
     return () => clearTimeout(timeout)
   }, [searchInput])
 
-  // Même debounce pour les 3 nouveaux filtres texte (code postal, ville, pays)
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setCodePostalFilter(codePostalInput)
-      setVilleFilter(villeInput)
-      setPaysFilter(paysInput)
-      setCurrentPage(1)
-    }, 300)
-    return () => clearTimeout(timeout)
-  }, [codePostalInput, villeInput, paysInput])
-
   const fetchAdherents = useCallback(async () => {
     if (!organisationId) return
     setLoading(true)
@@ -153,12 +122,12 @@ export default function AdherentsPage() {
       p_statut: statutFilter === 'all' ? null : statutFilter,
       p_limit: pageSize,
       p_offset: (currentPage - 1) * pageSize,
-      p_tag: tagFilter || null,
-      p_exclude_tag: excludeTagFilter || null,
-      p_email_filter: emailFilter || null,
-      p_code_postal: codePostalFilter || null,
-      p_ville: villeFilter || null,
-      p_pays: paysFilter || null,
+      p_tag: filtres.tag || null,
+      p_exclude_tag: filtres.excludeTag || null,
+      p_email_filter: filtres.email || null,
+      p_code_postal: filtres.codePostal || null,
+      p_ville: filtres.ville || null,
+      p_pays: filtres.pays || null,
     })
 
     if (err) {
@@ -189,7 +158,7 @@ export default function AdherentsPage() {
     }
 
     setLoading(false)
-  }, [organisationId, search, statutFilter, tagFilter, excludeTagFilter, emailFilter, codePostalFilter, villeFilter, paysFilter, pageSize, currentPage])
+  }, [organisationId, search, statutFilter, filtres, pageSize, currentPage])
 
   useEffect(() => {
     fetchAdherents()
@@ -213,7 +182,7 @@ export default function AdherentsPage() {
   // (les lignes affichées changent complètement, la garder n'aurait pas de sens).
   useEffect(() => {
     setSelectedIds(new Set())
-  }, [search, statutFilter, tagFilter, excludeTagFilter, emailFilter, codePostalFilter, villeFilter, paysFilter, pageSize, currentPage])
+  }, [search, statutFilter, filtres, pageSize, currentPage])
 
   const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -221,6 +190,28 @@ export default function AdherentsPage() {
     () => adherents.filter((a) => selectedIds.has(a.id)).map((a) => ({ id: a.id, tags: a.tags })),
     [adherents, selectedIds],
   )
+
+  function appliquerFiltres(next: AdherentsFiltres) {
+    setFiltres(normaliserFiltresAdherents(next))
+    setCurrentPage(1)
+  }
+
+  function openFiltres() {
+    setBrouillon(filtres)
+    setFiltresOpen(true)
+  }
+
+  const EMAIL_LABELS: Record<Exclude<EmailFilter, ''>, string> = { avec: 'Avec email', sans: 'Sans email' }
+  const chips: FilterChip[] = [
+    filtres.tag && { key: 'tag', label: 'Liste', value: filtres.tag, onRemove: () => appliquerFiltres({ ...filtres, tag: '' }) },
+    filtres.excludeTag && { key: 'excludeTag', label: 'Hors liste', value: filtres.excludeTag, onRemove: () => appliquerFiltres({ ...filtres, excludeTag: '' }) },
+    filtres.email && { key: 'email', label: 'Email', value: EMAIL_LABELS[filtres.email as Exclude<EmailFilter, ''>], onRemove: () => appliquerFiltres({ ...filtres, email: '' }) },
+    filtres.codePostal && { key: 'codePostal', label: 'Code postal', value: filtres.codePostal, onRemove: () => appliquerFiltres({ ...filtres, codePostal: '' }) },
+    filtres.ville && { key: 'ville', label: 'Ville', value: filtres.ville, onRemove: () => appliquerFiltres({ ...filtres, ville: '' }) },
+    filtres.pays && { key: 'pays', label: 'Pays', value: filtres.pays, onRemove: () => appliquerFiltres({ ...filtres, pays: '' }) },
+  ].filter((chip): chip is FilterChip => Boolean(chip))
+
+  const STATUT_SOUS_TITRE: Record<StatutFilter, string> = { actif: 'actif', archive: 'archivé', all: 'au total' }
 
   function toggleColonne(key: ColonneAdherent) {
     setColonnesVisibles((prev) => {
@@ -445,136 +436,17 @@ export default function AdherentsPage() {
         review, the verdict, and DESIGN.md.
       */}
       <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-        <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Adhérents</h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Gestion des adhérents de votre organisation. Sélectionnez plusieurs adhérents (cases à cocher) pour imprimer leurs cartes en une seule fois.
-          </p>
-        </div>
-
-        {error && (
-          <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur : {error}</div>
-        )}
-        {printError && (
-          <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur d'impression : {printError}</div>
-        )}
-
-        <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-paper-border px-4 py-4 md:px-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <Input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Rechercher par nom, prénom ou email…"
-                className="w-full max-w-xs"
-              />
-              <Select
-                aria-label="Statut"
-                value={statutFilter}
-                onChange={(e) => { setStatutFilter(e.target.value as StatutFilter); setCurrentPage(1) }}
-              >
-                <option value="actif">Actifs</option>
-                <option value="archive">Archivés</option>
-                <option value="all">Tous</option>
-              </Select>
-
-              {/* Groupe "listes de diffusion" : filtre, exclusion et création regroupés visuellement (retour
-                  utilisateur). La bordure/marge séparatrice ne s'applique qu'à partir de sm : en dessous, le
-                  groupe passe à la ligne (flex-wrap du parent) et se retrouvait avec un indent + une bordure
-                  verticale qui se lisait comme une boîte imbriquée non voulue (trouvé en testant sur un vrai
-                  téléphone à 360px, pas juste le viewport 390px habituel). */}
-              <div className="flex flex-wrap items-center gap-2 sm:border-l sm:border-paper-border sm:pl-3">
-                <Select
-                  aria-label="Liste de diffusion"
-                  value={tagFilter}
-                  onChange={(e) => { setTagFilter(e.target.value); setCurrentPage(1) }}
-                >
-                  <option value="">Toutes les listes</option>
-                  {availableTags.map((tag) => (
-                    <option key={tag} value={tag}>Liste : {tag}</option>
-                  ))}
-                </Select>
-                {availableTags.length > 0 && (
-                  <Select
-                    aria-label="Exclure une liste"
-                    value={excludeTagFilter}
-                    onChange={(e) => { setExcludeTagFilter(e.target.value); setCurrentPage(1) }}
-                  >
-                    <option value="">Sans exclusion</option>
-                    {availableTags.map((tag) => (
-                      <option key={tag} value={tag}>Exclure : {tag}</option>
-                    ))}
-                  </Select>
-                )}
-                <Button variant="secondary" onClick={() => setAssignListeOpen(true)}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
-                  </svg>
-                  Nouvelle liste
-                </Button>
-                {availableTags.length > 0 && (
-                  <Button variant="secondary" onClick={() => setGererListesOpen(true)}>
-                    Gérer les listes
-                  </Button>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 sm:border-l sm:border-paper-border sm:pl-3">
-                <Select
-                  aria-label="Email"
-                  value={emailFilter}
-                  onChange={(e) => { setEmailFilter(e.target.value as EmailFilter); setCurrentPage(1) }}
-                >
-                  <option value="">Tous (email)</option>
-                  <option value="avec">Avec email</option>
-                  <option value="sans">Sans email</option>
-                </Select>
-                <Input
-                  type="text"
-                  value={codePostalInput}
-                  onChange={(e) => setCodePostalInput(e.target.value)}
-                  placeholder="Code postal…"
-                  className="w-32"
-                />
-                <Input
-                  type="text"
-                  value={villeInput}
-                  onChange={(e) => setVilleInput(e.target.value)}
-                  placeholder="Ville…"
-                  className="w-36"
-                />
-                <Input
-                  type="text"
-                  value={paysInput}
-                  onChange={(e) => setPaysInput(e.target.value)}
-                  placeholder="Pays…"
-                  className="w-32"
-                />
-              </div>
-            </div>
-            {/* w-full (pas flex-shrink-0) sur mobile : flex-shrink-0 fige la largeur "naturelle" du groupe
-                (les 3 boutons sur une seule ligne) sans jamais laisser flex-wrap se déclencher, puisque rien
-                ne contraint alors sa largeur disponible — le dernier bouton ("Ajouter") se retrouvait rendu
-                hors du viewport, invisible et inatteignable (AdminLayout.tsx a overflow-hidden sur son
-                conteneur racine, pas de scroll de secours). Trouvé en testant sur un vrai téléphone à 360px. */}
-            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-              <Button
-                variant={selectionMode ? 'default' : 'secondary'}
-                onClick={toggleSelectionMode}
-                className="sm:hidden"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Sélectionner
-              </Button>
-              <Button variant="secondary" onClick={() => setColonnesModalOpen(true)}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6zM9.75 4.5v15m4.5-15v15" />
-                </svg>
-                Colonnes
-              </Button>
+        <PageHeader
+          title="Adhérents"
+          subtitle={
+            loading && totalCount === 0
+              ? 'Chargement…'
+              : statutFilter === 'all'
+                ? `${totalCount} adhérent${totalCount > 1 ? 's' : ''} au total`
+                : `${totalCount} adhérent${totalCount > 1 ? 's' : ''} ${STATUT_SOUS_TITRE[statutFilter]}${totalCount > 1 ? 's' : ''}`
+          }
+          actions={
+            <>
               <Button variant="secondary" onClick={() => setImportOpen(true)}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
@@ -585,32 +457,86 @@ export default function AdherentsPage() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
-                Ajouter
+                Ajouter un adhérent
               </Button>
-            </div>
-          </div>
+            </>
+          }
+        />
 
+        {error && (
+          <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur : {error}</div>
+        )}
+        {printError && (
+          <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur d'impression : {printError}</div>
+        )}
+
+        <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+          <ListToolbar
+            search={{ value: searchInput, onChange: setSearchInput, placeholder: 'Nom, prénom, email…', label: 'Rechercher un adhérent' }}
+            filterCount={nombreFiltresAdherents(filtres)}
+            onOpenFilters={openFiltres}
+            end={
+              <>
+                {/* Sur mobile, la colonne des cases à cocher n'apparaît qu'en mode sélection. */}
+                <Button
+                  variant={selectionMode ? 'default' : 'secondary'}
+                  onClick={toggleSelectionMode}
+                  className="sm:hidden"
+                  aria-pressed={selectionMode}
+                >
+                  Sélectionner
+                </Button>
+                <Button variant="secondary" onClick={() => setColonnesModalOpen(true)}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6zM9.75 4.5v15m4.5-15v15" />
+                  </svg>
+                  Colonnes
+                </Button>
+                <ActionMenu
+                  label="Listes"
+                  items={[
+                    { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
+                    { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
+                  ]}
+                />
+              </>
+            }
+          >
+            <Select
+              aria-label="Statut"
+              value={statutFilter}
+              onChange={(e) => { setStatutFilter(e.target.value as StatutFilter); setCurrentPage(1) }}
+            >
+              <option value="actif">Actifs</option>
+              <option value="archive">Archivés</option>
+              <option value="all">Tous</option>
+            </Select>
+          </ListToolbar>
+          <FilterChips chips={chips} onClearAll={() => appliquerFiltres(ADHERENTS_FILTRES_VIDES)} />
+
+          {/* Barre d'actions groupées : apparaît dès qu'un adhérent est coché. */}
           {selectedIds.size > 0 && (
-            <div className="border-b border-paper-border bg-paper px-4 py-3 md:px-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="text-sm font-medium text-ink">
+            <div className="border-b border-paper-border bg-paper px-4 py-3 md:px-6" role="region" aria-label="Actions sur la sélection">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="mr-2 text-sm font-medium text-ink">
                   {selectedIds.size} adhérent{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
                 </span>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button variant="secondary" size="sm" onClick={() => setAssignListeOpen(true)}>
-                    Ajouter à une liste
+                <Button size="sm" onClick={handlePrintCards} disabled={printing}>
+                  {printing ? 'Génération…' : 'Imprimer les cartes'}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setAssignListeOpen(true)}>
+                  Ajouter à une liste
+                </Button>
+                {availableTags.length > 0 && (
+                  <Button variant="secondary" size="sm" onClick={() => setRetirerListeOpen(true)}>
+                    Retirer d'une liste
                   </Button>
-                  {availableTags.length > 0 && (
-                    <Button variant="secondary" size="sm" onClick={() => setRetirerListeOpen(true)}>
-                      Retirer d'une liste
-                    </Button>
-                  )}
-                  <Button size="sm" onClick={handlePrintCards} disabled={printing} title={PRINT_HELP_TEXT}>
-                    {printing ? 'Génération…' : 'Imprimer les cartes'}
-                  </Button>
-                </div>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                  Désélectionner
+                </Button>
               </div>
-              <p className="mt-1.5 font-registre-mono text-[11px] text-ink-faint">{PRINT_HELP_TEXT}</p>
+              <p className="mt-1.5 text-xs text-ink-faint">{PRINT_HELP_TEXT}</p>
             </div>
           )}
 
@@ -651,7 +577,7 @@ export default function AdherentsPage() {
                 </TableHeader>
                 <TableBody>
                   {adherents.map((a) => {
-                    const cycle = statutCycleFor(latestAdhesions.get(a.id), todayIso)
+                    const adhesion = libelleAdhesion(latestAdhesions.get(a.id), todayIso)
                     return (
                       <TableRow key={a.id} onClick={() => openEdit(a)} className="cursor-pointer hover:bg-paper-border/20">
                         <TableCell className={selectionMode ? '' : 'hidden sm:table-cell'} onClick={(e) => e.stopPropagation()}>
@@ -664,10 +590,10 @@ export default function AdherentsPage() {
                           />
                         </TableCell>
                         {colonnesVisibles.includes('civilite') && (
-                          <TableCell className="text-ink-faint">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
+                          <TableCell className="whitespace-nowrap text-ink-faint">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
                         )}
-                        <TableCell className="font-medium text-ink">{a.nom}</TableCell>
-                        <TableCell className="text-ink-muted">{a.prenom ?? '—'}</TableCell>
+                        <TableCell className="whitespace-nowrap font-medium text-ink">{a.nom}</TableCell>
+                        <TableCell className="whitespace-nowrap text-ink-muted">{a.prenom ?? '—'}</TableCell>
                         {colonnesVisibles.includes('statut') && (
                           <TableCell>
                             <Badge variant="neutral">{a.statut === 'actif' ? 'Actif' : 'Archivé'}</Badge>
@@ -675,12 +601,7 @@ export default function AdherentsPage() {
                         )}
                         {colonnesVisibles.includes('adhesion') && (
                           <TableCell>
-                            <Badge variant={STATUT_CYCLE_VARIANTS[cycle]}>{STATUT_CYCLE_LABELS[cycle]}</Badge>
-                            {latestAdhesions.get(a.id)?.date_fin && (
-                              <p className="mt-0.5 font-registre-mono text-[11px] text-ink-faint">
-                                jusqu'au {formatDate(latestAdhesions.get(a.id)!.date_fin!)}
-                              </p>
-                            )}
+                            <Badge variant={adhesion.variant}>{adhesion.label}</Badge>
                           </TableCell>
                         )}
                         {colonnesVisibles.includes('email') && (
@@ -745,6 +666,48 @@ export default function AdherentsPage() {
           )}
         </div>
       </div>
+
+      <FilterSheet
+        open={filtresOpen}
+        onOpenChange={setFiltresOpen}
+        onReset={() => setBrouillon(ADHERENTS_FILTRES_VIDES)}
+        onApply={() => { appliquerFiltres(brouillon); setFiltresOpen(false) }}
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="adh-filtre-liste">Liste</Label>
+          <Select id="adh-filtre-liste" className="w-full" value={brouillon.tag} onChange={(e) => setBrouillon((b) => ({ ...b, tag: e.target.value }))}>
+            <option value="">Toutes les listes</option>
+            {availableTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="adh-filtre-exclure">Exclure la liste</Label>
+          <Select id="adh-filtre-exclure" className="w-full" value={brouillon.excludeTag} onChange={(e) => setBrouillon((b) => ({ ...b, excludeTag: e.target.value }))}>
+            <option value="">Aucune</option>
+            {availableTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="adh-filtre-email">Email</Label>
+          <Select id="adh-filtre-email" className="w-full" value={brouillon.email} onChange={(e) => setBrouillon((b) => ({ ...b, email: e.target.value as EmailFilter }))}>
+            <option value="">Tous</option>
+            <option value="avec">Avec email</option>
+            <option value="sans">Sans email</option>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="adh-filtre-cp">Code postal</Label>
+          <Input id="adh-filtre-cp" value={brouillon.codePostal} onChange={(e) => setBrouillon((b) => ({ ...b, codePostal: e.target.value }))} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="adh-filtre-ville">Ville</Label>
+          <Input id="adh-filtre-ville" value={brouillon.ville} onChange={(e) => setBrouillon((b) => ({ ...b, ville: e.target.value }))} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="adh-filtre-pays">Pays</Label>
+          <Input id="adh-filtre-pays" value={brouillon.pays} onChange={(e) => setBrouillon((b) => ({ ...b, pays: e.target.value }))} />
+        </div>
+      </FilterSheet>
 
       <AdherentModal
         open={adherentModalOpen}

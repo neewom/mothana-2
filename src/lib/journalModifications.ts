@@ -95,15 +95,21 @@ export function formatDiffLines(champsModifies: ChampsModifies): string[] {
   })
 }
 
+/** Recherche serveur (nom/prénom de la personne, auteur) : ignorée sous 2 caractères. */
+export const JOURNAL_RECHERCHE_MIN = 2
+
 export async function fetchJournalModifications(
   organisationId: string,
   limit: number,
   offset: number,
+  recherche = '',
 ): Promise<{ entries: JournalModification[]; totalCount: number }> {
+  const terme = recherche.trim()
   const { data, error } = await supabase.rpc('list_journal_modifications', {
     p_organisation_id: organisationId,
     p_limit: limit,
     p_offset: offset,
+    ...(terme.length >= JOURNAL_RECHERCHE_MIN ? { p_recherche: terme } : {}),
   })
 
   if (error) throw error

@@ -13,6 +13,8 @@ import {
   type ParticipantValidation,
 } from '../lib/cerfaValidation'
 import ParticipantModal from '../components/ParticipantModal'
+import DeclarationCerfaCard from '../components/DeclarationCerfaCard'
+import { useRecapitulatif222Bis } from '../hooks/useRecapitulatif222Bis'
 import Toast from '../components/Toast'
 import ScrollShadowX from '../components/ScrollShadowX'
 import { Button } from '../components/ui/button'
@@ -349,6 +351,8 @@ export default function RecusFiscauxPage() {
   // ---------------------------------------------------------------------------
 
   const totalGeneres = rows.filter((r) => r.recu !== null).length
+  // Récapitulatif 222 bis (toutes années) : rechargé quand la liste de l'année change.
+  const recapitulatif = useRecapitulatif222Bis(organisationId, rows)
   const selectedRow = rows.find((r) => r.profil.id === selectedId) ?? null
   // N° de reçu laissé au panneau quand celui-ci réduit le tableau (rien hors écran à 1 400 px).
   const secondaryCol = selectedRow ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
@@ -657,6 +661,8 @@ export default function RecusFiscauxPage() {
         })()}
       </SidePanel>
       </div>
+
+      <DeclarationCerfaCard rows={recapitulatif.rows} loading={recapitulatif.loading} />
 
       {/* Regenerate confirmation */}
       <Dialog open={!!regenerateConfirm} onOpenChange={(next) => { if (!next) setRegenerateConfirm(null) }}>

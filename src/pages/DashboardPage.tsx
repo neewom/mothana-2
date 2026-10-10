@@ -117,7 +117,10 @@ export default function DashboardPage() {
           .from('activites')
           .select('id, nom, date_debut, date_fin')
           .eq('organisation_id', organisationId)
-          .order('date_debut', { ascending: false })
+          // En cours ou à venir, la plus proche d'abord (le bloc s'appelait « Activités
+          // récentes » mais listait surtout des activités futures).
+          .or(`date_debut.gte.${aujourdhui},date_fin.gte.${aujourdhui}`)
+          .order('date_debut', { ascending: true })
           .limit(5),
         supabase
           .from('adhesions')
@@ -201,7 +204,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <span className="w-full shrink-0 rounded-sm bg-warning px-4 py-2 text-center text-sm font-semibold text-white sm:w-auto">
+          <span className="w-full shrink-0 rounded-sm border border-warning bg-white px-4 py-2 text-center text-sm font-semibold text-warning sm:w-auto">
             Examiner →
           </span>
         </Link>
@@ -227,7 +230,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <span className="w-full shrink-0 rounded-sm bg-warning px-4 py-2 text-center text-sm font-semibold text-white sm:w-auto">
+          <span className="w-full shrink-0 rounded-sm border border-warning bg-white px-4 py-2 text-center text-sm font-semibold text-warning sm:w-auto">
             Confirmer →
           </span>
         </Link>
@@ -254,7 +257,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <span className="w-full shrink-0 rounded-sm bg-warning px-4 py-2 text-center text-sm font-semibold text-white sm:w-auto">
+          <span className="w-full shrink-0 rounded-sm border border-warning bg-white px-4 py-2 text-center text-sm font-semibold text-warning sm:w-auto">
             Voir les adhérents →
           </span>
         </button>
@@ -278,7 +281,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <span className="w-full shrink-0 rounded-sm bg-warning px-4 py-2 text-center text-sm font-semibold text-white sm:w-auto">
+          <span className="w-full shrink-0 rounded-sm border border-warning bg-white px-4 py-2 text-center text-sm font-semibold text-warning sm:w-auto">
             Configurer →
           </span>
         </Link>
@@ -324,9 +327,9 @@ export default function DashboardPage() {
           )}
 
           {donsActifs && (
-            <Card title="Activités récentes" action={<Link to="/admin/activites" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
+            <Card title="Activités en cours et à venir" action={<Link to="/admin/activites" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
               {recentActivites.length === 0 ? (
-                <p className="text-sm text-ink-faint">Aucune activité enregistrée.</p>
+                <p className="text-sm text-ink-faint">Aucune activité en cours ou à venir.</p>
               ) : (
                 <ul className="space-y-3">
                   {recentActivites.map((activite) => (

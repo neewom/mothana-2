@@ -13,6 +13,8 @@ import { downloadCsv } from '../lib/csvExport'
 import { cn } from '../lib/utils'
 import ScrollShadowX from '../components/ScrollShadowX'
 import AdminAccountsManager from '../components/AdminAccountsManager'
+import { ListToolbar } from '../components/ui/list-toolbar'
+import { correspondRecherche } from '../lib/textSearch'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { Button } from '../components/ui/button'
@@ -338,8 +340,11 @@ export default function SuperAdminPage() {
   const [tab, setTab] = useState<'actives' | 'archivees'>('actives')
   const [extractingId, setExtractingId] = useState<string | null>(null)
 
-  const activeOrgs = orgs.filter((o) => !o.archived_at)
-  const archivedOrgs = orgs.filter((o) => o.archived_at)
+  const [recherche, setRecherche] = useState('')
+  const orgsTrouvees = orgs.filter((o) => correspondRecherche([o.nom, o.code_pin_benevole], recherche))
+  const activeOrgs = orgsTrouvees.filter((o) => !o.archived_at)
+  const archivedOrgs = orgsTrouvees.filter((o) => o.archived_at)
+  const rechercheActive = recherche.trim().length > 0
 
   function handleConsulter(org: OrgRow) {
     setViewingOrg(org.id)
@@ -607,6 +612,11 @@ export default function SuperAdminPage() {
             </button>
           </div>
         </div>
+        {orgs.length > 0 && (
+          <ListToolbar
+            search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom ou code PIN…', label: 'Rechercher une organisation' }}
+          />
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-16 font-registre text-sm text-ink-faint">
@@ -615,8 +625,10 @@ export default function SuperAdminPage() {
         ) : tab === 'actives' ? (
           activeOrgs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <p className="font-registre text-sm font-medium text-ink-faint">Aucune organisation active</p>
-              <p className="mt-1 font-registre text-xs text-ink-faint">Créez la première organisation pour commencer.</p>
+              <p className="font-registre text-sm font-medium text-ink-faint">
+                {rechercheActive ? 'Aucune organisation active ne correspond à cette recherche' : 'Aucune organisation active'}
+              </p>
+              {!rechercheActive && <p className="mt-1 font-registre text-xs text-ink-faint">Créez la première organisation pour commencer.</p>}
             </div>
           ) : (
             <Table>
@@ -638,7 +650,9 @@ export default function SuperAdminPage() {
           )
         ) : archivedOrgs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="font-registre text-sm font-medium text-ink-faint">Aucune organisation archivée</p>
+            <p className="font-registre text-sm font-medium text-ink-faint">
+              {rechercheActive ? 'Aucune organisation archivée ne correspond à cette recherche' : 'Aucune organisation archivée'}
+            </p>
           </div>
         ) : (
           <ScrollShadowX>
