@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { JournalModification } from '../types'
-import { fetchJournalModifications } from '../lib/journalModifications'
+import { fetchJournalModifications, JOURNAL_RECHERCHE_MIN } from '../lib/journalModifications'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { ListToolbar } from './ui/list-toolbar'
 import { getErrorMessage } from '../lib/errors'
 import HistoriqueModificationsModal from './HistoriqueModificationsModal'
 import JournalActionLabel from './JournalActionLabel'
@@ -21,12 +23,15 @@ export default function HistoriqueModificationsSection({ organisationId }: Histo
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [recherche, setRecherche] = useState('')
+  // Recherche côté serveur (journal paginé) : appel espacé, ignorée sous 2 caractères.
+  const rechercheServeur = useDebouncedValue(recherche.trim().length >= JOURNAL_RECHERCHE_MIN ? recherche : '', 300)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const { entries: fetched, totalCount: count } = await fetchJournalModifications(organisationId, APERCU_SIZE, 0)
+      const { entries: fetched, totalCount: count } = await fetchJournalModifications(organisationId, APERCU_SIZE, 0, rechercheServeur)
       setEntries(fetched)
       setTotalCount(count)
     } catch (err) {
@@ -34,7 +39,7 @@ export default function HistoriqueModificationsSection({ organisationId }: Histo
     } finally {
       setLoading(false)
     }
-  }, [organisationId])
+  }, [organisationId, rechercheServeur])
 
   useEffect(() => {
     load()
@@ -42,6 +47,11 @@ export default function HistoriqueModificationsSection({ organisationId }: Histo
 
   return (
     <div className="font-registre">
+      <ListToolbar
+        className="mb-2 border-b-0 px-0 py-0 md:px-0"
+        search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom de la personne ou de l’auteur…', label: 'Rechercher dans le journal' }}
+      />
+
       {error && <div className="mb-4 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur : {error}</div>}
 
       {loading ? (
@@ -49,7 +59,9 @@ export default function HistoriqueModificationsSection({ organisationId }: Histo
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
         </div>
       ) : entries.length === 0 ? (
-        <p className="py-4 text-sm text-ink-faint">Aucune modification enregistrée pour l'instant.</p>
+        <p className="py-4 text-sm text-ink-faint">
+          {rechercheServeur ? 'Aucune entrée ne correspond à cette recherche.' : "Aucune modification enregistrée pour l'instant."}
+        </p>
       ) : (
         <ul className="divide-y divide-paper-border-muted">
           {entries.map((entry) => (
@@ -74,7 +86,7 @@ export default function HistoriqueModificationsSection({ organisationId }: Histo
         </button>
       )}
 
-      <HistoriqueModificationsModal open={modalOpen} onClose={() => setModalOpen(false)} organisationId={organisationId} />
+      <HistoriqueModificationsModal open={modalOpen} onClose={() => setModalOpen(false)} organisationId={organisationId} rechercheInitiale={recherche} />
     </div>
   )
 }

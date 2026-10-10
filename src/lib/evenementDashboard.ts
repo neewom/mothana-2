@@ -58,18 +58,55 @@ export function libelleMoyenPaiement(moyen: CommandeMoyenPaiement): string {
   return moyen === 'manuel' ? 'Crédit manuel' : 'En ligne'
 }
 
+function termeRecherche(recherche: string): string {
+  return recherche.trim().toLocaleLowerCase('fr-FR')
+}
+
+// L'adresse de remplacement d'un acheteur anonymisé ne doit pas remonter en recherche.
+function portefeuilleCorrespond(
+  portefeuille: Pick<PortefeuilleEvenement, 'email' | 'code_public' | 'anonymise_le'>,
+  terme: string,
+): boolean {
+  return (!portefeuille.anonymise_le && portefeuille.email.toLocaleLowerCase('fr-FR').includes(terme))
+    || portefeuille.code_public.toLocaleLowerCase('fr-FR').includes(terme)
+}
+
 export function filtrerPortefeuilles(
   portefeuilles: PortefeuilleEvenement[],
   recherche: string,
 ): PortefeuilleEvenement[] {
-  const terme = recherche.trim().toLocaleLowerCase('fr-FR')
+  const terme = termeRecherche(recherche)
   if (!terme) return portefeuilles
+  return portefeuilles.filter((portefeuille) => portefeuilleCorrespond(portefeuille, terme))
+}
 
-  // L'adresse de remplacement d'un acheteur anonymisé ne doit pas remonter en recherche.
-  return portefeuilles.filter((portefeuille) =>
-    (!portefeuille.anonymise_le && portefeuille.email.toLocaleLowerCase('fr-FR').includes(terme))
-      || portefeuille.code_public.toLocaleLowerCase('fr-FR').includes(terme),
-  )
+/** Mouvements dont le portefeuille correspond (email ou code public). */
+export function filtrerMouvements<M extends { portefeuille_id: string }>(
+  mouvements: M[],
+  portefeuillesParId: Map<string, PortefeuilleEvenement>,
+  recherche: string,
+): M[] {
+  const terme = termeRecherche(recherche)
+  if (!terme) return mouvements
+  return mouvements.filter((mouvement) => {
+    const portefeuille = portefeuillesParId.get(mouvement.portefeuille_id)
+    return !!portefeuille && portefeuilleCorrespond(portefeuille, terme)
+  })
+}
+
+/** Commandes par email (jamais l'adresse anonymisée) ou par code du portefeuille crédité. */
+export function filtrerCommandes<C extends { email: string; portefeuille_id: string | null }>(
+  commandes: C[],
+  portefeuillesParId: Map<string, PortefeuilleEvenement>,
+  recherche: string,
+): C[] {
+  const terme = termeRecherche(recherche)
+  if (!terme) return commandes
+  return commandes.filter((commande) => {
+    if (!commande.email.endsWith(DOMAINE_ANONYMISE) && commande.email.toLocaleLowerCase('fr-FR').includes(terme)) return true
+    const portefeuille = commande.portefeuille_id ? portefeuillesParId.get(commande.portefeuille_id) : undefined
+    return !!portefeuille && portefeuilleCorrespond(portefeuille, terme)
+  })
 }
 
 export const LIBELLE_ACHETEUR_ANONYMISE = 'Acheteur anonymisé'

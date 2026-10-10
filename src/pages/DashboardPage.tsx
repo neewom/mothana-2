@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useAdminOutletContext } from '../hooks/useAdminOutletContext'
 import { compterDonsReguliersAConfirmer } from '../lib/donsReguliers'
+import { StatTiles } from '../components/ui/stat-tiles'
+import { PageHeader } from '../components/ui/page-header'
 import { cn } from '../lib/utils'
 import type { Adherent } from '../types'
 import AdherentModal from '../components/AdherentModal'
@@ -115,7 +117,10 @@ export default function DashboardPage() {
           .from('activites')
           .select('id, nom, date_debut, date_fin')
           .eq('organisation_id', organisationId)
-          .order('date_debut', { ascending: false })
+          // En cours ou à venir, la plus proche d'abord (le bloc s'appelait « Activités
+          // récentes » mais listait surtout des activités futures).
+          .or(`date_debut.gte.${aujourdhui},date_fin.gte.${aujourdhui}`)
+          .order('date_debut', { ascending: true })
           .limit(5),
         supabase
           .from('adhesions')
@@ -177,10 +182,7 @@ export default function DashboardPage() {
 
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-      <div>
-        <h1 className="text-2xl font-bold text-ink md:text-3xl">Tableau de bord</h1>
-        <p className="mt-1 text-sm text-ink-muted">Vue d'ensemble de votre organisation.</p>
-      </div>
+      <PageHeader title="Tableau de bord" subtitle="Vue d'ensemble de votre organisation." />
 
       {adherentsActifs && demandesEnAttente > 0 && (
         <Link
@@ -202,7 +204,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <span className="w-full shrink-0 rounded-sm bg-warning px-4 py-2 text-center text-sm font-semibold text-white sm:w-auto">
+          <span className="w-full shrink-0 rounded-sm border border-warning bg-white px-4 py-2 text-center text-sm font-semibold text-warning sm:w-auto">
             Examiner →
           </span>
         </Link>
@@ -228,7 +230,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <span className="w-full shrink-0 rounded-sm bg-warning px-4 py-2 text-center text-sm font-semibold text-white sm:w-auto">
+          <span className="w-full shrink-0 rounded-sm border border-warning bg-white px-4 py-2 text-center text-sm font-semibold text-warning sm:w-auto">
             Confirmer →
           </span>
         </Link>
@@ -255,7 +257,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <span className="w-full shrink-0 rounded-sm bg-warning px-4 py-2 text-center text-sm font-semibold text-white sm:w-auto">
+          <span className="w-full shrink-0 rounded-sm border border-warning bg-white px-4 py-2 text-center text-sm font-semibold text-warning sm:w-auto">
             Voir les adhérents →
           </span>
         </button>
@@ -279,7 +281,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <span className="w-full shrink-0 rounded-sm bg-warning px-4 py-2 text-center text-sm font-semibold text-white sm:w-auto">
+          <span className="w-full shrink-0 rounded-sm border border-warning bg-white px-4 py-2 text-center text-sm font-semibold text-warning sm:w-auto">
             Configurer →
           </span>
         </Link>
@@ -287,24 +289,20 @@ export default function DashboardPage() {
 
       {/* Stats */}
       {(donsActifs || adherentsActifs) && (
-        <div className={cn('grid grid-cols-1 gap-4', donsActifs && adherentsActifs && 'sm:grid-cols-2')}>
-          {donsActifs && (
-            <div className="rounded-sm border border-paper-border bg-white p-5">
-              <p className="text-sm text-ink-faint">Dons ce mois-ci</p>
-              <p className="mt-1 text-2xl font-bold text-ink">{formatEur(montantMois)}</p>
-              <p className="mt-1 text-xs text-ink-faint">{nombreDonsMois} don{nombreDonsMois > 1 ? 's' : ''}</p>
-            </div>
-          )}
-          {adherentsActifs && (
-            <div className="rounded-sm border border-paper-border bg-white p-5">
-              <p className="text-sm text-ink-faint">Adhérents proches d'expiration (30 jours)</p>
-              <p className="mt-1 text-2xl font-bold text-ink">{adherentsExpiration.length}</p>
-              <p className="mt-1 text-xs text-ink-faint">
-                {adherentsExpiration.length === 0 ? 'Aucun renouvellement à prévoir' : 'À relancer pour renouvellement'}
-              </p>
-            </div>
-          )}
-        </div>
+        <StatTiles
+          items={[
+            ...(donsActifs
+              ? [{ label: 'Dons ce mois-ci', value: formatEur(montantMois), hint: `${nombreDonsMois} don${nombreDonsMois > 1 ? 's' : ''}` }]
+              : []),
+            ...(adherentsActifs
+              ? [{
+                  label: 'Adhésions à renouveler (30 j)',
+                  value: String(adherentsExpiration.length),
+                  hint: adherentsExpiration.length === 0 ? 'Aucun renouvellement à prévoir' : 'À relancer pour renouvellement',
+                }]
+              : []),
+          ]}
+        />
       )}
 
       {(donsActifs || adherentsActifs) && (
@@ -329,9 +327,9 @@ export default function DashboardPage() {
           )}
 
           {donsActifs && (
-            <Card title="Activités récentes" action={<Link to="/admin/activites" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
+            <Card title="Activités en cours et à venir" action={<Link to="/admin/activites" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
               {recentActivites.length === 0 ? (
-                <p className="text-sm text-ink-faint">Aucune activité enregistrée.</p>
+                <p className="text-sm text-ink-faint">Aucune activité en cours ou à venir.</p>
               ) : (
                 <ul className="space-y-3">
                   {recentActivites.map((activite) => (

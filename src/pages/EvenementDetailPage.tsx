@@ -10,7 +10,6 @@ import Toast from '../components/Toast'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog'
-import { Input } from '../components/ui/input'
 import { StatusNotice } from '../components/ui/status-notice'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 import { Tabs } from '../components/ui/tabs'
@@ -21,6 +20,8 @@ import {
   calculerStatsEvenement,
   emailAffiche,
   emailCommandeAffiche,
+  filtrerCommandes,
+  filtrerMouvements,
   filtrerPortefeuilles,
   libelleMoyenPaiement,
   libelleMouvementAdmin,
@@ -30,6 +31,9 @@ import {
 import { formatCentimes, formatPeriodeEvenement } from '../lib/portefeuilleAcheteur'
 import { supabase } from '../lib/supabaseClient'
 import { cn } from '../lib/utils'
+import { PageHeader } from '../components/ui/page-header'
+import { StatTiles } from '../components/ui/stat-tiles'
+import { ListToolbar } from '../components/ui/list-toolbar'
 import type { Activite } from '../types'
 import type { Evenement } from '../types/evenement'
 import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
@@ -103,16 +107,6 @@ function Chevron() {
   )
 }
 
-function KeyFigure({ label, value, hint, className }: { label: string; value: string; hint: string; className?: string }) {
-  return (
-    <div className={cn('min-w-0 p-3 sm:p-5', className)}>
-      <dt className="font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">{label}</dt>
-      <dd className="mt-1 font-registre-mono text-base font-semibold tabular-nums text-ink sm:mt-2 sm:text-2xl">{value}</dd>
-      <p className="mt-1 hidden text-xs text-ink-faint sm:block">{hint}</p>
-    </div>
-  )
-}
-
 export default function EvenementDetailPage() {
   const { id: evenementId } = useParams<{ id: string }>()
   const organisationId = useOrganisationId()
@@ -126,6 +120,8 @@ export default function EvenementDetailPage() {
   const [revokeError, setRevokeError] = useState<string | null>(null)
   const [onglet, setOnglet] = useState<Onglet>('portefeuilles')
   const [walletSearch, setWalletSearch] = useState('')
+  const [mouvementSearch, setMouvementSearch] = useState('')
+  const [commandeSearch, setCommandeSearch] = useState('')
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null)
   const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
   const [freezingWalletId, setFreezingWalletId] = useState<string | null>(null)
@@ -262,6 +258,14 @@ export default function EvenementDetailPage() {
   const filteredWallets = useMemo(
     () => filtrerPortefeuilles(data?.portefeuilles ?? [], walletSearch),
     [data, walletSearch],
+  )
+  const filteredMouvements = useMemo(
+    () => filtrerMouvements(data?.mouvements ?? [], walletById, mouvementSearch),
+    [data, walletById, mouvementSearch],
+  )
+  const filteredCommandes = useMemo(
+    () => filtrerCommandes(data?.commandes ?? [], walletById, commandeSearch),
+    [data, walletById, commandeSearch],
   )
   const remainingWallets = useMemo(
     () => (data?.portefeuilles ?? []).filter((portefeuille) => portefeuille.solde_centimes > 0),
@@ -441,7 +445,8 @@ export default function EvenementDetailPage() {
 
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-      <header>
+      <PageHeader
+        before={
         <Button asChild variant="ghost" size="sm" className="-ml-3 mb-2">
           <Link to="/admin/activites/porte-monnaie">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="h-4 w-4" aria-hidden>
@@ -450,14 +455,12 @@ export default function EvenementDetailPage() {
             Porte-monnaie
           </Link>
         </Button>
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold text-ink md:text-3xl">{evenement.nom}</h1>
-              <Badge variant={statusVariant}>{statusLabel}</Badge>
-            </div>
-            <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-              <span className="font-registre-mono text-ink-faint">
+        }
+        title={evenement.nom}
+        badge={<Badge variant={statusVariant}>{statusLabel}</Badge>}
+        subtitle={
+            <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span>
                 {formatPeriodeEvenement(evenement.date_evenement, evenement.date_fin)}
               </span>
               <a
@@ -468,19 +471,25 @@ export default function EvenementDetailPage() {
               >
                 Page d’achat en ligne ↗
               </a>
-            </p>
-          </div>
-          {/* Actions sur l'événement uniquement ; celles sur les portefeuilles vivent dans leur onglet. */}
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={() => setAfficheOpen(true)}>
+            </span>
+        }
+        actions={
+          // Actions sur l'événement uniquement ; celles sur les portefeuilles vivent dans leur onglet.
+          <>
+            <Button type="button" variant="secondary" onClick={() => setAfficheOpen(true)}>
               Affiche QR code
             </Button>
-            <Button type="button" variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+            {canCredit && (
+              <Button type="button" variant="secondary" onClick={() => setCreditOpen(true)}>
+                Créditer un portefeuille
+              </Button>
+            )}
+            <Button type="button" onClick={() => setEditOpen(true)}>
               Modifier l’événement
             </Button>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {actionError && (
         <StatusNotice tone="danger" role="alert">
@@ -488,16 +497,17 @@ export default function EvenementDetailPage() {
         </StatusNotice>
       )}
 
-      <dl className="grid grid-cols-3 overflow-hidden rounded-sm border border-paper-border bg-white">
-        <KeyFigure label="Vendu" value={formatCentimes(stats.venduCentimes)} hint="Crédits initialement vendus et recharges" />
-        <KeyFigure label="Dépensé" value={formatCentimes(stats.depenseCentimes)} hint="Paiements validés auprès des vendeurs" className="border-l border-paper-border" />
-        <KeyFigure
-          label="Restant"
-          value={formatCentimes(stats.restantCentimes)}
-          hint={`Solde cumulé des ${portefeuilles.length} portefeuille${portefeuilles.length !== 1 ? 's' : ''}`}
-          className="border-l border-paper-border"
-        />
-      </dl>
+      <StatTiles
+        items={[
+          { label: 'Vendu', value: formatCentimes(stats.venduCentimes), hint: 'Crédits initialement vendus et recharges' },
+          { label: 'Dépensé', value: formatCentimes(stats.depenseCentimes), hint: 'Paiements validés auprès des vendeurs' },
+          {
+            label: 'Restant',
+            value: formatCentimes(stats.restantCentimes),
+            hint: `Solde cumulé des ${portefeuilles.length} portefeuille${portefeuilles.length !== 1 ? 's' : ''}`,
+          },
+        ]}
+      />
 
       {evenement.statut === 'clos' && (
         <section aria-labelledby="soldes-restants-title" className="overflow-hidden rounded-sm border border-paper-border bg-white">
@@ -558,21 +568,9 @@ export default function EvenementDetailPage() {
             className={cn('flex gap-6', panelOpen && 'items-start')}
           >
             <section className="min-w-0 flex-1 overflow-hidden rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-paper-border px-4 py-4 md:px-6">
-                <Input
-                  type="search"
-                  value={walletSearch}
-                  onChange={(event) => setWalletSearch(event.target.value)}
-                  placeholder="Rechercher par email ou code"
-                  aria-label="Rechercher un portefeuille"
-                  className="w-full md:w-72"
-                />
-                {canCredit && (
-                  <Button type="button" onClick={() => setCreditOpen(true)}>
-                    Créditer un portefeuille
-                  </Button>
-                )}
-              </div>
+              <ListToolbar
+                search={{ value: walletSearch, onChange: setWalletSearch, placeholder: 'Rechercher par email ou code', label: 'Rechercher un portefeuille' }}
+              />
               {portefeuilles.length === 0 ? (
                 <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun portefeuille créé pour cet événement.</p>
               ) : filteredWallets.length === 0 ? (
@@ -648,8 +646,15 @@ export default function EvenementDetailPage() {
             aria-labelledby="evenement-tab-mouvements"
             className="overflow-hidden rounded-sm border border-paper-border bg-white"
           >
+            {mouvements.length > 0 && (
+              <ListToolbar
+                search={{ value: mouvementSearch, onChange: setMouvementSearch, placeholder: 'Rechercher par email ou code', label: 'Rechercher un mouvement' }}
+              />
+            )}
             {mouvements.length === 0 ? (
               <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun mouvement enregistré.</p>
+            ) : filteredMouvements.length === 0 ? (
+              <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun mouvement ne correspond à cette recherche.</p>
             ) : (
               <ScrollShadowX>
                 <Table>
@@ -663,7 +668,7 @@ export default function EvenementDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mouvements.map((mouvement) => {
+                    {filteredMouvements.map((mouvement) => {
                       const portefeuille = walletById.get(mouvement.portefeuille_id)
                       const isDebit = mouvement.type === 'debit'
                       return (
@@ -694,8 +699,15 @@ export default function EvenementDetailPage() {
             aria-labelledby="evenement-tab-commandes"
             className="overflow-hidden rounded-sm border border-paper-border bg-white"
           >
+            {commandes.length > 0 && (
+              <ListToolbar
+                search={{ value: commandeSearch, onChange: setCommandeSearch, placeholder: 'Rechercher par email ou code', label: 'Rechercher une commande' }}
+              />
+            )}
             {commandes.length === 0 ? (
               <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucune commande enregistrée.</p>
+            ) : filteredCommandes.length === 0 ? (
+              <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucune commande ne correspond à cette recherche.</p>
             ) : (
               <ScrollShadowX>
                 <Table>
@@ -709,7 +721,7 @@ export default function EvenementDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {commandes.map((commande) => (
+                    {filteredCommandes.map((commande) => (
                       <TableRow key={commande.id}>
                         <TableCell className="whitespace-nowrap font-registre-mono text-xs text-ink-faint">{formatDateTime(commande.created_at)}</TableCell>
                         <TableCell className="whitespace-nowrap font-medium text-ink">{emailCommandeAffiche(commande.email)}</TableCell>

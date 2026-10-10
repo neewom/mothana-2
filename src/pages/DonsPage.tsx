@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Don, ProfilParticipant, Activite } from '../types'
@@ -15,8 +16,14 @@ import { donsImportConfig } from '../lib/import/configs'
 import { MODE_PAIEMENT_LABELS, MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { downloadCsv } from '../lib/csvExport'
 import { cn } from '../lib/utils'
+import { DONS_FILTRES_VIDES, PERIODES_DONS, bornesPeriode, filtrerDons, nombreFiltresDons, type DonsFiltres, type PeriodeDons } from '../lib/donsFilters'
+import { PageHeader } from '../components/ui/page-header'
+import { ListToolbar, FilterChips, type FilterChip } from '../components/ui/list-toolbar'
+import { FilterSheet } from '../components/ui/filter-sheet'
+import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
 import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
@@ -29,21 +36,6 @@ import { DON_SORT_DEFAUT, directionInitialeDon, nomDonateur, trierDons, type Don
 
 function todayISO(): string {
   return new Date().toISOString().split('T')[0]
-}
-
-function addDays(iso: string, days: number): string {
-  const d = new Date(iso)
-  d.setDate(d.getDate() + days)
-  return d.toISOString().split('T')[0]
-}
-
-function startOfMonth(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
-}
-
-function startOfYear(iso: string): string {
-  return `${new Date(iso).getFullYear()}-01-01`
 }
 
 function formatEur(n: number): string {
@@ -62,8 +54,6 @@ function formatDateShort(iso: string): string {
   const [year, month, day] = iso.split('-')
   return `${day}/${month}/${year}`
 }
-
-type Shortcut = '30j' | '90j' | 'mois' | 'annee' | 'tout'
 
 // ---------------------------------------------------------------------------
 // useDons hook
@@ -150,33 +140,42 @@ function useDons(organisationId: string): DonsData {
 }
 
 // ---------------------------------------------------------------------------
-// StatCard
+// Détail d'un don (contenu du panneau)
 // ---------------------------------------------------------------------------
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function DonDetailFields({ don, organisationId }: { don: Don; organisationId: string }) {
+  const p = don.profils_participant?.personnes
   return (
-    <div className="rounded-sm border border-paper-border bg-white p-5">
-      <p className="font-registre text-sm text-ink-muted">{label}</p>
-      <p className="mt-1 font-registre-mono text-2xl font-bold text-ink">{value}</p>
-    </div>
+    <>
+      <DetailField label="Donateur">
+        <p className="font-semibold">{nomDonateur(don)}</p>
+        {p?.email && <p className="text-ink-muted">{p.email}</p>}
+        {p?.telephone && <p className="font-registre-mono text-ink-muted">{p.telephone}</p>}
+      </DetailField>
+
+      <div className="grid grid-cols-2 gap-4">
+        <DetailField label="Montant">
+          <p className="font-registre-mono text-xl font-bold">{formatEur(don.montant)}</p>
+        </DetailField>
+        <DetailField label="Date">{formatDate(don.date)}</DetailField>
+      </div>
+
+      <DetailField label="Mode de paiement">
+        <Badge variant="neutral">{MODE_PAIEMENT_LABELS[don.mode_paiement]}</Badge>
+      </DetailField>
+      <DetailField label="Activité">{don.activites?.nom ?? '—'}</DetailField>
+      <DetailField label="Saisi par"><span className="capitalize">{don.created_by_role}</span></DetailField>
+
+      <DonFichiers donId={don.id} organisationId={organisationId} canDelete canAdd={false} />
+    </>
   )
 }
 
-// ---------------------------------------------------------------------------
-// DetailPanel
-// ---------------------------------------------------------------------------
-
-interface DetailPanelProps {
-  don: Don
-  organisationId: string
-  onClose: () => void
-  onEdit: () => void
-  onDeleted: () => void
-}
-
-function DetailPanel({ don, organisationId, onClose, onEdit, onDeleted }: DetailPanelProps) {
+function DonDetailActions({ don, onEdit, onDeleted }: { don: Don; onEdit: () => void; onDeleted: () => void }) {
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  // Les reçus sont annuels, par donateur : on ouvre celui de l'année du don.
+  const recuHref = `/admin/recus?annee=${don.date.slice(0, 4)}&q=${encodeURIComponent(nomDonateur(don))}`
 
   async function handleDelete() {
     setDeleting(true)
@@ -185,87 +184,34 @@ function DetailPanel({ don, organisationId, onClose, onEdit, onDeleted }: Detail
     onDeleted()
   }
 
-  const p = don.profils_participant?.personnes
+  if (confirming) {
+    return (
+      <div className="space-y-2">
+        <p className="font-registre text-sm font-medium text-stamp">Confirmer la suppression ?</p>
+        <div className="flex gap-2">
+          <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="flex-1">
+            {deleting ? 'Suppression…' : 'Supprimer'}
+          </Button>
+          <Button variant="secondary" onClick={() => setConfirming(false)} className="flex-1">
+            Annuler
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex h-full flex-col font-registre">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-paper-border px-6 py-4">
-        <h2 className="text-lg font-semibold text-ink">Détail du don</h2>
-        <button
-          onClick={onClose}
-          className="rounded-sm p-1.5 text-ink-faint transition-colors hover:text-stamp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+    <>
+      <div className="flex gap-2">
+        <Button onClick={onEdit} className="flex-1">Modifier</Button>
+        <Button asChild variant="secondary" className="flex-1">
+          <Link to={recuHref}>Reçu</Link>
+        </Button>
       </div>
-
-      {/* Body */}
-      <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-        <div>
-          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Donateur</p>
-          <p className="mt-1 font-semibold text-ink">
-            {p ? (p.prenom ? `${p.prenom} ${p.nom}` : p.nom) : '—'}
-          </p>
-          {p?.email && <p className="text-sm text-ink-muted">{p.email}</p>}
-          {p?.telephone && <p className="font-registre-mono text-sm text-ink-muted">{p.telephone}</p>}
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Montant</p>
-            <p className="mt-1 font-registre-mono text-xl font-bold text-ink">{formatEur(don.montant)}</p>
-          </div>
-          <div>
-            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Date</p>
-            <p className="mt-1 text-sm text-ink">{formatDate(don.date)}</p>
-          </div>
-        </div>
-
-        <div>
-          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Mode de paiement</p>
-          <Badge variant="neutral" className="mt-1">{MODE_PAIEMENT_LABELS[don.mode_paiement]}</Badge>
-        </div>
-
-        <div>
-          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Activité</p>
-          <p className="mt-1 text-sm text-ink">{don.activites?.nom ?? '—'}</p>
-        </div>
-
-        <div>
-          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Saisi par</p>
-          <p className="mt-1 text-sm capitalize text-ink">{don.created_by_role}</p>
-        </div>
-
-        <DonFichiers donId={don.id} organisationId={organisationId} canDelete canAdd={false} />
-      </div>
-
-      {/* Actions */}
-      <div className="space-y-2 border-t border-paper-border px-6 py-4">
-        {confirming ? (
-          <div className="space-y-2">
-            <p className="font-registre text-sm font-medium text-stamp">Confirmer la suppression ?</p>
-            <div className="flex gap-2">
-              <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="flex-1">
-                {deleting ? 'Suppression…' : 'Supprimer'}
-              </Button>
-              <Button variant="secondary" onClick={() => setConfirming(false)} className="flex-1">
-                Annuler
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            <Button onClick={onEdit} className="flex-1">Modifier</Button>
-            <Button variant="danger" onClick={() => setConfirming(true)} className="flex-1">
-              Supprimer
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
+      <Button variant="danger" onClick={() => setConfirming(true)} className="w-full">
+        Supprimer
+      </Button>
+    </>
   )
 }
 
@@ -279,74 +225,65 @@ export default function DonsPage() {
 
   const { dons, participants, activites, loading, error, refetch } = useDons(organisationId)
 
-  // Filters
+  // Filtres appliqués (tiroir) + brouillon en cours d'édition dans le tiroir
   const today = todayISO()
-  const [shortcut, setShortcut] = useState<Shortcut>('tout')
-  const [dateDebut, setDateDebut] = useState('')
-  const [dateFin, setDateFin] = useState('')
-  const [filterParticipant, setFilterParticipant] = useState('')
-  const [filterActivite, setFilterActivite] = useState('')
-  const [filterMode, setFilterMode] = useState('')
-  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filtres, setFiltres] = useState<DonsFiltres>(DONS_FILTRES_VIDES)
+  const [brouillon, setBrouillon] = useState<DonsFiltres>(DONS_FILTRES_VIDES)
+  const [filtresOpen, setFiltresOpen] = useState(false)
+  const [recherche, setRecherche] = useState('')
 
   // Detail & modal
   const [selectedDon, setSelectedDon] = useState<Don | null>(null)
-  const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingDon, setEditingDon] = useState<Don | undefined>(undefined)
   const [importOpen, setImportOpen] = useState(false)
 
-  useEffect(() => {
-    if (selectedDon) {
-      const timer = setTimeout(() => setMobilePanelVisible(true), 10)
-      return () => clearTimeout(timer)
-    }
-    setMobilePanelVisible(false)
-  }, [selectedDon])
+  function openFiltres() {
+    setBrouillon(filtres)
+    setFiltresOpen(true)
+  }
 
-  function applyShortcut(s: Shortcut) {
-    setShortcut(s)
-    if (s === 'tout') {
-      setDateDebut('')
-      setDateFin('')
-    } else if (s === '30j') {
-      setDateDebut(addDays(today, -30))
-      setDateFin(today)
-    } else if (s === '90j') {
-      setDateDebut(addDays(today, -90))
-      setDateFin(today)
-    } else if (s === 'mois') {
-      setDateDebut(startOfMonth(today))
-      setDateFin(today)
-    } else if (s === 'annee') {
-      setDateDebut(startOfYear(today))
-      setDateFin(today)
-    }
+  function appliquerFiltres(next: DonsFiltres) {
+    setFiltres(next)
     setCurrentPage(1)
   }
 
-  function handleDateDebutChange(val: string) {
-    setDateDebut(val)
-    setShortcut('tout') // deselect shortcut
-    setCurrentPage(1)
+  function choisirPeriode(periode: PeriodeDons) {
+    setBrouillon((b) => ({ ...b, periode, ...bornesPeriode(periode, today) }))
   }
 
-  function handleDateFinChange(val: string) {
-    setDateFin(val)
-    setShortcut('tout') // deselect shortcut
-    setCurrentPage(1)
+  const filteredDons = useMemo(() => filtrerDons(dons, filtres, recherche), [dons, filtres, recherche])
+  const nombreFiltres = nombreFiltresDons(filtres)
+
+  const chips: FilterChip[] = []
+  if (filtres.dateDebut || filtres.dateFin) {
+    const periodeLabel = filtres.periode !== 'tout'
+      ? PERIODES_DONS.find((p) => p.key === filtres.periode)?.label ?? ''
+      : filtres.dateDebut && filtres.dateFin
+        ? `${formatDateShort(filtres.dateDebut)} → ${formatDateShort(filtres.dateFin)}`
+        : filtres.dateDebut
+          ? `depuis le ${formatDateShort(filtres.dateDebut)}`
+          : `jusqu'au ${formatDateShort(filtres.dateFin)}`
+    chips.push({ key: 'periode', label: 'Période', value: periodeLabel, onRemove: () => appliquerFiltres({ ...filtres, periode: 'tout', dateDebut: '', dateFin: '' }) })
+  }
+  if (filtres.participantId) {
+    const participant = participants.find((p) => p.id === filtres.participantId)
+    const nom = participant ? (participant.personnes.prenom ? `${participant.personnes.prenom} ${participant.personnes.nom}` : participant.personnes.nom) : '—'
+    chips.push({ key: 'donateur', label: 'Donateur', value: nom, onRemove: () => appliquerFiltres({ ...filtres, participantId: '' }) })
+  }
+  if (filtres.activiteId) {
+    const activite = activites.find((a) => a.id === filtres.activiteId)
+    chips.push({ key: 'activite', label: 'Activité', value: activite?.nom ?? '—', onRemove: () => appliquerFiltres({ ...filtres, activiteId: '' }) })
+  }
+  if (filtres.mode) {
+    const mode = MODE_PAIEMENT_OPTIONS.find((o) => String(o.value) === filtres.mode)
+    chips.push({ key: 'mode', label: 'Mode', value: mode?.label ?? filtres.mode, onRemove: () => appliquerFiltres({ ...filtres, mode: '' }) })
   }
 
-  const filteredDons = useMemo(() => {
-    return dons.filter((d) => {
-      if (dateDebut && d.date < dateDebut) return false
-      if (dateFin && d.date > dateFin) return false
-      if (filterParticipant && d.profil_participant_id !== filterParticipant) return false
-      if (filterActivite && d.activite_id !== filterActivite) return false
-      if (filterMode && String(d.mode_paiement) !== filterMode) return false
-      return true
-    })
-  }, [dons, dateDebut, dateFin, filterParticipant, filterActivite, filterMode])
+  // Largeur (critère du gabarit : rien hors écran à 1 400 px) : le mode n'apparaît qu'en très
+  // grand écran, l'activité disparaît quand le panneau de détail réduit le tableau ; les deux
+  // restent dans le panneau.
+  const activiteCol = selectedDon ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
 
   // Tri appliqué après les filtres et avant la pagination (le chargement suit l'ordre des id).
   const [sortField, setSortField] = useState<DonSortField>(DON_SORT_DEFAUT.field)
@@ -367,13 +304,12 @@ export default function DonsPage() {
     [filteredDons, sortField, sortDirection],
   )
 
-  // Stats computed from filtered dons
+  // Chiffres du sous-titre, calculés sur la sélection (filtres et recherche appliqués).
   const stats = useMemo(() => {
     const total = filteredDons.reduce((sum, d) => sum + d.montant, 0)
     const count = filteredDons.length
-    const avg = count > 0 ? total / count : 0
     const distinctParticipants = new Set(filteredDons.map((d) => d.profil_participant_id)).size
-    return { total, count, avg, distinctParticipants }
+    return { total, count, distinctParticipants }
   }, [filteredDons])
 
   // Pagination
@@ -418,6 +354,7 @@ export default function DonsPage() {
       'Mode de paiement': MODE_PAIEMENT_LABELS[don.mode_paiement],
     }))
 
+    const { dateDebut, dateFin } = filtres
     const rangeLabel = dateDebut && dateFin
       ? `${dateDebut}_au_${dateFin}`
       : dateDebut
@@ -428,14 +365,6 @@ export default function DonsPage() {
 
     downloadCsv(`dons_${rangeLabel}.csv`, rows)
   }
-
-  const SHORTCUTS: { key: Shortcut; label: string }[] = [
-    { key: '30j', label: '30 jours' },
-    { key: '90j', label: '90 jours' },
-    { key: 'mois', label: 'Ce mois' },
-    { key: 'annee', label: 'Cette année' },
-    { key: 'tout', label: 'Tout' },
-  ]
 
   return (
     <>
@@ -456,11 +385,36 @@ export default function DonsPage() {
         review, the verdict, and DESIGN.md.
       */}
       <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-        {/* Page title */}
-        <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Dons</h1>
-          <p className="mt-1 text-sm text-ink-muted">Gestion et suivi des donations</p>
-        </div>
+        <PageHeader
+          title="Dons"
+          subtitle={
+            loading
+              ? 'Chargement…'
+              : `${stats.count} don${stats.count > 1 ? 's' : ''} · ${formatEur(stats.total)} collectés · ${stats.distinctParticipants} donateur${stats.distinctParticipants > 1 ? 's' : ''}`
+          }
+          actions={
+            <>
+              <Button variant="secondary" onClick={() => setImportOpen(true)}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                Importer
+              </Button>
+              <Button variant="secondary" onClick={handleExport} disabled={filteredDons.length === 0}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
+                </svg>
+                Exporter
+              </Button>
+              <Button onClick={openAdd}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Ajouter un don
+              </Button>
+            </>
+          }
+        />
 
         {/* Error */}
         {error && (
@@ -469,139 +423,16 @@ export default function DonsPage() {
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard label="Total collecté" value={formatEur(stats.total)} />
-          <StatCard label="Nombre de dons" value={String(stats.count)} />
-          <StatCard label="Don moyen" value={stats.count > 0 ? formatEur(stats.avg) : '—'} />
-          <StatCard label="Donateurs distincts" value={String(stats.distinctParticipants)} />
-        </div>
-
-        {/* Filters card (expandable) */}
-        <div className="rounded-sm border border-paper-border bg-white">
-          <button
-            type="button"
-            onClick={() => setFiltersOpen((prev) => !prev)}
-            className="flex w-full items-center justify-between px-5 py-4 text-left"
-            aria-expanded={filtersOpen}
-          >
-            <span className="font-registre text-sm font-medium text-ink">Filtres</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className={cn('h-4 w-4 text-ink-faint transition-transform', filtersOpen && 'rotate-180')}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-
-          {filtersOpen && (
-            <div className="space-y-4 border-t border-paper-border p-5">
-              {/* Period shortcuts */}
-              <div className="flex flex-wrap gap-2">
-                {SHORTCUTS.map(({ key, label }) => (
-                  <button
-                    key={key}
-                    onClick={() => applyShortcut(key)}
-                    className={cn(
-                      'rounded-full px-3 py-1.5 font-registre text-sm font-medium transition-colors',
-                      shortcut === key
-                        ? 'bg-stamp text-white'
-                        : 'bg-paper-border/30 text-ink-muted hover:bg-paper-border/50'
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Date range + dropdowns */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <div className="space-y-1.5">
-                  <label htmlFor="dons-date-debut" className="block font-registre-mono text-[11px] font-medium text-ink-faint">Début</label>
-                  <Input
-                    id="dons-date-debut"
-                    type="date"
-                    value={dateDebut}
-                    onChange={(e) => handleDateDebutChange(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label htmlFor="dons-date-fin" className="block font-registre-mono text-[11px] font-medium text-ink-faint">Fin</label>
-                  <Input
-                    id="dons-date-fin"
-                    type="date"
-                    value={dateFin}
-                    onChange={(e) => handleDateFinChange(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block font-registre-mono text-[11px] font-medium text-ink-faint">Donateur</label>
-                  <ParticipantAutocomplete
-                    participants={participants}
-                    value={filterParticipant}
-                    onChange={(id) => { setFilterParticipant(id); setCurrentPage(1) }}
-                    placeholder="Tous les donateurs"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block font-registre-mono text-[11px] font-medium text-ink-faint">Activité</label>
-                  <ActiviteAutocomplete
-                    activites={activites}
-                    value={filterActivite}
-                    onChange={(id) => { setFilterActivite(id); setCurrentPage(1) }}
-                    placeholder="Toutes les activités"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label htmlFor="dons-mode-paiement" className="block font-registre-mono text-[11px] font-medium text-ink-faint">Mode de paiement</label>
-                  <Select
-                    id="dons-mode-paiement"
-                    value={filterMode}
-                    onChange={(e) => { setFilterMode(e.target.value); setCurrentPage(1) }}
-                    className="w-full"
-                  >
-                    <option value="">Tous les modes</option>
-                    {MODE_PAIEMENT_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </Select>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Table + Detail panel */}
         <div className={cn('flex gap-6', selectedDon && 'items-start')}>
           {/* Table card */}
           <div className="min-w-0 flex-1 rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-paper-border px-4 py-4 md:px-6">
-              <h2 className="text-lg font-semibold text-ink">Liste des dons</h2>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" onClick={handleExport} disabled={filteredDons.length === 0}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
-                  </svg>
-                  Exporter
-                </Button>
-                <Button variant="secondary" onClick={() => setImportOpen(true)}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                  </svg>
-                  Importer
-                </Button>
-                <Button onClick={openAdd}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                  Ajouter
-                </Button>
-              </div>
-            </div>
+            <ListToolbar
+              search={{ value: recherche, onChange: (v) => { setRecherche(v); setCurrentPage(1) }, placeholder: 'Donateur, activité…', label: 'Rechercher un don' }}
+              filterCount={nombreFiltres}
+              onOpenFilters={openFiltres}
+            />
+            <FilterChips chips={chips} onClearAll={() => appliquerFiltres(DONS_FILTRES_VIDES)} />
 
             {loading ? (
               <div className="flex items-center justify-center py-16">
@@ -618,10 +449,10 @@ export default function DonsPage() {
                     <TableRow>
                       <SortableTableHead field="date" label="Date" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                       <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <TableHead className="hidden md:table-cell">Activité</TableHead>
+                      <TableHead className={activiteCol}>Activité</TableHead>
                       <SortableTableHead field="montant" label="Montant" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
-                      <TableHead className="hidden md:table-cell">Mode</TableHead>
-                      <TableHead />
+                      <TableHead className="hidden 2xl:table-cell">Mode</TableHead>
+                      <TableHead className="hidden md:table-cell" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -635,21 +466,22 @@ export default function DonsPage() {
                         )}
                       >
                         <TableCell className="whitespace-nowrap text-ink-muted">
-                          {formatDate(don.date)}
+                          <span className="md:hidden">{formatDateShort(don.date)}</span>
+                          <span className="hidden md:inline">{formatDate(don.date)}</span>
                         </TableCell>
-                        <TableCell className="font-medium text-ink">
+                        <TableCell className="whitespace-nowrap font-medium text-ink">
                           {nomDonateur(don)}
                         </TableCell>
-                        <TableCell className="hidden text-ink-faint md:table-cell">
+                        <TableCell className={cn(activiteCol, 'whitespace-nowrap text-ink-faint')}>
                           {don.activites?.nom ?? '—'}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
                           {formatEur(don.montant)}
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
+                        <TableCell className="hidden 2xl:table-cell">
                           <Badge variant="neutral">{MODE_PAIEMENT_LABELS[don.mode_paiement]}</Badge>
                         </TableCell>
-                        <TableCell className="text-right text-ink-faint">
+                        <TableCell className="hidden text-right text-ink-faint md:table-cell">
                           <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                           </svg>
@@ -696,44 +528,100 @@ export default function DonsPage() {
             )}
           </div>
 
-          {/* Detail panel (desktop) */}
-          {selectedDon && (
-            <div className="hidden w-80 flex-shrink-0 rounded-sm border border-paper-border bg-white lg:flex lg:flex-col" style={{ minHeight: '400px' }}>
-              <DetailPanel
-                don={selectedDon}
-                organisationId={organisationId}
-                onClose={() => setSelectedDon(null)}
-                onEdit={() => openEdit(selectedDon)}
-                onDeleted={handleDeleted}
-              />
-            </div>
-          )}
+          <SidePanel
+            open={!!selectedDon}
+            onClose={() => setSelectedDon(null)}
+            title="Détail du don"
+            footer={selectedDon && (
+              <DonDetailActions key={selectedDon.id} don={selectedDon} onEdit={() => openEdit(selectedDon)} onDeleted={handleDeleted} />
+            )}
+          >
+            {selectedDon && <DonDetailFields don={selectedDon} organisationId={organisationId} />}
+          </SidePanel>
         </div>
       </div>
 
-      {/* Mobile detail panel (slides over) — animation inchangée (PR #111) */}
-      {selectedDon && (
-        <div className="fixed inset-0 z-30 lg:hidden">
-          <div
-            className="absolute inset-0 bg-ink/40"
-            onClick={() => setSelectedDon(null)}
-          />
-          <div
-            className={cn(
-              'absolute inset-y-0 right-0 flex w-full max-w-sm flex-col bg-white shadow-xl transition-transform duration-200',
-              mobilePanelVisible ? 'translate-x-0' : 'translate-x-full'
-            )}
-          >
-            <DetailPanel
-              don={selectedDon}
-              organisationId={organisationId}
-              onClose={() => setSelectedDon(null)}
-              onEdit={() => openEdit(selectedDon)}
-              onDeleted={handleDeleted}
-            />
+      <FilterSheet
+        open={filtresOpen}
+        onOpenChange={setFiltresOpen}
+        description="Les chiffres et la liste suivent les filtres appliqués."
+        onReset={() => setBrouillon(DONS_FILTRES_VIDES)}
+        onApply={() => { appliquerFiltres(brouillon); setFiltresOpen(false) }}
+      >
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-ink">Période</legend>
+          <div className="flex flex-wrap gap-2">
+            {PERIODES_DONS.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => choisirPeriode(key)}
+                aria-pressed={brouillon.periode === key && (key !== 'tout' || (!brouillon.dateDebut && !brouillon.dateFin))}
+                className={cn(
+                  'rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70',
+                  brouillon.periode === key && (key !== 'tout' || (!brouillon.dateDebut && !brouillon.dateFin))
+                    ? 'border-stamp bg-stamp/[0.06] text-stamp'
+                    : 'border-paper-border bg-white text-ink-muted hover:bg-paper'
+                )}
+              >
+                {label}
+              </button>
+            ))}
           </div>
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="dons-date-debut">Du</Label>
+              <Input
+                id="dons-date-debut"
+                type="date"
+                value={brouillon.dateDebut}
+                onChange={(e) => setBrouillon((b) => ({ ...b, periode: 'tout', dateDebut: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="dons-date-fin">Au</Label>
+              <Input
+                id="dons-date-fin"
+                type="date"
+                value={brouillon.dateFin}
+                onChange={(e) => setBrouillon((b) => ({ ...b, periode: 'tout', dateFin: e.target.value }))}
+              />
+            </div>
+          </div>
+        </fieldset>
+        <div className="space-y-1.5">
+          <Label>Donateur</Label>
+          <ParticipantAutocomplete
+            participants={participants}
+            value={brouillon.participantId}
+            onChange={(id) => setBrouillon((b) => ({ ...b, participantId: id }))}
+            placeholder="Tous les donateurs"
+          />
         </div>
-      )}
+        <div className="space-y-1.5">
+          <Label>Activité</Label>
+          <ActiviteAutocomplete
+            activites={activites}
+            value={brouillon.activiteId}
+            onChange={(id) => setBrouillon((b) => ({ ...b, activiteId: id }))}
+            placeholder="Toutes les activités"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="dons-mode-paiement">Mode de paiement</Label>
+          <Select
+            id="dons-mode-paiement"
+            value={brouillon.mode}
+            onChange={(e) => setBrouillon((b) => ({ ...b, mode: e.target.value }))}
+            className="w-full"
+          >
+            <option value="">Tous les modes</option>
+            {MODE_PAIEMENT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </Select>
+        </div>
+      </FilterSheet>
 
       {/* Add/Edit modal */}
       <DonModal

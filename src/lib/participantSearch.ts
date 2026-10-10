@@ -4,7 +4,7 @@ import { CIVILITE_LABELS } from './civilite'
 const DIACRITICS_PATTERN = new RegExp(`[${String.fromCharCode(0x0300)}-${String.fromCharCode(0x036f)}]`, 'g')
 const SPECIAL_CHARACTERS_PATTERN = /[^\p{L}\p{N}\s]/gu
 
-function normalizeSearchText(text: string): string {
+export function normalizeSearchText(text: string): string {
   return text
     .normalize('NFD')
     .replace(DIACRITICS_PATTERN, '')

@@ -67,3 +67,15 @@ export function compterDonsReguliersAConfirmer(
     0,
   )
 }
+
+function dateCourte(iso: string): string {
+  const [annee, mois, jour] = iso.split('-')
+  return `${jour}/${mois}/${annee}`
+}
+
+/** Période d'un engagement en clair : « depuis le 01/05/2026, sans date de fin » ou « du … au … ». */
+export function periodeEngagement(dateDebut: string, dateFin: string | null): string {
+  return dateFin
+    ? `du ${dateCourte(dateDebut)} au ${dateCourte(dateFin)}`
+    : `depuis le ${dateCourte(dateDebut)}, sans date de fin`
+}
