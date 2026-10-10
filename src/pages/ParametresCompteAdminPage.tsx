@@ -204,7 +204,7 @@ export default function ParametresCompteAdminPage() {
                 <Input id="compte-nom" type="text" value={nomAffiche} onChange={(e) => setNomAffiche(e.target.value)} placeholder="Prénom Nom" />
               </div>
               <div className="flex items-center gap-3">
-                <Button type="submit" size="sm" disabled={nomSaving || !nomAffiche.trim()}>
+                <Button type="submit" disabled={nomSaving || !nomAffiche.trim()}>
                   {nomSaving ? 'Enregistrement…' : 'Enregistrer'}
                 </Button>
                 {nomSuccess && <span className="text-sm text-ink-muted">Enregistré</span>}
@@ -235,7 +235,7 @@ export default function ParametresCompteAdminPage() {
                 />
                 <p className="text-xs text-ink-faint">Un email de confirmation sera envoyé à l'ancienne et à la nouvelle adresse.</p>
               </div>
-              <Button type="submit" size="sm" variant="secondary" disabled={emailSaving || !newEmail.trim()}>
+              <Button type="submit" variant="secondary" disabled={emailSaving || !newEmail.trim()}>
                 {emailSaving ? 'Envoi…' : "Demander le changement"}
               </Button>
             </form>
@@ -245,7 +245,7 @@ export default function ParametresCompteAdminPage() {
             {pwdMessage && (
               <div className="mb-4 rounded-sm border border-paper-border bg-paper px-4 py-3 text-sm text-ink-muted">{pwdMessage}</div>
             )}
-            <Button type="button" variant="secondary" size="sm" onClick={handleResetPassword} disabled={pwdSending}>
+            <Button type="button" variant="secondary" onClick={handleResetPassword} disabled={pwdSending}>
               {pwdSending ? 'Envoi…' : 'Réinitialiser mon mot de passe'}
             </Button>
           </ParametresSection>

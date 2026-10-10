@@ -133,8 +133,9 @@ export default function ParametresRecusFiscauxPage() {
             title="Informations fiscales"
             description="Affichées sur chaque reçu. L'adresse, le RNA, le SIREN et l'objet social se règlent dans Organisation."
           >
-            <div className="mb-6 rounded-sm border border-warning-border bg-warning-tint px-4 py-3 text-sm text-warning">
-              <p className="font-medium">Obligations légales</p>
+            {/* Information, pas une action requise : encadré neutre (l'ambre est réservé aux actions à faire). */}
+            <div className="mb-6 rounded-sm border border-paper-border bg-paper px-4 py-3 text-sm text-ink-muted">
+              <p className="font-medium text-ink">Obligations légales</p>
               <ul className="mt-1.5 list-disc space-y-1 pl-4">
                 <li>L'association doit conserver une copie de chaque reçu émis pendant 6 ans.</li>
                 <li>Depuis le 1er janvier 2021, l'association doit déclarer annuellement le montant total des dons et le nombre de reçus émis (article 222 bis du CGI).</li>
@@ -142,7 +143,7 @@ export default function ParametresRecusFiscauxPage() {
               </ul>
               <p className="mt-2">
                 Identité de l'association (adresse, RNA ou SIREN, objet social) :{' '}
-                <Link to="/admin/parametres" className="font-medium underline underline-offset-2">Paramètres › Organisation</Link>.
+                <Link to="/admin/parametres" className="font-medium text-stamp underline underline-offset-2">Paramètres › Organisation</Link>.
               </p>
             </div>
 

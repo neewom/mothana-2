@@ -8,6 +8,8 @@ import {
   libelleStatutCommande,
   emailAffiche,
   emailCommandeAffiche,
+  filtrerCommandes,
+  filtrerMouvements,
   resumerAccesParPortefeuille,
 } from './evenementDashboard'
 
@@ -116,5 +118,30 @@ describe('portefeuille anonymisé', () => {
   it('ne remonte pas en recherche par email, seulement par code', () => {
     expect(filtrerPortefeuilles([anonymise], 'efface')).toEqual([])
     expect(filtrerPortefeuilles([anonymise], 'abc2345')).toEqual([anonymise])
+  })
+})
+
+describe('filtrerMouvements / filtrerCommandes', () => {
+  const p1 = portefeuille()
+  const p2 = portefeuille({ id: 'portefeuille-2', email: 'efface+x@anonyme.invalid', code_public: 'ZZZ9999999', anonymise_le: '2026-10-05T10:00:00Z' })
+  const parId = new Map([[p1.id, p1], [p2.id, p2]])
+  const mouvements = [mouvement(), mouvement({ id: 'mouvement-2', portefeuille_id: 'portefeuille-2' })]
+  const commandes = [
+    { id: 'c1', email: 'acheteur@example.com', portefeuille_id: 'portefeuille-1' },
+    { id: 'c2', email: 'efface+x@anonyme.invalid', portefeuille_id: 'portefeuille-2' },
+    { id: 'c3', email: 'autre@example.com', portefeuille_id: null },
+  ]
+
+  it('filtre les mouvements par email ou code du portefeuille', () => {
+    expect(filtrerMouvements(mouvements, parId, '').map((m) => m.id)).toEqual(['mouvement-1', 'mouvement-2'])
+    expect(filtrerMouvements(mouvements, parId, 'ACHETEUR').map((m) => m.id)).toEqual(['mouvement-1'])
+    expect(filtrerMouvements(mouvements, parId, 'zzz9').map((m) => m.id)).toEqual(['mouvement-2'])
+  })
+
+  it('filtre les commandes par email ou code, sans jamais exposer une adresse anonymisée', () => {
+    expect(filtrerCommandes(commandes, parId, 'autre').map((c) => c.id)).toEqual(['c3'])
+    expect(filtrerCommandes(commandes, parId, 'ABC23').map((c) => c.id)).toEqual(['c1'])
+    expect(filtrerCommandes(commandes, parId, 'anonyme').map((c) => c.id)).toEqual([])
+    expect(filtrerCommandes(commandes, parId, 'efface').map((c) => c.id)).toEqual([])
   })
 })

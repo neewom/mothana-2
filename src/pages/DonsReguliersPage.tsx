@@ -17,6 +17,8 @@ import { PageHeader } from '../components/ui/page-header'
 import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import ScrollShadowX from '../components/ScrollShadowX'
+import { ListToolbar } from '../components/ui/list-toolbar'
+import { correspondRecherche } from '../lib/textSearch'
 import { useNavCountersContext } from '../hooks/useNavCounters'
 
 function todayISO(): string {
@@ -259,6 +261,7 @@ export default function DonsReguliersPage() {
   const [editing, setEditing] = useState<DonRegulier | undefined>(undefined)
   const [deleteConfirm, setDeleteConfirm] = useState<DonRegulier | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [recherche, setRecherche] = useState('')
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -368,6 +371,10 @@ export default function DonsReguliersPage() {
   }
 
   const selected = engagements.find((e) => e.id === selectedId) ?? null
+  const engagementsFiltres = useMemo(
+    () => engagements.filter((e) => correspondRecherche([participantFullName(e.profils_participant), e.activites?.nom], recherche)),
+    [engagements, recherche]
+  )
   const actifs = engagements.filter((e) => e.statut === 'actif')
   const totalMensuel = actifs.reduce((sum, e) => sum + e.montant, 0)
   // Période et activité restent dans le panneau quand il réduit le tableau (rien hors écran à 1 400 px).
@@ -554,11 +561,20 @@ export default function DonsReguliersPage() {
                 {engagements.length} engagement{engagements.length !== 1 ? 's' : ''}
               </p>
             </div>
+            {!loading && engagements.length > 0 && (
+              <ListToolbar
+                search={{ value: recherche, onChange: setRecherche, placeholder: 'Donateur, activité…', label: 'Rechercher un engagement' }}
+              />
+            )}
             {loading ? (
               <div className="flex items-center justify-center py-16 font-registre text-sm text-ink-faint">Chargement…</div>
             ) : engagements.length === 0 ? (
               <div className="px-4 py-10 text-center font-registre text-sm text-ink-faint md:px-6">
                 Aucun engagement de don régulier pour l'instant.
+              </div>
+            ) : engagementsFiltres.length === 0 ? (
+              <div className="px-4 py-10 text-center font-registre text-sm text-ink-faint md:px-6">
+                Aucun engagement ne correspond à cette recherche.
               </div>
             ) : (
               <ScrollShadowX>
@@ -574,7 +590,7 @@ export default function DonsReguliersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {engagements.map((e) => (
+                    {engagementsFiltres.map((e) => (
                       <TableRow
                         key={e.id}
                         onClick={() => setSelectedId(e.id === selectedId ? null : e.id)}
