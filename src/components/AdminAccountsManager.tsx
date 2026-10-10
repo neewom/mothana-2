@@ -200,7 +200,7 @@ export default function AdminAccountsManager({
             <button
               type="button"
               onClick={() => setShowDisabled((prev) => !prev)}
-              className="font-registre-mono text-xs font-medium text-stamp hover:text-stamp/80"
+              className="rounded-sm font-registre text-sm font-medium text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
             >
               {showDisabled ? 'Masquer les comptes désactivés' : `Afficher les comptes désactivés (${disabledCount})`}
             </button>

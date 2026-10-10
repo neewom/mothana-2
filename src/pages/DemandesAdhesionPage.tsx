@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Adherent, DemandeAdhesion } from '../types'
@@ -15,6 +15,9 @@ import Toast from '../components/Toast'
 import AdherentModal from '../components/AdherentModal'
 import ScrollShadowX from '../components/ScrollShadowX'
 import { logModification } from '../lib/journalModifications'
+import { PageHeader } from '../components/ui/page-header'
+import { ListToolbar } from '../components/ui/list-toolbar'
+import { correspondRecherche } from '../lib/textSearch'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Textarea } from '../components/ui/textarea'
@@ -46,6 +49,13 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'refusee', label: 'Refusées' },
 ]
 
+// « 3 demandes en attente », « 1 demande ratifiée », « 2 demandes refusées ».
+function sousTitreDemandes(n: number, tab: Tab): string {
+  const s = n > 1 ? 's' : ''
+  const etat = tab === 'en_attente' ? 'en attente' : tab === 'ratifiee' ? `ratifiée${s}` : `refusée${s}`
+  return `${n} demande${s} ${etat}`
+}
+
 export default function DemandesAdhesionPage() {
   const organisationId = useOrganisationId()
   const { toast, showToast, dismissToast } = useToast()
@@ -53,6 +63,11 @@ export default function DemandesAdhesionPage() {
 
   const [tab, setTab] = useState<Tab>('en_attente')
   const [demandes, setDemandes] = useState<DemandeAdhesion[]>([])
+  const [recherche, setRecherche] = useState('')
+  const demandesFiltrees = useMemo(
+    () => demandes.filter((d) => correspondRecherche([d.nom, d.prenom, d.courriel], recherche)),
+    [demandes, recherche]
+  )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -203,12 +218,14 @@ export default function DemandesAdhesionPage() {
         review, the verdict, and DESIGN.md.
       */}
       <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-        <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Demandes d'adhésion</h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Demandes soumises via le formulaire public, à ratifier par le conseil d'administration.
-          </p>
-        </div>
+        <PageHeader
+          title="Demandes d'adhésion"
+          subtitle={
+            loading
+              ? 'Chargement…'
+              : sousTitreDemandes(demandes.length, tab) + (tab === 'en_attente' ? ' · à ratifier par le conseil d’administration' : '')
+          }
+        />
 
         {error && (
           <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">
@@ -234,6 +251,12 @@ export default function DemandesAdhesionPage() {
             ))}
           </div>
 
+          {!loading && demandes.length > 0 && (
+            <ListToolbar
+              search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom, prénom, email…', label: 'Rechercher une demande' }}
+            />
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
@@ -241,6 +264,10 @@ export default function DemandesAdhesionPage() {
           ) : demandes.length === 0 ? (
             <div className="flex items-center justify-center py-16">
               <p className="font-registre text-sm text-ink-faint">Aucune demande</p>
+            </div>
+          ) : demandesFiltrees.length === 0 ? (
+            <div className="flex items-center justify-center py-16">
+              <p className="font-registre text-sm text-ink-faint">Aucune demande ne correspond à cette recherche</p>
             </div>
           ) : (
             <ScrollShadowX>
@@ -256,7 +283,7 @@ export default function DemandesAdhesionPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {demandes.map((d) => {
+                  {demandesFiltrees.map((d) => {
                     const hasDuplicate = (duplicatesMap[d.id]?.length ?? 0) > 0
                     return (
                       <TableRow
