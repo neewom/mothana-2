@@ -73,6 +73,28 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Une organisation garde toujours au moins un administrateur actif
+    // (même règle que changer_role_compte côté base).
+    if (ban) {
+      const { data: dernierAdmin, error: guardError } = await adminClient
+        .rpc('est_dernier_admin_actif', { p_utilisateur_id: utilisateur_id })
+
+      if (guardError) {
+        console.error('est_dernier_admin_actif error:', guardError.message)
+        return new Response(
+          JSON.stringify({ error: 'Erreur lors de la vérification des administrateurs' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+
+      if (dernierAdmin === true) {
+        return new Response(
+          JSON.stringify({ error: "Impossible : c'est le dernier administrateur actif de l'organisation. Nommez d'abord un autre administrateur." }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+    }
+
     // Ban: set a very long ban duration. Unban: set duration to 'none'.
     const ban_duration = ban ? '876000h' : 'none'
 
