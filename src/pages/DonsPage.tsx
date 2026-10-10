@@ -20,6 +20,7 @@ import { DONS_FILTRES_VIDES, PERIODES_DONS, bornesPeriode, filtrerDons, nombreFi
 import { PageHeader } from '../components/ui/page-header'
 import { ListToolbar, FilterChips, type FilterChip } from '../components/ui/list-toolbar'
 import { FilterSheet } from '../components/ui/filter-sheet'
+import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
@@ -139,20 +140,42 @@ function useDons(organisationId: string): DonsData {
 }
 
 // ---------------------------------------------------------------------------
-// DetailPanel
+// Détail d'un don (contenu du panneau)
 // ---------------------------------------------------------------------------
 
-interface DetailPanelProps {
-  don: Don
-  organisationId: string
-  onClose: () => void
-  onEdit: () => void
-  onDeleted: () => void
+function DonDetailFields({ don, organisationId }: { don: Don; organisationId: string }) {
+  const p = don.profils_participant?.personnes
+  return (
+    <>
+      <DetailField label="Donateur">
+        <p className="font-semibold">{nomDonateur(don)}</p>
+        {p?.email && <p className="text-ink-muted">{p.email}</p>}
+        {p?.telephone && <p className="font-registre-mono text-ink-muted">{p.telephone}</p>}
+      </DetailField>
+
+      <div className="grid grid-cols-2 gap-4">
+        <DetailField label="Montant">
+          <p className="font-registre-mono text-xl font-bold">{formatEur(don.montant)}</p>
+        </DetailField>
+        <DetailField label="Date">{formatDate(don.date)}</DetailField>
+      </div>
+
+      <DetailField label="Mode de paiement">
+        <Badge variant="neutral">{MODE_PAIEMENT_LABELS[don.mode_paiement]}</Badge>
+      </DetailField>
+      <DetailField label="Activité">{don.activites?.nom ?? '—'}</DetailField>
+      <DetailField label="Saisi par"><span className="capitalize">{don.created_by_role}</span></DetailField>
+
+      <DonFichiers donId={don.id} organisationId={organisationId} canDelete canAdd={false} />
+    </>
+  )
 }
 
-function DetailPanel({ don, organisationId, onClose, onEdit, onDeleted }: DetailPanelProps) {
+function DonDetailActions({ don, onEdit, onDeleted }: { don: Don; onEdit: () => void; onDeleted: () => void }) {
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  // Les reçus sont annuels, par donateur : on ouvre celui de l'année du don.
+  const recuHref = `/admin/recus?annee=${don.date.slice(0, 4)}&q=${encodeURIComponent(nomDonateur(don))}`
 
   async function handleDelete() {
     setDeleting(true)
@@ -161,94 +184,34 @@ function DetailPanel({ don, organisationId, onClose, onEdit, onDeleted }: Detail
     onDeleted()
   }
 
-  const p = don.profils_participant?.personnes
-  // Les reçus sont annuels, par donateur : on ouvre celui de l'année du don.
-  const recuHref = `/admin/recus?annee=${don.date.slice(0, 4)}&q=${encodeURIComponent(nomDonateur(don))}`
+  if (confirming) {
+    return (
+      <div className="space-y-2">
+        <p className="font-registre text-sm font-medium text-stamp">Confirmer la suppression ?</p>
+        <div className="flex gap-2">
+          <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="flex-1">
+            {deleting ? 'Suppression…' : 'Supprimer'}
+          </Button>
+          <Button variant="secondary" onClick={() => setConfirming(false)} className="flex-1">
+            Annuler
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex h-full flex-col font-registre">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-paper-border px-6 py-4">
-        <h2 className="text-lg font-semibold text-ink">Détail du don</h2>
-        <button
-          onClick={onClose}
-          className="rounded-sm p-1.5 text-ink-faint transition-colors hover:text-stamp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+    <>
+      <div className="flex gap-2">
+        <Button onClick={onEdit} className="flex-1">Modifier</Button>
+        <Button asChild variant="secondary" className="flex-1">
+          <Link to={recuHref}>Reçu</Link>
+        </Button>
       </div>
-
-      {/* Body */}
-      <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-        <div>
-          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Donateur</p>
-          <p className="mt-1 font-semibold text-ink">
-            {p ? (p.prenom ? `${p.prenom} ${p.nom}` : p.nom) : '—'}
-          </p>
-          {p?.email && <p className="text-sm text-ink-muted">{p.email}</p>}
-          {p?.telephone && <p className="font-registre-mono text-sm text-ink-muted">{p.telephone}</p>}
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Montant</p>
-            <p className="mt-1 font-registre-mono text-xl font-bold text-ink">{formatEur(don.montant)}</p>
-          </div>
-          <div>
-            <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Date</p>
-            <p className="mt-1 text-sm text-ink">{formatDate(don.date)}</p>
-          </div>
-        </div>
-
-        <div>
-          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Mode de paiement</p>
-          <Badge variant="neutral" className="mt-1">{MODE_PAIEMENT_LABELS[don.mode_paiement]}</Badge>
-        </div>
-
-        <div>
-          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Activité</p>
-          <p className="mt-1 text-sm text-ink">{don.activites?.nom ?? '—'}</p>
-        </div>
-
-        <div>
-          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Saisi par</p>
-          <p className="mt-1 text-sm capitalize text-ink">{don.created_by_role}</p>
-        </div>
-
-        <DonFichiers donId={don.id} organisationId={organisationId} canDelete canAdd={false} />
-      </div>
-
-      {/* Actions */}
-      <div className="space-y-2 border-t border-paper-border px-6 py-4">
-        {confirming ? (
-          <div className="space-y-2">
-            <p className="font-registre text-sm font-medium text-stamp">Confirmer la suppression ?</p>
-            <div className="flex gap-2">
-              <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="flex-1">
-                {deleting ? 'Suppression…' : 'Supprimer'}
-              </Button>
-              <Button variant="secondary" onClick={() => setConfirming(false)} className="flex-1">
-                Annuler
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex gap-2">
-              <Button onClick={onEdit} className="flex-1">Modifier</Button>
-              <Button asChild variant="secondary" className="flex-1">
-                <Link to={recuHref}>Reçu</Link>
-              </Button>
-            </div>
-            <Button variant="danger" onClick={() => setConfirming(true)} className="w-full">
-              Supprimer
-            </Button>
-          </>
-        )}
-      </div>
-    </div>
+      <Button variant="danger" onClick={() => setConfirming(true)} className="w-full">
+        Supprimer
+      </Button>
+    </>
   )
 }
 
@@ -271,18 +234,9 @@ export default function DonsPage() {
 
   // Detail & modal
   const [selectedDon, setSelectedDon] = useState<Don | null>(null)
-  const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingDon, setEditingDon] = useState<Don | undefined>(undefined)
   const [importOpen, setImportOpen] = useState(false)
-
-  useEffect(() => {
-    if (selectedDon) {
-      const timer = setTimeout(() => setMobilePanelVisible(true), 10)
-      return () => clearTimeout(timer)
-    }
-    setMobilePanelVisible(false)
-  }, [selectedDon])
 
   function openFiltres() {
     setBrouillon(filtres)
@@ -574,44 +528,18 @@ export default function DonsPage() {
             )}
           </div>
 
-          {/* Detail panel (desktop) */}
-          {selectedDon && (
-            <div className="hidden w-80 flex-shrink-0 rounded-sm border border-paper-border bg-white lg:flex lg:flex-col" style={{ minHeight: '400px' }}>
-              <DetailPanel
-                don={selectedDon}
-                organisationId={organisationId}
-                onClose={() => setSelectedDon(null)}
-                onEdit={() => openEdit(selectedDon)}
-                onDeleted={handleDeleted}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Mobile detail panel (slides over) — animation inchangée (PR #111) */}
-      {selectedDon && (
-        <div className="fixed inset-0 z-30 lg:hidden">
-          <div
-            className="absolute inset-0 bg-ink/40"
-            onClick={() => setSelectedDon(null)}
-          />
-          <div
-            className={cn(
-              'absolute inset-y-0 right-0 flex w-full max-w-sm flex-col bg-white shadow-xl transition-transform duration-200',
-              mobilePanelVisible ? 'translate-x-0' : 'translate-x-full'
+          <SidePanel
+            open={!!selectedDon}
+            onClose={() => setSelectedDon(null)}
+            title="Détail du don"
+            footer={selectedDon && (
+              <DonDetailActions key={selectedDon.id} don={selectedDon} onEdit={() => openEdit(selectedDon)} onDeleted={handleDeleted} />
             )}
           >
-            <DetailPanel
-              don={selectedDon}
-              organisationId={organisationId}
-              onClose={() => setSelectedDon(null)}
-              onEdit={() => openEdit(selectedDon)}
-              onDeleted={handleDeleted}
-            />
-          </div>
+            {selectedDon && <DonDetailFields don={selectedDon} organisationId={organisationId} />}
+          </SidePanel>
         </div>
-      )}
+      </div>
 
       <FilterSheet
         open={filtresOpen}

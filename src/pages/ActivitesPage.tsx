@@ -8,6 +8,8 @@ import { fetchAllRows } from '../lib/fetchAllRows'
 import { filterActivites } from '../lib/activiteSearch'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
+import { PageHeader } from '../components/ui/page-header'
+import { ListToolbar } from '../components/ui/list-toolbar'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
@@ -379,6 +381,14 @@ export default function ActivitesPage() {
     return { datees, recurrentes, terminees }
   }, [paginatedActivites, todayIso])
 
+  const nombreAVenirOuEnCours = useMemo(
+    () => activites.filter((a) => {
+      const statut = getStatut(a, todayIso)
+      return statut === 'a_venir' || statut === 'en_cours'
+    }).length,
+    [activites, todayIso]
+  )
+
   function openAdd() {
     setEditing(undefined)
     setModalOpen(true)
@@ -461,39 +471,37 @@ export default function ActivitesPage() {
         lui aussi sur bg-paper).
       */}
       <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-        {/* Page title */}
-        <div className="flex items-baseline justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-ink md:text-3xl">Activités</h1>
-            <p className="mt-1 font-registre-mono text-sm text-ink-faint">
-              {activites.length} activité{activites.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Activités"
+          subtitle={
+            loading
+              ? 'Chargement…'
+              : `${activites.length} activité${activites.length !== 1 ? 's' : ''} · ${nombreAVenirOuEnCours} à venir ou en cours`
+          }
+          actions={
+            <>
+              <Button variant="secondary" onClick={() => setImportOpen(true)}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                Importer
+              </Button>
+              <Button onClick={openAdd}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Nouvelle activité
+              </Button>
+            </>
+          }
+        />
 
-        {/* Search + actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Input
-            type="text"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
-            placeholder="Rechercher par nom…"
-            className="w-full min-w-[12rem] max-w-xs"
+        {/* Recherche : une barre d'outils commune aux trois registres ci-dessous */}
+        <div className="rounded-sm border border-paper-border bg-white">
+          <ListToolbar
+            className="border-b-0"
+            search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Rechercher par nom…', label: 'Rechercher une activité' }}
           />
-          <div className="flex shrink-0 items-center gap-2">
-            <Button variant="secondary" onClick={() => setImportOpen(true)}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-              </svg>
-              Importer
-            </Button>
-            <Button onClick={openAdd}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Nouvelle
-            </Button>
-          </div>
         </div>
 
         {loading ? (
