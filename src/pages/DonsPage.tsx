@@ -18,7 +18,6 @@ import { downloadCsv } from '../lib/csvExport'
 import { cn } from '../lib/utils'
 import { DONS_FILTRES_VIDES, PERIODES_DONS, bornesPeriode, filtrerDons, nombreFiltresDons, type DonsFiltres, type PeriodeDons } from '../lib/donsFilters'
 import { PageHeader } from '../components/ui/page-header'
-import { StatTiles } from '../components/ui/stat-tiles'
 import { ListToolbar, FilterChips, type FilterChip } from '../components/ui/list-toolbar'
 import { FilterSheet } from '../components/ui/filter-sheet'
 import { Button } from '../components/ui/button'
@@ -332,8 +331,6 @@ export default function DonsPage() {
   // restent dans le panneau.
   const activiteCol = selectedDon ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
 
-  const totalCollecte = useMemo(() => dons.reduce((sum, d) => sum + d.montant, 0), [dons])
-
   // Tri appliqué après les filtres et avant la pagination (le chargement suit l'ordre des id).
   const [sortField, setSortField] = useState<DonSortField>(DON_SORT_DEFAUT.field)
   const [sortDirection, setSortDirection] = useState<SortDirection>(DON_SORT_DEFAUT.direction)
@@ -353,13 +350,12 @@ export default function DonsPage() {
     [filteredDons, sortField, sortDirection],
   )
 
-  // Stats computed from filtered dons
+  // Chiffres du sous-titre, calculés sur la sélection (filtres et recherche appliqués).
   const stats = useMemo(() => {
     const total = filteredDons.reduce((sum, d) => sum + d.montant, 0)
     const count = filteredDons.length
-    const avg = count > 0 ? total / count : 0
     const distinctParticipants = new Set(filteredDons.map((d) => d.profil_participant_id)).size
-    return { total, count, avg, distinctParticipants }
+    return { total, count, distinctParticipants }
   }, [filteredDons])
 
   // Pagination
@@ -437,7 +433,11 @@ export default function DonsPage() {
       <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
         <PageHeader
           title="Dons"
-          subtitle={loading ? 'Chargement…' : `${dons.length} don${dons.length > 1 ? 's' : ''} · ${formatEur(totalCollecte)} collectés`}
+          subtitle={
+            loading
+              ? 'Chargement…'
+              : `${stats.count} don${stats.count > 1 ? 's' : ''} · ${formatEur(stats.total)} collectés · ${stats.distinctParticipants} donateur${stats.distinctParticipants > 1 ? 's' : ''}`
+          }
           actions={
             <>
               <Button variant="secondary" onClick={() => setImportOpen(true)}>
@@ -468,16 +468,6 @@ export default function DonsPage() {
             Erreur : {error}
           </div>
         )}
-
-        {/* Chiffres de la sélection (filtres et recherche appliqués) */}
-        <StatTiles
-          items={[
-            { label: 'Total collecté', value: formatEur(stats.total) },
-            { label: 'Nombre de dons', value: String(stats.count) },
-            { label: 'Don moyen', value: stats.count > 0 ? formatEur(stats.avg) : '—' },
-            { label: 'Donateurs', value: String(stats.distinctParticipants) },
-          ]}
-        />
 
         {/* Table + Detail panel */}
         <div className={cn('flex gap-6', selectedDon && 'items-start')}>
