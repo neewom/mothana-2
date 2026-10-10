@@ -94,7 +94,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
     items: [
       {
         question: 'Comment envoyer une campagne email à mes adhérents ?',
-        answer: 'Depuis Adhérents > Campagne mailing :',
+        answer: 'Depuis Communication > Emailing :',
         steps: [
           'Composez le message dans l’éditeur (placeholders possibles comme {{params.prenom}}).',
           'Choisissez les destinataires par statut ou par liste de diffusion.',
@@ -103,7 +103,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       },
       {
         question: 'Comment configurer l’envoi d’emails (Brevo) ?',
-        answer: 'Depuis la page Campagne mailing :',
+        answer: 'Depuis la page Emailing :',
         steps: [
           'Cliquez sur "Configurer".',
           'Renseignez la clé API et l’expéditeur de votre compte Brevo.',
@@ -112,7 +112,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       },
       {
         question: 'Comment envoyer un courrier postal (publipostage) ?',
-        answer: 'Depuis Adhérents > Campagne courrier :',
+        answer: 'Depuis Communication > Courrier :',
         steps: [
           'Sélectionnez les destinataires par statut ou par liste de diffusion, comme pour le mailing.',
           'Générez le document imprimable regroupant les adresses postales.',
@@ -133,7 +133,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'Que faut-il configurer avant de générer un premier reçu fiscal ?',
         answer:
-          "Dans Paramètres > Fiscalité : nom, adresse, RNA ou SIREN, objet social et mention légale d'éligibilité de l'organisation. Tant que l'un de ces champs manque, aucun reçu ne peut être généré (message explicite sur la page Reçus fiscaux).",
+          "Dans Paramètres > Organisation : nom, adresse, RNA ou SIREN et objet social ; dans Paramètres > Reçus fiscaux : la mention légale d'éligibilité. Tant que l'un de ces champs manque, aucun reçu ne peut être généré (message explicite sur la page Reçus fiscaux).",
       },
       {
         question: 'Comment générer un reçu fiscal ?',
@@ -168,7 +168,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'J’ai oublié le code PIN bénévole, comment le retrouver ?',
         answer:
-          "Un administrateur peut l'afficher (icône œil) ou le régénérer depuis Paramètres > Organisation.",
+          "Un administrateur peut l'afficher (icône œil) ou le régénérer depuis Paramètres > Codes PIN.",
       },
       {
         question: 'Que peut faire un bénévole une fois connecté ?',

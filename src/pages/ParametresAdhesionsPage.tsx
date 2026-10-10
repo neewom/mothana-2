@@ -10,6 +10,8 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
+import SaveBar from '../components/parametres/SaveBar'
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 
 const MAX_STATUTS_SIZE = 2 * 1024 * 1024
 
@@ -37,7 +39,7 @@ interface OrgSettings {
   formulaire_adhesion_message_succes: string | null
 }
 
-export default function ParametresAdherentsPage() {
+export default function ParametresAdhesionsPage() {
   const organisationId = useOrganisationId()
 
   const [settings, setSettings] = useState<OrgSettings | null>(null)
@@ -46,9 +48,9 @@ export default function ParametresAdherentsPage() {
 
   // Adhésion en ligne (slug public + statuts PDF)
   const [slug, setSlug] = useState('')
-  const [slugSaving, setSlugSaving] = useState(false)
-  const [slugSuccess, setSlugSuccess] = useState(false)
-  const [slugError, setSlugError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [slugCopied, setSlugCopied] = useState(false)
   const [statutsUrl, setStatutsUrl] = useState<string | null>(null)
   const [statutsUploading, setStatutsUploading] = useState(false)
@@ -59,9 +61,11 @@ export default function ParametresAdherentsPage() {
   const [formulaireEditorOpen, setFormulaireEditorOpen] = useState(false)
   const [messageSucces, setMessageSucces] = useState('')
   const [messageSuccesInitial, setMessageSuccesInitial] = useState('')
-  const [messageSuccesSaving, setMessageSuccesSaving] = useState(false)
-  const [messageSuccesSuccess, setMessageSuccesSuccess] = useState(false)
-  const [messageSuccesError, setMessageSuccesError] = useState<string | null>(null)
+
+  // Un seul enregistrement pour l'adresse du formulaire et le message de succès ; les statuts
+  // (envoi de fichier) et l'éditeur d'en-tête restent des actions immédiates.
+  const dirty = settings !== null && (slug !== settings.slug || messageSucces.trim() !== messageSuccesInitial)
+  const guardDialog = useUnsavedChangesGuard(dirty)
 
   useEffect(() => {
     if (!organisationId) return
@@ -100,31 +104,35 @@ export default function ParametresAdherentsPage() {
     fetchSettings()
   }, [organisationId])
 
-  async function handleSaveSlug(e: FormEvent) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault()
+    if (!dirty) return
     const normalized = slugifyUrl(slug)
     if (!normalized) {
-      setSlugError('Slug invalide')
+      setSaveError('Adresse du formulaire invalide')
       return
     }
 
-    setSlugSaving(true)
-    setSlugError(null)
-    setSlugSuccess(false)
+    setSaving(true)
+    setSaveError(null)
+    setSaveSuccess(false)
 
+    const trimmed = messageSucces.trim()
     const { error } = await supabase
       .from('organisations')
-      .update({ slug: normalized })
+      .update({ slug: normalized, formulaire_adhesion_message_succes: trimmed || null })
       .eq('id', organisationId)
 
     if (error) {
-      setSlugError(error.code === '23505' ? 'Ce slug est déjà utilisé par une autre organisation' : error.message)
+      setSaveError(error.code === '23505' ? 'Cette adresse est déjà utilisée par une autre organisation' : error.message)
     } else {
       setSlug(normalized)
-      setSlugSuccess(true)
-      setTimeout(() => setSlugSuccess(false), 3000)
+      setSettings((current) => (current ? { ...current, slug: normalized } : current))
+      setMessageSucces(trimmed)
+      setMessageSuccesInitial(trimmed)
+      setSaveSuccess(true)
     }
-    setSlugSaving(false)
+    setSaving(false)
   }
 
   function handleCopySlugUrl() {
@@ -167,29 +175,6 @@ export default function ParametresAdherentsPage() {
     setStatutsUploading(false)
   }
 
-  async function handleSaveMessageSucces(e: FormEvent) {
-    e.preventDefault()
-    setMessageSuccesSaving(true)
-    setMessageSuccesError(null)
-    setMessageSuccesSuccess(false)
-
-    const trimmed = messageSucces.trim()
-    const { error } = await supabase
-      .from('organisations')
-      .update({ formulaire_adhesion_message_succes: trimmed || null })
-      .eq('id', organisationId)
-
-    if (error) {
-      setMessageSuccesError(error.message)
-    } else {
-      setMessageSucces(trimmed)
-      setMessageSuccesInitial(trimmed)
-      setMessageSuccesSuccess(true)
-      setTimeout(() => setMessageSuccesSuccess(false), 3000)
-    }
-    setMessageSuccesSaving(false)
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24 font-registre text-sm text-ink-faint">
@@ -210,7 +195,7 @@ export default function ParametresAdherentsPage() {
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-ink md:text-3xl">Paramètres — Adhérents</h1>
+        <h1 className="text-2xl font-bold text-ink md:text-3xl">Adhésions</h1>
         <p className="mt-1 text-sm text-ink-muted">Carte adhérent et formulaire public de demande d'adhésion.</p>
       </div>
 
@@ -221,11 +206,12 @@ export default function ParametresAdherentsPage() {
         {organisationId && <CarteAdherentSection organisationId={organisationId} />}
       </ParametresSection>
 
+      <form onSubmit={handleSave} className="space-y-6">
       <ParametresSection
         title="Adhésion en ligne"
         description="Formulaire public permettant de soumettre une demande d'adhésion, à ratifier ensuite depuis l'espace Adhérents."
       >
-        <form onSubmit={handleSaveSlug} className="max-w-lg space-y-4">
+        <div className="max-w-lg space-y-4">
           <div>
             <Label>Adresse du formulaire</Label>
             <div className="mt-1 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
@@ -233,7 +219,7 @@ export default function ParametresAdherentsPage() {
               <Input
                 type="text"
                 value={slug}
-                onChange={(e) => setSlug(e.target.value)}
+                onChange={(e) => { setSlug(e.target.value); setSaveSuccess(false) }}
                 placeholder="ex : mon-association"
                 className="sm:flex-1"
               />
@@ -244,23 +230,11 @@ export default function ParametresAdherentsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={slugSaving || slug === settings?.slug}>
-              {slugSaving ? 'Enregistrement…' : 'Enregistrer'}
-            </Button>
             <Button type="button" variant="secondary" onClick={handleCopySlugUrl}>
               {slugCopied ? 'Copié !' : "Copier l'adresse"}
             </Button>
-            {slugSuccess && (
-              <span className="flex items-center gap-1.5 text-sm text-success">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                Enregistré
-              </span>
-            )}
-            {slugError && <span className="text-sm text-stamp">{slugError}</span>}
           </div>
-        </form>
+        </div>
 
         <div className="mt-6 max-w-lg">
           <p className="mb-2 text-sm font-medium text-ink-muted">Statuts de l'association</p>
@@ -310,33 +284,32 @@ export default function ParametresAdherentsPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSaveMessageSucces} className="mt-6 max-w-lg">
+        <div className="mt-6 max-w-lg">
           <p className="mb-2 text-sm font-medium text-ink-muted">Message de succès</p>
           <p className="mb-3 text-xs text-ink-faint">
             Affiché au demandeur une fois le formulaire envoyé. Laissez vide pour garder le message par défaut.
           </p>
           <Textarea
             value={messageSucces}
-            onChange={(e) => setMessageSucces(e.target.value)}
+            onChange={(e) => { setMessageSucces(e.target.value); setSaveSuccess(false) }}
             placeholder="Votre demande d'adhésion a bien été enregistrée. Elle sera examinée par le conseil d'administration."
             rows={3}
           />
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={messageSuccesSaving || messageSucces.trim() === messageSuccesInitial}>
-              {messageSuccesSaving ? 'Enregistrement…' : 'Enregistrer'}
-            </Button>
-            {messageSuccesSuccess && (
-              <span className="flex items-center gap-1.5 text-sm text-success">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                Enregistré
-              </span>
-            )}
-            {messageSuccesError && <span className="text-sm text-stamp">{messageSuccesError}</span>}
-          </div>
-        </form>
+        </div>
       </ParametresSection>
+
+      <SaveBar
+        dirty={dirty}
+        saving={saving}
+        success={saveSuccess}
+        error={saveError}
+        onReset={() => {
+          if (settings) setSlug(settings.slug)
+          setMessageSucces(messageSuccesInitial)
+          setSaveError(null)
+        }}
+      />
+      </form>
 
       {organisationId && (
         <FormulaireAdhesionEditorModal
@@ -360,6 +333,7 @@ export default function ParametresAdherentsPage() {
           css={formulaireCss}
         />
       )}
+      {guardDialog}
     </div>
   )
 }

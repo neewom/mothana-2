@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { JournalModification } from '../types'
-import { fetchJournalModifications } from '../lib/journalModifications'
+import { fetchJournalModifications, JOURNAL_RECHERCHE_MIN } from '../lib/journalModifications'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { ListToolbar } from './ui/list-toolbar'
 import { getErrorMessage } from '../lib/errors'
 import JournalActionLabel from './JournalActionLabel'
 import { Button } from './ui/button'
@@ -10,6 +12,8 @@ interface HistoriqueModificationsModalProps {
   open: boolean
   onClose: () => void
   organisationId: string
+  /** Recherche saisie dans l'aperçu, reprise à l'ouverture. */
+  rechercheInitiale?: string
 }
 
 const PAGE_SIZE = 25
@@ -18,12 +22,14 @@ function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-export default function HistoriqueModificationsModal({ open, onClose, organisationId }: HistoriqueModificationsModalProps) {
+export default function HistoriqueModificationsModal({ open, onClose, organisationId, rechercheInitiale = '' }: HistoriqueModificationsModalProps) {
   const [entries, setEntries] = useState<JournalModification[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [recherche, setRecherche] = useState(rechercheInitiale)
+  const rechercheServeur = useDebouncedValue(recherche.trim().length >= JOURNAL_RECHERCHE_MIN ? recherche : '', 300)
 
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
@@ -35,6 +41,7 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
         organisationId,
         PAGE_SIZE,
         (currentPage - 1) * PAGE_SIZE,
+        rechercheServeur,
       )
       setEntries(fetched)
       setTotalCount(count)
@@ -43,15 +50,23 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
     } finally {
       setLoading(false)
     }
-  }, [organisationId, currentPage])
+  }, [organisationId, currentPage, rechercheServeur])
 
   useEffect(() => {
     if (open) load()
   }, [open, load])
 
   useEffect(() => {
-    if (open) setCurrentPage(1)
-  }, [open])
+    if (open) {
+      setCurrentPage(1)
+      setRecherche(rechercheInitiale)
+    }
+  }, [open, rechercheInitiale])
+
+  // Nouvelle recherche : retour en première page.
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [rechercheServeur])
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
@@ -59,6 +74,11 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
         <DialogHeader>
           <DialogTitle>Historique des modifications</DialogTitle>
         </DialogHeader>
+
+        <ListToolbar
+          className="shrink-0"
+          search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom de la personne ou de l’auteur…', label: 'Rechercher dans le journal' }}
+        />
 
         <div className="flex-1 overflow-y-auto p-6">
           {error && <div className="mb-4 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">Erreur : {error}</div>}
@@ -69,7 +89,7 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
             </div>
           ) : entries.length === 0 ? (
             <div className="flex items-center justify-center py-16">
-              <p className="font-registre text-ink-faint">Aucune entrée</p>
+              <p className="font-registre text-ink-faint">{rechercheServeur ? 'Aucune entrée ne correspond à cette recherche' : 'Aucune entrée'}</p>
             </div>
           ) : (
             <ul className="divide-y divide-paper-border-muted">

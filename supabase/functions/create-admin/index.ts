@@ -42,7 +42,14 @@ Deno.serve(async (req) => {
     const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
     const isSuperAdmin = payload?.app_metadata?.is_super_admin === true
 
-    const { nom, email, organisation_id, site_url } = await req.json()
+    const { nom, email, organisation_id, site_url, role } = await req.json()
+
+    if (role !== undefined && role !== 'admin' && role !== 'contributeur') {
+      return new Response(
+        JSON.stringify({ error: 'Rôle inconnu' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
 
     if (!nom || !email || !site_url || (isSuperAdmin && !organisation_id)) {
       return new Response(
@@ -58,16 +65,25 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     })
 
-    // Super-admin : crée un admin dans l'organisation de son choix.
+    // Super-admin : crée un admin ou un contributeur (paramètre role, admin
+    // par défaut) dans l'organisation de son choix.
     // Admin : crée un contributeur, forcément dans sa propre organisation
-    // (organisation_id du body ignoré, jamais fait confiance au client ici).
+    // (organisation_id du body ignoré, jamais fait confiance au client ici) ;
+    // toute demande d'un autre rôle est refusée.
     let targetOrganisationId: string
     let targetRole: 'admin' | 'contributeur'
 
     if (isSuperAdmin) {
       targetOrganisationId = organisation_id
-      targetRole = 'admin'
+      targetRole = role ?? 'admin'
     } else {
+      if (role !== undefined && role !== 'contributeur') {
+        return new Response(
+          JSON.stringify({ error: 'Accès refusé — seul un super-admin peut créer un administrateur' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+
       const { data: callerProfil } = await adminClient
         .from('profils_organisation')
         .select('organisation_id, role')

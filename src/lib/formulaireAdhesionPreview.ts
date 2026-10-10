@@ -57,14 +57,15 @@ export function renderFormulaireAdhesionPreviewHtml(
   const footer = substituteFormulaireAdhesionPlaceholders(footerHtml, values)
 
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-    body { margin: 0; padding: 24px; background: #f8fafc; font-family: ui-sans-serif, system-ui, sans-serif; }
+    /* Enveloppe alignée sur la page publique (tokens paper / paper-border / ink-faint). */
+    body { margin: 0; padding: 24px; background: #fdfcfa; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
     .formulaire-adhesion-preview-wrap { max-width: 480px; margin: 0 auto; }
     .formulaire-central-stub {
-      border: 1px dashed #cbd5e1;
-      border-radius: 12px;
+      border: 1px dashed #e8e4dc;
+      border-radius: 6px;
       padding: 32px 16px;
       text-align: center;
-      color: #94a3b8;
+      color: #726860;
       font-size: 13px;
       background: #ffffff;
     }

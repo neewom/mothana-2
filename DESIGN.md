@@ -89,7 +89,7 @@ Mothana s'adresse à des admins d'association, des bénévoles sur le terrain et
 
 **Historique** : ce système remplace une première itération (indigo/`rounded-lg`, encore documentée dans les versions précédentes de ce fichier). La migration a eu lieu page par page sur environ 25 PR (pilote sur `ActivitesPage`, généralisation validée ensuite), toutes les pages admin/bénévole/super-admin/publiques étant désormais sur ce système. Historique détaillé : `docs/journal-avancement.md` (entrées "Rollout shadcn/ui").
 
-**Dette connue — composants partagés non migrés ("seams")** : quelques composants transverses, ouverts depuis des pages déjà migrées, sont restés sur l'ancien système (ancien wrapper `Modal.tsx`, inputs et boutons indigo/slate) faute d'être rattachés à une seule page du rollout : `AdhesionModal`, `AssignerListeModal`, `CartesAdherentPdfPreviewModal`, `ImportWizard`, `ParticipantModal`, `ParticipantAutocomplete`, `AdherentHistoriqueSection`, `TagsInput`. Corriger un bouton isolé dans ces fichiers sans migrer le composant entier (wrapper de modale, champs, typographie) donnerait un résultat bâtard plus incohérent que l'état actuel — la remise à niveau de chacun est un chantier à part entière (même ampleur qu'une page du rollout initial), pas une simple retouche de couleur de bouton.
+**Dette des composants partagés ("seams") — soldée** : les derniers composants restés sur l'ancien système (ancien wrapper `Modal.tsx`, indigo/slate) — `AdhesionModal`, `AssignerListeModal`, `CartesAdherentPdfPreviewModal`, `ImportWizard`, `ParticipantModal`, `ParticipantAutocomplete`, `AdherentHistoriqueSection`, `TagsInput`, ainsi que `Toast`, `Tooltip`, `JournalActionLabel` — ont été migrés par l'épique design system (cartes DS 1, 2 et 3, 2026-10). `Modal.tsx` a été supprimé : toute modale passe par `ui/dialog`.
 
 **Key Characteristics:**
 - Surfaces plates au repos (bordure fine `paper-border`, coins à peine adoucis `rounded-sm`), aucune décoration gratuite.
@@ -196,6 +196,15 @@ Radius unique et discret (`rounded-sm`, 6px) sur l'ensemble des éléments inter
 - **Colonnes secondaires masquées sur mobile, jamais perdues :** `hidden md:table-cell` pour les colonnes moins prioritaires (ex. Civilité, Contact) — seulement quand l'information reste accessible autrement (détail au clic sur la ligne). Ne pas masquer une colonne qui serait alors introuvable ailleurs.
 - **Texte de cellule : `whitespace-nowrap` par défaut, jamais de retour à la ligne.** Une valeur trop large pour la carte doit rester lisible via le scroll horizontal (`ScrollShadowX`), pas être coupée par un wrap qui allonge la ligne. `truncate` + ellipsis n'est acceptable que pour un champ de texte libre potentiellement très long où la valeur complète est secondaire (ex. objet d'un email dans un historique) — jamais pour une donnée identifiante (nom, activité, sélection) qu'il faut pouvoir lire en entier.
 
+### Page de liste (gabarit)
+Référence : Donateurs et Dons. Toute page qui présente une liste d'éléments suit le même ordre, de haut en bas :
+- **En-tête (`ui/page-header`)** : titre (Display) ; sous-titre en Inter qui donne un compteur utile, qui suit les filtres (« 58 dons · 5 260,00 € collectés · 13 donateurs »), jamais un compteur seul en police mono ; **actions de page à droite**, l'action principale en dernier (`default`), les autres en `secondary` (Importer, Exporter…). Une action de page ne vit jamais dans la carte du tableau.
+- **Tuiles chiffrées (`ui/stat-tiles`)** : un seul bandeau bordé, cellules séparées par un filet `paper-border`, libellé mono en petites capitales, valeur mono. Seul composant de chiffres clés (accueil, Statistiques, détail événement) — jamais en doublon d'un compteur déjà porté par le sous-titre (Dons : le sous-titre suffit) ; une précision facultative sous la valeur (`hint`, ton `success`/`warning` seulement pour une évolution).
+- **Carte du tableau** (liseré `border-l-stamp`, voir Tables) : **barre d'outils (`ui/list-toolbar`)** en tête — recherche, bouton « Filtres · n » (contour `default` dès qu'un filtre est actif), contrôles de la carte à droite (Colonnes, Listes…) ; **filtres actifs en pastilles retirables (`FilterChips`)** juste dessous, avec « Tout effacer » à partir de deux.
+- **Recherche obligatoire sur toute liste qui peut grossir** (donateurs, dons, engagements, demandes, journal, mouvements, commandes, organisations…), dans la barre d'outils de la carte, à la même place partout. Liste entièrement chargée → filtre instantané côté client (`lib/textSearch`, sans accents ni casse, chaque mot doit figurer). Liste paginée côté serveur → la recherche passe par le serveur (RPC), espacée (~300 ms) et ignorée sous 2 caractères. Pas de recherche sur une liste bornée par nature (comptes d'une équipe, montants proposés d'un événement, récapitulatif annuel, 20 dernières campagnes…).
+- **Tiroir de filtres (`ui/filter-sheet`)** : les filtres secondaires vivent dans un tiroir à droite (plein écran en mobile), jamais en lignes de contrôles au-dessus du tableau. Les champs éditent un brouillon ; « Appliquer » valide, « Réinitialiser » vide.
+- **Ligne cliquable + panneau de détail** : les actions sur un élément (Modifier, Supprimer…) vivent dans le panneau (ou la fiche) ouvert au clic, pas en boutons de ligne (voir Tables). L'action principale du panneau en `default`, la suppression en `danger` sur sa propre ligne.
+
 ### Inputs / Fields
 - **Style:** fond blanc, bordure `paper-border`, `rounded-sm`, `px-3 py-2 text-sm`.
 - **Focus:** `ring-2 ring-stamp/70`, pas de changement de couleur de bordure — l'anneau de focus est le seul signal.
@@ -207,6 +216,24 @@ Radius unique et discret (`rounded-sm`, 6px) sur l'ensemble des éléments inter
 ### Alert Banners (signature component)
 Bandeau pleine largeur en tête de section pour une action requise ou un avertissement bloquant (ex. reçus fiscaux à régénérer, doublon d'adhérent détecté) : fond `warning-tint`, bordure `warning-border`, texte `warning`/`warning` foncé. Distinct des messages d'erreur simples (fond `stamp/[0.04]`, texte `stamp`), réservé aux situations où une action de l'utilisateur est explicitement attendue.
 
+## Garde-fous lint
+
+Les règles de ce système sont vérifiées par ESLint (`eslint.design-system.js`, carte DS 4) :
+
+- **Import de l'ancien `Modal`** interdit : toute modale passe par `ui/dialog`.
+- **Palette Tailwind brute interdite dans `src/`** (`indigo-`, `slate-`, `gray-`, `red-`, `green-`, `amber-`, `blue-`…, avec ou sans préfixe `hover:`/`md:`) et **`rounded-lg|xl|2xl|3xl`** : utiliser les tokens (`paper`, `ink`, `stamp`, `warning`, `success`) et `rounded-sm`.
+- **Hex en dur interdits dans `src/components` et `src/pages`** : utiliser une classe de token.
+
+`npm run lint:ds` ne lance que ces règles, et tourne en tête de `npm run build` : un manquement fait échouer le build Vercel. Les commentaires `eslint-disable` y sont ignorés, une règle ne se contourne pas en ligne.
+
+**Ajouter une exception hex** (seulement pour un rendu hors DOM de l'app, où une classe ne s'applique pas : impression, canvas, props de graphique) : ajouter **une ligne** au tableau `HEX_EXCEPTIONS` de `eslint.design-system.js`, avec le chemin du fichier et sa raison en commentaire :
+
+```js
+'src/components/MonApercu.tsx', // aperçu imprimable (HTML autonome)
+```
+
+L'exception couvre tout le fichier ; elle se justifie en revue de PR. Les modèles et rendus dans `src/lib` (Cerfa, carte adhérent, aperçus) ne sont pas concernés par la règle hex. Pas d'exception prévue pour la palette brute ni pour `rounded-lg` : migrer vers les tokens.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -216,10 +243,10 @@ Bandeau pleine largeur en tête de section pour une action requise ou un avertis
 - **Do** utiliser `type="tel"` avec filtrage des chiffres pour tout champ téléphone — jamais `type="number"` (perd les zéros initiaux).
 - **Do** utiliser `ScrollShadowX` pour tout tableau susceptible de déborder horizontalement, y compris les tableaux à une seule colonne de contenu (nom + actions) — jamais de bascule en cartes empilées mobile (`block`/`table-row`).
 - **Do** garder le contenu sur fond clair même quand la sidebar de navigation est sombre — le contraste sidebar/contenu est un repère spatial, pas une invitation à assombrir le reste de l'UI.
-- **Do**, avant de corriger un bouton isolé dans un composant partagé, vérifier si le composant entier est déjà migré vers ce système — sinon, traiter la migration comme un chantier à part (voir la liste des seams ci-dessus), pas une retouche ponctuelle.
 - **Do** retirer un CTA de ligne qui duplique le clic sur la ligne (ouvre déjà la même modale/le même panneau) — dernière colonne réduite à un chevron, actions de gestion déplacées dans la modale/le panneau (voir Tables).
 
 ### Don't:
+- **Don't** contourner un garde-fou lint du design system : corriger avec les tokens, ou ajouter une exception hex justifiée (voir Garde-fous lint).
 - **Don't** mélanger un bouton `Button` (stamp/`rounded-sm`) dans un composant par ailleurs resté sur l'ancien système (indigo/`rounded-lg`) — le résultat bâtard est plus incohérent que l'état actuel ; migrer le composant entier ou ne pas le toucher.
 - **Don't** utiliser `title` HTML natif pour une infobulle sur un placeholder — utiliser le composant `Tooltip.tsx` existant.
 - **Don't** ajouter d'ombre à une carte de contenu sans qu'elle superpose réellement un autre élément (voir The Structural Shadow Rule).

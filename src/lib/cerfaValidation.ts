@@ -64,3 +64,25 @@ export function validateParticipantCerfa(p: Personne): ParticipantValidation {
 
   return { blocking: missing.length > 0, missing }
 }
+
+/**
+ * Résumé court d'un blocage, pour une pastille de liste (le détail reste dans le panneau) :
+ * « 3 champs manquants », « Civilité manquante », « Don au nom d'une famille ». `null` si rien ne bloque.
+ */
+export function resumeValidationParticipant(v: ParticipantValidation): string | null {
+  if (v.missing.length > 0) return `${v.missing.length} champ${v.missing.length > 1 ? 's' : ''} manquant${v.missing.length > 1 ? 's' : ''}`
+  if (!v.blocking) return null
+  return v.message?.startsWith('Civilité') ? 'Civilité manquante' : 'Don au nom d’une famille'
+}
+
+/**
+ * Pages de Paramètres où compléter les champs manquants de `validateOrganisationCerfa` :
+ * l'identité (adresse, RNA/SIREN, objet social) est dans Organisation, la mention légale dans
+ * Reçus fiscaux.
+ */
+export function pagesParametresACompleter(missing: string[]): { label: string; to: string }[] {
+  const pages: { label: string; to: string }[] = []
+  if (missing.some((field) => field !== 'mention légale')) pages.push({ label: 'Paramètres › Organisation', to: '/admin/parametres' })
+  if (missing.includes('mention légale')) pages.push({ label: 'Paramètres › Reçus fiscaux', to: '/admin/parametres/recus-fiscaux' })
+  return pages
+}

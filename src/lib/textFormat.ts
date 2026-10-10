@@ -20,3 +20,13 @@ export function isValidEmail(value: string): boolean {
 export function sanitizeDigits(value: string): string {
   return value.replace(/\D/g, '')
 }
+
+/**
+ * Téléphone de donateur : chiffres et espaces, plus un seul « + » en tête pour les numéros
+ * internationaux (+66, +856…) — `sanitizeDigits` l'amputerait.
+ */
+export function sanitizePhone(value: string): string {
+  const international = value.trimStart().startsWith('+')
+  const body = value.replace(/[^\d ]/g, '')
+  return international ? `+${body.trimStart()}` : body
+}

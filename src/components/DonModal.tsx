@@ -244,15 +244,6 @@ export default function DonModal({
         <DialogContent
           className="max-w-md"
           aria-describedby={undefined}
-          // Le ParticipantModal imbriqué ("+ Nouveau participant") est porté hors de ce
-          // DialogContent (voir plus bas) : Radix considère donc tout clic/Escape dedans
-          // comme "à l'extérieur" de ce Dialog-ci et le fermerait sinon — ignorés quand la
-          // cible de l'événement vient du modal imbriqué, quel que soit l'état React au
-          // moment où l'event Radix se déclenche (trouvé en testant : une garde basée sur
-          // fullModalOpen ne suffisait pas, l'état avait déjà changé entre le clic sur
-          // "Fermer" du participant et le moment où Radix traite l'event).
-          onInteractOutside={(e) => { if ((e.target as Element | null)?.closest('[data-elevated-modal]')) e.preventDefault() }}
-          onEscapeKeyDown={(e) => { if ((e.target as Element | null)?.closest('[data-elevated-modal]')) e.preventDefault() }}
         >
           <DialogHeader>
             <DialogTitle>{isEdit ? 'Modifier le don' : 'Ajouter un don'}</DialogTitle>
@@ -393,14 +384,9 @@ export default function DonModal({
         </DialogContent>
       </Dialog>
 
-      {/* Full participant form, opened from "+ Nouveau participant" — rendu hors du
-          Dialog (pas dans DialogContent) : DialogContent applique un translate CSS qui
-          créerait un nouveau containing block et casserait le position:fixed de l'ancien
-          Modal (pas encore migré) si celui-ci était imbriqué à l'intérieur.
-          `elevated` : le Portal Radix du Dialog parent est toujours ré-attaché en fin de
-          <body>, donc peint après ce Modal à z-index égal quel que soit l'ordre JSX — sans
-          ça, "Ajouter un don" recouvrait "Ajouter un participant" au lieu de l'inverse
-          (trouvé en testant). */}
+      {/* Full participant form, opened from "+ Nouveau participant" — Dialog Radix distinct :
+          la pile de calques Radix ne laisse que le calque du dessus réagir à Escape et aux
+          clics extérieurs, donc fermer ce formulaire ne ferme pas "Ajouter un don". */}
       <ParticipantModal
         open={fullModalOpen}
         onClose={() => setFullModalOpen(false)}
@@ -410,7 +396,6 @@ export default function DonModal({
           setFullModalOpen(false)
         }}
         organisationId={organisationId}
-        elevated
       />
     </>
   )

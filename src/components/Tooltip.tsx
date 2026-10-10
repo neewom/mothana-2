@@ -8,11 +8,15 @@ interface TooltipProps {
    * non focusable plutôt que le <button> par défaut, pour éviter un <button> imbriqué invalide.
    * Le hover/focus/blur de l'enfant remonte naturellement (React fait bubbler focus/blur). */
   bare?: boolean
+  /** Classes du conteneur (ex. `min-w-0 max-w-full` pour un déclencheur tronqué par une ellipse). */
+  className?: string
+  /** Au-dessus par défaut ; `bottom` pour un déclencheur collé en haut de l'écran (barre du haut). */
+  placement?: 'top' | 'bottom'
 }
 
 // Hover (desktop) + tap pour rouvrir/fermer (mobile/tactile) — pas de dépendance
 // à mouseenter côté tactile, qui n'est pas fiable sur tous les navigateurs.
-export default function Tooltip({ content, children, triggerClassName, bare = false }: TooltipProps) {
+export default function Tooltip({ content, children, triggerClassName, bare = false, className, placement = 'top' }: TooltipProps) {
   const [open, setOpen] = useState(false)
 
   const handlers = {
@@ -23,7 +27,7 @@ export default function Tooltip({ content, children, triggerClassName, bare = fa
   }
 
   return (
-    <span className="relative inline-block">
+    <span className={`relative inline-block ${className ?? ''}`}>
       {bare ? (
         <span {...handlers} className={triggerClassName}>
           {children}
@@ -32,13 +36,13 @@ export default function Tooltip({ content, children, triggerClassName, bare = fa
         <button
           type="button"
           {...handlers}
-          className={`cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2 ${triggerClassName ?? ''}`}
+          className={`cursor-help rounded-sm underline decoration-dotted decoration-ink-faint underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70 ${triggerClassName ?? ''}`}
         >
           {children}
         </button>
       )}
       {open && (
-        <div className="absolute bottom-full left-0 z-30 mb-1.5 w-max max-w-xs whitespace-pre-line rounded-lg bg-slate-900 px-3 py-2 text-xs leading-relaxed text-white shadow-lg">
+        <div className={`absolute left-0 z-30 w-max max-w-xs whitespace-pre-line rounded-sm bg-ink px-3 py-2 font-registre text-xs leading-relaxed text-paper shadow-lg ${placement === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
           {content}
         </div>
       )}

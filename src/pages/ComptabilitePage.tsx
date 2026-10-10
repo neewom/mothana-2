@@ -9,25 +9,31 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
-import DeclarationCerfaCard from '../components/DeclarationCerfaCard'
 import type { Don, ModePaiement } from '../types'
 import { Button } from '../components/ui/button'
+import { PageHeader } from '../components/ui/page-header'
+import { StatTiles } from '../components/ui/stat-tiles'
 
 // ---------------------------------------------------------------------------
-// Palette — voir le skill dataviz (references/palette.md), instance validée
-// (node scripts/validate_palette.js) pour les 4 premiers slots catégoriels en
-// mode clair. L'app n'a pas de mode sombre. Le chrome (grilles, axes, encre)
-// réutilise les gris slate déjà utilisés partout ailleurs dans l'app plutôt
-// que d'introduire un second système de gris pour un rendu quasi identique.
+// Palette — charte Mothana (DESIGN.md › Colors) plutôt que les couleurs par défaut
+// d'une librairie : cachet pour la série mise en avant (année N, montants par
+// activité), encre et nuances neutres pour le contexte et les autres catégories.
+// Valeurs reprises des tokens Tailwind (Recharts se pilote en props SVG, pas en
+// classes, d'où l'exception hex de ce fichier dans eslint.design-system.js).
 // ---------------------------------------------------------------------------
 
-const CATEGORICAL = ['#2a78d6', '#008300', '#e87ba4', '#eda100'] as const // blue, green, magenta, yellow
-const ACCENT = CATEGORICAL[0]
-const CONTEXT_GRAY = '#52514e' // encre secondaire — année N-1, "contexte" (emphasis job)
-const GOOD = '#067606' // assombri depuis #0ca30c — la valeur d'origine n'atteignait que 3.35:1 sur blanc, sous le seuil AA (4.5:1) pour le texte de variation des StatCard
-const CRITICAL = '#d03b3b'
-const GRID_STROKE = '#e2e8f0' // slate-200
-const AXIS_STROKE = '#94a3b8' // slate-400
+const STAMP = '#a8281f' // stamp
+const INK = '#241f19' // ink
+const INK_FAINT = '#726860' // ink-faint
+const NEUTRAL_LIGHT = '#d6cec2' // nuance papier foncée, 4e catégorie
+const ACCENT = STAMP
+const CONTEXT_GRAY = INK_FAINT // année N-1 : contexte
+// Modes de paiement (Espèces, Chèque, Prélèvement-virement, Autres) et couleur du libellé
+// posé sur chaque segment (blanc sur fond foncé, encre sur la nuance claire).
+const CATEGORICAL = [STAMP, INK, INK_FAINT, NEUTRAL_LIGHT] as const
+const CATEGORICAL_LABEL = ['#ffffff', '#ffffff', '#ffffff', INK] as const
+const GRID_STROKE = '#e8e4dc' // paper-border
+const AXIS_STROKE = '#726860' // ink-faint
 
 const MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 
@@ -82,82 +88,6 @@ function useDonsForDashboard(organisationId: string) {
 }
 
 // ---------------------------------------------------------------------------
-// useRecusForDeclaration — pour le récapitulatif article 222 bis CGI.
-// recus_fiscaux a une contrainte UNIQUE (profil_participant_id, annee) et
-// generate-recu fait un upsert dessus : une régénération met à jour la ligne
-// existante, jamais de doublon. COUNT(*) par année est donc fiable.
-// ---------------------------------------------------------------------------
-
-interface RecuDeclaratif {
-  id: string
-  annee: number
-  montant_total: number
-  type_cerfa: '11580' | '16216' | null
-}
-
-function useRecusForDeclaration(organisationId: string) {
-  const [recus, setRecus] = useState<RecuDeclaratif[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!organisationId) return
-    let cancelled = false
-
-    async function fetchAll() {
-      setLoading(true)
-      setError(null)
-
-      const { data, error: err } = await fetchAllRows<RecuDeclaratif>((from, to) =>
-        supabase
-          .from('recus_fiscaux')
-          .select('id, annee, montant_total, type_cerfa')
-          .eq('organisation_id', organisationId)
-          .order('id', { ascending: true })
-          .range(from, to) as unknown as PromiseLike<{ data: RecuDeclaratif[] | null; error: { message: string } | null }>
-      )
-
-      if (cancelled) return
-
-      if (err) {
-        setError(err)
-        setLoading(false)
-        return
-      }
-
-      setRecus(data)
-      setLoading(false)
-    }
-
-    fetchAll()
-    return () => { cancelled = true }
-  }, [organisationId])
-
-  return { recus, loading, error }
-}
-
-// ---------------------------------------------------------------------------
-// StatCard
-// ---------------------------------------------------------------------------
-
-function StatCard({ label, value, delta }: { label: string; value: string; delta?: { pct: number; goodUp: boolean } }) {
-  const deltaColor = delta
-    ? (delta.pct >= 0) === delta.goodUp ? GOOD : CRITICAL
-    : undefined
-  return (
-    <div className="rounded-sm border border-paper-border bg-white p-5">
-      <p className="font-registre text-sm font-medium text-ink-faint">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-ink">{value}</p>
-      {delta && (
-        <p className="mt-1 font-registre text-sm font-medium" style={{ color: deltaColor }}>
-          {delta.pct >= 0 ? '↑' : '↓'} {Math.abs(delta.pct).toFixed(1)}% vs année précédente
-        </p>
-      )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Tooltip partagé — valeur en avant (Strong), nom de série en second,
 // repère de série en trait court (line key) plutôt qu'un carré de couleur.
 // ---------------------------------------------------------------------------
@@ -191,7 +121,6 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 export default function ComptabilitePage() {
   const organisationId = useOrganisationId()
   const { dons, loading, error } = useDonsForDashboard(organisationId)
-  const { recus, loading: recusLoading } = useRecusForDeclaration(organisationId)
 
   const availableYears = useMemo(() => {
     const years = new Set(dons.map((d) => Number(d.date.slice(0, 4))))
@@ -245,27 +174,13 @@ export default function ComptabilitePage() {
     return { totalN, totalN1, variationPct }
   }, [monthlyData])
 
-  const declarationParAnnee = useMemo(() => {
-    const totals = new Map<number, { nbRecus: number; montant: number }>()
-    for (const r of recus) {
-      const entry = totals.get(r.annee) ?? { nbRecus: 0, montant: 0 }
-      entry.nbRecus += 1
-      entry.montant += r.montant_total
-      totals.set(r.annee, entry)
-    }
-    return Array.from(totals.entries())
-      .map(([annee, v]) => ({ annee, ...v }))
-      .sort((a, b) => b.annee - a.annee)
-  }, [recus])
-
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-      {/* Page title + sélecteur d'année */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Comptabilité</h1>
-          <p className="mt-1 text-sm text-ink-muted">Vue d'ensemble des dons collectés</p>
-        </div>
+      {/* Titre + sélecteur d'année (action de page) */}
+      <PageHeader
+        title="Statistiques"
+        subtitle="Vue d'ensemble des dons collectés"
+        actions={
         <div className="flex items-center gap-2">
           <Button type="button" variant="secondary" size="sm" onClick={() => setYear((y) => y - 1)} disabled={year <= minYear}>
             ‹
@@ -275,7 +190,8 @@ export default function ComptabilitePage() {
             ›
           </Button>
         </div>
-      </div>
+        }
+      />
 
       {error && (
         <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur : {error}</div>
@@ -288,15 +204,18 @@ export default function ComptabilitePage() {
       ) : (
         <>
           {/* Stats */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <StatCard label={`Total ${year}`} value={formatEur(stats.totalN)} />
-            <StatCard label={`Total ${year - 1}`} value={formatEur(stats.totalN1)} />
-            <StatCard
-              label="Évolution"
-              value={`${stats.variationPct >= 0 ? '+' : ''}${stats.variationPct.toFixed(1)}%`}
-              delta={{ pct: stats.variationPct, goodUp: true }}
-            />
-          </div>
+          <StatTiles
+            items={[
+              { label: `Total ${year}`, value: formatEur(stats.totalN) },
+              { label: `Total ${year - 1}`, value: formatEur(stats.totalN1) },
+              {
+                label: 'Évolution',
+                value: `${stats.variationPct >= 0 ? '+' : ''}${stats.variationPct.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`,
+                hint: `${stats.variationPct >= 0 ? '↑' : '↓'} par rapport à ${year - 1}`,
+                hintTone: stats.variationPct >= 0 ? 'success' : 'warning',
+              },
+            ]}
+          />
 
           {/* Courbe mensuelle N vs N-1 */}
           <div className="rounded-sm border border-paper-border bg-white p-5">
@@ -328,7 +247,7 @@ export default function ComptabilitePage() {
                     <YAxis type="category" dataKey="nom" stroke={AXIS_STROKE} tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={120} />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="montant" name="Montant" fill={ACCENT} radius={[0, 4, 4, 0]} barSize={20}>
-                      <LabelList dataKey="montant" position="right" formatter={(v: number | string | boolean | null | undefined) => (typeof v === 'number' ? formatEur(v) : '')} style={{ fill: '#52514e', fontSize: 12 }} />
+                      <LabelList dataKey="montant" position="right" formatter={(v: number | string | boolean | null | undefined) => (typeof v === 'number' ? formatEur(v) : '')} style={{ fill: INK_FAINT, fontSize: 12 }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -370,7 +289,7 @@ export default function ComptabilitePage() {
                         dataKey={`mode_${o.value}`}
                         position="center"
                         formatter={(v: number | string | boolean | null | undefined) => (typeof v === 'number' && v > 0 ? formatEur(v) : '')}
-                        style={{ fill: '#ffffff', fontSize: 12, fontWeight: 600 }}
+                        style={{ fill: CATEGORICAL_LABEL[i], fontSize: 12, fontWeight: 600 }}
                       />
                     </Bar>
                   ))}
@@ -379,7 +298,6 @@ export default function ComptabilitePage() {
             </div>
           </div>
 
-          <DeclarationCerfaCard rows={declarationParAnnee} loading={recusLoading} />
         </>
       )}
     </div>

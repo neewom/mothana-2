@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run lint:ds && tsc -b && vite build",
     "lint": "eslint .",
+    "lint:ds": "eslint -c eslint.ds.config.js --quiet src",
     "test": "vitest run",
     "preview": "vite preview"
   },

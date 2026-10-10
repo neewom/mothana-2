@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { DonRegulier, ProfilParticipant, Activite } from '../types'
 import { fetchAllRows } from '../lib/fetchAllRows'
-import { moisManquants, anneeMoisDeDate } from '../lib/donsReguliers'
+import { moisManquants, anneeMoisDeDate, periodeEngagement } from '../lib/donsReguliers'
 import { participantFullName } from '../lib/participantSearch'
 import ParticipantAutocomplete from '../components/ParticipantAutocomplete'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
@@ -12,13 +12,17 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
+import { Badge } from '../components/ui/badge'
+import { PageHeader } from '../components/ui/page-header'
+import { SidePanel, DetailField } from '../components/ui/side-panel'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import ScrollShadowX from '../components/ScrollShadowX'
+import { ListToolbar } from '../components/ui/list-toolbar'
+import { correspondRecherche } from '../lib/textSearch'
+import { useNavCountersContext } from '../hooks/useNavCounters'
 
 function todayISO(): string {
   return new Date().toISOString().split('T')[0]
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function formatEur(n: number): string {
@@ -222,25 +226,14 @@ function DonRegulierModal({ open, onClose, onSaved, engagement, participants, ac
 }
 
 // ---------------------------------------------------------------------------
-// Statut d'engagement — badge sobre, pas de cachet : contrairement à une activité,
-// "actif"/"arrêté" est une vraie action délibérée de l'admin (bouton Arrêter/
-// Réactiver), pas un fait dérivé automatiquement d'une date. Réserver le cachet
-// postal aux faits purement temporels évite de rejouer l'erreur du pilote
-// (cachet = validation manuelle inventée) dans l'autre sens.
+// Statut d'engagement — pastille `success` (actif) ou `neutral` (arrêté), jamais le
+// cachet, réservé à l'actionnable (One Accent Rule).
 // ---------------------------------------------------------------------------
 
 function StatutBadge({ statut }: { statut: DonRegulier['statut'] }) {
-  const actif = statut === 'actif'
-  return (
-    <span
-      className={cn(
-        'font-registre-mono text-[10px] font-medium uppercase tracking-wide',
-        actif ? 'text-stamp' : 'text-ink-faint'
-      )}
-    >
-      {actif ? 'Actif' : 'Arrêté'}
-    </span>
-  )
+  return statut === 'actif'
+    ? <Badge variant="success">Actif</Badge>
+    : <Badge variant="neutral">Arrêté</Badge>
 }
 
 // ---------------------------------------------------------------------------
@@ -267,6 +260,8 @@ export default function DonsReguliersPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<DonRegulier | undefined>(undefined)
   const [deleteConfirm, setDeleteConfirm] = useState<DonRegulier | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [recherche, setRecherche] = useState('')
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -316,6 +311,13 @@ export default function DonsReguliersPage() {
   useEffect(() => {
     if (organisationId) fetchAll()
   }, [organisationId, fetchAll])
+
+  // Rechargement après une action : la liste et la pastille « Dons réguliers » du menu.
+  const { refreshNavCounters } = useNavCountersContext()
+  function reload() {
+    void fetchAll()
+    refreshNavCounters()
+  }
 
   const moisDejaGeneresParEngagement = useMemo(() => {
     const map = new Map<string, Set<string>>()
@@ -368,12 +370,22 @@ export default function DonsReguliersPage() {
     setModalOpen(true)
   }
 
+  const selected = engagements.find((e) => e.id === selectedId) ?? null
+  const engagementsFiltres = useMemo(
+    () => engagements.filter((e) => correspondRecherche([participantFullName(e.profils_participant), e.activites?.nom], recherche)),
+    [engagements, recherche]
+  )
+  const actifs = engagements.filter((e) => e.statut === 'actif')
+  const totalMensuel = actifs.reduce((sum, e) => sum + e.montant, 0)
+  // Période et activité restent dans le panneau quand il réduit le tableau (rien hors écran à 1 400 px).
+  const secondaryCol = selected ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
+
   async function handleToggleStatut(e: DonRegulier) {
     const payload = e.statut === 'actif'
       ? { statut: 'arrete' as const, date_fin: e.date_fin ?? todayISO() }
       : { statut: 'actif' as const }
     await supabase.from('dons_reguliers').update(payload).eq('id', e.id)
-    fetchAll()
+    reload()
   }
 
   async function handleDelete() {
@@ -391,7 +403,8 @@ export default function DonsReguliersPage() {
 
     setDeleting(false)
     setDeleteConfirm(null)
-    fetchAll()
+    setSelectedId(null)
+    reload()
   }
 
   const nombreCoches = lignesAConfirmer.filter((r) => checked[r.key]).length
@@ -432,7 +445,7 @@ export default function DonsReguliersPage() {
       return
     }
 
-    fetchAll()
+    reload()
   }
 
   return (
@@ -457,21 +470,32 @@ export default function DonsReguliersPage() {
         review, the verdict, and DESIGN.md.
       */}
       <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-        <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Dons réguliers</h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Automatise la saisie des dons récurrents (prélèvements mensuels) — chaque don reste soumis à votre confirmation avant d'être enregistré.
-          </p>
-        </div>
+        <PageHeader
+          title="Dons réguliers"
+          subtitle={
+            loading
+              ? 'Chargement…'
+              : `${actifs.length} engagement${actifs.length > 1 ? 's' : ''} actif${actifs.length > 1 ? 's' : ''} · ${formatEur(totalMensuel)} par mois`
+          }
+          actions={
+            <Button onClick={openAdd}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Nouvel engagement
+            </Button>
+          }
+        />
 
         {/* Dons à confirmer */}
         <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
           <div className="flex flex-col gap-3 border-b border-paper-border-muted px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold text-ink">Dons à confirmer</h2>
-              {lignesAConfirmer.length > 0 && (
-                <p className="mt-0.5 font-registre-mono text-xs text-ink-faint">{lignesAConfirmer.length} mois en attente</p>
-              )}
+              <p className="mt-0.5 text-xs text-ink-faint">
+                {lignesAConfirmer.length > 0 ? `${lignesAConfirmer.length} mois en attente · ` : ''}
+                Chaque prélèvement reste soumis à votre confirmation avant d'être enregistré comme don.
+              </p>
             </div>
             {lignesAConfirmer.length > 0 && (
               <Button onClick={handleConfirmer} disabled={confirming || nombreCoches === 0}>
@@ -528,67 +552,119 @@ export default function DonsReguliersPage() {
           )}
         </div>
 
-        {/* Engagements */}
-        <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
-          <div className="flex flex-col gap-3 border-b border-paper-border-muted px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
-            <div className="min-w-0">
+        {/* Engagements : liste + panneau de détail */}
+        <div className={cn('flex gap-6', selected && 'items-start')}>
+          <div className="min-w-0 flex-1 rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+            <div className="border-b border-paper-border-muted px-4 py-4 md:px-6">
               <h2 className="text-lg font-semibold text-ink">Engagements</h2>
-              <p className="mt-0.5 font-registre-mono text-xs text-ink-faint">
+              <p className="mt-0.5 text-xs text-ink-faint">
                 {engagements.length} engagement{engagements.length !== 1 ? 's' : ''}
               </p>
             </div>
-            <Button onClick={openAdd}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Nouvel engagement
-            </Button>
+            {!loading && engagements.length > 0 && (
+              <ListToolbar
+                search={{ value: recherche, onChange: setRecherche, placeholder: 'Donateur, activité…', label: 'Rechercher un engagement' }}
+              />
+            )}
+            {loading ? (
+              <div className="flex items-center justify-center py-16 font-registre text-sm text-ink-faint">Chargement…</div>
+            ) : engagements.length === 0 ? (
+              <div className="px-4 py-10 text-center font-registre text-sm text-ink-faint md:px-6">
+                Aucun engagement de don régulier pour l'instant.
+              </div>
+            ) : engagementsFiltres.length === 0 ? (
+              <div className="px-4 py-10 text-center font-registre text-sm text-ink-faint md:px-6">
+                Aucun engagement ne correspond à cette recherche.
+              </div>
+            ) : (
+              <ScrollShadowX>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Donateur</TableHead>
+                      <TableHead className="text-right">Montant</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead className={secondaryCol}>Période</TableHead>
+                      <TableHead className={secondaryCol}>Activité</TableHead>
+                      <TableHead className="hidden md:table-cell" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {engagementsFiltres.map((e) => (
+                      <TableRow
+                        key={e.id}
+                        onClick={() => setSelectedId(e.id === selectedId ? null : e.id)}
+                        className={cn(
+                          'cursor-pointer hover:bg-paper-border/20',
+                          e.id === selectedId && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]'
+                        )}
+                      >
+                        <TableCell className="whitespace-nowrap font-medium text-ink">{participantFullName(e.profils_participant)}</TableCell>
+                        <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
+                          {formatEur(e.montant)}
+                          <span className="ml-1 font-registre text-xs font-normal text-ink-faint">/ mois</span>
+                        </TableCell>
+                        <TableCell><StatutBadge statut={e.statut} /></TableCell>
+                        <TableCell className={cn(secondaryCol, 'whitespace-nowrap text-ink-muted')}>{periodeEngagement(e.date_debut, e.date_fin)}</TableCell>
+                        <TableCell className={cn(secondaryCol, 'whitespace-nowrap text-ink-faint')}>{e.activites?.nom ?? '—'}</TableCell>
+                        <TableCell className="hidden text-right text-ink-faint md:table-cell">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollShadowX>
+            )}
           </div>
-          {loading ? (
-            <div className="flex items-center justify-center py-16 font-registre text-sm text-ink-faint">Chargement…</div>
-          ) : engagements.length === 0 ? (
-            <div className="px-4 py-10 text-center font-registre text-sm text-ink-faint md:px-6">
-              Aucun engagement de don régulier pour l'instant.
-            </div>
-          ) : (
-            <ul>
-              {engagements.map((e) => (
-                <li key={e.id} className="flex flex-col gap-3 border-t border-paper-border-muted px-4 py-4 first:border-t-0 sm:flex-row sm:items-center sm:justify-between md:px-6">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-registre text-sm font-medium text-ink">
-                        {participantFullName(e.profils_participant)}
-                      </span>
-                      <StatutBadge statut={e.statut} />
-                    </div>
-                    <p className="font-registre-mono text-xs text-ink-faint">
-                      {formatEur(e.montant)} · le {e.jour_prelevement} de chaque mois
-                      {e.activites && ` · ${e.activites.nom}`}
-                    </p>
-                    <p className="font-registre-mono text-xs text-ink-faint">
-                      {formatDate(e.date_debut)} → {e.date_fin ? formatDate(e.date_fin) : '?'}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Button variant="secondary" size="sm" onClick={() => openEdit(e)}>Modifier</Button>
-                    <Button variant="secondary" size="sm" onClick={() => handleToggleStatut(e)}>
-                      {e.statut === 'actif' ? 'Arrêter' : 'Réactiver'}
-                    </Button>
-                    <Button variant="danger" size="sm" onClick={() => { setDeleteConfirm(e); setDeleteError(null) }}>
-                      Supprimer
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+
+          <SidePanel
+            open={!!selected}
+            onClose={() => setSelectedId(null)}
+            title="Engagement"
+            footer={selected && (
+              <>
+                <div className="flex gap-2">
+                  <Button onClick={() => openEdit(selected)} className="flex-1">Modifier</Button>
+                  <Button variant="secondary" onClick={() => handleToggleStatut(selected)} className="flex-1">
+                    {selected.statut === 'actif' ? 'Arrêter' : 'Réactiver'}
+                  </Button>
+                </div>
+                <Button variant="danger" onClick={() => { setDeleteConfirm(selected); setDeleteError(null) }} className="w-full">
+                  Supprimer
+                </Button>
+              </>
+            )}
+          >
+            {selected && (
+              <>
+                <DetailField label="Donateur">
+                  <p className="font-semibold">{participantFullName(selected.profils_participant)}</p>
+                  {selected.profils_participant.personnes.email && (
+                    <p className="text-ink-muted">{selected.profils_participant.personnes.email}</p>
+                  )}
+                </DetailField>
+                <div className="grid grid-cols-2 gap-4">
+                  <DetailField label="Montant">
+                    <p className="font-registre-mono text-xl font-bold">{formatEur(selected.montant)}</p>
+                  </DetailField>
+                  <DetailField label="Statut"><StatutBadge statut={selected.statut} /></DetailField>
+                </div>
+                <DetailField label="Prélèvement">Le {selected.jour_prelevement} de chaque mois</DetailField>
+                <DetailField label="Période">{periodeEngagement(selected.date_debut, selected.date_fin)}</DetailField>
+                <DetailField label="Activité">{selected.activites?.nom ?? '—'}</DetailField>
+              </>
+            )}
+          </SidePanel>
         </div>
       </div>
 
       <DonRegulierModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSaved={fetchAll}
+        onSaved={reload}
         engagement={editing}
         participants={participants}
         activites={activites}

@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../hooks/useAuth'
 import { getCanonicalSiteUrl } from '../lib/environment'
 import ParametresSection from '../components/ParametresSection'
-import AdminAccountsManager from '../components/AdminAccountsManager'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
@@ -181,7 +180,7 @@ export default function ParametresCompteAdminPage() {
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       {toast && <Toast key={toast.id} message={toast.message} onDismiss={dismissToast} />}
       <div>
-        <h1 className="text-2xl font-bold text-ink md:text-3xl">Paramètres — Mon compte</h1>
+        <h1 className="text-2xl font-bold text-ink md:text-3xl">Mon compte</h1>
         <p className="mt-1 text-sm text-ink-muted">Vos informations personnelles, votre mot de passe et vos préférences.</p>
       </div>
 
@@ -205,7 +204,7 @@ export default function ParametresCompteAdminPage() {
                 <Input id="compte-nom" type="text" value={nomAffiche} onChange={(e) => setNomAffiche(e.target.value)} placeholder="Prénom Nom" />
               </div>
               <div className="flex items-center gap-3">
-                <Button type="submit" size="sm" disabled={nomSaving || !nomAffiche.trim()}>
+                <Button type="submit" disabled={nomSaving || !nomAffiche.trim()}>
                   {nomSaving ? 'Enregistrement…' : 'Enregistrer'}
                 </Button>
                 {nomSuccess && <span className="text-sm text-ink-muted">Enregistré</span>}
@@ -236,7 +235,7 @@ export default function ParametresCompteAdminPage() {
                 />
                 <p className="text-xs text-ink-faint">Un email de confirmation sera envoyé à l'ancienne et à la nouvelle adresse.</p>
               </div>
-              <Button type="submit" size="sm" variant="secondary" disabled={emailSaving || !newEmail.trim()}>
+              <Button type="submit" variant="secondary" disabled={emailSaving || !newEmail.trim()}>
                 {emailSaving ? 'Envoi…' : "Demander le changement"}
               </Button>
             </form>
@@ -246,7 +245,7 @@ export default function ParametresCompteAdminPage() {
             {pwdMessage && (
               <div className="mb-4 rounded-sm border border-paper-border bg-paper px-4 py-3 text-sm text-ink-muted">{pwdMessage}</div>
             )}
-            <Button type="button" variant="secondary" size="sm" onClick={handleResetPassword} disabled={pwdSending}>
+            <Button type="button" variant="secondary" onClick={handleResetPassword} disabled={pwdSending}>
               {pwdSending ? 'Envoi…' : 'Réinitialiser mon mot de passe'}
             </Button>
           </ParametresSection>
@@ -270,18 +269,6 @@ export default function ParametresCompteAdminPage() {
             </div>
           </ParametresSection>
 
-          {auth.role === 'admin' && (
-            <ParametresSection title="Contributeurs" description="Comptes supplémentaires ayant les mêmes accès que vous, sans droit de gestion des comptes.">
-              <AdminAccountsManager
-                organisationId={auth.organisationId}
-                filterRoles={['contributeur']}
-                heading="Contributeurs de l'organisation"
-                addButtonLabel="Ajouter un contributeur"
-                newFormTitle="Nouveau contributeur"
-                emptyLabel="Aucun contributeur pour cette organisation."
-              />
-            </ParametresSection>
-          )}
         </>
       )}
     </div>

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import Modal from './Modal'
 import TagsInput from './TagsInput'
+import { Button } from './ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 
 interface AssignerListeModalProps {
   open: boolean
@@ -26,8 +27,6 @@ export default function AssignerListeModal({
   const [pendingTag, setPendingTag] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  if (!open) return null
 
   const tag = pendingTag[0]
   const creatingEmpty = adherentIds.length === 0
@@ -71,47 +70,42 @@ export default function AssignerListeModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} maxWidthClassName="max-w-md" labelledBy="assigner-liste-title">
-      <div className="border-b border-slate-200 px-6 py-4">
-        <h2 id="assigner-liste-title" className="text-lg font-semibold text-slate-900">
-          {creatingEmpty ? 'Créer une liste' : 'Ajouter à une liste'}
-        </h2>
-      </div>
+    <Dialog open={open} onOpenChange={(next) => { if (!next && !saving) onClose() }}>
+      <DialogContent className="max-w-md" aria-describedby={undefined}>
+        <DialogHeader className="shrink-0 pr-12">
+          <DialogTitle>{creatingEmpty ? 'Créer une liste' : 'Ajouter à une liste'}</DialogTitle>
+        </DialogHeader>
 
-      <div className="space-y-4 p-6">
-        {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        <div className="flex-1 space-y-4 overflow-y-auto p-6">
+          {error && (
+            <div role="alert" className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">
+              {error}
+            </div>
+          )}
 
-        <p className="text-sm text-slate-600">
-          {creatingEmpty
-            ? "Aucun adhérent sélectionné : la liste sera créée vide, vous pourrez lui affecter des adhérents plus tard."
-            : `${adherentIds.length} adhérent${adherentIds.length > 1 ? 's' : ''} sélectionné${adherentIds.length > 1 ? 's' : ''}. Choisissez une liste existante ou créez-en une nouvelle.`}
-        </p>
+          <p className="text-sm text-ink-muted">
+            {creatingEmpty
+              ? "Aucun adhérent sélectionné : la liste sera créée vide, vous pourrez lui affecter des adhérents plus tard."
+              : `${adherentIds.length} adhérent${adherentIds.length > 1 ? 's' : ''} sélectionné${adherentIds.length > 1 ? 's' : ''}. Choisissez une liste existante ou créez-en une nouvelle.`}
+          </p>
 
-        <TagsInput
-          tags={pendingTag}
-          onChange={(tags) => setPendingTag(tags.length > 0 ? [tags[tags.length - 1]] : [])}
-          availableTags={availableTags}
-          placeholder="Nom de la liste, puis Entrée…"
-        />
-      </div>
+          <TagsInput
+            tags={pendingTag}
+            onChange={(tags) => setPendingTag(tags.length > 0 ? [tags[tags.length - 1]] : [])}
+            availableTags={availableTags}
+            placeholder="Nom de la liste, puis Entrée…"
+          />
+        </div>
 
-      <div className="flex shrink-0 justify-end gap-3 rounded-b-2xl border-t border-slate-200 bg-white px-6 py-4">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-        >
-          Annuler
-        </button>
-        <button
-          type="button"
-          onClick={handleAssign}
-          disabled={!tag || saving}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-        >
-          {saving ? 'Enregistrement…' : creatingEmpty ? 'Créer' : 'Ajouter'}
-        </button>
-      </div>
-    </Modal>
+        <div className="flex shrink-0 justify-end gap-3 border-t border-paper-border bg-white px-6 py-4">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
+            Annuler
+          </Button>
+          <Button type="button" onClick={handleAssign} disabled={!tag || saving}>
+            {saving ? 'Enregistrement…' : creatingEmpty ? 'Créer' : 'Ajouter'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

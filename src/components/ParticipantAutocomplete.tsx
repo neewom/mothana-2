@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ProfilParticipant } from '../types'
 import { participantFullName, filterParticipants } from '../lib/participantSearch'
+import { Input } from './ui/input'
 
 interface ParticipantAutocompleteProps {
   participants: ProfilParticipant[]
@@ -52,7 +53,7 @@ export default function ParticipantAutocomplete({
 
   return (
     <div className="relative">
-      <input
+      <Input
         type="text"
         value={displayValue}
         disabled={disabled}
@@ -62,19 +63,18 @@ export default function ParticipantAutocomplete({
         onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}
         placeholder={placeholder}
         autoComplete="off"
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
       />
       {open && (
-        <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+        <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-sm border border-paper-border bg-white shadow-lg">
           {results.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-slate-500">Aucun donateur trouvé</p>
+            <p className="px-3 py-2 text-sm text-ink-faint">Aucun donateur trouvé</p>
           ) : (
             results.map((p) => (
               <button
                 key={p.id}
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); handleSelect(p) }}
-                className="block w-full px-3 py-2 text-left text-sm hover:bg-indigo-50"
+                className="block w-full px-3 py-2 text-left text-sm text-ink-muted hover:bg-paper"
               >
                 {participantFullName(p)}
               </button>

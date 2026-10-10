@@ -10,8 +10,8 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
 
   if (auth.type === 'loading') {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+      <div className="flex min-h-dvh items-center justify-center bg-paper">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
       </div>
     )
   }

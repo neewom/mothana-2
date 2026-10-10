@@ -5,6 +5,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Badge } from './ui/badge'
+import { Select } from './ui/select'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -24,6 +25,12 @@ interface AdminAccountsManagerProps {
   filterRoles?: Array<'admin' | 'contributeur'>
   /** Afficher un badge de rôle sur chaque ligne (utile quand la liste mélange plusieurs rôles). */
   showRoleBadge?: boolean
+  /** Rôles sur lesquels l'utilisateur peut agir (désactiver/réactiver) ; les autres sont en lecture seule. Tous par défaut. */
+  manageableRoles?: Array<'admin' | 'contributeur'>
+  /** Mention affichée sous la liste quand certains comptes sont en lecture seule. */
+  readOnlyNote?: string
+  /** Super-admin : choix du rôle à la création et changement de rôle d'un compte existant (contrôlés côté serveur). */
+  canManageRoles?: boolean
   heading?: string
   addButtonLabel?: string
   newFormTitle?: string
@@ -32,7 +39,7 @@ interface AdminAccountsManagerProps {
 }
 
 const ROLE_LABELS: Record<AccountRow['role'], string> = {
-  admin: 'Admin',
+  admin: 'Administrateur',
   contributeur: 'Contributeur',
 }
 
@@ -40,6 +47,9 @@ export default function AdminAccountsManager({
   organisationId,
   filterRoles,
   showRoleBadge = false,
+  manageableRoles,
+  readOnlyNote,
+  canManageRoles = false,
   heading = 'Comptes admin',
   addButtonLabel = 'Ajouter un admin',
   newFormTitle = 'Nouveau compte admin',
@@ -53,9 +63,11 @@ export default function AdminAccountsManager({
   const [showAddForm, setShowAddForm] = useState(false)
   const [newNom, setNewNom] = useState('')
   const [newEmail, setNewEmail] = useState('')
+  const [newRole, setNewRole] = useState<AccountRow['role']>('admin')
   const [addError, setAddError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [banningId, setBanningId] = useState<string | null>(null)
+  const [roleChangingId, setRoleChangingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchAccounts()
@@ -90,7 +102,13 @@ export default function AdminAccountsManager({
         Authorization: `Bearer ${token}`,
         apikey: SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({ nom: newNom, email: newEmail, organisation_id: organisationId, site_url: getCanonicalSiteUrl() }),
+      body: JSON.stringify({
+        nom: newNom,
+        email: newEmail,
+        organisation_id: organisationId,
+        site_url: getCanonicalSiteUrl(),
+        ...(canManageRoles ? { role: newRole } : {}),
+      }),
     })
     const json = await res.json()
     setAdding(false)
@@ -103,6 +121,7 @@ export default function AdminAccountsManager({
     setShowAddForm(false)
     setNewNom('')
     setNewEmail('')
+    setNewRole('admin')
     onAccountAdded?.(newEmail)
     fetchAccounts()
   }
@@ -133,6 +152,31 @@ export default function AdminAccountsManager({
     fetchAccounts()
   }
 
+  async function handleChangeRole(account: AccountRow) {
+    const nextRole: AccountRow['role'] = account.role === 'admin' ? 'contributeur' : 'admin'
+    const name = account.nom_affiche ?? account.email
+    const message =
+      nextRole === 'admin'
+        ? `Passer « ${name} » administrateur ? Ce compte pourra gérer les contributeurs de l'organisation.`
+        : `Passer « ${name} » contributeur ? Ce compte garde les mêmes accès, sans droit de gestion des comptes.`
+    if (!window.confirm(message)) return
+
+    setListError(null)
+    setRoleChangingId(account.utilisateur_id)
+    const { error: err } = await supabase.rpc('changer_role_compte', {
+      p_utilisateur_id: account.utilisateur_id,
+      p_role: nextRole,
+    })
+    setRoleChangingId(null)
+
+    if (err) {
+      setListError(err.message)
+      return
+    }
+
+    fetchAccounts()
+  }
+
   const disabledCount = accounts.filter((a) => a.is_banned).length
   const visibleAccounts = showDisabled ? accounts : accounts.filter((a) => !a.is_banned)
 
@@ -155,8 +199,8 @@ export default function AdminAccountsManager({
           ) : (
             <ul className="divide-y divide-paper-border-muted rounded-sm border border-paper-border">
               {visibleAccounts.map((account) => (
-                <li key={account.utilisateur_id} className="flex items-center justify-between px-4 py-3">
-                  <div className="min-w-0">
+                <li key={account.utilisateur_id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
+                  <div className="min-w-[12rem] flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate font-registre text-sm font-medium text-ink">
                         {account.nom_affiche ?? '—'}
@@ -165,8 +209,24 @@ export default function AdminAccountsManager({
                     </div>
                     <p className="truncate font-registre text-xs text-ink-faint">{account.email}</p>
                   </div>
-                  <div className="ml-4 flex flex-shrink-0 items-center gap-3">
+                  <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
                     {account.is_banned && <Badge variant="stamp">Désactivé</Badge>}
+                    {canManageRoles && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleChangeRole(account)}
+                        disabled={roleChangingId === account.utilisateur_id}
+                      >
+                        {roleChangingId === account.utilisateur_id
+                          ? '…'
+                          : account.role === 'admin'
+                          ? 'Passer contributeur'
+                          : 'Passer administrateur'}
+                      </Button>
+                    )}
+                    {manageableRoles && !manageableRoles.includes(account.role) ? null : (
                     <Button
                       type="button"
                       variant="secondary"
@@ -180,16 +240,20 @@ export default function AdminAccountsManager({
                         ? 'Réactiver'
                         : 'Désactiver'}
                     </Button>
+                    )}
                   </div>
                 </li>
               ))}
             </ul>
           )}
+          {readOnlyNote && accounts.some((account) => manageableRoles && !manageableRoles.includes(account.role)) && (
+            <p className="font-registre text-xs text-ink-faint">{readOnlyNote}</p>
+          )}
           {disabledCount > 0 && (
             <button
               type="button"
               onClick={() => setShowDisabled((prev) => !prev)}
-              className="font-registre-mono text-xs font-medium text-stamp hover:text-stamp/80"
+              className="rounded-sm font-registre text-sm font-medium text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
             >
               {showDisabled ? 'Masquer les comptes désactivés' : `Afficher les comptes désactivés (${disabledCount})`}
             </button>
@@ -230,6 +294,25 @@ export default function AdminAccountsManager({
             />
             <p className="text-xs text-ink-faint">Un email d'invitation sera envoyé pour définir le mot de passe.</p>
           </div>
+          {canManageRoles && (
+            <div className="space-y-1.5">
+              <Label htmlFor="account-role">Rôle</Label>
+              <Select
+                id="account-role"
+                className="w-full"
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value as AccountRow['role'])}
+              >
+                <option value="admin">Administrateur</option>
+                <option value="contributeur">Contributeur</option>
+              </Select>
+              <p className="text-xs text-ink-faint">
+                {newRole === 'admin'
+                  ? 'Gère les comptes contributeurs de l’organisation.'
+                  : 'Mêmes accès qu’un administrateur, sans droit de gestion des comptes.'}
+              </p>
+            </div>
+          )}
           <div className="flex justify-end gap-2 pt-1">
             <Button
               type="button"

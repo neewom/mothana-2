@@ -14,12 +14,15 @@ import { participantsImportConfig } from '../lib/import/configs'
 import { MODE_PAIEMENT_LABELS } from '../lib/modePaiement'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
+import { PageHeader } from '../components/ui/page-header'
+import { ListToolbar } from '../components/ui/list-toolbar'
 import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import ScrollShadowX from '../components/ScrollShadowX'
+import SortableTableHead from '../components/SortableTableHead'
+import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -153,32 +156,6 @@ function useParticipants(organisationId: string): ParticipantsData {
 }
 
 // ---------------------------------------------------------------------------
-// SortableHead
-// ---------------------------------------------------------------------------
-
-interface SortableHeadProps {
-  field: SortField
-  label: string
-  sortField: SortField
-  sortDirection: 'asc' | 'desc'
-  onSort: (field: SortField) => void
-  align?: 'left' | 'right'
-  className?: string
-}
-
-function SortableHead({ field, label, sortField, sortDirection, onSort, align = 'left', className }: SortableHeadProps) {
-  return (
-    <TableHead
-      onClick={() => onSort(field)}
-      className={cn('cursor-pointer select-none hover:text-ink', align === 'right' && 'text-right', className)}
-    >
-      {label}
-      {sortField === field && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
-    </TableHead>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // DetailPanel
 // ---------------------------------------------------------------------------
 
@@ -204,7 +181,7 @@ function DetailPanel({
   const p = participant.personnes
 
   return (
-    <div className="flex h-full flex-col font-registre">
+    <div className="flex min-h-0 flex-1 flex-col font-registre">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-paper-border px-6 py-4">
         <h2 className="text-lg font-semibold text-ink">Détail du donateur</h2>
@@ -219,7 +196,7 @@ function DetailPanel({
       </div>
 
       {/* Body */}
-      <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
         {/* Identity */}
         <div>
           {p.civilite && (
@@ -341,6 +318,8 @@ export default function ParticipantsPage() {
 
   // Selected participant for detail panel
   const [selectedParticipant, setSelectedParticipant] = useState<ProfilParticipant | null>(null)
+  // Lien profond depuis la recherche globale : ?id=<profil_participant_id> ouvre le panneau.
+  useDeepLinkSelection(loading ? null : participants, setSelectedParticipant)
   const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
 
   useEffect(() => {
@@ -426,10 +405,17 @@ export default function ParticipantsPage() {
     return map
   }, [dons])
 
+
   // Filtered participants
   const filteredParticipants = useMemo(
     () => filterParticipants(participants, search),
     [participants, search]
+  )
+
+  // Sous-titre : donateurs affichés (recherche appliquée) et total de leurs dons.
+  const totalSelection = useMemo(
+    () => filteredParticipants.reduce((sum, p) => sum + (totalDonsByParticipant.get(p.id) ?? 0), 0),
+    [filteredParticipants, totalDonsByParticipant]
   )
 
   // Sorted participants
@@ -545,11 +531,30 @@ export default function ParticipantsPage() {
         review, the verdict, and DESIGN.md.
       */}
       <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-        {/* Page title */}
-        <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Donateurs</h1>
-          <p className="mt-1 text-sm text-ink-muted">Gestion des donateurs et de leurs dons</p>
-        </div>
+        <PageHeader
+          title="Donateurs"
+          subtitle={
+            loading
+              ? 'Chargement…'
+              : `${filteredParticipants.length} donateur${filteredParticipants.length > 1 ? 's' : ''} · ${formatEur(totalSelection)} de dons`
+          }
+          actions={
+            <>
+              <Button variant="secondary" onClick={() => setImportOpen(true)}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                Importer
+              </Button>
+              <Button onClick={openAdd}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Ajouter un donateur
+              </Button>
+            </>
+          }
+        />
 
         {/* Error */}
         {error && (
@@ -562,29 +567,9 @@ export default function ParticipantsPage() {
         <div className={cn('flex gap-6', selectedParticipant && 'items-start')}>
           {/* Table card */}
           <div className="min-w-0 flex-1 rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-paper-border px-4 py-4 md:px-6">
-              <Input
-                type="text"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
-                placeholder="Rechercher par nom et prénom…"
-                className="w-full max-w-xs"
-              />
-              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                <Button variant="secondary" onClick={() => setImportOpen(true)}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                  </svg>
-                  Importer
-                </Button>
-                <Button onClick={openAdd}>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                  Ajouter
-                </Button>
-              </div>
-            </div>
+            <ListToolbar
+              search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Rechercher par nom et prénom…', label: 'Rechercher un donateur' }}
+            />
 
             {loading ? (
               <div className="flex items-center justify-center py-16">
@@ -599,10 +584,10 @@ export default function ParticipantsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <SortableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
-                      <SortableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <SortableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <SortableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="hidden md:table-cell" />
+                      <SortableTableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
+                      <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableTableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="hidden md:table-cell" />
                       <TableHead />
                     </TableRow>
                   </TableHeader>
