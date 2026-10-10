@@ -9,7 +9,8 @@ Go utilisateur transmis par le lead tech pour 4 cartes : 1 indépendante (cible 
   - #234 → #233 : `ui/side-panel`, Dons réguliers (tableau + panneau, badge), Reçus fiscaux (panneau, pastilles de blocage).
   - #235 → #234 : en-têtes Activités et Porte-monnaie.
 - **Carte 3 — Filtres Adhérents** (https://trello.com/c/hOyiqkfV) — PR #236 → #235, revue OK. Tiroir, pastilles, barre d'actions de sélection, `ui/action-menu` (Listes), colonne Statut masquée par défaut (clé localStorage `-v2`), libellés d'adhésion.
-- **Carte 4 — Retouches d'alignement** (https://trello.com/c/uNAM5UWR) — PR #237 → #236, ready for review.
+- **Carte 4 — Retouches d'alignement** (https://trello.com/c/uNAM5UWR) — PR #237 → #236, revue OK.
+- **Retours utilisateur en test** (via le lead tech) : Dons sans tuiles (sous-titre « dons · total · donateurs » qui suit les filtres, #233 propagé) ; actions de page dans l'en-tête partout (Donateurs, détail événement, Demandes — #237) ; recherche sur toute liste qui peut grossir (#237, Journal côté serveur via `journal_modifications_recherche.sql`, staging uniquement).
 
 ## Décisions
 - Reçu depuis un don : lien vers Reçus fiscaux `?annee=&q=` (reçus annuels par donateur, pas de reçu par don).
@@ -22,7 +23,7 @@ Go utilisateur transmis par le lead tech pour 4 cartes : 1 indépendante (cible 
 
 ## Reste à faire
 - Revue lead tech de #237, test utilisateur du batch (ordre : #232, puis #233 → #237), merges (lead tech).
-- Promotion prod : migration `changer_role_compte.sql` + `supabase functions deploy create-admin disable-admin`.
+- Promotion prod : migrations `changer_role_compte.sql` et `journal_modifications_recherche.sql` + `supabase functions deploy create-admin disable-admin`.
 
 ## Blockers
 - Aucun.
