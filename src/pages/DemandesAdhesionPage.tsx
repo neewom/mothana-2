@@ -15,6 +15,7 @@ import Toast from '../components/Toast'
 import AdherentModal from '../components/AdherentModal'
 import ScrollShadowX from '../components/ScrollShadowX'
 import { logModification } from '../lib/journalModifications'
+import { PageHeader } from '../components/ui/page-header'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Textarea } from '../components/ui/textarea'
@@ -45,6 +46,13 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'ratifiee', label: 'Ratifiées' },
   { value: 'refusee', label: 'Refusées' },
 ]
+
+// « 3 demandes en attente », « 1 demande ratifiée », « 2 demandes refusées ».
+function sousTitreDemandes(n: number, tab: Tab): string {
+  const s = n > 1 ? 's' : ''
+  const etat = tab === 'en_attente' ? 'en attente' : tab === 'ratifiee' ? `ratifiée${s}` : `refusée${s}`
+  return `${n} demande${s} ${etat}`
+}
 
 export default function DemandesAdhesionPage() {
   const organisationId = useOrganisationId()
@@ -203,12 +211,14 @@ export default function DemandesAdhesionPage() {
         review, the verdict, and DESIGN.md.
       */}
       <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-        <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Demandes d'adhésion</h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Demandes soumises via le formulaire public, à ratifier par le conseil d'administration.
-          </p>
-        </div>
+        <PageHeader
+          title="Demandes d'adhésion"
+          subtitle={
+            loading
+              ? 'Chargement…'
+              : sousTitreDemandes(demandes.length, tab) + (tab === 'en_attente' ? ' · à ratifier par le conseil d’administration' : '')
+          }
+        />
 
         {error && (
           <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">

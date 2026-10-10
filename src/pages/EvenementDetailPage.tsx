@@ -10,7 +10,6 @@ import Toast from '../components/Toast'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog'
-import { Input } from '../components/ui/input'
 import { StatusNotice } from '../components/ui/status-notice'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 import { Tabs } from '../components/ui/tabs'
@@ -32,6 +31,7 @@ import { supabase } from '../lib/supabaseClient'
 import { cn } from '../lib/utils'
 import { PageHeader } from '../components/ui/page-header'
 import { StatTiles } from '../components/ui/stat-tiles'
+import { ListToolbar } from '../components/ui/list-toolbar'
 import type { Activite } from '../types'
 import type { Evenement } from '../types/evenement'
 import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
@@ -467,6 +467,11 @@ export default function EvenementDetailPage() {
             <Button type="button" variant="secondary" onClick={() => setAfficheOpen(true)}>
               Affiche QR code
             </Button>
+            {canCredit && (
+              <Button type="button" variant="secondary" onClick={() => setCreditOpen(true)}>
+                Créditer un portefeuille
+              </Button>
+            )}
             <Button type="button" onClick={() => setEditOpen(true)}>
               Modifier l’événement
             </Button>
@@ -551,21 +556,9 @@ export default function EvenementDetailPage() {
             className={cn('flex gap-6', panelOpen && 'items-start')}
           >
             <section className="min-w-0 flex-1 overflow-hidden rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-paper-border px-4 py-4 md:px-6">
-                <Input
-                  type="search"
-                  value={walletSearch}
-                  onChange={(event) => setWalletSearch(event.target.value)}
-                  placeholder="Rechercher par email ou code"
-                  aria-label="Rechercher un portefeuille"
-                  className="w-full md:w-72"
-                />
-                {canCredit && (
-                  <Button type="button" onClick={() => setCreditOpen(true)}>
-                    Créditer un portefeuille
-                  </Button>
-                )}
-              </div>
+              <ListToolbar
+                search={{ value: walletSearch, onChange: setWalletSearch, placeholder: 'Rechercher par email ou code', label: 'Rechercher un portefeuille' }}
+              />
               {portefeuilles.length === 0 ? (
                 <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun portefeuille créé pour cet événement.</p>
               ) : filteredWallets.length === 0 ? (
