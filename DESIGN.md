@@ -146,6 +146,16 @@ Le contenu s'organise en cartes pleine largeur (`rounded-sm border border-paper-
 
 La navigation admin est une sidebar fixe sombre (`bg-ink`) sur desktop, qui se rétracte en tiroir sur mobile — le contenu, lui, reste toujours sur fond clair (`paper`/blanc).
 
+### Mouvement
+Seules les fenêtres (modales, tiroirs, panneaux de détail mobiles, menu principal mobile) sont animées, toutes de la même façon : **200 ms, `ease-out`**, à l'ouverture comme à la fermeture (`duration-200 ease-out`, keyframes `tailwindcss-animate`).
+- **Fond assombri** (`bg-ink/40`) : fondu, partout.
+- **Modale centrée (`ui/dialog`)** : sur place — fondu + zoom 95 % → 100 %, sans déplacement. Modale plein écran : fondu seul.
+- **Tiroir de filtres (`DialogContent placement="right"`, `ui/filter-sheet`) et panneau de détail mobile (`ui/side-panel`)** : glisse depuis la droite.
+- **Menu principal mobile** : glisse depuis la gauche ; recherche globale mobile : depuis le haut (entrée seulement).
+- **Tiroirs hors Radix (`ui/sheet`)** : restent montés le temps de la sortie et gardent le dernier contenu affiché ; passer d'un élément à l'autre panneau ouvert ne rejoue pas l'entrée.
+- **« Réduire les animations »** (`prefers-reduced-motion`) : déplacements et zooms passent sous `motion-safe:`, il ne reste qu'un fondu.
+- Ne pas recentrer une modale par `className` (`translate-*`, `top-*`) : les keyframes remplacent son `transform` pendant l'animation ; ajouter un `placement` à `DialogContent` si un autre emplacement est nécessaire.
+
 ## Elevation & Depth
 
 Système à plat par défaut : les cartes se distinguent du fond par une bordure fine (`border-paper-border`) sans ombre portée dans la majorité des cas. L'élévation plus marquée est réservée aux éléments qui se superposent réellement au reste de l'interface — c'est un signal structurel (« ceci flotte au-dessus »), jamais un choix esthétique.

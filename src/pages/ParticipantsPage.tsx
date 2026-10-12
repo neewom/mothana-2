@@ -18,6 +18,7 @@ import { PageHeader } from '../components/ui/page-header'
 import { ListToolbar } from '../components/ui/list-toolbar'
 import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
+import { SidePanelMobile } from '../components/ui/side-panel'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import ScrollShadowX from '../components/ScrollShadowX'
@@ -320,15 +321,6 @@ export default function ParticipantsPage() {
   const [selectedParticipant, setSelectedParticipant] = useState<ProfilParticipant | null>(null)
   // Lien profond depuis la recherche globale : ?id=<profil_participant_id> ouvre le panneau.
   useDeepLinkSelection(loading ? null : participants, setSelectedParticipant)
-  const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
-
-  useEffect(() => {
-    if (selectedParticipant) {
-      const timer = setTimeout(() => setMobilePanelVisible(true), 10)
-      return () => clearTimeout(timer)
-    }
-    setMobilePanelVisible(false)
-  }, [selectedParticipant])
 
   // Participant modal (add/edit)
   const [participantModalOpen, setParticipantModalOpen] = useState(false)
@@ -687,37 +679,24 @@ export default function ParticipantsPage() {
         </div>
       </div>
 
-      {/* Mobile detail panel (slides over) — même animation que DonsPage (PR #111) */}
-      {selectedParticipant && (
-        <div className="fixed inset-0 z-30 lg:hidden">
-          <div
-            className="absolute inset-0 bg-ink/40"
-            onClick={() => setSelectedParticipant(null)}
-          />
-          <div
-            className={cn(
-              'absolute inset-y-0 right-0 flex w-full max-w-sm flex-col bg-white shadow-xl transition-transform duration-200',
-              mobilePanelVisible ? 'translate-x-0' : 'translate-x-full'
-            )}
-          >
-            {loadingDons ? (
-              <div className="flex flex-1 items-center justify-center py-16">
-                <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
-              </div>
-            ) : (
-              <DetailPanel
-                participant={selectedParticipant}
-                totalDons={totalDonsByParticipant.get(selectedParticipant.id) ?? 0}
-                participantDons={participantDons}
-                onClose={() => setSelectedParticipant(null)}
-                onEdit={() => openEdit(selectedParticipant)}
-                onAddDon={() => openAddDon(selectedParticipant.id)}
-                onDelete={() => openDelete(selectedParticipant)}
-              />
-            )}
+      {/* Mobile detail panel (slides over) */}
+      <SidePanelMobile open={!!selectedParticipant} onClose={() => setSelectedParticipant(null)}>
+        {selectedParticipant && (loadingDons ? (
+          <div className="flex flex-1 items-center justify-center py-16">
+            <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
           </div>
-        </div>
-      )}
+        ) : (
+          <DetailPanel
+            participant={selectedParticipant}
+            totalDons={totalDonsByParticipant.get(selectedParticipant.id) ?? 0}
+            participantDons={participantDons}
+            onClose={() => setSelectedParticipant(null)}
+            onEdit={() => openEdit(selectedParticipant)}
+            onAddDon={() => openAddDon(selectedParticipant.id)}
+            onDelete={() => openDelete(selectedParticipant)}
+          />
+        ))}
+      </SidePanelMobile>
 
       {/* Participant add/edit modal */}
       <ParticipantModal

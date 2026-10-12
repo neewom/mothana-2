@@ -18,7 +18,7 @@ interface FilterSheetProps {
 export function FilterSheet({ open, onOpenChange, title = 'Filtres', description, onApply, onReset, children }: FilterSheetProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="left-auto right-0 top-0 h-dvh max-h-dvh w-full max-w-none translate-x-0 translate-y-0 rounded-none border-y-0 border-r-0 sm:max-w-sm data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100">
+      <DialogContent placement="right">
         <DialogHeader className="shrink-0 pr-12">
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription className="mt-0.5">{description}</DialogDescription>}

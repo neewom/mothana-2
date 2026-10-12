@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { buildSearchItems, SEARCH_MIN_LENGTH, type GlobalSearchResponse, type SearchItem } from '../lib/globalSearch'
 import { supabase } from '../lib/supabaseClient'
 import { cn } from '../lib/utils'
+import { Sheet } from './ui/sheet'
 
 const DEBOUNCE_MS = 250
 
@@ -227,10 +228,11 @@ export default function GlobalSearch({ organisationId }: { organisationId: strin
       >
         <SearchIcon className="h-5 w-5" />
       </button>
+      {/* Entrée animée seulement : le champ et ses refs passent au champ desktop dès la fermeture,
+          une sortie différée les détacherait au démontage. */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 sm:hidden">
-          <div className="absolute inset-0 bg-ink/40" onClick={close} />
-          <div ref={rootRef} className="relative border-b border-paper-border bg-white p-3">
+        <Sheet open onClose={close} side="top" className="z-50 sm:hidden" panelClassName="border-b border-paper-border bg-white">
+          <div ref={rootRef} className="p-3">
             <div className="flex items-center gap-2">
               <div className="min-w-0 flex-1">{input}</div>
               <button type="button" onClick={close} className="shrink-0 rounded-sm px-2 py-1 text-sm text-ink-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70">
@@ -239,7 +241,7 @@ export default function GlobalSearch({ organisationId }: { organisationId: strin
             </div>
             {panel}
           </div>
-        </div>
+        </Sheet>
       )}
     </>
   )

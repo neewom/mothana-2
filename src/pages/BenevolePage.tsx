@@ -68,8 +68,8 @@ function PinOverlay({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 font-registre">
-      <div ref={containerRef} role="dialog" aria-modal="true" aria-labelledby="pin-overlay-title" className="w-full max-w-sm rounded-sm border border-paper-border bg-white p-8 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 font-registre duration-200 ease-out animate-in fade-in-0">
+      <div ref={containerRef} role="dialog" aria-modal="true" aria-labelledby="pin-overlay-title" className="w-full max-w-sm rounded-sm border border-paper-border bg-white p-8 shadow-xl duration-200 ease-out animate-in motion-safe:zoom-in-95">
         <h2 id="pin-overlay-title" className="text-lg font-semibold text-ink">Session expirée</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Ressaisissez le code PIN pour continuer — votre saisie en cours est conservée.
