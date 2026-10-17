@@ -8,6 +8,8 @@ import ScrollShadowX from '../components/ScrollShadowX'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
 import AdherentModal from '../components/AdherentModal'
 import type { Activite, Adherent } from '../types'
+import { fetchAllRows } from '../lib/fetchAllRows'
+import { champsAdresseManquants, libelleChampsManquants } from '../lib/adresseCourrier'
 import { Button } from '../components/ui/button'
 import { Label } from '../components/ui/label'
 import { Select } from '../components/ui/select'
@@ -74,6 +76,16 @@ function SectionCard({
   )
 }
 
+interface AdherentCourrier {
+  id: string
+  nom: string
+  prenom: string | null
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
+  tags: string[]
+}
+
 export default function CampagneCourrierPage() {
   const organisationId = useOrganisationId()
   const navigate = useNavigate()
@@ -88,7 +100,11 @@ export default function CampagneCourrierPage() {
   const [destinatairesApercu, setDestinatairesApercu] = useState<
     { id: string; nom: string; prenom: string | null; adresse: string; code_postal: string; ville: string }[]
   >([])
-  const [apercuOpen, setApercuOpen] = useState(false)
+  const [destinatairesExclus, setDestinatairesExclus] = useState<
+    { id: string; nom: string; prenom: string | null; manquants: string[] }[]
+  >([])
+  // Une modale, deux listes : destinataires (adresse complète) ou exclus (adresse incomplète).
+  const [apercuMode, setApercuMode] = useState<'destinataires' | 'exclus' | null>(null)
   const [editingAdherent, setEditingAdherent] = useState<Adherent | undefined>(undefined)
   const [adherentModalOpen, setAdherentModalOpen] = useState(false)
 
@@ -144,39 +160,39 @@ export default function CampagneCourrierPage() {
   const fetchDestinatairesCount = useCallback(async () => {
     if (!organisationId) return
     const requestId = ++destinatairesRequestIdRef.current
-    let query = supabase
-      .from('adherents')
-      .select('id, nom, prenom, adresse, code_postal, ville, tags')
-      .eq('organisation_id', organisationId)
-    if (tagEnvoi) {
-      query = query.contains('tags', [tagEnvoi])
-    } else if (filtreStatut !== 'tous') {
-      query = query.eq('statut', filtreStatut)
-    }
-    const { data } = await query
+    // fetchAllRows : au-delà de 1 000 adhérents, PostgREST tronquerait silencieusement la liste
+    // (compteurs et planche faux). Tri par id pour des pages stables.
+    const { data } = await fetchAllRows<AdherentCourrier>((from, to) => {
+      let query = supabase
+        .from('adherents')
+        .select('id, nom, prenom, adresse, code_postal, ville, tags')
+        .eq('organisation_id', organisationId)
+      if (tagEnvoi) {
+        query = query.contains('tags', [tagEnvoi])
+      } else if (filtreStatut !== 'tous') {
+        query = query.eq('statut', filtreStatut)
+      }
+      return query.order('id').range(from, to)
+    })
     if (requestId !== destinatairesRequestIdRef.current) return
-    const rows = (data ?? []) as {
-      id: string
-      nom: string
-      prenom: string | null
-      adresse: string | null
-      code_postal: string | null
-      ville: string | null
-      tags: string[]
-    }[]
-    const filtered = excludeTag ? rows.filter((a) => !(a.tags ?? []).includes(excludeTag)) : rows
-    const complets = filtered.filter((a) => a.adresse?.trim() && a.code_postal?.trim() && a.ville?.trim())
-    setDestinatairesCount({ complets: complets.length, exclus: filtered.length - complets.length })
+    const filtered = excludeTag ? data.filter((a) => !(a.tags ?? []).includes(excludeTag)) : data
+    const avecManquants = filtered
+      .map((a) => ({ ...a, manquants: champsAdresseManquants(a) }))
+      .sort((a, b) => a.nom.localeCompare(b.nom, 'fr') || (a.prenom ?? '').localeCompare(b.prenom ?? '', 'fr'))
+    const complets = avecManquants.filter((a) => a.manquants.length === 0)
+    const exclus = avecManquants.filter((a) => a.manquants.length > 0)
+    setDestinatairesCount({ complets: complets.length, exclus: exclus.length })
     setDestinatairesApercu(
       complets.map((a) => ({ id: a.id, nom: a.nom, prenom: a.prenom, adresse: a.adresse!, code_postal: a.code_postal!, ville: a.ville! })),
     )
+    setDestinatairesExclus(exclus.map((a) => ({ id: a.id, nom: a.nom, prenom: a.prenom, manquants: a.manquants })))
   }, [organisationId, filtreStatut, tagEnvoi, excludeTag])
 
   async function handleApercuRowClick(id: string) {
     const { data } = await supabase.from('adherents').select('*').eq('id', id).single()
     if (!data) return
     setEditingAdherent(data as Adherent)
-    setApercuOpen(false)
+    setApercuMode(null)
     setAdherentModalOpen(true)
   }
 
@@ -312,11 +328,18 @@ export default function CampagneCourrierPage() {
           {destinatairesCount && (
             <p className="text-xs text-ink-faint">
               {destinatairesCount.complets} destinataire{destinatairesCount.complets > 1 ? 's' : ''} avec adresse complète
-              {destinatairesCount.exclus > 0 && ` — ${destinatairesCount.exclus} exclu${destinatairesCount.exclus > 1 ? 's' : ''} (adresse incomplète)`}
+              {destinatairesCount.exclus > 0 && (
+                <>
+                  {' — '}
+                  <button type="button" onClick={() => setApercuMode('exclus')} className="font-medium text-stamp hover:underline">
+                    {destinatairesCount.exclus} exclu{destinatairesCount.exclus > 1 ? 's' : ''} (adresse incomplète)
+                  </button>
+                </>
+              )}
               {destinatairesCount.complets > 0 && (
                 <>
                   {' — '}
-                  <button type="button" onClick={() => setApercuOpen(true)} className="font-medium text-stamp hover:underline">
+                  <button type="button" onClick={() => setApercuMode('destinataires')} className="font-medium text-stamp hover:underline">
                     Voir la liste ({destinatairesCount.complets})
                   </button>
                 </>
@@ -393,32 +416,46 @@ export default function CampagneCourrierPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={apercuOpen} onOpenChange={(next) => { if (!next) setApercuOpen(false) }}>
+      <Dialog open={apercuMode !== null} onOpenChange={(next) => { if (!next) setApercuMode(null) }}>
         <DialogContent className="max-w-lg" aria-describedby={undefined}>
           <div className="flex max-h-[80vh] flex-col p-6">
-            <h2 className="font-registre text-lg font-semibold text-ink">Destinataires de la campagne</h2>
+            <h2 className="font-registre text-lg font-semibold text-ink">
+              {apercuMode === 'exclus' ? 'Adresse incomplète' : 'Destinataires de la campagne'}
+            </h2>
+            {apercuMode === 'exclus' && (
+              <p className="mt-1 text-sm text-ink-muted">
+                Ces adhérents ne recevront pas de courrier. Cliquez sur une ligne pour compléter la fiche.
+              </p>
+            )}
             <div className="mt-4 flex-1 overflow-y-auto">
               <ScrollShadowX>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Destinataire</TableHead>
-                      <TableHead>Adresse</TableHead>
+                      <TableHead>{apercuMode === 'exclus' ? 'Adhérent' : 'Destinataire'}</TableHead>
+                      <TableHead>{apercuMode === 'exclus' ? 'À compléter' : 'Adresse'}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {destinatairesApercu.map((a) => (
-                      <TableRow key={a.id} onClick={() => handleApercuRowClick(a.id)} className="cursor-pointer hover:bg-paper-border/20">
-                        <TableCell className="font-medium text-ink">{a.prenom ? `${a.prenom} ${a.nom}` : a.nom}</TableCell>
-                        <TableCell className="text-ink-muted">{a.adresse}, {a.code_postal} {a.ville}</TableCell>
-                      </TableRow>
-                    ))}
+                    {apercuMode === 'exclus'
+                      ? destinatairesExclus.map((a) => (
+                          <TableRow key={a.id} onClick={() => handleApercuRowClick(a.id)} className="cursor-pointer hover:bg-paper-border/20">
+                            <TableCell className="font-medium text-ink">{a.prenom ? `${a.prenom} ${a.nom}` : a.nom}</TableCell>
+                            <TableCell className="text-ink-muted">{libelleChampsManquants(a.manquants)}</TableCell>
+                          </TableRow>
+                        ))
+                      : destinatairesApercu.map((a) => (
+                          <TableRow key={a.id} onClick={() => handleApercuRowClick(a.id)} className="cursor-pointer hover:bg-paper-border/20">
+                            <TableCell className="font-medium text-ink">{a.prenom ? `${a.prenom} ${a.nom}` : a.nom}</TableCell>
+                            <TableCell className="text-ink-muted">{a.adresse}, {a.code_postal} {a.ville}</TableCell>
+                          </TableRow>
+                        ))}
                   </TableBody>
                 </Table>
               </ScrollShadowX>
             </div>
             <div className="mt-5 flex justify-end">
-              <Button type="button" variant="secondary" onClick={() => setApercuOpen(false)}>
+              <Button type="button" variant="secondary" onClick={() => setApercuMode(null)}>
                 Fermer
               </Button>
             </div>
