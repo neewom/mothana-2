@@ -14,7 +14,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 z-50 bg-ink/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+      'fixed inset-0 z-50 bg-ink/40 ease-out data-[state=open]:duration-200 data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
       className
     )}
     {...props}
@@ -27,10 +27,27 @@ interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof Dialo
    * toute la largeur disponible (ex. éditeur de template avec panneau code + aperçu), avec
    * un toggle utilisateur pour y entrer/sortir plutôt qu'un choix fixe à l'ouverture. */
   fullScreen?: boolean
+  /** `right` : tiroir pleine hauteur contre le bord droit (tiroir de filtres), qui glisse au
+   * lieu d'apparaître sur place. Ignoré en `fullScreen`. */
+  placement?: 'center' | 'right'
+}
+
+// DESIGN.md › Mouvement. Les keyframes de tailwindcss-animate posent leur propre `transform`
+// (translate3d + scale), qui remplace celui de la modale pendant l'animation : sans les
+// variables à -50 %, la modale centrée part de son coin haut-gauche placé au centre de l'écran
+// et glisse en diagonale. Durée et variables sous les mêmes variantes `data-[state]` que
+// `animate-in`/`animate-out`, qui les remettent à leur valeur par défaut (150 ms, 0).
+// Avec « réduire les animations », fondu seul.
+const MOTION = 'ease-out data-[state=open]:duration-200 data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out'
+const FADE = 'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0'
+const CONTENT_CLASSES = {
+  fullScreen: `fixed inset-0 h-dvh w-screen ${MOTION} ${FADE}`,
+  center: `fixed left-1/2 top-1/2 max-h-[90dvh] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-sm border border-paper-border shadow-lg ${MOTION} ${FADE} data-[state=open]:[--tw-enter-translate-x:-50%] data-[state=open]:[--tw-enter-translate-y:-50%] data-[state=closed]:[--tw-exit-translate-x:-50%] data-[state=closed]:[--tw-exit-translate-y:-50%] data-[state=closed]:motion-safe:zoom-out-95 data-[state=open]:motion-safe:zoom-in-95`,
+  right: `fixed inset-y-0 right-0 h-dvh w-full border-l border-paper-border shadow-lg sm:max-w-sm ${MOTION} data-[state=closed]:motion-safe:slide-out-to-right data-[state=open]:motion-safe:slide-in-from-right data-[state=closed]:motion-reduce:fade-out-0 data-[state=open]:motion-reduce:fade-in-0`,
 }
 
 const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Content>, DialogContentProps>(
-  ({ className, children, onOpenAutoFocus, fullScreen = false, ...props }, ref) => {
+  ({ className, children, onOpenAutoFocus, fullScreen = false, placement = 'center', ...props }, ref) => {
   const closeRef = React.useRef<HTMLButtonElement>(null)
   return (
     <DialogPortal>
@@ -52,9 +69,8 @@ const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.C
           // — nécessaire pour un formulaire long comme AdherentModal (header et pied de page
           // fixes, seul le corps scrolle), et ça marche aussi bien pour un contenu court qui
           // ne remplit jamais max-h.
-          fullScreen
-            ? 'fixed inset-0 z-50 flex h-dvh w-screen flex-col gap-0 overflow-hidden bg-paper font-registre data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0'
-            : 'fixed left-1/2 top-1/2 z-50 flex max-h-[90dvh] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-0 overflow-hidden rounded-sm border border-paper-border bg-paper font-registre shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+          'z-50 flex flex-col gap-0 overflow-hidden bg-paper font-registre',
+          CONTENT_CLASSES[fullScreen ? 'fullScreen' : placement],
           className
         )}
         {...props}

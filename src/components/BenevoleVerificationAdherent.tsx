@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { Input } from './ui/input'
 import { Badge } from './ui/badge'
+import { adhesionExpiree } from '../lib/adherentsFiltres'
 
 interface ResultatVerification {
   nom: string
@@ -102,9 +103,7 @@ export default function BenevoleVerificationAdherent({ organisationId }: Benevol
                     <p className="mt-0.5 text-xs text-ink-faint">jusqu'au {formatDate(r.date_fin)}</p>
                   )}
                 </div>
-                <Badge variant={r.statut === 'actif' ? 'success' : 'neutral'} className="shrink-0">
-                  {r.statut === 'actif' ? 'Actif' : 'Archivé'}
-                </Badge>
+                <StatutBadge statut={r.statut} dateFin={r.date_fin} />
               </div>
             ))
           )}
@@ -112,4 +111,12 @@ export default function BenevoleVerificationAdherent({ organisationId }: Benevol
       </div>
     </>
   )
+}
+
+function StatutBadge({ statut, dateFin }: { statut: ResultatVerification['statut']; dateFin: string | null }) {
+  if (statut !== 'actif') return <Badge variant="neutral" className="shrink-0">Archivé</Badge>
+  const today = new Date().toISOString().split('T')[0]
+  return adhesionExpiree(dateFin, today)
+    ? <Badge variant="warning" className="shrink-0">Adhésion expirée</Badge>
+    : <Badge variant="success" className="shrink-0">Actif</Badge>
 }

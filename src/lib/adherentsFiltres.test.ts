@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ADHERENTS_FILTRES_VIDES, EMAIL_FILTRE_LABELS, libelleAdhesion, nombreFiltresAdherents, normaliserFiltresAdherents } from './adherentsFiltres'
+import { ADHERENTS_FILTRES_VIDES, EMAIL_FILTRE_LABELS, adhesionExpiree, libelleAdhesion, nombreFiltresAdherents, normaliserFiltresAdherents } from './adherentsFiltres'
 
 describe('nombreFiltresAdherents', () => {
   it('compte chaque filtre renseigné', () => {
@@ -28,5 +28,22 @@ describe('libelleAdhesion', () => {
     expect(libelleAdhesion({ date_fin: '2027-08-25' }, today)).toEqual({ label: "À jour · jusqu'au 25/08/2027", variant: 'success' })
     expect(libelleAdhesion({ date_fin: '2026-10-10' }, today).variant).toBe('success')
     expect(libelleAdhesion({ date_fin: '2026-08-28' }, today)).toEqual({ label: 'Expirée depuis le 28/08/2026', variant: 'warning' })
+  })
+})
+
+describe('adhesionExpiree', () => {
+  const today = '2026-10-17'
+  it('est expirée après la date de fin ou sans adhésion, à jour jusqu’au dernier jour inclus', () => {
+    expect(adhesionExpiree('2026-10-16', today)).toBe(true)
+    expect(adhesionExpiree(null, today)).toBe(true)
+    expect(adhesionExpiree(undefined, today)).toBe(true)
+    expect(adhesionExpiree('2026-10-17', today)).toBe(false)
+    expect(adhesionExpiree('2027-10-16', today)).toBe(false)
+  })
+
+  it('suit la même frontière que libelleAdhesion', () => {
+    for (const dateFin of ['2026-10-16', '2026-10-17', '2026-10-18']) {
+      expect(adhesionExpiree(dateFin, today)).toBe(libelleAdhesion({ date_fin: dateFin }, today).variant === 'warning')
+    }
   })
 })

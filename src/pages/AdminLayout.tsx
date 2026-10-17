@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabaseClient'
 import RecetteBanner from '../components/RecetteBanner'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
+import { Sheet } from '../components/ui/sheet'
 import AccountMenu from '../components/AccountMenu'
 import Tooltip from '../components/Tooltip'
 import { NavCountersContext } from '../contexts/navCountersContext'
@@ -298,17 +299,15 @@ export default function AdminLayout() {
       </aside>
 
       {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div
-            className="absolute inset-0 bg-ink/40"
-            onClick={() => setSidebarOpen(false)}
-          />
-          <aside className="relative z-50 h-full w-64">
-            <Sidebar navItems={navItems} onClose={() => setSidebarOpen(false)} />
-          </aside>
-        </div>
-      )}
+      <Sheet
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        side="left"
+        className="z-40 lg:hidden"
+        panelClassName="z-50 h-full w-64"
+      >
+        <Sidebar navItems={navItems} onClose={() => setSidebarOpen(false)} />
+      </Sheet>
 
       {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">

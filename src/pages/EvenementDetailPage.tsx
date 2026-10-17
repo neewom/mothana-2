@@ -34,6 +34,7 @@ import { cn } from '../lib/utils'
 import { PageHeader } from '../components/ui/page-header'
 import { StatTiles } from '../components/ui/stat-tiles'
 import { ListToolbar } from '../components/ui/list-toolbar'
+import { SidePanelMobile } from '../components/ui/side-panel'
 import type { Activite } from '../types'
 import type { Evenement } from '../types/evenement'
 import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
@@ -123,7 +124,6 @@ export default function EvenementDetailPage() {
   const [mouvementSearch, setMouvementSearch] = useState('')
   const [commandeSearch, setCommandeSearch] = useState('')
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null)
-  const [mobilePanelVisible, setMobilePanelVisible] = useState(false)
   const [freezingWalletId, setFreezingWalletId] = useState<string | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<PortefeuilleEvenement | null>(null)
   const [revoking, setRevoking] = useState(false)
@@ -288,14 +288,6 @@ export default function EvenementDetailPage() {
     () => (data?.commandes ?? []).filter((commande) => commande.portefeuille_id === selectedWalletId),
     [data, selectedWalletId],
   )
-
-  useEffect(() => {
-    if (selectedWallet) {
-      const timer = setTimeout(() => setMobilePanelVisible(true), 10)
-      return () => clearTimeout(timer)
-    }
-    setMobilePanelVisible(false)
-  }, [selectedWallet])
 
   // Panneau desktop — hauteur plafonnée à l'espace réellement disponible (même logique
   // que ParticipantsPage), le corps du panneau scrolle seul.
@@ -744,20 +736,10 @@ export default function EvenementDetailPage() {
         )}
       </div>
 
-      {/* Panneau mobile (tiroir) — même animation que ParticipantsPage */}
-      {panelOpen && (
-        <div className="fixed inset-0 z-30 lg:hidden">
-          <div className="absolute inset-0 bg-ink/40" onClick={() => setSelectedWalletId(null)} />
-          <div
-            className={cn(
-              'absolute inset-y-0 right-0 flex w-full max-w-sm flex-col bg-white shadow-xl transition-transform duration-200',
-              mobilePanelVisible ? 'translate-x-0' : 'translate-x-full'
-            )}
-          >
-            {panel}
-          </div>
-        </div>
-      )}
+      {/* Panneau mobile (tiroir) */}
+      <SidePanelMobile open={panelOpen} onClose={() => setSelectedWalletId(null)}>
+        {panelOpen && panel}
+      </SidePanelMobile>
 
       <RenvoyerAccesPortefeuilleModal
         portefeuille={resendTarget}
