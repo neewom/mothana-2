@@ -22,6 +22,8 @@ import { logModification } from '../lib/journalModifications'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
+import { downloadCsv } from '../lib/csvExport'
+import { lignesExportAdherents, nomFichierExportAdherents } from '../lib/adherentsExport'
 import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
@@ -51,6 +53,11 @@ function formatLocalisation(a: Adherent): string {
 // (ou aucune adhésion). Calculé par search_adherents, rien n'est stocké.
 type StatutFilter = 'a_jour' | 'expire' | 'archive' | 'all'
 
+// Export : limite PostgREST de 1 000 lignes par appel ; 100 identifiants par requête d'adhésions
+// (quelques cycles chacun, bien sous la limite).
+const EXPORT_PAGE_SIZE = 1000
+const ADHESIONS_PAR_APPEL = 100
+
 const PRINT_HELP_TEXT =
   "Planche A4 — imprimez sans mise à l'échelle (100 %) pour respecter les dimensions réelles des cartes (85,6 × 54 mm), puis découpez au massicot ou aux ciseaux."
 
@@ -61,6 +68,23 @@ interface SearchAdherentRow extends Adherent {
 // ---------------------------------------------------------------------------
 // AdherentsPage
 // ---------------------------------------------------------------------------
+
+/** Dernière adhésion (date_debut la plus récente) de chaque adhérent, par paquets d'identifiants
+ * (URL de requête bornée, et moins de 1 000 lignes PostgREST par appel). */
+async function chargerDernieresAdhesions(ids: string[]): Promise<Map<string, Adhesion>> {
+  const map = new Map<string, Adhesion>()
+  for (let i = 0; i < ids.length; i += ADHESIONS_PAR_APPEL) {
+    const { data } = await supabase
+      .from('adhesions')
+      .select('*')
+      .in('adherent_id', ids.slice(i, i + ADHESIONS_PAR_APPEL))
+      .order('date_debut', { ascending: false })
+    for (const adhesion of (data ?? []) as Adhesion[]) {
+      if (!map.has(adhesion.adherent_id)) map.set(adhesion.adherent_id, adhesion)
+    }
+  }
+  return map
+}
 
 export default function AdherentsPage() {
   const organisationId = useOrganisationId()
@@ -113,24 +137,27 @@ export default function AdherentsPage() {
     return () => clearTimeout(timeout)
   }, [searchInput])
 
+  // Paramètres de search_adherents pour l'état, les filtres et la recherche en cours (liste et export).
+  const rechercheParams = useCallback((limit: number, offset: number) => ({
+    p_organisation_id: organisationId,
+    p_search: search || null,
+    p_statut: statutFilter === 'all' ? null : statutFilter,
+    p_limit: limit,
+    p_offset: offset,
+    p_tag: filtres.tag || null,
+    p_exclude_tag: filtres.excludeTag || null,
+    p_email_filter: filtres.email || null,
+    p_code_postal: filtres.codePostal || null,
+    p_ville: filtres.ville || null,
+    p_pays: filtres.pays || null,
+  }), [organisationId, search, statutFilter, filtres])
+
   const fetchAdherents = useCallback(async () => {
     if (!organisationId) return
     setLoading(true)
     setError(null)
 
-    const { data, error: err } = await supabase.rpc('search_adherents', {
-      p_organisation_id: organisationId,
-      p_search: search || null,
-      p_statut: statutFilter === 'all' ? null : statutFilter,
-      p_limit: pageSize,
-      p_offset: (currentPage - 1) * pageSize,
-      p_tag: filtres.tag || null,
-      p_exclude_tag: filtres.excludeTag || null,
-      p_email_filter: filtres.email || null,
-      p_code_postal: filtres.codePostal || null,
-      p_ville: filtres.ville || null,
-      p_pays: filtres.pays || null,
-    })
+    const { data, error: err } = await supabase.rpc('search_adherents', rechercheParams(pageSize, (currentPage - 1) * pageSize))
 
     if (err) {
       setError(err.message)
@@ -142,25 +169,10 @@ export default function AdherentsPage() {
     setAdherents(rows)
     setTotalCount(rows[0]?.total_count ?? 0)
 
-    const ids = rows.map((r) => r.id)
-    if (ids.length > 0) {
-      const { data: adhesionsData } = await supabase
-        .from('adhesions')
-        .select('*')
-        .in('adherent_id', ids)
-        .order('date_debut', { ascending: false })
-
-      const map = new Map<string, Adhesion>()
-      for (const adhesion of (adhesionsData ?? []) as Adhesion[]) {
-        if (!map.has(adhesion.adherent_id)) map.set(adhesion.adherent_id, adhesion)
-      }
-      setLatestAdhesions(map)
-    } else {
-      setLatestAdhesions(new Map())
-    }
+    setLatestAdhesions(await chargerDernieresAdhesions(rows.map((r) => r.id)))
 
     setLoading(false)
-  }, [organisationId, search, statutFilter, filtres, pageSize, currentPage])
+  }, [organisationId, rechercheParams, pageSize, currentPage])
 
   useEffect(() => {
     fetchAdherents()
@@ -213,6 +225,41 @@ export default function AdherentsPage() {
   ].filter((chip): chip is FilterChip => Boolean(chip))
 
   const STATUT_SOUS_TITRE: Record<StatutFilter, string> = { a_jour: 'actif', expire: 'expiré', archive: 'archivé', all: 'au total' }
+
+  const [exporting, setExporting] = useState(false)
+
+  // Exporte la sélection si elle existe (page affichée), sinon toutes les lignes de l'état, des
+  // filtres et de la recherche en cours (toutes les pages), avec les colonnes affichées.
+  async function handleExport() {
+    if (!organisationId) return
+    setExporting(true)
+    try {
+      let lignes: Adherent[]
+      let adhesions: Map<string, Adhesion>
+      if (selectedIds.size > 0) {
+        lignes = adherents.filter((a) => selectedIds.has(a.id))
+        adhesions = latestAdhesions
+      } else {
+        lignes = []
+        for (let offset = 0; ; offset += EXPORT_PAGE_SIZE) {
+          const { data, error: err } = await supabase.rpc('search_adherents', rechercheParams(EXPORT_PAGE_SIZE, offset))
+          if (err) throw new Error(err.message)
+          const rows = (data ?? []) as SearchAdherentRow[]
+          lignes.push(...rows)
+          if (rows.length < EXPORT_PAGE_SIZE || lignes.length >= (rows[0]?.total_count ?? 0)) break
+        }
+        adhesions = await chargerDernieresAdhesions(lignes.map((a) => a.id))
+      }
+      downloadCsv(
+        nomFichierExportAdherents(statutFilter, selectedIds.size > 0, todayIso),
+        lignesExportAdherents(lignes, adhesions, colonnesVisibles, todayIso),
+      )
+    } catch (e) {
+      showToast(`Export impossible : ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   function toggleColonne(key: ColonneAdherent) {
     setColonnesVisibles((prev) => {
@@ -454,6 +501,12 @@ export default function AdherentsPage() {
                 </svg>
                 Importer
               </Button>
+              <Button variant="secondary" onClick={() => void handleExport()} disabled={exporting || totalCount === 0}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
+                </svg>
+                {exporting ? 'Export…' : 'Exporter'}
+              </Button>
               <Button onClick={openAdd}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -571,6 +624,7 @@ export default function AdherentsPage() {
                     {colonnesVisibles.includes('adhesion') && <TableHead>Adhésion</TableHead>}
                     {colonnesVisibles.includes('email') && <TableHead>Email</TableHead>}
                     {colonnesVisibles.includes('telephone') && <TableHead>Téléphone</TableHead>}
+                    {colonnesVisibles.includes('adresse') && <TableHead>Adresse</TableHead>}
                     {colonnesVisibles.includes('localisation') && <TableHead>Localisation</TableHead>}
                     {colonnesVisibles.includes('date_naissance') && <TableHead>Date de naissance</TableHead>}
                     {colonnesVisibles.includes('listes') && <TableHead>Listes</TableHead>}
@@ -611,6 +665,9 @@ export default function AdherentsPage() {
                         )}
                         {colonnesVisibles.includes('telephone') && (
                           <TableCell className="text-ink-muted">{a.telephone ?? '—'}</TableCell>
+                        )}
+                        {colonnesVisibles.includes('adresse') && (
+                          <TableCell className="text-ink-muted">{a.adresse ?? '—'}</TableCell>
                         )}
                         {colonnesVisibles.includes('localisation') && (
                           <TableCell className="text-ink-muted">{formatLocalisation(a)}</TableCell>
