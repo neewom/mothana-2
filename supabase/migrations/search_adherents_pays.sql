@@ -10,6 +10,8 @@
 -- avant : PUBLIC, anon, authenticated, service_role (droits par défaut) —
 -- reposés explicitement ci-dessous pour ne pas dépendre des privilèges par
 -- défaut de l'environnement. Transaction : la RPC n'est jamais absente.
+-- Tri stable (a.id en dernier critère) : sans lui, des homonymes à la frontière
+-- d'une page ou d'un lot d'export pouvaient être doublés ou omis.
 
 BEGIN;
 
@@ -64,7 +66,7 @@ AS $function$
       )
       or a.courriel ilike '%' || trim(p_search) || '%'
     )
-  order by a.nom asc, a.prenom asc
+  order by a.nom asc, a.prenom asc, a.id
   limit p_limit offset p_offset;
 $function$;
 
