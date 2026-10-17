@@ -8,6 +8,7 @@ export type ColonneAdherent =
   | 'adhesion'
   | 'email'
   | 'telephone'
+  | 'adresse'
   | 'localisation'
   | 'date_naissance'
   | 'listes'
@@ -18,6 +19,7 @@ export const COLONNES_DISPONIBLES: { key: ColonneAdherent; label: string }[] = [
   { key: 'adhesion', label: 'Adhésion' },
   { key: 'email', label: 'Email' },
   { key: 'telephone', label: 'Téléphone' },
+  { key: 'adresse', label: 'Adresse' },
   { key: 'localisation', label: 'Localisation' },
   { key: 'date_naissance', label: 'Date de naissance' },
   { key: 'listes', label: 'Listes' },
