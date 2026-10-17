@@ -15,6 +15,9 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Select } from '../components/ui/select'
 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+
 interface OrganisationAssetPublic {
   identifiant: string
   url: string
@@ -108,28 +111,48 @@ export default function DemandeAdhesionPage() {
 
     setSubmitting(true)
 
-    const { error } = await supabase.from('demandes_adhesion').insert({
-      organisation_id: organisation.id,
-      civilite,
-      nom,
-      prenom: prenom || null,
-      date_naissance: dateNaissance || null,
-      adresse: adresse || null,
-      code_postal: codePostal || null,
-      ville: ville || null,
-      pays: pays || null,
-      telephone: telephone || null,
-      courriel: courriel || null,
-      signature_data_url: signature,
-      // Contrainte DB : accepte_statuts doit toujours valoir true. Sans statuts_url, la case
-      // n'est pas affichée (rien à accepter) — le state accepteStatuts reste alors à son
-      // défaut false, d'où ce fallback explicite.
-      accepte_statuts: organisation.statuts_url ? accepteStatuts : true,
-      consent_rgpd: consentRgpd,
-    })
+    // Seul chemin d'écriture : l'Edge Function soumettre-demande-adhesion (validation, limite de
+    // débit par IP, email de confirmation). Plus d'insert direct par la clé publique.
+    let status: number
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/soumettre-demande-adhesion`, {
+        method: 'POST',
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          slug,
+          site_web: siteWeb,
+          civilite,
+          nom,
+          prenom: prenom || null,
+          date_naissance: dateNaissance || null,
+          adresse: adresse || null,
+          code_postal: codePostal || null,
+          ville: ville || null,
+          pays: pays || null,
+          telephone: telephone || null,
+          courriel: courriel || null,
+          signature_data_url: signature,
+          // Sans statuts_url, la case n'est pas affichée (rien à accepter) : le serveur ne
+          // l'exige alors pas.
+          accepte_statuts: organisation.statuts_url ? accepteStatuts : true,
+          consent_rgpd: consentRgpd,
+        }),
+      })
+      status = response.status
+    } catch {
+      status = 0
+    }
 
-    if (error) {
-      setSubmitError("Une erreur est survenue lors de l'envoi de votre demande. Merci de réessayer.")
+    if (status !== 200) {
+      setSubmitError(
+        status === 429
+          ? "Trop de demandes ont été envoyées depuis cette connexion. Merci de réessayer dans une heure."
+          : "Une erreur est survenue lors de l'envoi de votre demande. Merci de réessayer.",
+      )
       setSubmitting(false)
       return
     }
