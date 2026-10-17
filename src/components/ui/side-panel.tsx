@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { cn } from '@/lib/utils'
+import { Sheet } from './sheet'
 
 // Panneau de détail d'une page de liste (gabarit, DESIGN.md › Page de liste) : colonne à droite
 // du tableau en desktop (lg), panneau glissant plein écran par-dessus en mobile — même
@@ -37,38 +37,34 @@ function PanelContent({ title, onClose, footer, children }: Omit<SidePanelProps,
 }
 
 export function SidePanel({ open, onClose, title, footer, children }: SidePanelProps) {
-  const [mobileVisible, setMobileVisible] = React.useState(false)
-
-  React.useEffect(() => {
-    if (!open) {
-      setMobileVisible(false)
-      return
-    }
-    const timer = setTimeout(() => setMobileVisible(true), 10)
-    return () => clearTimeout(timer)
-  }, [open])
-
-  if (!open) return null
-
-  const content = <PanelContent title={title} onClose={onClose} footer={footer}>{children}</PanelContent>
+  const content = open ? <PanelContent title={title} onClose={onClose} footer={footer}>{children}</PanelContent> : null
 
   return (
     <>
-      <aside className="hidden min-h-[400px] w-80 flex-shrink-0 rounded-sm border border-paper-border bg-white lg:flex lg:flex-col">
-        {content}
-      </aside>
-      <div className="fixed inset-0 z-30 lg:hidden">
-        <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
-        <div
-          className={cn(
-            'absolute inset-y-0 right-0 flex w-full max-w-sm flex-col bg-white shadow-xl transition-transform duration-200',
-            mobileVisible ? 'translate-x-0' : 'translate-x-full',
-          )}
-        >
+      {open && (
+        <aside className="hidden min-h-[400px] w-80 flex-shrink-0 rounded-sm border border-paper-border bg-white lg:flex lg:flex-col">
           {content}
-        </div>
-      </div>
+        </aside>
+      )}
+      <SidePanelMobile open={open} onClose={onClose}>
+        {content}
+      </SidePanelMobile>
     </>
+  )
+}
+
+/** Tiroir mobile seul (sous lg) — pour une page dont le panneau desktop a sa propre mise en page. */
+export function SidePanelMobile({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      side="right"
+      className="z-30 lg:hidden"
+      panelClassName="flex w-full max-w-sm flex-col bg-white shadow-xl"
+    >
+      {children}
+    </Sheet>
   )
 }
 
