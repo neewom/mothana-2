@@ -47,7 +47,9 @@ function formatLocalisation(a: Adherent): string {
   return [[a.code_postal, a.ville].filter(Boolean).join(' '), a.pays].filter(Boolean).join(', ') || '—'
 }
 
-type StatutFilter = 'actif' | 'archive' | 'all'
+// « Actifs » = à jour de leur adhésion ; « Expirés » = statut actif mais dernière adhésion passée
+// (ou aucune adhésion). Calculé par search_adherents, rien n'est stocké.
+type StatutFilter = 'a_jour' | 'expire' | 'archive' | 'all'
 
 const PRINT_HELP_TEXT =
   "Planche A4 — imprimez sans mise à l'échelle (100 %) pour respecter les dimensions réelles des cartes (85,6 × 54 mm), puis découpez au massicot ou aux ciseaux."
@@ -72,7 +74,7 @@ export default function AdherentsPage() {
 
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
-  const [statutFilter, setStatutFilter] = useState<StatutFilter>('actif')
+  const [statutFilter, setStatutFilter] = useState<StatutFilter>('a_jour')
   // Filtres du tiroir : appliqués d'un coup (« Appliquer »), brouillon pendant l'édition.
   const [filtres, setFiltres] = useState<AdherentsFiltres>(ADHERENTS_FILTRES_VIDES)
   const [brouillon, setBrouillon] = useState<AdherentsFiltres>(ADHERENTS_FILTRES_VIDES)
@@ -210,7 +212,7 @@ export default function AdherentsPage() {
     filtres.pays && { key: 'pays', label: 'Pays', value: filtres.pays, onRemove: () => appliquerFiltres({ ...filtres, pays: '' }) },
   ].filter((chip): chip is FilterChip => Boolean(chip))
 
-  const STATUT_SOUS_TITRE: Record<StatutFilter, string> = { actif: 'actif', archive: 'archivé', all: 'au total' }
+  const STATUT_SOUS_TITRE: Record<StatutFilter, string> = { a_jour: 'actif', expire: 'expiré', archive: 'archivé', all: 'au total' }
 
   function toggleColonne(key: ColonneAdherent) {
     setColonnesVisibles((prev) => {
@@ -506,7 +508,8 @@ export default function AdherentsPage() {
               value={statutFilter}
               onChange={(e) => { setStatutFilter(e.target.value as StatutFilter); setCurrentPage(1) }}
             >
-              <option value="actif">Actifs</option>
+              <option value="a_jour">Actifs</option>
+              <option value="expire">Expirés</option>
               <option value="archive">Archivés</option>
               <option value="all">Tous</option>
             </Select>

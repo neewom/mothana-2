@@ -56,3 +56,13 @@ export function libelleAdhesion(
   if (adhesion.date_fin >= today) return { label: `À jour · jusqu'au ${dateCourte(adhesion.date_fin)}`, variant: 'success' }
   return { label: `Expirée depuis le ${dateCourte(adhesion.date_fin)}`, variant: 'warning' }
 }
+
+/**
+ * Adhésion expirée d'après la date de fin de la dernière adhésion : passée, ou absente (aucune
+ * adhésion — la date de fin est toujours calculée à la saisie). Même frontière que
+ * `libelleAdhesion` et que `search_adherents` (`expire`) : une adhésion qui finit aujourd'hui est
+ * encore à jour.
+ */
+export function adhesionExpiree(dateFin: string | null | undefined, today: string): boolean {
+  return !dateFin || dateFin < today
+}
