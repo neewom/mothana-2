@@ -44,3 +44,12 @@ La promotion embarque aussi des correctifs de sécurité qui protègent la prod 
 - Batchs UX suivants, dans l'ordre validé : **Navigation** (barre du haut [M] → menu [M] → Paramètres [L] → recherche globale [L]) puis **Pages de liste** (gabarit [L] → filtres Adhérents [M] → retouches [M]). Cartes dans la liste « Amélioration UX/UI », tailles posées, tickets à relire contre le code avant chaque go.
 - Batch design system et tri des dons : sur `dev`, pas encore en prod (prochaine promotion).
 - Carte 6 Coupon (paiement) : contact HelloAsso en suspens.
+
+## Suite (2026-10-09 → 2026-10-10)
+- Batch Navigation (#227–#230) puis batch Rôles + pages de liste (#232–#237) mergés sur `dev`, avec plusieurs tours de retours utilisateur intégrés en test (rôle affiché, tuiles Dons retirées, actions de page alignées, recherche sur les listes longues).
+- Promotion en bloc des trois batchs UX en prod (#239) : 3 migrations, 2 Edge Functions, build Vercel OK. Liste « Amélioration UX/UI » soldée et archivée.
+- Carte Backlog créée : migration vers un data router (bouton retour non intercepté par la garde « modifications non enregistrées »).
+
+## Reste à faire
+- Todo : campagne mailing incluant les donateurs, multi-organisation (reporté), factorisation Courrier/Mailing (reportée), email aux admins sur demande d'adhésion, export comptable (lointain).
+- Coupon : carte 6 (paiement, contact HelloAsso en suspens), cartes 7/8 bloquées, report du solde (avis juridique).
