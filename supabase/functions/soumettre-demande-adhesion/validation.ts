@@ -106,6 +106,15 @@ export function validerDemandeAdhesion(
   }
 }
 
+/**
+ * Motif `ilike` qui ne correspond qu'à la valeur elle-même, sans tenir compte de la casse :
+ * `%`, `_` et `\` sont échappés. Seul `*` (joker PostgREST) n'est pas neutralisable ; dans une
+ * adresse il ne peut qu'élargir le comptage, donc envoyer moins d'emails, jamais plus.
+ */
+export function motifIlikeExact(value: string): string {
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`)
+}
+
 /** Échappe le texte saisi avant de l'insérer dans un email HTML. */
 export function escapeHtml(value: string): string {
   return value

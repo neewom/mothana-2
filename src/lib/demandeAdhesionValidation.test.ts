@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { escapeHtml, validerDemandeAdhesion } from '../../supabase/functions/soumettre-demande-adhesion/validation'
+import { escapeHtml, motifIlikeExact, validerDemandeAdhesion } from '../../supabase/functions/soumettre-demande-adhesion/validation'
 
 const today = new Date('2026-10-17T12:00:00Z')
 const signature = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg=='
@@ -75,5 +75,13 @@ describe('escapeHtml', () => {
     expect(escapeHtml('<a href="https://evil.example">Cliquez</a> & co')).toBe(
       '&lt;a href=&quot;https://evil.example&quot;&gt;Cliquez&lt;/a&gt; &amp; co',
     )
+  })
+})
+
+describe('motifIlikeExact', () => {
+  it('neutralise les jokers SQL d’une adresse', () => {
+    expect(motifIlikeExact('a_b%c@exemple.fr')).toBe('a\\_b\\%c@exemple.fr')
+    expect(motifIlikeExact('a\\b@exemple.fr')).toBe('a\\\\b@exemple.fr')
+    expect(motifIlikeExact('Amphone@Exemple.fr')).toBe('Amphone@Exemple.fr')
   })
 })

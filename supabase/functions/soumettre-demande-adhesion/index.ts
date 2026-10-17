@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { hashClientIp } from '../_shared/rateLimit.ts'
 import { sendViaResend } from '../_shared/resend.ts'
-import { escapeHtml, validerDemandeAdhesion } from './validation.ts'
+import { escapeHtml, motifIlikeExact, validerDemandeAdhesion } from './validation.ts'
 
 // Soumission du formulaire public d'adhésion (/adhesion/<slug>) — cadré 2026-10-17 (carte
 // Trello « Sécurité : le formulaire d'adhésion en ligne et son email de confirmation peuvent
@@ -108,13 +108,13 @@ Deno.serve(async (req) => {
   if (!validation.ok) return invalide()
   const { slug: _slug, ...demande } = validation.demande
 
-  // Plafond de confirmations par adresse, compté avant l'insertion de cette demande.
+  // Plafond de confirmations par adresse (casse ignorée), compté avant l'insertion de cette demande.
   let envoyerEmail = Boolean(demande.courriel)
   if (demande.courriel) {
     const { count, error: countError } = await adminClient
       .from('demandes_adhesion')
       .select('id', { count: 'exact', head: true })
-      .eq('courriel', demande.courriel)
+      .ilike('courriel', motifIlikeExact(demande.courriel))
       .gt('created_at', new Date(Date.now() - 24 * 3600 * 1000).toISOString())
     if (countError || (count ?? 0) >= CONFIRMATIONS_PAR_ADRESSE_24H) envoyerEmail = false
   }
