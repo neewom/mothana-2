@@ -20,8 +20,12 @@ Go utilisateur transmis par le lead tech pour la carte « [M] Les modales et pan
 - Détail événement, mobile : le tiroir commence 24 px sous le haut de l'écran (bandeau « Environnement de test » visible au-dessus) — identique sur `origin/dev`, préexistant.
 - Le bouton de fermeture du panneau Donateurs n'a pas d'`aria-label` (préexistant).
 
+## Suite (2026-10-17)
+- `origin/dev` mergé dans la branche (aucun conflit, checks verts).
+- Test utilisateur sur 5174 validé (« 241 ok », relayé par le lead tech) → PR en « ready for review », carte en « To review ».
+
 ## Reste à faire
-- Test utilisateur sur 5174 (PR en draft), puis « ready for review » + message au lead tech.
+- Revue lead tech, merge.
 
 ## Blockers
 - Aucun.
