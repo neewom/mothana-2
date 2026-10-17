@@ -14,8 +14,13 @@ interface ActionMenuProps {
   label: string
   icon?: React.ReactNode
   items: ActionMenuItem[]
+  /** Côté préféré ; si le menu y sortirait de la fenêtre (bouton passé à gauche en mobile…),
+   * il s'ouvre de l'autre côté. */
   align?: 'left' | 'right'
 }
+
+// Marge minimale entre le menu et le bord de la fenêtre.
+const VIEWPORT_MARGIN = 8
 
 export function ActionMenu({ label, icon, items, align = 'right' }: ActionMenuProps) {
   const [open, setOpen] = React.useState(false)
@@ -23,6 +28,7 @@ export function ActionMenu({ label, icon, items, align = 'right' }: ActionMenuPr
   const buttonRef = React.useRef<HTMLButtonElement>(null)
   const menuRef = React.useRef<HTMLDivElement>(null)
   const menuId = React.useId()
+  const [side, setSide] = React.useState(align)
 
   function entries(): HTMLElement[] {
     return Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [])
@@ -37,6 +43,25 @@ export function ActionMenu({ label, icon, items, align = 'right' }: ActionMenuPr
     document.addEventListener('pointerdown', handlePointerDown)
     return () => document.removeEventListener('pointerdown', handlePointerDown)
   }, [open])
+
+  // Côté choisi avant l'affichage (useLayoutEffect), recalculé si la fenêtre change de taille.
+  React.useLayoutEffect(() => {
+    if (!open) return
+    function place() {
+      const button = buttonRef.current?.getBoundingClientRect()
+      const width = menuRef.current?.offsetWidth
+      if (!button || width === undefined) return
+      const fits = {
+        right: button.right - width >= VIEWPORT_MARGIN,
+        left: button.left + width <= document.documentElement.clientWidth - VIEWPORT_MARGIN,
+      }
+      const other = align === 'right' ? 'left' : 'right'
+      setSide(fits[align] || !fits[other] ? align : other)
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [open, align])
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     const list = entries()
@@ -94,7 +119,7 @@ export function ActionMenu({ label, icon, items, align = 'right' }: ActionMenuPr
           onKeyDown={handleKeyDown}
           className={cn(
             'absolute top-full z-40 mt-1 min-w-[12rem] overflow-hidden rounded-sm border border-paper-border bg-white py-1 shadow-lg',
-            align === 'right' ? 'right-0' : 'left-0',
+            side === 'right' ? 'right-0' : 'left-0',
           )}
         >
           {items.map((item) => (
