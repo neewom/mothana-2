@@ -32,7 +32,7 @@ import { FilterSheet } from '../components/ui/filter-sheet'
 import { ActionMenu } from '../components/ui/action-menu'
 import {
   ADHERENTS_FILTRES_VIDES, libelleAdhesion, nombreFiltresAdherents, normaliserFiltresAdherents,
-  type AdherentsFiltres, type EmailFilter,
+  EMAIL_FILTRE_LABELS, type AdherentsFiltres, type EmailFilter,
 } from '../lib/adherentsFiltres'
 
 // ---------------------------------------------------------------------------
@@ -201,11 +201,10 @@ export default function AdherentsPage() {
     setFiltresOpen(true)
   }
 
-  const EMAIL_LABELS: Record<Exclude<EmailFilter, ''>, string> = { avec: 'Avec email', sans: 'Sans email' }
   const chips: FilterChip[] = [
     filtres.tag && { key: 'tag', label: 'Liste', value: filtres.tag, onRemove: () => appliquerFiltres({ ...filtres, tag: '' }) },
     filtres.excludeTag && { key: 'excludeTag', label: 'Hors liste', value: filtres.excludeTag, onRemove: () => appliquerFiltres({ ...filtres, excludeTag: '' }) },
-    filtres.email && { key: 'email', label: 'Email', value: EMAIL_LABELS[filtres.email as Exclude<EmailFilter, ''>], onRemove: () => appliquerFiltres({ ...filtres, email: '' }) },
+    filtres.email && { key: 'email', label: 'Email', value: EMAIL_FILTRE_LABELS[filtres.email], onRemove: () => appliquerFiltres({ ...filtres, email: '' }) },
     filtres.codePostal && { key: 'codePostal', label: 'Code postal', value: filtres.codePostal, onRemove: () => appliquerFiltres({ ...filtres, codePostal: '' }) },
     filtres.ville && { key: 'ville', label: 'Ville', value: filtres.ville, onRemove: () => appliquerFiltres({ ...filtres, ville: '' }) },
     filtres.pays && { key: 'pays', label: 'Pays', value: filtres.pays, onRemove: () => appliquerFiltres({ ...filtres, pays: '' }) },
@@ -691,8 +690,9 @@ export default function AdherentsPage() {
           <Label htmlFor="adh-filtre-email">Email</Label>
           <Select id="adh-filtre-email" className="w-full" value={brouillon.email} onChange={(e) => setBrouillon((b) => ({ ...b, email: e.target.value as EmailFilter }))}>
             <option value="">Tous</option>
-            <option value="avec">Avec email</option>
-            <option value="sans">Sans email</option>
+            {(Object.keys(EMAIL_FILTRE_LABELS) as Exclude<EmailFilter, ''>[]).map((value) => (
+              <option key={value} value={value}>{EMAIL_FILTRE_LABELS[value]}</option>
+            ))}
           </Select>
         </div>
         <div className="space-y-1.5">

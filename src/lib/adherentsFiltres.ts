@@ -1,6 +1,14 @@
 import type { Adhesion } from '../types'
 
-export type EmailFilter = '' | 'avec' | 'sans'
+export type EmailFilter = '' | 'avec' | 'sans' | 'invalide'
+
+/** Options du filtre Email (tiroir et pastille). « Email invalide » : adresse rejetée par Brevo
+ * (`email_invalide_at`), remise à zéro quand l'email est corrigé. */
+export const EMAIL_FILTRE_LABELS: Record<Exclude<EmailFilter, ''>, string> = {
+  avec: 'Avec email',
+  sans: 'Sans email',
+  invalide: 'Email invalide',
+}
 
 /** Filtres du tiroir de la page Adhérents (la recherche et le statut restent dans la barre). */
 export interface AdherentsFiltres {
