@@ -15,6 +15,7 @@ import { Label } from '../components/ui/label'
 import { Select } from '../components/ui/select'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
+import { StatusNotice } from '../components/ui/status-notice'
 
 type FiltreStatut = 'actif' | 'archive' | 'tous'
 
@@ -75,6 +76,10 @@ function SectionCard({
     </div>
   )
 }
+
+// Planche d'étiquettes : à imprimer à l'échelle exacte, sinon les adresses ne tombent plus dans
+// les étiquettes (même consigne que les cartes adhérent).
+const RAPPEL_IMPRESSION = 'Imprimez en taille réelle (100 %), sans « Ajuster à la page » : sinon les étiquettes se décalent.'
 
 interface AdherentCourrier {
   id: string
@@ -350,6 +355,7 @@ export default function CampagneCourrierPage() {
           <Button type="button" onClick={() => setConfirmOpen(true)} disabled={!canGenerate}>
             Générer le PDF
           </Button>
+          <p className="text-xs text-ink-faint">{RAPPEL_IMPRESSION}</p>
         </div>
       </SectionCard>
 
@@ -399,6 +405,7 @@ export default function CampagneCourrierPage() {
               </span>{' '}
               ({selectionLabel(filtreStatut, tagEnvoi)}).
             </p>
+            <StatusNotice tone="warning" className="mt-3">{RAPPEL_IMPRESSION}</StatusNotice>
             {generateError && (
               <div className="mt-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
                 {generateError}
