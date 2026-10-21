@@ -189,7 +189,9 @@ function DetailPanel({
       <div className="flex items-center justify-between border-b border-paper-border px-6 py-4">
         <h2 className="text-lg font-semibold text-ink">Détail du donateur</h2>
         <button
+          type="button"
           onClick={onClose}
+          aria-label="Fermer le détail"
           className="rounded-sm p-1.5 text-ink-faint transition-colors hover:text-stamp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

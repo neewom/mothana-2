@@ -64,7 +64,9 @@ export function Sheet({ open, onClose, side, className, panelClassName, children
   const motion = SIDE_CLASSES[side]
 
   return (
-    <div className={cn('fixed inset-0', className)}>
+    // !m-0 : posé dans un conteneur `space-y-*` (ex. détail d'un événement), le tiroir recevait
+    // sa marge haute (24 px) et ne couvrait plus le haut de l'écran.
+    <div className={cn('fixed inset-0 !m-0', className)}>
       <div
         className={cn(
           'absolute inset-0 bg-ink/40 duration-200 ease-out',
