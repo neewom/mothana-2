@@ -6,6 +6,8 @@ import ParticipantModal from '../components/ParticipantModal'
 import DonModal from '../components/DonModal'
 import { CIVILITE_LABELS } from '../lib/civilite'
 import { fetchAllRows } from '../lib/fetchAllRows'
+import { downloadCsv } from '../lib/csvExport'
+import { lignesExportDonateurs, nomFichierExportDonateurs } from '../lib/donateursExport'
 import { participantFullName, filterParticipants } from '../lib/participantSearch'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
@@ -187,7 +189,9 @@ function DetailPanel({
       <div className="flex items-center justify-between border-b border-paper-border px-6 py-4">
         <h2 className="text-lg font-semibold text-ink">Détail du donateur</h2>
         <button
+          type="button"
           onClick={onClose}
+          aria-label="Fermer le détail"
           className="rounded-sm p-1.5 text-ink-faint transition-colors hover:text-stamp focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -428,6 +432,14 @@ export default function ParticipantsPage() {
     })
   }, [filteredParticipants, sortField, sortDirection, totalDonsByParticipant])
 
+  // Export : tous les donateurs affichés (recherche appliquée, toutes les pages), dans l'ordre du tableau.
+  function handleExport() {
+    downloadCsv(
+      nomFichierExportDonateurs(new Date().toISOString().split('T')[0], search.trim() !== ''),
+      lignesExportDonateurs(sortedParticipants, totalDonsByParticipant),
+    )
+  }
+
   // Pagination
   const [pageSize, setPageSize] = useState(50)
   const [currentPage, setCurrentPage] = useState(1)
@@ -537,6 +549,12 @@ export default function ParticipantsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                 </svg>
                 Importer
+              </Button>
+              <Button variant="secondary" onClick={handleExport} disabled={loading || sortedParticipants.length === 0}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
+                </svg>
+                Exporter
               </Button>
               <Button onClick={openAdd}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
