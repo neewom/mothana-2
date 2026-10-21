@@ -71,7 +71,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'Comment fonctionne le renouvellement d’une adhésion ?',
         answer:
-          "Une adhésion est valable un an glissant à partir de sa date de début (pas une année civile). La date de fin et le statut (actif/expiré) sont calculés automatiquement — ils ne se saisissent jamais manuellement.",
+          "La date de fin d'une adhésion est calculée automatiquement selon la règle choisie dans Paramètres → Adhésions → Durée des adhésions : un an après la date d'adhésion (par défaut), ou au 31 décembre — avec un mois à partir duquel l'adhésion vaut aussi l'année suivante (ex. une adhésion prise en décembre court jusqu'au 31 décembre de l'année suivante). Elle ne se saisit jamais à la main ; « Renouveler l'adhésion » crée un nouveau cycle avec sa propre date de fin. Après un changement de règle, l'application propose de recalculer les adhésions existantes.",
       },
       {
         question: 'Comment traiter une demande d’adhésion reçue via le formulaire public ?',

@@ -4,7 +4,9 @@ import type { Adherent, Adhesion, ModePaiement } from '../types'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { generateUUID } from '../lib/uuid'
 import { adherentFullName } from '../lib/adherentSearch'
-import { computeDateFin } from '../lib/adhesion'
+import { libelleFinPrevue } from '../lib/adhesion'
+import { useRegleAdhesion } from '../hooks/useRegleAdhesion'
+import { useOrganisationId } from '../hooks/useOrganisationId'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
@@ -31,6 +33,8 @@ export default function AdhesionModal({ open, onClose, onSaved, adherent }: Adhe
   const [bulletinSigne, setBulletinSigne] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Organisation courante (les lignes de search_adherents ne portent pas organisation_id).
+  const regleAdhesion = useRegleAdhesion(useOrganisationId())
 
   useEffect(() => {
     if (open) {
@@ -51,20 +55,18 @@ export default function AdhesionModal({ open, onClose, onSaved, adherent }: Adhe
     setSaving(true)
 
     const adhesionId = generateUUID()
-    const dateFin = computeDateFin(dateDebut)
-
-    const { error: err } = await supabase.from('adhesions').insert({
+    // date_fin posée par la base selon la règle de l'organisation (trigger) : relue pour onSaved.
+    const { data: inseree, error: err } = await supabase.from('adhesions').insert({
       id: adhesionId,
       adherent_id: adherent.id,
       date_debut: dateDebut,
-      date_fin: dateFin,
       montant_cotisation: montantCotisation ? Number(montantCotisation) : null,
       date_paiement_cotisation: datePaiementCotisation || null,
       mode_paiement: modePaiement || null,
       renouvellement: true,
       droit_vote_ag: droitVoteAg,
       bulletin_signe: bulletinSigne,
-    })
+    }).select('date_fin').single()
 
     if (err) {
       setError(err.message)
@@ -77,7 +79,7 @@ export default function AdhesionModal({ open, onClose, onSaved, adherent }: Adhe
       id: adhesionId,
       adherent_id: adherent.id,
       date_debut: dateDebut,
-      date_fin: dateFin,
+      date_fin: inseree.date_fin,
       montant_cotisation: montantCotisation ? Number(montantCotisation) : null,
       date_paiement_cotisation: datePaiementCotisation || null,
       mode_paiement: modePaiement || null,
@@ -119,6 +121,7 @@ export default function AdhesionModal({ open, onClose, onSaved, adherent }: Adhe
                 onChange={(e) => setDateDebut(e.target.value)}
                 className="mt-1"
               />
+              <p className="mt-1 text-xs text-ink-faint">{libelleFinPrevue(dateDebut, regleAdhesion)}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
