@@ -79,7 +79,7 @@ function SectionCard({
 
 // Planche d'étiquettes : à imprimer à l'échelle exacte, sinon les adresses ne tombent plus dans
 // les étiquettes (même consigne que les cartes adhérent).
-const RAPPEL_IMPRESSION = 'Imprimez en taille réelle (100 %), sans « Ajuster à la page » : sinon les étiquettes se décalent.'
+const RAPPEL_IMPRESSION = 'Imprimez en taille réelle (100\u00a0%), sans «\u00a0Ajuster à la page\u00a0» : sinon les étiquettes se décalent.'
 
 interface AdherentCourrier {
   id: string
