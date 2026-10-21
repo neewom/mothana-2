@@ -6,6 +6,7 @@ export type ColonneAdherent =
   | 'civilite'
   | 'statut'
   | 'adhesion'
+  | 'date_adhesion'
   | 'email'
   | 'telephone'
   | 'adresse'
@@ -17,6 +18,7 @@ export const COLONNES_DISPONIBLES: { key: ColonneAdherent; label: string }[] = [
   { key: 'civilite', label: 'Civilité' },
   { key: 'statut', label: 'Statut' },
   { key: 'adhesion', label: 'Adhésion' },
+  { key: 'date_adhesion', label: "Date d'adhésion" },
   { key: 'email', label: 'Email' },
   { key: 'telephone', label: 'Téléphone' },
   { key: 'adresse', label: 'Adresse' },

@@ -12,6 +12,7 @@ import { maxDateNaissance, isAnneeNaissanceValide } from '../lib/dateNaissance'
 import type { DuplicateMatch } from '../lib/adherentDuplicateCheck'
 import { logModification, computeAdherentDiff } from '../lib/journalModifications'
 import AdherentHistoriqueSection from './AdherentHistoriqueSection'
+import AdherentAdhesionsSection from './AdherentAdhesionsSection'
 import TagsInput from './TagsInput'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
@@ -611,7 +612,8 @@ export default function AdherentModal({
             )}
 
             {isEdit && adherent && (
-              <div className="border-t border-paper-border pt-4">
+              <div className="space-y-3 border-t border-paper-border pt-4">
+                <AdherentAdhesionsSection adherentId={adherent.id} />
                 <AdherentHistoriqueSection organisationId={organisationId} adherentId={adherent.id} />
               </div>
             )}

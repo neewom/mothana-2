@@ -622,6 +622,7 @@ export default function AdherentsPage() {
                     <TableHead>Prénom</TableHead>
                     {colonnesVisibles.includes('statut') && <TableHead>Statut</TableHead>}
                     {colonnesVisibles.includes('adhesion') && <TableHead>Adhésion</TableHead>}
+                    {colonnesVisibles.includes('date_adhesion') && <TableHead>Date d'adhésion</TableHead>}
                     {colonnesVisibles.includes('email') && <TableHead>Email</TableHead>}
                     {colonnesVisibles.includes('telephone') && <TableHead>Téléphone</TableHead>}
                     {colonnesVisibles.includes('adresse') && <TableHead>Adresse</TableHead>}
@@ -658,6 +659,11 @@ export default function AdherentsPage() {
                         {colonnesVisibles.includes('adhesion') && (
                           <TableCell>
                             <Badge variant={adhesion.variant}>{adhesion.label}</Badge>
+                          </TableCell>
+                        )}
+                        {colonnesVisibles.includes('date_adhesion') && (
+                          <TableCell className="whitespace-nowrap text-ink-muted">
+                            {latestAdhesions.get(a.id)?.date_debut ? formatDate(latestAdhesions.get(a.id)!.date_debut) : '—'}
                           </TableCell>
                         )}
                         {colonnesVisibles.includes('email') && (
