@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { fetchAllRows } from '../lib/fetchAllRows'
+import { adherentsARenouveler, chargerDernieresAdhesions, type AdherentARenouveler } from '../lib/dernieresAdhesions'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useAdminOutletContext } from '../hooks/useAdminOutletContext'
 import { compterDonsReguliersAConfirmer } from '../lib/donsReguliers'
@@ -26,11 +28,13 @@ interface RecentActivite {
   date_fin: string | null
 }
 
-interface AdherentProcheExpiration {
-  id: string
-  date_fin: string
-  adherents: { nom: string; prenom: string | null } | null
+interface CandidatRenouvellement {
+  adherent_id: string
+  adherents: { id: string; nom: string; prenom: string | null }
 }
+
+// Bloc « Adhésions à renouveler » : 5 plus proches échéances au plus.
+const A_RENOUVELER_AFFICHES = 5
 
 function formatEur(n: number): string {
   return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
@@ -43,9 +47,11 @@ function formatDate(iso: string): string {
 function Card({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="rounded-sm border border-paper-border bg-white">
-      <div className="flex items-center justify-between border-b border-paper-border px-5 py-3">
+      {/* gap + flex-wrap : titre et action ne se collent jamais ; l'action passe à la ligne si la
+          colonne est trop étroite (grille à 3 colonnes vers 1 024–1 280 px). */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-paper-border px-5 py-3">
         <h2 className="font-registre text-sm font-semibold text-ink">{title}</h2>
-        {action}
+        {action && <div className="shrink-0">{action}</div>}
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -63,7 +69,8 @@ export default function DashboardPage() {
   const [nombreDonsMois, setNombreDonsMois] = useState(0)
   const [recentDons, setRecentDons] = useState<RecentDon[]>([])
   const [recentActivites, setRecentActivites] = useState<RecentActivite[]>([])
-  const [adherentsExpiration, setAdherentsExpiration] = useState<AdherentProcheExpiration[]>([])
+  const [aRenouveler, setARenouveler] = useState<AdherentARenouveler[]>([])
+  const [nombreExpires, setNombreExpires] = useState(0)
   const [demandesEnAttente, setDemandesEnAttente] = useState(0)
   const [donsReguliersAConfirmer, setDonsReguliersAConfirmer] = useState(0)
   const [adherentsEmailInvalideList, setAdherentsEmailInvalideList] = useState<Adherent[]>([])
@@ -100,7 +107,7 @@ export default function DashboardPage() {
       const aujourdhui = now.toISOString().split('T')[0]
       const dans30Jours = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-      const [donsMoisRes, recentDonsRes, recentActivitesRes, adherentsExpirationRes, demandesRes, engagementsRes, donsGeneresRes, organisationRes] = await Promise.all([
+      const [donsMoisRes, recentDonsRes, recentActivitesRes, candidatsRenouvellementRes, expiresRes, demandesRes, engagementsRes, donsGeneresRes, organisationRes] = await Promise.all([
         supabase
           .from('dons')
           .select('montant')
@@ -122,14 +129,21 @@ export default function DashboardPage() {
           .or(`date_debut.gte.${aujourdhui},date_fin.gte.${aujourdhui}`)
           .order('date_debut', { ascending: true })
           .limit(5),
-        supabase
-          .from('adhesions')
-          .select('id, date_fin, adherents!inner(nom, prenom, organisation_id)')
-          .eq('adherents.organisation_id', organisationId)
-          .gte('date_fin', aujourdhui)
-          .lte('date_fin', dans30Jours)
-          .order('date_fin', { ascending: true })
-          .limit(5),
+        // Candidats : adhérents actifs ayant une adhésion qui se termine dans les 30 jours ; on ne
+        // garde ensuite que ceux dont c'est la **dernière** adhésion (pas encore renouvelés).
+        fetchAllRows<CandidatRenouvellement>((from, to) =>
+          supabase
+            .from('adhesions')
+            .select('adherent_id, adherents!inner(id, nom, prenom, organisation_id, statut)')
+            .eq('adherents.organisation_id', organisationId)
+            .eq('adherents.statut', 'actif')
+            .gte('date_fin', aujourdhui)
+            .lte('date_fin', dans30Jours)
+            .order('id')
+            .range(from, to) as unknown as PromiseLike<{ data: CandidatRenouvellement[] | null; error: { message: string } | null }>,
+        ),
+        // Expirés : même règle que l'état « Expirés » de la page Adhérents.
+        supabase.rpc('search_adherents', { p_organisation_id: organisationId, p_statut: 'expire', p_limit: 1, p_offset: 0 }),
         supabase
           .from('demandes_adhesion')
           .select('id', { count: 'exact', head: true })
@@ -157,7 +171,10 @@ export default function DashboardPage() {
       setNombreDonsMois(donsMois.length)
       setRecentDons((recentDonsRes.data ?? []) as unknown as RecentDon[])
       setRecentActivites((recentActivitesRes.data ?? []) as RecentActivite[])
-      setAdherentsExpiration((adherentsExpirationRes.data ?? []) as unknown as AdherentProcheExpiration[])
+      const candidats = new Map(candidatsRenouvellementRes.data.map((c) => [c.adherents.id, c.adherents]))
+      const dernieres = await chargerDernieresAdhesions([...candidats.keys()])
+      setARenouveler(adherentsARenouveler([...candidats.values()], dernieres, aujourdhui, dans30Jours))
+      setNombreExpires(((expiresRes.data ?? []) as { total_count: number }[])[0]?.total_count ?? 0)
       setDemandesEnAttente(demandesRes.count ?? 0)
 
       const engagements = (engagementsRes.data ?? []) as { id: string; jour_prelevement: number; date_debut: string; date_fin: string | null }[]
@@ -297,8 +314,12 @@ export default function DashboardPage() {
             ...(adherentsActifs
               ? [{
                   label: 'Adhésions à renouveler (30 j)',
-                  value: String(adherentsExpiration.length),
-                  hint: adherentsExpiration.length === 0 ? 'Aucun renouvellement à prévoir' : 'À relancer pour renouvellement',
+                  value: String(aRenouveler.length),
+                  hint: aRenouveler.length === 0 ? 'Aucune échéance dans les 30 jours' : 'Expirent dans les 30 jours',
+                }, {
+                  label: 'Adhésions expirées',
+                  value: String(nombreExpires),
+                  hint: nombreExpires === 0 ? 'Aucun adhérent expiré' : 'Adhérents actifs non renouvelés',
                 }]
               : []),
           ]}
@@ -346,17 +367,20 @@ export default function DashboardPage() {
           )}
 
           {adherentsActifs && (
-            <Card title="Adhérents proches d'expiration" action={<Link to="/admin/adherents" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
-              {adherentsExpiration.length === 0 ? (
-                <p className="text-sm text-ink-faint">Aucun adhérent proche d'expiration.</p>
+            <Card
+              title="Adhésions à renouveler"
+              action={<Link to="/admin/adherents?etat=expire" className="text-xs font-medium text-stamp hover:underline">Voir les expirés ({nombreExpires})</Link>}
+            >
+              {aRenouveler.length === 0 ? (
+                <p className="text-sm text-ink-faint">Aucune adhésion n'expire dans les 30 jours.</p>
               ) : (
                 <ul className="space-y-3">
-                  {adherentsExpiration.map((adhesion) => (
-                    <li key={adhesion.id} className="flex items-center justify-between text-sm">
+                  {aRenouveler.slice(0, A_RENOUVELER_AFFICHES).map((a) => (
+                    <li key={a.adherentId} className="flex items-center justify-between text-sm">
                       <span className="text-ink-muted">
-                        {adhesion.adherents?.prenom} {adhesion.adherents?.nom}
+                        {a.prenom} {a.nom}
                       </span>
-                      <span className="text-xs text-ink-faint">{formatDate(adhesion.date_fin)}</span>
+                      <span className="text-xs text-ink-faint">{formatDate(a.dateFin)}</span>
                     </li>
                   ))}
                 </ul>
