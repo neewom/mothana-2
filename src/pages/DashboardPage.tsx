@@ -47,9 +47,11 @@ function formatDate(iso: string): string {
 function Card({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="rounded-sm border border-paper-border bg-white">
-      <div className="flex items-center justify-between border-b border-paper-border px-5 py-3">
+      {/* gap + flex-wrap : titre et action ne se collent jamais ; l'action passe à la ligne si la
+          colonne est trop étroite (grille à 3 colonnes vers 1 024–1 280 px). */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-paper-border px-5 py-3">
         <h2 className="font-registre text-sm font-semibold text-ink">{title}</h2>
-        {action}
+        {action && <div className="shrink-0">{action}</div>}
       </div>
       <div className="p-5">{children}</div>
     </div>
