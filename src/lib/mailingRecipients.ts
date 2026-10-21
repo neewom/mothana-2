@@ -5,12 +5,15 @@ export const MAILING_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 interface MailingContact {
   courriel: string | null
   mailing_opt_out: boolean
+  /** Adresse rejetée lors d'un envoi précédent (rejet Brevo) — remis à null si le courriel change. */
+  email_invalide_at?: string | null
 }
 
 export interface MailingRecipientGroups<T extends MailingContact> {
   deliverable: T[]
   missingEmail: T[]
   invalidEmail: T[]
+  rejectedEmail: T[]
   optedOut: T[]
 }
 
@@ -21,6 +24,7 @@ export function classifyMailingRecipients<T extends MailingContact>(
     deliverable: [],
     missingEmail: [],
     invalidEmail: [],
+    rejectedEmail: [],
     optedOut: [],
   }
 
@@ -35,6 +39,8 @@ export function classifyMailingRecipients<T extends MailingContact>(
       groups.missingEmail.push(contact)
     } else if (!MAILING_EMAIL_REGEX.test(email)) {
       groups.invalidEmail.push(contact)
+    } else if (contact.email_invalide_at) {
+      groups.rejectedEmail.push(contact)
     } else {
       groups.deliverable.push(contact)
     }
