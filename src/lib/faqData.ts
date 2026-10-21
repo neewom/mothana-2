@@ -53,6 +53,11 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         answer:
           'Le bouton "Exporter" en haut de la page Adhérents télécharge un CSV de la liste telle qu\'elle est affichée : même état (Actifs, Expirés…), mêmes filtres et même recherche, toutes pages comprises — ou seulement les adhérents sélectionnés s\'il y en a. Le fichier contient le nom, le prénom et les colonnes choisies dans "Colonnes", dans le même ordre (la localisation est découpée en code postal, ville et pays). Pour un courrier, affichez les colonnes Adresse et Localisation avant d\'exporter.',
       },
+      {
+        question: 'Comment exporter la liste des donateurs ?',
+        answer:
+          'Le bouton "Exporter" en haut de la page Donateurs télécharge un CSV des donateurs affichés : recherche en cours appliquée, toutes pages comprises, dans l\'ordre de tri du tableau. Il contient la civilité, le nom, le prénom et le total des dons (en nombre, utilisable dans un calcul Excel).',
+      },
     ],
   },
   {
