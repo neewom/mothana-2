@@ -23,6 +23,7 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
 import { downloadCsv } from '../lib/csvExport'
+import { chargerDernieresAdhesions } from '../lib/dernieresAdhesions'
 import { lignesExportAdherents, nomFichierExportAdherents } from '../lib/adherentsExport'
 import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
@@ -53,10 +54,8 @@ function formatLocalisation(a: Adherent): string {
 // (ou aucune adhésion). Calculé par search_adherents, rien n'est stocké.
 type StatutFilter = 'a_jour' | 'expire' | 'archive' | 'all'
 
-// Export : limite PostgREST de 1 000 lignes par appel ; 100 identifiants par requête d'adhésions
-// (quelques cycles chacun, bien sous la limite).
+// Export : limite PostgREST de 1 000 lignes par appel.
 const EXPORT_PAGE_SIZE = 1000
-const ADHESIONS_PAR_APPEL = 100
 
 const PRINT_HELP_TEXT =
   "Planche A4 — imprimez sans mise à l'échelle (100 %) pour respecter les dimensions réelles des cartes (85,6 × 54 mm), puis découpez au massicot ou aux ciseaux."
@@ -68,23 +67,6 @@ interface SearchAdherentRow extends Adherent {
 // ---------------------------------------------------------------------------
 // AdherentsPage
 // ---------------------------------------------------------------------------
-
-/** Dernière adhésion (date_debut la plus récente) de chaque adhérent, par paquets d'identifiants
- * (URL de requête bornée, et moins de 1 000 lignes PostgREST par appel). */
-async function chargerDernieresAdhesions(ids: string[]): Promise<Map<string, Adhesion>> {
-  const map = new Map<string, Adhesion>()
-  for (let i = 0; i < ids.length; i += ADHESIONS_PAR_APPEL) {
-    const { data } = await supabase
-      .from('adhesions')
-      .select('*')
-      .in('adherent_id', ids.slice(i, i + ADHESIONS_PAR_APPEL))
-      .order('date_debut', { ascending: false })
-    for (const adhesion of (data ?? []) as Adhesion[]) {
-      if (!map.has(adhesion.adherent_id)) map.set(adhesion.adherent_id, adhesion)
-    }
-  }
-  return map
-}
 
 export default function AdherentsPage() {
   const organisationId = useOrganisationId()
@@ -98,7 +80,11 @@ export default function AdherentsPage() {
 
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
-  const [statutFilter, setStatutFilter] = useState<StatutFilter>('a_jour')
+  // État initial depuis l'URL (?etat=expire, lien « Voir les expirés » de l'accueil), sinon Actifs.
+  const [statutFilter, setStatutFilter] = useState<StatutFilter>(() => {
+    const etat = new URLSearchParams(window.location.search).get('etat')
+    return etat === 'a_jour' || etat === 'expire' || etat === 'archive' || etat === 'all' ? etat : 'a_jour'
+  })
   // Filtres du tiroir : appliqués d'un coup (« Appliquer »), brouillon pendant l'édition.
   const [filtres, setFiltres] = useState<AdherentsFiltres>(ADHERENTS_FILTRES_VIDES)
   const [brouillon, setBrouillon] = useState<AdherentsFiltres>(ADHERENTS_FILTRES_VIDES)
@@ -622,6 +608,7 @@ export default function AdherentsPage() {
                     <TableHead>Prénom</TableHead>
                     {colonnesVisibles.includes('statut') && <TableHead>Statut</TableHead>}
                     {colonnesVisibles.includes('adhesion') && <TableHead>Adhésion</TableHead>}
+                    {colonnesVisibles.includes('date_adhesion') && <TableHead>Date d'adhésion</TableHead>}
                     {colonnesVisibles.includes('email') && <TableHead>Email</TableHead>}
                     {colonnesVisibles.includes('telephone') && <TableHead>Téléphone</TableHead>}
                     {colonnesVisibles.includes('adresse') && <TableHead>Adresse</TableHead>}
@@ -658,6 +645,11 @@ export default function AdherentsPage() {
                         {colonnesVisibles.includes('adhesion') && (
                           <TableCell>
                             <Badge variant={adhesion.variant}>{adhesion.label}</Badge>
+                          </TableCell>
+                        )}
+                        {colonnesVisibles.includes('date_adhesion') && (
+                          <TableCell className="whitespace-nowrap text-ink-muted">
+                            {latestAdhesions.get(a.id)?.date_debut ? formatDate(latestAdhesions.get(a.id)!.date_debut) : '—'}
                           </TableCell>
                         )}
                         {colonnesVisibles.includes('email') && (

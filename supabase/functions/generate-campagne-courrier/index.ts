@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { fetchAllRows } from '../_shared/fetchAllRows.ts'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 import qrcodeGenerator from 'https://esm.sh/qrcode-generator@1.4.4'
 
@@ -221,25 +222,30 @@ Deno.serve(async (req) => {
     // 2. Destinataires — même logique de filtre que send-mailing-brevo
     // ---------------------------------------------------------------------
 
-    let query = adminClient
-      .from('adherents')
-      .select('civilite, nom, prenom, adresse, code_postal, ville, tags')
-      .eq('organisation_id', organisationId)
+    // Toutes les pages (au-delà de 1 000 adhérents, PostgREST tronquerait la planche) ; ordre
+    // stable requis par la pagination : nom, prénom puis id — étiquettes par ordre alphabétique,
+    // comme l'aperçu de la page Courrier.
+    const { data: adherentsData, error: adherentsError } = await fetchAllRows<Adherent>((from, to) => {
+      let query = adminClient
+        .from('adherents')
+        .select('civilite, nom, prenom, adresse, code_postal, ville, tags')
+        .eq('organisation_id', organisationId)
 
-    if (tag_envoi) {
-      query = query.contains('tags', [tag_envoi])
-    } else if (filtre_statut !== 'tous') {
-      query = query.eq('statut', filtre_statut)
-    }
+      if (tag_envoi) {
+        query = query.contains('tags', [tag_envoi])
+      } else if (filtre_statut !== 'tous') {
+        query = query.eq('statut', filtre_statut)
+      }
 
-    const { data: adherentsData, error: adherentsError } = await query
+      return query.order('nom').order('prenom').order('id').range(from, to)
+    })
 
     if (adherentsError) {
       console.error('adherents query error:', adherentsError)
       return jsonResponse({ error: 'Erreur lors du chargement des adhérents' }, 500)
     }
 
-    const tousAdherents = ((adherentsData ?? []) as Adherent[]).filter(
+    const tousAdherents = adherentsData.filter(
       (a) => !exclude_tag || !(a.tags ?? []).includes(exclude_tag),
     )
     const destinataires = tousAdherents.filter(
