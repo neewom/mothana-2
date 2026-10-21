@@ -5,10 +5,11 @@ interface Contact {
   id: string
   courriel: string | null
   mailing_opt_out: boolean
+  email_invalide_at?: string | null
 }
 
-function contact(id: string, courriel: string | null, mailingOptOut = false): Contact {
-  return { id, courriel, mailing_opt_out: mailingOptOut }
+function contact(id: string, courriel: string | null, mailingOptOut = false, emailInvalideAt: string | null = null): Contact {
+  return { id, courriel, mailing_opt_out: mailingOptOut, email_invalide_at: emailInvalideAt }
 }
 
 describe('mailing recipients', () => {
@@ -47,11 +48,24 @@ describe('mailing recipients', () => {
     expect(groups.invalidEmail).toHaveLength(0)
   })
 
+  it('exclut une adresse rejetée lors d’un envoi précédent', () => {
+    const groups = classifyMailingRecipients([
+      contact('rejected', 'rejet@example.org', false, '2026-10-01T10:00:00Z'),
+      contact('rejected-opt-out', 'rejet2@example.org', true, '2026-10-01T10:00:00Z'),
+      contact('valid', 'membre@example.org'),
+    ])
+
+    expect(groups.rejectedEmail.map(({ id }) => id)).toEqual(['rejected'])
+    expect(groups.optedOut.map(({ id }) => id)).toEqual(['rejected-opt-out'])
+    expect(groups.deliverable.map(({ id }) => id)).toEqual(['valid'])
+  })
+
   it('place chaque contact dans une seule catégorie', () => {
     const contacts = [
       contact('valid', 'membre@example.org'),
       contact('missing', null),
       contact('invalid', 'adresse-invalide'),
+      contact('rejected', 'rejet@example.org', false, '2026-10-01T10:00:00Z'),
       contact('opt-out', 'refus@example.org', true),
     ]
     const groups = classifyMailingRecipients(contacts)

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { fetchAllRows } from '../_shared/fetchAllRows.ts'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 
 const corsHeaders = {
@@ -45,6 +46,7 @@ interface AdherentDestinataire {
   prenom: string | null
   mailing_unsubscribe_token: string
   tags: string[]
+  email_invalide_at: string | null
 }
 
 function unsubscribeFooterHtml(): string {
@@ -136,31 +138,38 @@ Deno.serve(async (req) => {
     // 2. Destinataires
     // ---------------------------------------------------------------------
 
-    let query = adminClient
-      .from('adherents')
-      .select('courriel, nom, prenom, mailing_unsubscribe_token, tags')
-      .eq('organisation_id', organisationId)
-      .eq('mailing_opt_out', false)
+    // Toutes les pages (au-delà de 1 000 adhérents, PostgREST tronquerait l'envoi), ordre stable.
+    const { data: adherentsData, error: adherentsError } = await fetchAllRows<AdherentDestinataire>((from, to) => {
+      let query = adminClient
+        .from('adherents')
+        .select('courriel, nom, prenom, mailing_unsubscribe_token, tags, email_invalide_at')
+        .eq('organisation_id', organisationId)
+        .eq('mailing_opt_out', false)
 
-    // Sélectionner une liste de diffusion prime sur le statut actif/archivé
-    // (envoie à tous les porteurs du tag, peu importe leur statut).
-    if (tag_envoi) {
-      query = query.contains('tags', [tag_envoi])
-    } else if (filtre_statut !== 'tous') {
-      query = query.eq('statut', filtre_statut)
-    }
+      // Sélectionner une liste de diffusion prime sur le statut actif/archivé
+      // (envoie à tous les porteurs du tag, peu importe leur statut).
+      if (tag_envoi) {
+        query = query.contains('tags', [tag_envoi])
+      } else if (filtre_statut !== 'tous') {
+        query = query.eq('statut', filtre_statut)
+      }
 
-    const { data: adherentsData, error: adherentsError } = await query
+      return query.order('id').range(from, to)
+    })
 
     if (adherentsError) {
       console.error('adherents query error:', adherentsError)
       return jsonResponse({ error: 'Erreur lors du chargement des adhérents' }, 500)
     }
 
-    const tousAdherents = ((adherentsData ?? []) as AdherentDestinataire[]).filter(
+    const tousAdherents = adherentsData.filter(
       (a) => !exclude_tag || !(a.tags ?? []).includes(exclude_tag),
     )
-    const destinataires = tousAdherents.filter((a) => a.courriel && EMAIL_REGEX.test(a.courriel.trim()))
+    // Même classement que src/lib/mailingRecipients.ts : email manquant, format invalide ou
+    // adresse rejetée lors d'un envoi précédent (email_invalide_at, rejet Brevo) → exclu.
+    const destinataires = tousAdherents.filter(
+      (a) => a.courriel && EMAIL_REGEX.test(a.courriel.trim()) && !a.email_invalide_at,
+    )
     const nombreExclus = tousAdherents.length - destinataires.length
 
     if (destinataires.length === 0) {
