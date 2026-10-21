@@ -53,6 +53,11 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         answer:
           'Le bouton "Exporter" en haut de la page Adhérents télécharge un CSV de la liste telle qu\'elle est affichée : même état (Actifs, Expirés…), mêmes filtres et même recherche, toutes pages comprises — ou seulement les adhérents sélectionnés s\'il y en a. Le fichier contient le nom, le prénom et les colonnes choisies dans "Colonnes", dans le même ordre (la localisation est découpée en code postal, ville et pays). Pour un courrier, affichez les colonnes Adresse et Localisation avant d\'exporter.',
       },
+      {
+        question: 'Comment exporter la liste des donateurs ?',
+        answer:
+          'Le bouton "Exporter" en haut de la page Donateurs télécharge un CSV des donateurs affichés : recherche en cours appliquée, toutes pages comprises, dans l\'ordre de tri du tableau. Il contient la civilité, le nom, le prénom et le total des dons (en nombre, utilisable dans un calcul Excel).',
+      },
     ],
   },
   {
@@ -71,7 +76,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'Comment fonctionne le renouvellement d’une adhésion ?',
         answer:
-          "Une adhésion est valable un an glissant à partir de sa date de début (pas une année civile). La date de fin et le statut (actif/expiré) sont calculés automatiquement — ils ne se saisissent jamais manuellement.",
+          "La date de fin d'une adhésion est calculée automatiquement selon la règle choisie dans Paramètres → Adhésions → Durée des adhésions : un an après la date d'adhésion (par défaut), ou au 31 décembre — avec un mois à partir duquel l'adhésion vaut aussi l'année suivante (ex. une adhésion prise en décembre court jusqu'au 31 décembre de l'année suivante). Elle ne se saisit jamais à la main ; « Renouveler l'adhésion » crée un nouveau cycle avec sa propre date de fin. Après un changement de règle, l'application propose de recalculer les adhésions existantes.",
       },
       {
         question: 'Comment traiter une demande d’adhésion reçue via le formulaire public ?',

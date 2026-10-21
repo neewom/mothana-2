@@ -12,6 +12,11 @@ import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
 import SaveBar from '../components/parametres/SaveBar'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
+import { Select } from '../components/ui/select'
+import { StatusNotice } from '../components/ui/status-notice'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
+import { MOIS } from '../lib/journalModifications'
+import type { RegleFinAdhesion } from '../lib/adhesion'
 
 const MAX_STATUTS_SIZE = 2 * 1024 * 1024
 
@@ -37,6 +42,13 @@ interface OrgSettings {
   formulaire_adhesion_footer_html: string | null
   formulaire_adhesion_css: string | null
   formulaire_adhesion_message_succes: string | null
+  adhesion_regle_fin: RegleFinAdhesion
+  adhesion_mois_bascule: number
+}
+
+interface ApercuRecalage {
+  total: number
+  a_modifier: number
 }
 
 export default function ParametresAdhesionsPage() {
@@ -61,10 +73,18 @@ export default function ParametresAdhesionsPage() {
   const [formulaireEditorOpen, setFormulaireEditorOpen] = useState(false)
   const [messageSucces, setMessageSucces] = useState('')
   const [messageSuccesInitial, setMessageSuccesInitial] = useState('')
+  const [regleFin, setRegleFin] = useState<RegleFinAdhesion>('glissante')
+  const [moisBascule, setMoisBascule] = useState(12)
+  // Après un changement de règle : proposer de recalculer les adhésions existantes.
+  const [apercuRecalage, setApercuRecalage] = useState<ApercuRecalage | null>(null)
+  const [recalageEnCours, setRecalageEnCours] = useState(false)
+  const [recalageMessage, setRecalageMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null)
 
   // Un seul enregistrement pour l'adresse du formulaire et le message de succès ; les statuts
   // (envoi de fichier) et l'éditeur d'en-tête restent des actions immédiates.
-  const dirty = settings !== null && (slug !== settings.slug || messageSucces.trim() !== messageSuccesInitial)
+  const regleModifiee = settings !== null
+    && (regleFin !== settings.adhesion_regle_fin || (regleFin === 'annee_civile' && moisBascule !== settings.adhesion_mois_bascule))
+  const dirty = settings !== null && (slug !== settings.slug || messageSucces.trim() !== messageSuccesInitial || regleModifiee)
   const guardDialog = useUnsavedChangesGuard(dirty)
 
   useEffect(() => {
@@ -77,7 +97,7 @@ export default function ParametresAdhesionsPage() {
       const { data, error } = await supabase
         .from('organisations')
         .select(
-          'slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css, formulaire_adhesion_message_succes',
+          'slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css, formulaire_adhesion_message_succes, adhesion_regle_fin, adhesion_mois_bascule',
         )
         .eq('id', organisationId)
         .single()
@@ -98,6 +118,8 @@ export default function ParametresAdhesionsPage() {
       setFormulaireCss(raw.formulaire_adhesion_css)
       setMessageSucces(raw.formulaire_adhesion_message_succes ?? '')
       setMessageSuccesInitial(raw.formulaire_adhesion_message_succes ?? '')
+      setRegleFin(raw.adhesion_regle_fin)
+      setMoisBascule(raw.adhesion_mois_bascule)
       setLoading(false)
     }
 
@@ -120,19 +142,47 @@ export default function ParametresAdhesionsPage() {
     const trimmed = messageSucces.trim()
     const { error } = await supabase
       .from('organisations')
-      .update({ slug: normalized, formulaire_adhesion_message_succes: trimmed || null })
+      .update({
+        slug: normalized,
+        formulaire_adhesion_message_succes: trimmed || null,
+        adhesion_regle_fin: regleFin,
+        adhesion_mois_bascule: moisBascule,
+      })
       .eq('id', organisationId)
 
     if (error) {
       setSaveError(error.code === '23505' ? 'Cette adresse est déjà utilisée par une autre organisation' : error.message)
     } else {
       setSlug(normalized)
-      setSettings((current) => (current ? { ...current, slug: normalized } : current))
+      setSettings((current) => (current
+        ? { ...current, slug: normalized, adhesion_regle_fin: regleFin, adhesion_mois_bascule: moisBascule }
+        : current))
       setMessageSucces(trimmed)
       setMessageSuccesInitial(trimmed)
       setSaveSuccess(true)
+      setRecalageMessage(null)
+      // La nouvelle règle vaut pour les adhésions à venir ; les existantes ne changent que si
+      // l'admin le confirme (aperçu calculé avec la règle qui vient d'être enregistrée).
+      if (regleModifiee) {
+        const { data } = await supabase.rpc('apercu_recalage_adhesions', { p_organisation_id: organisationId })
+        const apercu = data as ApercuRecalage | null
+        if (apercu && apercu.a_modifier > 0) setApercuRecalage(apercu)
+      }
     }
     setSaving(false)
+  }
+
+  async function handleRecalage() {
+    setRecalageEnCours(true)
+    const { data, error } = await supabase.rpc('recalculer_dates_fin_adhesions', { p_organisation_id: organisationId })
+    setRecalageEnCours(false)
+    setApercuRecalage(null)
+    if (error) {
+      setRecalageMessage({ tone: 'danger', text: `Le recalcul a échoué : ${error.message}` })
+      return
+    }
+    const n = Number(data ?? 0)
+    setRecalageMessage({ tone: 'success', text: `${n} date${n > 1 ? 's' : ''} de fin recalculée${n > 1 ? 's' : ''}.` })
   }
 
   function handleCopySlugUrl() {
@@ -196,7 +246,7 @@ export default function ParametresAdhesionsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-ink md:text-3xl">Adhésions</h1>
-        <p className="mt-1 text-sm text-ink-muted">Carte adhérent et formulaire public de demande d'adhésion.</p>
+        <p className="mt-1 text-sm text-ink-muted">Durée des adhésions, carte adhérent et formulaire public de demande d'adhésion.</p>
       </div>
 
       <ParametresSection
@@ -207,6 +257,45 @@ export default function ParametresAdhesionsPage() {
       </ParametresSection>
 
       <form onSubmit={handleSave} className="space-y-6">
+      <ParametresSection
+        title="Durée des adhésions"
+        description="Règle de calcul de la date de fin, appliquée à chaque nouvelle adhésion ou renouvellement (saisie, demande validée, import)."
+      >
+        <div className="max-w-lg space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="adhesion-regle-fin">Fin de l'adhésion</Label>
+            <Select
+              id="adhesion-regle-fin"
+              className="w-full"
+              value={regleFin}
+              onChange={(e) => { setRegleFin(e.target.value as RegleFinAdhesion); setSaveSuccess(false) }}
+            >
+              <option value="glissante">Un an après la date d'adhésion</option>
+              <option value="annee_civile">Au 31 décembre</option>
+            </Select>
+          </div>
+          {regleFin === 'annee_civile' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="adhesion-mois-bascule">À partir du mois de</Label>
+              <Select
+                id="adhesion-mois-bascule"
+                className="w-full"
+                value={String(moisBascule)}
+                onChange={(e) => { setMoisBascule(Number(e.target.value)); setSaveSuccess(false) }}
+              >
+                {MOIS.map((mois, i) => (
+                  <option key={mois} value={i + 1}>{mois}</option>
+                ))}
+              </Select>
+              <p className="text-xs text-ink-faint">
+                Une adhésion prise à partir de ce mois vaut aussi l'année suivante (fin au 31 décembre de l'année suivante).
+              </p>
+            </div>
+          )}
+          {recalageMessage && <StatusNotice tone={recalageMessage.tone}>{recalageMessage.text}</StatusNotice>}
+        </div>
+      </ParametresSection>
+
       <ParametresSection
         title="Adhésion en ligne"
         description="Formulaire public permettant de soumettre une demande d'adhésion, à ratifier ensuite depuis l'espace Adhérents."
@@ -306,6 +395,10 @@ export default function ParametresAdhesionsPage() {
         onReset={() => {
           if (settings) setSlug(settings.slug)
           setMessageSucces(messageSuccesInitial)
+          if (settings) {
+            setRegleFin(settings.adhesion_regle_fin)
+            setMoisBascule(settings.adhesion_mois_bascule)
+          }
           setSaveError(null)
         }}
       />
@@ -333,6 +426,33 @@ export default function ParametresAdhesionsPage() {
           css={formulaireCss}
         />
       )}
+      <Dialog open={apercuRecalage !== null} onOpenChange={(next) => { if (!next && !recalageEnCours) setApercuRecalage(null) }}>
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
+          <DialogHeader className="shrink-0 pr-12">
+            <DialogTitle>Recalculer les adhésions existantes ?</DialogTitle>
+          </DialogHeader>
+          {apercuRecalage && (
+            <div className="space-y-3 p-6 text-sm text-ink-muted">
+              <p>
+                La nouvelle règle s'applique aux prochaines adhésions. Voulez-vous aussi recalculer la date de fin
+                des <span className="font-medium text-ink">{apercuRecalage.total} adhésion{apercuRecalage.total > 1 ? 's' : ''} existante{apercuRecalage.total > 1 ? 's' : ''}</span> ?
+              </p>
+              <p>
+                {apercuRecalage.a_modifier} date{apercuRecalage.a_modifier > 1 ? 's' : ''} de fin changer{apercuRecalage.a_modifier > 1 ? 'ont' : 'a'},
+                ce qui peut faire passer des adhérents de « à jour » à « expiré » ou l'inverse. L'opération est inscrite au journal.
+              </p>
+            </div>
+          )}
+          <div className="flex shrink-0 justify-end gap-3 border-t border-paper-border bg-white px-6 py-4">
+            <Button type="button" variant="secondary" disabled={recalageEnCours} onClick={() => setApercuRecalage(null)}>
+              Ne pas recalculer
+            </Button>
+            <Button type="button" disabled={recalageEnCours} onClick={() => void handleRecalage()}>
+              {recalageEnCours ? 'Recalcul…' : 'Recalculer'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {guardDialog}
     </div>
   )
