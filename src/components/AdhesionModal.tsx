@@ -6,6 +6,7 @@ import { generateUUID } from '../lib/uuid'
 import { adherentFullName } from '../lib/adherentSearch'
 import { libelleFinPrevue } from '../lib/adhesion'
 import { useRegleAdhesion } from '../hooks/useRegleAdhesion'
+import { useOrganisationId } from '../hooks/useOrganisationId'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
@@ -32,7 +33,8 @@ export default function AdhesionModal({ open, onClose, onSaved, adherent }: Adhe
   const [bulletinSigne, setBulletinSigne] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const regleAdhesion = useRegleAdhesion(adherent?.organisation_id)
+  // Organisation courante (les lignes de search_adherents ne portent pas organisation_id).
+  const regleAdhesion = useRegleAdhesion(useOrganisationId())
 
   useEffect(() => {
     if (open) {
