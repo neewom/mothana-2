@@ -4,13 +4,15 @@ import type { Adherent, Adhesion, CiviliteAdherent, ModePaiement } from '../type
 import { CIVILITE_ADHERENT_OPTIONS } from '../lib/civiliteAdherent'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { generateUUID } from '../lib/uuid'
-import { computeDateFin } from '../lib/adhesion'
+import { libelleFinPrevue } from '../lib/adhesion'
+import { useRegleAdhesion } from '../hooks/useRegleAdhesion'
 import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '../lib/textFormat'
 import { COUNTRIES } from '../lib/countries'
 import { maxDateNaissance, isAnneeNaissanceValide } from '../lib/dateNaissance'
 import type { DuplicateMatch } from '../lib/adherentDuplicateCheck'
 import { logModification, computeAdherentDiff } from '../lib/journalModifications'
 import AdherentHistoriqueSection from './AdherentHistoriqueSection'
+import AdherentAdhesionsSection from './AdherentAdhesionsSection'
 import TagsInput from './TagsInput'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
@@ -101,6 +103,7 @@ export default function AdherentModal({
 
   // Premier cycle (création uniquement)
   const [dateDebut, setDateDebut] = useState(today())
+  const regleAdhesion = useRegleAdhesion(organisationId)
   const [montantCotisation, setMontantCotisation] = useState('')
   const [modePaiement, setModePaiement] = useState<ModePaiement | ''>('')
   const [datePaiementCotisation, setDatePaiementCotisation] = useState('')
@@ -226,8 +229,6 @@ export default function AdherentModal({
 
     const adherentId = generateUUID()
     const adhesionId = generateUUID()
-    const dateFin = computeDateFin(dateDebut)
-
     const { error: adherentErr } = await supabase.from('adherents').insert({
       id: adherentId,
       organisation_id: organisationId,
@@ -241,18 +242,18 @@ export default function AdherentModal({
       return
     }
 
-    const { error: adhesionErr } = await supabase.from('adhesions').insert({
+    // date_fin posée par la base selon la règle de l'organisation (trigger) : relue pour onSaved.
+    const { data: adhesionInseree, error: adhesionErr } = await supabase.from('adhesions').insert({
       id: adhesionId,
       adherent_id: adherentId,
       date_debut: dateDebut,
-      date_fin: dateFin,
       montant_cotisation: montantCotisation ? Number(montantCotisation) : null,
       date_paiement_cotisation: datePaiementCotisation || null,
       mode_paiement: modePaiement || null,
       renouvellement: false,
       droit_vote_ag: droitVoteAg,
       bulletin_signe: bulletinSigne,
-    })
+    }).select('date_fin').single()
 
     if (adhesionErr) {
       setError(adhesionErr.message)
@@ -286,7 +287,7 @@ export default function AdherentModal({
         id: adhesionId,
         adherent_id: adherentId,
         date_debut: dateDebut,
-        date_fin: dateFin,
+        date_fin: adhesionInseree.date_fin,
         montant_cotisation: montantCotisation ? Number(montantCotisation) : null,
         date_paiement_cotisation: datePaiementCotisation || null,
         mode_paiement: modePaiement || null,
@@ -545,6 +546,7 @@ export default function AdherentModal({
                     value={dateDebut}
                     onChange={(e) => setDateDebut(e.target.value)}
                   />
+                  <p className="text-xs text-ink-faint">{libelleFinPrevue(dateDebut, regleAdhesion)}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -610,7 +612,8 @@ export default function AdherentModal({
             )}
 
             {isEdit && adherent && (
-              <div className="border-t border-paper-border pt-4">
+              <div className="space-y-3 border-t border-paper-border pt-4">
+                <AdherentAdhesionsSection adherentId={adherent.id} />
                 <AdherentHistoriqueSection organisationId={organisationId} adherentId={adherent.id} />
               </div>
             )}
