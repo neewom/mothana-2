@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { getCanonicalSiteUrl } from '../lib/environment'
 import { classifyMailingRecipients, type MailingRecipientGroups } from '../lib/mailingRecipients'
+import { fetchAllRows } from '../lib/fetchAllRows'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import ScrollShadowX from '../components/ScrollShadowX'
@@ -65,6 +66,7 @@ interface MailingContactRow {
   courriel: string | null
   tags: string[]
   mailing_opt_out: boolean
+  email_invalide_at: string | null
 }
 
 type ApercuCategory = keyof MailingRecipientGroups<MailingContactRow>
@@ -79,8 +81,12 @@ const APERCU_COPY: Record<ApercuCategory, { title: string; description: string }
     description: "Ces adhérents n'ont pas d'adresse email renseignée.",
   },
   invalidEmail: {
-    title: 'Contacts exclus — email invalide',
+    title: 'Contacts exclus — format d’email invalide',
     description: "Ces adhérents ont une adresse email dont le format n'est pas valide.",
+  },
+  rejectedEmail: {
+    title: 'Contacts exclus — adresse rejetée',
+    description: "L'adresse de ces adhérents a été rejetée lors d'un envoi précédent (adresse inexistante ou bloquée). Corrigez-la dans la fiche pour qu'elle soit de nouveau utilisée.",
   },
   optedOut: {
     title: 'Contacts refusés',
@@ -179,12 +185,14 @@ export default function CampagneMailingPage() {
     avecEmail: number
     emailManquant: number
     emailInvalide: number
+    emailRejete: number
     optOut: number
   } | null>(null)
   const [recipientGroups, setRecipientGroups] = useState<MailingRecipientGroups<MailingContactRow>>({
     deliverable: [],
     missingEmail: [],
     invalidEmail: [],
+    rejectedEmail: [],
     optedOut: [],
   })
   const [apercuCategory, setApercuCategory] = useState<ApercuCategory | null>(null)
@@ -400,26 +408,30 @@ export default function CampagneMailingPage() {
   const fetchDestinatairesCount = useCallback(async () => {
     if (!organisationId) return
     const requestId = ++destinatairesRequestIdRef.current
-    let query = supabase
-      .from('adherents')
-      .select('id, nom, prenom, courriel, tags, mailing_opt_out')
-      .eq('organisation_id', organisationId)
-    // Sélectionner une liste prime sur le statut actif/archivé (envoie à tous les
-    // porteurs du tag, peu importe leur statut) — cf. cadrage.
-    if (tagEnvoi) {
-      query = query.contains('tags', [tagEnvoi])
-    } else if (filtreStatut !== 'tous') {
-      query = query.eq('statut', filtreStatut)
-    }
-    const { data } = await query
+    // fetchAllRows : au-delà de 1 000 adhérents, PostgREST tronquerait la liste (tri par id pour
+    // des pages stables, chargées en parallèle).
+    const { data: rows } = await fetchAllRows<MailingContactRow>((from, to) => {
+      let query = supabase
+        .from('adherents')
+        .select('id, nom, prenom, courriel, tags, mailing_opt_out, email_invalide_at')
+        .eq('organisation_id', organisationId)
+      // Sélectionner une liste prime sur le statut actif/archivé (envoie à tous les
+      // porteurs du tag, peu importe leur statut) — cf. cadrage.
+      if (tagEnvoi) {
+        query = query.contains('tags', [tagEnvoi])
+      } else if (filtreStatut !== 'tous') {
+        query = query.eq('statut', filtreStatut)
+      }
+      return query.order('id').range(from, to)
+    })
     if (requestId !== destinatairesRequestIdRef.current) return
-    const rows = (data ?? []) as MailingContactRow[]
     const filtered = excludeTag ? rows.filter((a) => !(a.tags ?? []).includes(excludeTag)) : rows
     const groups = classifyMailingRecipients(filtered)
     setDestinatairesCount({
       avecEmail: groups.deliverable.length,
       emailManquant: groups.missingEmail.length,
       emailInvalide: groups.invalidEmail.length,
+      emailRejete: groups.rejectedEmail.length,
       optOut: groups.optedOut.length,
     })
     setRecipientGroups(groups)
@@ -754,10 +766,19 @@ export default function CampagneMailingPage() {
               )}
               {destinatairesCount.emailInvalide > 0 && (
                 <p>
-                  {destinatairesCount.emailInvalide} exclu{destinatairesCount.emailInvalide > 1 ? 's' : ''} — email invalide
+                  {destinatairesCount.emailInvalide} exclu{destinatairesCount.emailInvalide > 1 ? 's' : ''} — format d’email invalide
                   {' — '}
                   <button type="button" onClick={() => setApercuCategory('invalidEmail')} className="rounded-sm font-medium text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70">
                     Voir la liste ({destinatairesCount.emailInvalide})
+                  </button>
+                </p>
+              )}
+              {destinatairesCount.emailRejete > 0 && (
+                <p>
+                  {destinatairesCount.emailRejete} exclu{destinatairesCount.emailRejete > 1 ? 's' : ''} — adresse rejetée
+                  {' — '}
+                  <button type="button" onClick={() => setApercuCategory('rejectedEmail')} className="rounded-sm font-medium text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70">
+                    Voir la liste ({destinatairesCount.emailRejete})
                   </button>
                 </p>
               )}

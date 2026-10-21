@@ -16,6 +16,7 @@ export const ORDRE_COLONNES_TABLEAU: ColonneExport[] = [
   'prenom',
   'statut',
   'adhesion',
+  'date_adhesion',
   'email',
   'telephone',
   'adresse',
@@ -33,7 +34,7 @@ function dateFr(iso: string | null): string {
 function cellules(
   colonne: ColonneExport,
   a: Adherent,
-  adhesion: Pick<Adhesion, 'date_fin'> | undefined,
+  adhesion: Pick<Adhesion, 'date_debut' | 'date_fin'> | undefined,
   today: string,
 ): Record<string, string> {
   switch (colonne) {
@@ -47,6 +48,8 @@ function cellules(
       return { Statut: a.statut === 'actif' ? 'Actif' : 'Archivé' }
     case 'adhesion':
       return { 'Adhésion': libelleAdhesion(adhesion, today).label }
+    case 'date_adhesion':
+      return { "Date d'adhésion": dateFr(adhesion?.date_debut ?? null) }
     case 'email':
       return { Email: a.courriel ?? '' }
     case 'telephone':
@@ -65,7 +68,7 @@ function cellules(
 
 export function lignesExportAdherents(
   adherents: Adherent[],
-  adhesions: Map<string, Pick<Adhesion, 'date_fin'>>,
+  adhesions: Map<string, Pick<Adhesion, 'date_debut' | 'date_fin'>>,
   colonnesVisibles: ColonneAdherent[],
   today: string,
 ): Record<string, string>[] {

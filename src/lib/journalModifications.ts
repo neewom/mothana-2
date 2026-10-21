@@ -2,12 +2,13 @@ import { supabase } from './supabaseClient'
 import type { CiviliteAdherent, JournalModification } from '../types'
 import { CIVILITE_ADHERENT_LABELS } from './civiliteAdherent'
 
-export type TableCibleJournal = 'adherents' | 'demandes_adhesion'
-export type ActionJournal = 'creation' | 'modification' | 'archivage' | 'reactivation' | 'ratification' | 'refus'
+export type TableCibleJournal = 'adherents' | 'demandes_adhesion' | 'organisations'
+export type ActionJournal = 'creation' | 'modification' | 'archivage' | 'reactivation' | 'ratification' | 'refus' | 'recalage_adhesions'
 
 export const TABLE_CIBLE_LABELS: Record<TableCibleJournal, string> = {
   adherents: 'Adhérent',
   demandes_adhesion: "Demande d'adhésion",
+  organisations: 'Organisation',
 }
 
 export const ACTION_LABELS: Record<ActionJournal, string> = {
@@ -17,6 +18,7 @@ export const ACTION_LABELS: Record<ActionJournal, string> = {
   reactivation: 'Réactivation',
   ratification: 'Ratification',
   refus: 'Refus',
+  recalage_adhesions: 'Recalcul des dates de fin',
 }
 
 // N'interrompt jamais l'action métier principale en cas d'échec : le log est un aspect secondaire.
@@ -42,10 +44,20 @@ export async function logModification(params: {
 }
 
 export function describeJournalEntry(entry: JournalModification): string {
+  // Écrit par la RPC recalculer_dates_fin_adhesions.
+  if (entry.action === 'recalage_adhesions') {
+    const n = Number(entry.details?.adhesions_modifiees ?? 0)
+    const regle = entry.details?.regle_fin === 'annee_civile'
+      ? `au 31 décembre, bascule en ${MOIS[Number(entry.details?.mois_bascule) - 1] ?? '—'}`
+      : "un an après la date d'adhésion"
+    return `${n} adhésion${n > 1 ? 's' : ''} recalculée${n > 1 ? 's' : ''} (${regle})`
+  }
   const nom = entry.details?.nom
   const prenom = entry.details?.prenom
   return [prenom, nom].filter(Boolean).join(' ') || '—'
 }
+
+export const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 
 // Diff des champs adhérent — comparé au moment de la modification dans AdherentModal,
 // où l'objet avant (`adherent`) et après (`identite`) sont tous les deux déjà en mémoire.
