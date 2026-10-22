@@ -22,15 +22,19 @@ const EVENEMENTS: Record<string, EvenementRejet> = {
   error: 'error',
 }
 
-// Raisons qui mettent en cause l'expéditeur, le domaine d'envoi ou le compte Brevo.
+// Raisons qui mettent en cause l'expéditeur, le domaine d'envoi ou le **compte d'envoi** Brevo.
+// Motifs volontairement étroits : « account », « quota » ou « credits » seuls désignent aussi des
+// rejets propres au destinataire (« The email account that you tried to reach does not exist »,
+// « mailbox is over quota », « Recipient account disabled »), qui doivent marquer l'adresse.
 const RAISON_COTE_EXPEDITEUR = [
   /\bsender\b/i,
   /authenticate your domain/i,
   /domain (is )?not (verified|authenticated)/i,
-  /\baccount\b/i,
+  /\byour (brevo |sendinblue )?account\b/i,
+  /\baccount (is |has been )?(suspended|deactivated|blocked|not (yet )?activated|under validation)\b/i,
+  /\b(not enough|insufficient|no) (email )?credits?\b/i,
+  /\bsending (quota|limit)\b/i,
   /\bapi key\b/i,
-  /\bcredits?\b/i,
-  /\bquota\b/i,
 ]
 
 export type DecisionRejet =

@@ -8,7 +8,27 @@ const MX_INTROUVABLE = 'Unable to find MX of domain exemple.fr'
 describe('classerRejet', () => {
   it('ne marque jamais sur une erreur d’expéditeur (cas réel du 21/10)', () => {
     expect(classerRejet('error', EXPEDITEUR_NON_VALIDE)).toEqual({ marquer: false, motif: 'cote_expediteur' })
-    expect(classerRejet('blocked', 'Your account is suspended')).toEqual({ marquer: false, motif: 'cote_expediteur' })
+    for (const raison of [
+      'Your account is suspended',
+      'Account has been deactivated',
+      'Not enough credits to send the email',
+      'Sending limit exceeded for today',
+      'Your Brevo account is under validation',
+    ]) {
+      expect(classerRejet('blocked', raison), raison).toEqual({ marquer: false, motif: 'cote_expediteur' })
+    }
+  })
+
+  it('marque les rejets destinataire qui parlent de compte ou de quota (raisons fréquentes chez Wat)', () => {
+    for (const raison of [
+      '550-5.1.1 The email account that you tried to reach does not exist',
+      '552 5.2.2 The email account that you tried to reach is over quota',
+      'Recipient account disabled',
+    ]) {
+      for (const evenement of ['error', 'blocked']) {
+        expect(classerRejet(evenement, raison), `${evenement} : ${raison}`).toMatchObject({ marquer: true })
+      }
+    }
   })
 
   it('marque une erreur propre au destinataire, avec sa raison', () => {
