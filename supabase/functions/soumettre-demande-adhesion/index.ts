@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
   if (!slug || slug.length > 100) return invalide()
   const { data: organisation, error: orgError } = await adminClient
     .from('organisations')
-    .select('id, statuts_url')
+    .select('id, statuts_url, notif_demandes_adhesion')
     .eq('slug', slug)
     .maybeSingle()
   if (orgError) {
@@ -150,15 +150,18 @@ Deno.serve(async (req) => {
 
   // 5. Comptes de l'organisation prévenus, en tâche de fond : la réponse au demandeur n'attend
   // pas Resend et ne dépend pas de son succès.
-  const notification = prevenirComptesOrganisation(adminClient, organisation.id, lienPageDemandes(corps?.site_url, Deno.env.get('SUPABASE_URL')))
-    .catch((err) => console.error('soumettre-demande-adhesion: notification des comptes impossible', String(err)))
-  if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(notification)
-  else await notification
+  // Coupé pour l'organisation (Paramètres → Adhésions) : aucun email.
+  if (organisation.notif_demandes_adhesion) {
+    const notification = prevenirComptesOrganisation(adminClient, organisation.id, lienPageDemandes(corps?.site_url, Deno.env.get('SUPABASE_URL')))
+      .catch((err) => console.error('soumettre-demande-adhesion: notification des comptes impossible', String(err)))
+    if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(notification)
+    else await notification
+  }
 
   return jsonResponse({ ok: true })
 })
 
-/** Un email par compte actif (admin ou contributeur, non désactivé) de l'organisation. */
+/** Un email par compte actif (admin ou contributeur, non désactivé, réglage actif) de l'organisation. */
 async function prevenirComptesOrganisation(
   adminClient: SupabaseClient,
   organisationId: string,
@@ -169,6 +172,8 @@ async function prevenirComptesOrganisation(
     .select('utilisateur_id')
     .eq('organisation_id', organisationId)
     .in('role', ['admin', 'contributeur'])
+    // Réglage du compte (Mon compte, Paramètres → Équipe, espace super-admin).
+    .eq('notif_demandes_adhesion', true)
     .limit(NOTIFICATION_ADMINS_MAX)
   if (error) throw new Error(error.message)
 

@@ -157,13 +157,12 @@ export default function ParametresCompteAdminPage() {
     setNotifError(null)
     setNotifSuccess(false)
 
-    const { error } = await supabase
-      .from('profils_organisation')
-      .update({
-        notif_demandes_adhesion: next,
-        ...(next !== initialNotifRef.current ? { notif_demandes_adhesion_updated_at: new Date().toISOString() } : {}),
-      })
-      .eq('utilisateur_id', auth.user.id)
+    // Même RPC que Paramètres → Équipe et l'espace super-admin (seule écriture de ce réglage).
+    const { error } = await supabase.rpc('definir_notification_demandes', {
+      p_utilisateur_id: auth.user.id,
+      p_organisation_id: auth.organisationId,
+      p_actif: next,
+    })
 
     if (error) {
       setNotifDemandes(!next)
@@ -263,7 +262,7 @@ export default function ParametresCompteAdminPage() {
                   disabled={notifSaving}
                   className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
                 />
-                Recevoir les notifications de demandes d'adhésion
+                Recevoir l'email des nouvelles demandes d'adhésion
               </label>
               {notifSuccess && <span className="text-sm text-ink-muted">Enregistré</span>}
             </div>
