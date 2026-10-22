@@ -42,6 +42,7 @@ interface OrgSettings {
   formulaire_adhesion_footer_html: string | null
   formulaire_adhesion_css: string | null
   formulaire_adhesion_message_succes: string | null
+  notif_demandes_adhesion: boolean
   adhesion_regle_fin: RegleFinAdhesion
   adhesion_mois_bascule: number
 }
@@ -73,6 +74,7 @@ export default function ParametresAdhesionsPage() {
   const [formulaireEditorOpen, setFormulaireEditorOpen] = useState(false)
   const [messageSucces, setMessageSucces] = useState('')
   const [messageSuccesInitial, setMessageSuccesInitial] = useState('')
+  const [notifDemandes, setNotifDemandes] = useState(true)
   const [regleFin, setRegleFin] = useState<RegleFinAdhesion>('glissante')
   const [moisBascule, setMoisBascule] = useState(12)
   // Après un changement de règle : proposer de recalculer les adhésions existantes.
@@ -84,7 +86,7 @@ export default function ParametresAdhesionsPage() {
   // (envoi de fichier) et l'éditeur d'en-tête restent des actions immédiates.
   const regleModifiee = settings !== null
     && (regleFin !== settings.adhesion_regle_fin || (regleFin === 'annee_civile' && moisBascule !== settings.adhesion_mois_bascule))
-  const dirty = settings !== null && (slug !== settings.slug || messageSucces.trim() !== messageSuccesInitial || regleModifiee)
+  const dirty = settings !== null && (slug !== settings.slug || messageSucces.trim() !== messageSuccesInitial || regleModifiee || notifDemandes !== settings.notif_demandes_adhesion)
   const guardDialog = useUnsavedChangesGuard(dirty)
 
   useEffect(() => {
@@ -97,7 +99,7 @@ export default function ParametresAdhesionsPage() {
       const { data, error } = await supabase
         .from('organisations')
         .select(
-          'slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css, formulaire_adhesion_message_succes, adhesion_regle_fin, adhesion_mois_bascule',
+          'slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css, formulaire_adhesion_message_succes, notif_demandes_adhesion, adhesion_regle_fin, adhesion_mois_bascule',
         )
         .eq('id', organisationId)
         .single()
@@ -118,6 +120,7 @@ export default function ParametresAdhesionsPage() {
       setFormulaireCss(raw.formulaire_adhesion_css)
       setMessageSucces(raw.formulaire_adhesion_message_succes ?? '')
       setMessageSuccesInitial(raw.formulaire_adhesion_message_succes ?? '')
+      setNotifDemandes(raw.notif_demandes_adhesion)
       setRegleFin(raw.adhesion_regle_fin)
       setMoisBascule(raw.adhesion_mois_bascule)
       setLoading(false)
@@ -145,6 +148,7 @@ export default function ParametresAdhesionsPage() {
       .update({
         slug: normalized,
         formulaire_adhesion_message_succes: trimmed || null,
+        notif_demandes_adhesion: notifDemandes,
         adhesion_regle_fin: regleFin,
         adhesion_mois_bascule: moisBascule,
       })
@@ -155,7 +159,7 @@ export default function ParametresAdhesionsPage() {
     } else {
       setSlug(normalized)
       setSettings((current) => (current
-        ? { ...current, slug: normalized, adhesion_regle_fin: regleFin, adhesion_mois_bascule: moisBascule }
+        ? { ...current, slug: normalized, notif_demandes_adhesion: notifDemandes, adhesion_regle_fin: regleFin, adhesion_mois_bascule: moisBascule }
         : current))
       setMessageSucces(trimmed)
       setMessageSuccesInitial(trimmed)
@@ -374,6 +378,22 @@ export default function ParametresAdhesionsPage() {
         </div>
 
         <div className="mt-6 max-w-lg">
+          <p className="mb-2 text-sm font-medium text-ink-muted">Notification de l'équipe</p>
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={notifDemandes}
+              onChange={(e) => { setNotifDemandes(e.target.checked); setSaveSuccess(false) }}
+              className="mt-0.5 h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+            />
+            Prévenir l'équipe par email à chaque nouvelle demande d'adhésion
+          </label>
+          <p className="mt-1 text-xs text-ink-faint">
+            Chaque compte peut aussi couper cet email pour lui-même (Mon compte), ou un administrateur pour un compte (Équipe).
+          </p>
+        </div>
+
+        <div className="mt-6 max-w-lg">
           <p className="mb-2 text-sm font-medium text-ink-muted">Message de succès</p>
           <p className="mb-3 text-xs text-ink-faint">
             Affiché au demandeur une fois le formulaire envoyé. Laissez vide pour garder le message par défaut.
@@ -396,6 +416,7 @@ export default function ParametresAdhesionsPage() {
           if (settings) setSlug(settings.slug)
           setMessageSucces(messageSuccesInitial)
           if (settings) {
+            setNotifDemandes(settings.notif_demandes_adhesion)
             setRegleFin(settings.adhesion_regle_fin)
             setMoisBascule(settings.adhesion_mois_bascule)
           }

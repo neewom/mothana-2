@@ -17,6 +17,8 @@ interface AccountRow {
   role: 'admin' | 'contributeur'
   created_at: string
   is_banned: boolean
+  /** Reçoit l'email « Nouvelle demande d'adhésion » (soumettre-demande-adhesion). */
+  notif_demandes_adhesion: boolean
 }
 
 interface AdminAccountsManagerProps {
@@ -68,6 +70,24 @@ export default function AdminAccountsManager({
   const [adding, setAdding] = useState(false)
   const [banningId, setBanningId] = useState<string | null>(null)
   const [roleChangingId, setRoleChangingId] = useState<string | null>(null)
+  const [notifChangingId, setNotifChangingId] = useState<string | null>(null)
+
+  async function handleToggleNotif(account: AccountRow) {
+    const next = !account.notif_demandes_adhesion
+    setNotifChangingId(account.utilisateur_id)
+    setListError(null)
+    const { error: err } = await supabase.rpc('definir_notification_demandes', {
+      p_utilisateur_id: account.utilisateur_id,
+      p_organisation_id: organisationId,
+      p_actif: next,
+    })
+    setNotifChangingId(null)
+    if (err) {
+      setListError(err.message)
+      return
+    }
+    setAccounts((prev) => prev.map((a) => (a.utilisateur_id === account.utilisateur_id ? { ...a, notif_demandes_adhesion: next } : a)))
+  }
 
   useEffect(() => {
     fetchAccounts()
@@ -211,6 +231,17 @@ export default function AdminAccountsManager({
                   </div>
                   <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
                     {account.is_banned && <Badge variant="stamp">Désactivé</Badge>}
+                    <label className="flex items-center gap-1.5 font-registre text-xs text-ink-muted">
+                      <input
+                        type="checkbox"
+                        checked={account.notif_demandes_adhesion}
+                        onChange={() => void handleToggleNotif(account)}
+                        disabled={notifChangingId === account.utilisateur_id}
+                        aria-label={`Email des demandes d'adhésion pour ${account.nom_affiche ?? account.email}`}
+                        className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+                      />
+                      Email des demandes
+                    </label>
                     {canManageRoles && (
                       <Button
                         type="button"
