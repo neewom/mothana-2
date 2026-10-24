@@ -170,6 +170,7 @@ Source de vérité : `supabase/migrations/*.sql` (`docs/schema-mothana.sql` n'es
 - Ne jamais exposer la clé `service_role` côté client
 - Ne jamais commiter `.env`
 - Toute policy RLS organisation-scopée doit avoir le bypass super-admin sur select/insert/update/delete dès la première migration (pas seulement certaines opérations) — l'utilisateur teste habituellement en mode "Consulter" super-admin
+- **Garde d'autorisation dans une fonction SQL (RPC/trigger)** : toujours écrire `if not coalesce(<condition>, false) then raise exception …`. Les helpers d'identité (`current_user_organisation_id()`, `current_user_role()`, `is_current_user_super_admin()`) valent **NULL** pour une session sans `profils_organisation` (bénévole/vendeur) ou sans claim super-admin ; une garde `if not (<condition>)` vaut alors `if NULL`, qui **ne lève pas** l'exception → autorisation accordée à tort (faille inter-organisations trouvée le 2026-10-24 sur `get_org_admins`, en prod). Chaque fonction gardée doit avoir un **test SQL avec une session bénévole** vérifiant le refus.
 
 ---
 
