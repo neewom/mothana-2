@@ -3,10 +3,11 @@
 --   npx supabase db query --linked -f supabase/tests/notification_demandes_reglages.sql
 -- Tout se passe dans un bloc qui se termine par une exception : rien n'est conservé ; le
 -- message RESULTATS: liste chaque cas. Dépend de l'org « Association Démo Staging » (un admin
--- et un contributeur non désactivés), d'un admin d'une autre organisation et d'un super-admin.
+-- et un contributeur non désactivés, le compte bénévole), d'un admin d'une autre organisation
+-- et d'un super-admin.
 do $$
 declare
-  v_demo uuid; v_admin uuid; v_contrib uuid; v_admin_autre uuid; v_super uuid;
+  v_demo uuid; v_admin uuid; v_contrib uuid; v_admin_autre uuid; v_super uuid; v_benevole uuid;
   r text := '';
 begin
   select id into v_demo from public.organisations where nom = 'Association Démo Staging';
@@ -17,6 +18,7 @@ begin
   select po.utilisateur_id into v_admin_autre from public.profils_organisation po
     where po.organisation_id <> v_demo and po.role = 'admin' limit 1;
   select id into v_super from auth.users where (raw_app_meta_data ->> 'is_super_admin')::boolean limit 1;
+  select id into v_benevole from auth.users where email = 'benevole-' || v_demo || '@mothana.internal';
 
   execute 'set local role authenticated';
 
@@ -53,13 +55,27 @@ begin
   -- 6. Le rôle n'a pas bougé
   r := r || ' | 6.roles=' || (select string_agg(role, ',' order by role) from public.profils_organisation where utilisateur_id in (v_admin, v_contrib) and organisation_id = v_demo) || '(admin,contributeur)';
 
-  -- 7. Anonyme : pas d'accès
+  -- 7. Session bénévole (aucun profil d'organisation) : ni lecture des comptes, ni réglage
+  perform set_config('request.jwt.claims', json_build_object('sub', v_benevole,
+    'role', 'authenticated', 'app_metadata', json_build_object('role', 'benevole', 'organisation_id', v_demo))::text, true);
+  begin
+    perform public.get_org_admins(v_demo);
+    r := r || ' | 7.benevole_get_org_admins=ACCEPTE(KO)';
+  exception when others then r := r || ' | 7.benevole_get_org_admins=refuse';
+  end;
+  begin
+    perform public.definir_notification_demandes(v_contrib, v_demo, false);
+    r := r || ' benevole_definir=ACCEPTE(KO)';
+  exception when insufficient_privilege then r := r || ' benevole_definir=refuse';
+  end;
+
+  -- 8. Anonyme : pas d'accès
   execute 'reset role';
   execute 'set local role anon';
   begin
     perform public.definir_notification_demandes(v_contrib, v_demo, false);
-    r := r || ' | 7.anon=ACCEPTE(KO)';
-  exception when insufficient_privilege then r := r || ' | 7.anon=refuse';
+    r := r || ' | 8.anon=ACCEPTE(KO)';
+  exception when insufficient_privilege then r := r || ' | 8.anon=refuse';
   end;
 
   raise exception 'RESULTATS: %', r;

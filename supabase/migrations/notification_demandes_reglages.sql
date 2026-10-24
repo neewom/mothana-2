@@ -13,6 +13,8 @@
 --   - definir_notification_demandes : seule écriture du réglage d'un autre compte (pas d'UPDATE
 --     direct ouvert sur profils_organisation, qui porte le rôle) — le compte lui-même, un admin
 --     de la même organisation ou le super-admin.
+--   - Gardes en coalesce(…, false) (audit 2026-10-24) : get_org_admins laissait une session
+--     bénévole lire les comptes (emails) de toutes les organisations (défaut préexistant).
 begin;
 
 alter table public.organisations
@@ -28,9 +30,12 @@ CREATE FUNCTION public.get_org_admins(org_id uuid)
  SECURITY DEFINER
 AS $function$
 begin
-  if not (
+  -- coalesce (audit 2026-10-24) : sans profil d'organisation (session bénévole/vendeur), les
+  -- helpers renvoient NULL et « if not NULL » laissait passer — fuite des comptes de toute org.
+  if not coalesce(
     (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
-    or (current_user_role() = 'admin' and current_user_organisation_id() = org_id)
+    or (current_user_role() = 'admin' and current_user_organisation_id() = org_id),
+    false
   ) then
     raise exception 'Unauthorized';
   end if;
@@ -68,10 +73,12 @@ begin
   if p_actif is null then
     raise exception 'VALEUR_INVALIDE' using errcode = '22023';
   end if;
-  if not (
+  -- coalesce : garde strictement booléenne (NULL pour une session sans profil d'organisation).
+  if not coalesce(
     public.is_current_user_super_admin()
     or (auth.uid() = p_utilisateur_id and public.current_user_organisation_id() = p_organisation_id)
-    or (public.current_user_role() = 'admin' and public.current_user_organisation_id() = p_organisation_id)
+    or (public.current_user_role() = 'admin' and public.current_user_organisation_id() = p_organisation_id),
+    false
   ) then
     raise exception 'ACCES_REFUSE' using errcode = '42501';
   end if;
