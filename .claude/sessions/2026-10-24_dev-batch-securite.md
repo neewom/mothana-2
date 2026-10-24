@@ -16,9 +16,23 @@ Go utilisateur transmis par le lead tech pour 6 cartes (non empilé, PR vers `de
   - **Incident staging** : déploiement de la 2a depuis `dev` a écrasé #282/#278 quelques minutes (connexion bénévole cassée) → redéployé depuis une intégration locale `tmp/integration-secu-1-2a` (2a + #282 + #278). Mémoire ajoutée.
   - **En suspens** : `org_update_admin` (décision B, droits des contributeurs sur les paramètres).
 
+- **Carte 2, PR-b — RLS bénévole** : #285 (revue OK). 26 policies admin passent à `current_user_organisation_id()` ; `search_adherents_verification` en SECURITY DEFINER avec garde dans le WHERE. Tests SQL `rls_benevole.sql` + parcours bénévole 5174.
+- **Carte 2, PR-c — décision B** (utilisateur : paramètres en lecture seule pour les contributeurs) : #291 (revue OK). Écriture admin seule sur `organisations`, modèles reçus/cartes, visuels (table + bucket) ; UI lecture seule (`usePeutModifierParametres`, `LectureSeuleNotice`). **Merger #285 avant #291.** Carte 2 en To review (#284, #285, #291).
+- **Carte 4 — Gotenberg** : #286 (revue OK). `_shared/html.ts` (échappement de toutes les variables, `<br>` nus conservés pour l'objet social de WAT, timeouts). PDF démo identiques au pixel près. **JS actif aujourd'hui sur Gotenberg** : flags Railway à poser par l'utilisateur (carte identifiant).
+- **Carte 5a — fonctions publiques** : #287. Reset limité (IP 5/15 min → 429, adresse 3/h en silence, envoi en tâche de fond, `site_url` filtré) ; `auth.getUser` dans create-admin, disable-admin, delete-org-admins (preuve : session révoquée → 401). `SIMULATION_PAIEMENT_ACTIVE` absent en prod. `RESEND_WEBHOOK_SECRET` absent en prod (carte créée par le lead tech).
+- **Carte 6 — en-têtes HTTP** : #290 (revue OK). CSP par hôte, `frame-ancestors 'self'` (Safari bloquait nos aperçus PDF `blob:` avec `'none'`), Monaco sur jsDelivr à chemin versionné épinglé + test. 0 violation CSP (Chromium, WebKit).
+- **Carte 5b — webhook Brevo signé** (branche `fix/secu-webhook-brevo`, empilée sur #284 + #278, PR vers `fix/secu-rls-secrets`) : `organisation_secrets.brevo_webhook_secret`, URL `?org=…&secret=…`, comparaison en temps constant ; `register-brevo-webhook` met à jour le webhook existant (même id) et propose un mode `toutes_organisations` réservé à la clé service_role. Staging : seule l'org démo (clé de test) réenregistrée — **le mode global n'est pas lancé sur staging** : WAT et « Une nouvelle asso test » y ont une clé Brevo qui n'est pas celle de test.
+
 ## Reste à faire
-- Carte 2 : décision B puis PR-b (RLS bénévole) ; cartes 4 à 6.
-- Proposer au lead tech d'ajouter à AGENTS.md la règle « gardes SQL coalescées » (règle durable).
+- Revue de #287 et de la 5b par le lead tech ; merge ordonné du batch par le lead tech (#282 et #278 d'abord, #285 avant #291, 5b reciblée sur `dev` après #284).
+- Promotion : rejouer en prod `comptes_techniques_secret.sql`, déployer les fonctions, lancer le mode `toutes_organisations` de `register-brevo-webhook` juste après le déploiement de `brevo-bounce-webhook` (sinon les rebonds des orgs existantes sont refusés).
+- Hors code : flags Railway Gotenberg ; vérifier `curl -I` sur test.samakan.fr après merge de #290.
+
+## Décisions
+- B : paramètres en lecture seule pour les contributeurs (utilisateur, 2026-10-24).
+- Gotenberg : `<br>` nus conservés (lead tech) ; carte Backlog pour nettoyer l'objet social.
+- CSP : `frame-ancestors 'self'` et Monaco distant épinglé (lead tech) ; carte Backlog « bundler Monaco en local ».
+- Rate-limit de `simuler-achat-evenement` : abandonné dans ce batch (lead tech, fonction inerte en prod).
 
 ## Blockers
 - Aucun.

@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { classerRejet } from '../_shared/brevoRejets.ts'
+import { secretsEgaux } from '../_shared/webhookSecret.ts'
 
 // Reçoit les événements webhook Brevo (hard_bounce, invalid_email, blocked, error) sur les
 // campagnes mailing envoyées via send-mailing-brevo (API transactionnelle
@@ -7,9 +8,10 @@ import { classerRejet } from '../_shared/brevoRejets.ts'
 // adhérents invalides (bounce)". Enregistré automatiquement par
 // register-brevo-webhook dès qu'un admin configure sa clé API Brevo.
 //
-// Pas de vérification de signature (Brevo ne signe pas ses webhooks) :
-// sécurité par obscurité de l'URL (organisation_id en query, un UUID, même
-// posture que mailing_unsubscribe_token ailleurs dans ce projet).
+// Brevo ne signe pas ses webhooks : l'URL enregistrée par register-brevo-webhook porte un
+// secret aléatoire propre à l'organisation (?org=<uuid>&secret=<hex>, dans
+// organisation_secrets), vérifié ici avant tout traitement (audit sécurité 2026-10-24 :
+// l'UUID seul, public, permettait à n'importe qui de marquer des adresses invalides).
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,6 +46,24 @@ Deno.serve(async (req) => {
       })
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
+
+    const secretRecu = new URL(req.url).searchParams.get('secret')
+    const { data: secrets } = await adminClient
+      .from('organisation_secrets')
+      .select('brevo_webhook_secret')
+      .eq('organisation_id', organisationId)
+      .maybeSingle()
+    if (!secretsEgaux(secretRecu, secrets?.brevo_webhook_secret ?? null)) {
+      console.warn('brevo-bounce-webhook: secret absent ou invalide pour', organisationId)
+      return new Response(JSON.stringify({ error: 'Non autorisé' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const body = await req.json()
     const events: BrevoEvent[] = Array.isArray(body) ? body : [body]
 
@@ -65,10 +85,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const adminClient = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
 
     const maintenant = new Date().toISOString()
     for (const [email, { evenement, raison }] of aMarquer) {
