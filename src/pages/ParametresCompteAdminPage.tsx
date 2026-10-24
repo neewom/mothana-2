@@ -139,13 +139,14 @@ export default function ParametresCompteAdminPage() {
     setPwdSending(true)
     setPwdMessage(null)
 
-    await fetch(`${SUPABASE_URL}/functions/v1/request-password-reset`, {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/request-password-reset`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
       body: JSON.stringify({ email: auth.user.email, site_url: getCanonicalSiteUrl() }),
     })
+    const json = await res.json().catch(() => ({}))
 
-    setPwdMessage('Un email de réinitialisation vous a été envoyé.')
+    setPwdMessage(res.ok ? 'Un email de réinitialisation vous a été envoyé.' : json.error ?? "L'envoi a échoué, réessayez plus tard.")
     setPwdSending(false)
   }
 

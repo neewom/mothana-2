@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify caller is super-admin by decoding the JWT payload
+    // Appelant : super-admin ou admin, d'après son jeton vérifié ci-dessous
     const authHeader = req.headers.get('Authorization') ?? ''
     const token = authHeader.replace('Bearer ', '')
 
@@ -38,9 +38,23 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Decode JWT payload (base64url) without verifying the signature
-    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
-    const isSuperAdmin = payload?.app_metadata?.is_super_admin === true
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    })
+
+    // Audit sécurité 2026-10-24 : jeton vérifié par l'auth (l'ancien décodage base64 n'en
+    // contrôlait pas la signature).
+    const { data: { user: appelant }, error: appelantError } = await adminClient.auth.getUser(token)
+    if (appelantError || !appelant) {
+      return new Response(
+        JSON.stringify({ error: 'Session invalide' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+    const isSuperAdmin = appelant.app_metadata?.is_super_admin === true
 
     const { nom, email, organisation_id, site_url, role } = await req.json()
 
@@ -57,13 +71,6 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-
-    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false },
-    })
 
     // Super-admin : crée un admin ou un contributeur (paramètre role, admin
     // par défaut) dans l'organisation de son choix.
@@ -87,7 +94,7 @@ Deno.serve(async (req) => {
       const { data: callerProfil } = await adminClient
         .from('profils_organisation')
         .select('organisation_id, role')
-        .eq('utilisateur_id', payload.sub)
+        .eq('utilisateur_id', appelant.id)
         .eq('role', 'admin')
         .single()
 
