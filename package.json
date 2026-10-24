@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "lint:ds": "eslint -c eslint.ds.config.js --quiet src",
     "test": "vitest run",
+    "test:edge": "deno test --no-lock supabase/functions",
     "preview": "vite preview"
   },
   "dependencies": {
