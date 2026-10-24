@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { convertirHtmlEnPdf, escapeHtml, renderTemplate } from '../_shared/html.ts'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 
 const corsHeaders = {
@@ -128,10 +129,6 @@ function numberToWords(amount: number): string {
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
-function renderTemplate(html: string, values: Record<string, string>): string {
-  return html.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? '')
-}
-
 // Dupliqué de src/lib/modePaiement.ts — pas de partage de code direct avec le
 // frontend, cette Edge Function est un déployable Deno isolé.
 const MODE_PAIEMENT_LABELS: Record<number, string> = {
@@ -202,7 +199,7 @@ function buildDonsDetailHtml(dons: DonDetail[]): string {
 
   const rows = lignes
     .map(
-      (l) => `<tr><td>${l.evenement}</td><td>${formatMontant(l.montant)}</td><td>${l.dateOuNbMois}</td><td>${l.mode}</td></tr>`
+      (l) => `<tr><td>${escapeHtml(l.evenement)}</td><td>${formatMontant(l.montant)}</td><td>${escapeHtml(l.dateOuNbMois)}</td><td>${escapeHtml(l.mode)}</td></tr>`
     )
     .join('')
 
@@ -549,7 +546,7 @@ Deno.serve(async (req) => {
       ...assetPlaceholders,
     }
 
-    const bodyHtml = renderTemplate(template.html_template, placeholders)
+    const bodyHtml = renderTemplate(template.html_template, placeholders, new Set(['dons_detail']))
     const fullHtml = `<!doctype html><html><head><meta charset="utf-8"><style>${template.css ?? ''}</style></head><body>${bodyHtml}</body></html>`
 
     // ---------------------------------------------------------------------
@@ -559,10 +556,7 @@ Deno.serve(async (req) => {
     const gotenbergForm = new FormData()
     gotenbergForm.append('files', new Blob([fullHtml], { type: 'text/html' }), 'index.html')
 
-    const gotenbergRes = await fetch(`${gotenbergUrl}/forms/chromium/convert/html`, {
-      method: 'POST',
-      body: gotenbergForm,
-    })
+    const gotenbergRes = await convertirHtmlEnPdf(gotenbergUrl, gotenbergForm)
 
     if (!gotenbergRes.ok) {
       const detail = await gotenbergRes.text()
