@@ -143,7 +143,7 @@ export default function DemandesAdhesionPage() {
 
     // Reporté ensuite indépendamment par les bounces sur les campagnes mailing (brevo-bounce-webhook).
     if (ratifyingDemande.email_bounced_at) {
-      await supabase.from('adherents').update({ email_invalide_at: ratifyingDemande.email_bounced_at }).eq('id', adherent.id)
+      await supabase.from('adherents').update({ email_invalide_at: ratifyingDemande.email_bounced_at, email_invalide_evenement: 'confirmation_demande' }).eq('id', adherent.id)
     }
 
     showToast(`${demandeFullName(ratifyingDemande)} ratifié et ajouté aux adhérents`)

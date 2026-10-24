@@ -5,6 +5,7 @@ import { CIVILITE_ADHERENT_OPTIONS } from '../lib/civiliteAdherent'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
 import { generateUUID } from '../lib/uuid'
 import { libelleFinPrevue } from '../lib/adhesion'
+import { libelleRejetEmail } from '../lib/emailInvalide'
 import { useRegleAdhesion } from '../hooks/useRegleAdhesion'
 import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '../lib/textFormat'
 import { COUNTRIES } from '../lib/countries'
@@ -104,6 +105,24 @@ export default function AdherentModal({
   // Premier cycle (création uniquement)
   const [dateDebut, setDateDebut] = useState(today())
   const regleAdhesion = useRegleAdhesion(organisationId)
+  // Raison du rejet (colonnes absentes des lignes de search_adherents : chargées ici).
+  const [rejetEmail, setRejetEmail] = useState<string | null>(null)
+  useEffect(() => {
+    setRejetEmail(null)
+    if (!open || !adherent?.id || !adherent.email_invalide_at) return
+    let cancelled = false
+    supabase
+      .from('adherents')
+      .select('email_invalide_evenement, email_invalide_raison')
+      .eq('id', adherent.id)
+      .single()
+      .then(({ data }) => {
+        if (!cancelled && data) setRejetEmail(libelleRejetEmail(data.email_invalide_evenement, data.email_invalide_raison))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, adherent?.id, adherent?.email_invalide_at])
   const [montantCotisation, setMontantCotisation] = useState('')
   const [modePaiement, setModePaiement] = useState<ModePaiement | ''>('')
   const [datePaiementCotisation, setDatePaiementCotisation] = useState('')
@@ -508,9 +527,14 @@ export default function AdherentModal({
               />
               {courrielInvalid && <p className="font-registre-mono text-[11px] text-stamp">Format d'email invalide.</p>}
               {!courrielInvalid && adherent?.email_invalide_at && (
-                <p className="font-registre-mono text-[11px] text-warning">
-                  Email invalide — un envoi précédent à cette adresse n'a pas pu être délivré (mis à jour si vous corrigez l'adresse).
-                </p>
+                <div className="font-registre-mono text-[11px] text-warning">
+                  <p>Email invalide — un envoi précédent à cette adresse n'a pas pu être délivré (mis à jour si vous corrigez l'adresse).</p>
+                  {rejetEmail && (
+                    <p className="mt-0.5">
+                      {rejetEmail} · le {new Date(adherent.email_invalide_at).toLocaleDateString('fr-FR')}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 
