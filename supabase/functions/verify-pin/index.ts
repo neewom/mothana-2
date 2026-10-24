@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { hashClientIp } from '../_shared/rateLimit.ts'
+import { secretAleatoire } from '../_shared/secretAleatoire.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -123,10 +124,11 @@ Deno.serve(async (req) => {
     const accountEmail = `${roleConfig.emailPrefix}-${org.id}@mothana.internal`
     const appMetadata = { role, organisation_id: org.id }
 
-    // 2. Ensure the dedicated PIN-role Auth account exists (idempotent)
+    // 2. Compte technique du rôle (idempotent). Son mot de passe est un aléa jamais conservé :
+    // deviner le PIN sur l'auth Supabase ne donne rien (audit sécurité 2026-10-24).
     const { error: createError } = await adminClient.auth.admin.createUser({
       email: accountEmail,
-      password: pin,
+      password: secretAleatoire(),
       email_confirm: true,
       app_metadata: appMetadata,
     })
@@ -136,19 +138,33 @@ Deno.serve(async (req) => {
       console.error('createUser:', createError.message)
     }
 
-    // 3. Sign in as the dedicated account using the PIN as password
-    // Use a plain client (anon key) for signInWithPassword
+    // 3. Session par lien magique admin (aucun email envoyé), jamais par mot de passe.
     const anonClient = createClient(supabaseUrl, anonKey, {
       auth: { persistSession: false },
     })
 
-    let signInData = await anonClient.auth.signInWithPassword({
-      email: accountEmail,
-      password: pin,
-    })
+    async function ouvrirSession() {
+      const { data: lien, error: lienError } = await adminClient.auth.admin.generateLink({
+        type: 'magiclink',
+        email: accountEmail,
+      })
+      if (lienError || !lien.properties?.hashed_token) {
+        console.error('generateLink:', lienError?.message)
+        return null
+      }
+      const { data, error } = await anonClient.auth.verifyOtp({
+        token_hash: lien.properties.hashed_token,
+        type: 'magiclink',
+      })
+      if (error || !data.session || !data.user) {
+        console.error('verifyOtp:', error?.message)
+        return null
+      }
+      return { session: data.session, user: data.user }
+    }
 
-    if (signInData.error || !signInData.data.session) {
-      console.error('signInWithPassword:', signInData.error?.message)
+    let connexion = await ouvrirSession()
+    if (!connexion) {
       return new Response(
         JSON.stringify({ error: 'Erreur de connexion' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -158,26 +174,21 @@ Deno.serve(async (req) => {
     // The account may already have existed before app_metadata was introduced
     // (or with a stale organisation_id/role) — createUser above silently no-ops
     // on "already registered", so app_metadata never gets fixed up on its own.
-    // Self-heal here: if it's wrong, correct it and re-sign-in so the returned
-    // token actually carries the right claims (a JWT's claims are fixed at
-    // issuance — updating the user record after the fact doesn't change a
+    // Self-heal here: if it's wrong, correct it and open a new session so the
+    // returned token actually carries the right claims (a JWT's claims are fixed
+    // at issuance — updating the user record after the fact doesn't change a
     // token already handed out).
-    const currentMetadata = signInData.data.user.app_metadata
+    const currentMetadata = connexion.user.app_metadata
     const metadataStale =
       currentMetadata?.role !== role || currentMetadata?.organisation_id !== org.id
 
     if (metadataStale) {
-      await adminClient.auth.admin.updateUserById(signInData.data.user.id, {
+      await adminClient.auth.admin.updateUserById(connexion.user.id, {
         app_metadata: appMetadata,
       })
 
-      signInData = await anonClient.auth.signInWithPassword({
-        email: accountEmail,
-        password: pin,
-      })
-
-      if (signInData.error || !signInData.data.session) {
-        console.error('signInWithPassword (post-fixup):', signInData.error?.message)
+      connexion = await ouvrirSession()
+      if (!connexion) {
         return new Response(
           JSON.stringify({ error: 'Erreur de connexion' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -187,8 +198,8 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        access_token: signInData.data.session.access_token,
-        refresh_token: signInData.data.session.refresh_token,
+        access_token: connexion.session.access_token,
+        refresh_token: connexion.session.refresh_token,
         organisation_id: org.id,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

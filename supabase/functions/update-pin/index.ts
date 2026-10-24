@@ -1,13 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
+import { pinAleatoire, secretAleatoire } from '../_shared/secretAleatoire.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-function generatePin(): string {
-  return String(Math.floor(100000 + Math.random() * 900000))
 }
 
 type PinRole = 'benevole' | 'vendeur'
@@ -76,7 +73,7 @@ Deno.serve(async (req) => {
     const organisationId = resolved.organisationId
 
     // Generate a PIN that doesn't already exist in another org
-    let newPin = generatePin()
+    let newPin = pinAleatoire()
     let attempts = 0
 
     while (attempts < 10) {
@@ -88,7 +85,7 @@ Deno.serve(async (req) => {
         .single()
 
       if (!existing) break
-      newPin = generatePin()
+      newPin = pinAleatoire()
       attempts++
     }
 
@@ -106,24 +103,25 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Update the dedicated Auth account password when it already exists.
+    // Rotation réelle (audit sécurité 2026-10-24) : le compte technique est retrouvé par son
+    // email (plus de listUsers, paginé à 50), ses sessions sont révoquées et son mot de passe
+    // redevient un aléa inconnu. Un access token déjà émis expire de lui-même (1 h).
     const accountEmail = `${roleConfig.emailPrefix}-${organisationId}@mothana.internal`
-
-    // Find the user by email
-    const { data: { users }, error: listErr } = await adminClient.auth.admin.listUsers()
-
-    if (!listErr) {
-      const pinUser = users.find((u) => u.email === accountEmail)
-      if (pinUser) {
-        const { error: updateAuthErr } = await adminClient.auth.admin.updateUserById(
-          pinUser.id,
-          { password: newPin },
-        )
-        if (updateAuthErr) {
-          console.error('update PIN auth password:', updateAuthErr)
-          // Non-blocking: PIN in DB is updated, log and continue
-        }
-      }
+    const { data: compteId, error: revokeErr } = await adminClient.rpc('revoquer_sessions_compte_technique', {
+      p_email: accountEmail,
+    })
+    if (revokeErr) {
+      console.error('revoquer_sessions_compte_technique:', revokeErr.message)
+      return new Response(
+        JSON.stringify({ error: 'PIN changé, mais les sessions existantes n\'ont pas pu être coupées : réessayez.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+    if (compteId) {
+      const { error: updateAuthErr } = await adminClient.auth.admin.updateUserById(compteId as string, {
+        password: secretAleatoire(),
+      })
+      if (updateAuthErr) console.error('update technical account password:', updateAuthErr.message)
     }
 
     return new Response(
