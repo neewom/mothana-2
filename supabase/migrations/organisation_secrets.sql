@@ -114,11 +114,16 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-  select public.is_current_user_super_admin()
+  -- coalesce : sans profil d'organisation (session bénévole/vendeur), les helpers renvoient
+  -- NULL et « if not NULL » ne refuse rien — toujours un booléen strict.
+  select coalesce(
+    public.is_current_user_super_admin()
     or (
       p_organisation_id = public.current_user_organisation_id()
       and (not p_admin_seulement or public.current_user_role() = 'admin')
-    );
+    ),
+    false
+  );
 $$;
 
 revoke all on function public.peut_gerer_secrets(uuid, boolean) from public, anon;
