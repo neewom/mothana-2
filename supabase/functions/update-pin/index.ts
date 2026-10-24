@@ -73,6 +73,14 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Codes PIN réservés au rôle admin (et au super-admin en mode Consulter) — audit 2026-10-24.
+    if (resolved.role === 'contributeur') {
+      return new Response(
+        JSON.stringify({ error: 'Acces refuse' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
     const organisationId = resolved.organisationId
 
     // Generate a PIN that doesn't already exist in another org
@@ -81,22 +89,21 @@ Deno.serve(async (req) => {
 
     while (attempts < 10) {
       const { data: existing } = await adminClient
-        .from('organisations')
-        .select('id')
+        .from('organisation_secrets')
+        .select('organisation_id')
         .eq(roleConfig.column, newPin)
-        .neq('id', organisationId)
-        .single()
+        .neq('organisation_id', organisationId)
+        .maybeSingle()
 
       if (!existing) break
       newPin = generatePin()
       attempts++
     }
 
-    // Update organisation PIN
+    // Update organisation PIN (organisation_secrets : plus lisible par les membres)
     const { error: updateOrgErr } = await adminClient
-      .from('organisations')
-      .update({ [roleConfig.column]: newPin })
-      .eq('id', organisationId)
+      .from('organisation_secrets')
+      .upsert({ organisation_id: organisationId, [roleConfig.column]: newPin, updated_at: new Date().toISOString() }, { onConflict: 'organisation_id' })
 
     if (updateOrgErr) {
       console.error('update org:', updateOrgErr)

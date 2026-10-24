@@ -52,10 +52,6 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function generatePin(): string {
-  return String(Math.floor(100000 + Math.random() * 900000))
-}
-
 function sanitizeForCsv(rows: Record<string, unknown>[]): Record<string, string | number>[] {
   return rows.map((row) => {
     const out: Record<string, string | number> = {}
@@ -136,7 +132,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
 
       const { data: newOrg, error: err } = await supabase
         .from('organisations')
-        .insert({ nom, code_pin_benevole: generatePin(), slug })
+        .insert({ nom, slug })
         .select('id')
         .single()
       if (err) {
@@ -366,8 +362,13 @@ export default function SuperAdminPage() {
     // 1. All organisations
     const { data: orgsData, error: orgsErr } = await supabase
       .from('organisations')
-      .select('id, nom, code_pin_benevole, created_at, fonctionnalites_activees, archived_at')
+      .select('id, nom, created_at, fonctionnalites_activees, archived_at')
       .order('created_at', { ascending: false })
+
+    // PIN bénévole de chaque organisation (organisation_secrets, RPC réservée au super-admin) ;
+    // une nouvelle organisation reçoit le sien en base (trg_organisations_creer_secrets).
+    const { data: pinsData } = await supabase.rpc('codes_pin_benevole_organisations')
+    const pinParOrg = new Map(((pinsData ?? []) as { organisation_id: string; code_pin_benevole: string | null }[]).map((p) => [p.organisation_id, p.code_pin_benevole]))
 
     if (orgsErr || !orgsData) {
       setError(orgsErr?.message ?? 'Erreur de chargement')
@@ -437,7 +438,7 @@ export default function SuperAdminPage() {
     const rows: OrgRow[] = orgsData.map((o) => ({
       id: o.id,
       nom: o.nom,
-      code_pin_benevole: o.code_pin_benevole,
+      code_pin_benevole: pinParOrg.get(o.id) ?? null,
       created_at: o.created_at,
       archived_at: o.archived_at,
       fonctionnalites_activees: {
