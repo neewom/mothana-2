@@ -66,11 +66,12 @@ Deno.serve(async (req) => {
     const resolved = await resolveOrganisationId(adminClient, user, organisation_id)
     if (!resolved) return jsonResponse({ error: 'Accès refusé' }, 403)
 
+    // Clé API dans organisation_secrets (plus lisible par les membres).
     const { data: org } = await adminClient
-      .from('organisations')
+      .from('organisation_secrets')
       .select('brevo_api_key')
-      .eq('id', resolved.organisationId)
-      .single()
+      .eq('organisation_id', resolved.organisationId)
+      .maybeSingle()
 
     if (!org?.brevo_api_key) {
       return jsonResponse({ skipped: true, reason: 'Pas de clé API Brevo configurée' })

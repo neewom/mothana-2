@@ -245,7 +245,8 @@ export default function AdminLayout() {
   const isSuperAdminViewing = auth.type === 'super_admin'
   const navCounters = useLoadNavCounters(organisationId, fonctionnalitesActivees)
   const canManageTeam = auth.type === 'admin' && auth.role === 'admin'
-  const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES, navCounters, { canManageTeam })
+  const canManageSecrets = isSuperAdminViewing || canManageTeam
+  const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES, navCounters, { canManageTeam, canManageSecrets })
   const location = useLocation()
 
   // Ferme le tiroir mobile à chaque changement de page (y compris une navigation confirmée

@@ -100,12 +100,15 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Service temporairement indisponible' }, 503)
     }
 
-    // 1. Verify PIN → resolve organisation
-    const { data: org, error: orgError } = await adminClient
-      .from('organisations')
-      .select('id, archived_at')
+    // 1. Verify PIN → resolve organisation (PIN lus dans organisation_secrets, service_role)
+    const { data: secret } = await adminClient
+      .from('organisation_secrets')
+      .select('organisation_id')
       .eq(roleConfig.column, pin)
-      .single()
+      .maybeSingle()
+    const { data: org, error: orgError } = secret
+      ? await adminClient.from('organisations').select('id, archived_at').eq('id', secret.organisation_id).single()
+      : { data: null, error: null }
 
     if (orgError || !org) {
       return new Response(

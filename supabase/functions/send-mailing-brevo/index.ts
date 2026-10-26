@@ -142,11 +142,12 @@ Deno.serve(async (req) => {
     // 1. Config Brevo de l'organisation
     // ---------------------------------------------------------------------
 
-    const { data: org } = await adminClient
-      .from('organisations')
-      .select('brevo_api_key, brevo_expediteur_nom, brevo_expediteur_email')
-      .eq('id', organisationId)
-      .single()
+    // Clé API dans organisation_secrets (plus lisible par les membres), expéditeur dans organisations.
+    const [{ data: expediteur }, { data: secret }] = await Promise.all([
+      adminClient.from('organisations').select('brevo_expediteur_nom, brevo_expediteur_email').eq('id', organisationId).single(),
+      adminClient.from('organisation_secrets').select('brevo_api_key').eq('organisation_id', organisationId).maybeSingle(),
+    ])
+    const org = expediteur ? { ...expediteur, brevo_api_key: secret?.brevo_api_key ?? null } : null
 
     if (!org?.brevo_api_key || !org.brevo_expediteur_nom || !org.brevo_expediteur_email) {
       return jsonResponse(
