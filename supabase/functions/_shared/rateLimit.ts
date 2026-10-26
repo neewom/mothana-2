@@ -6,7 +6,9 @@ function clientIp(req: Request): string {
     || 'unknown'
 }
 
-export async function hashClientIp(req: Request): Promise<string> {
+// Empreinte HMAC d'une valeur (IP, email normalisé…) : la table de limitation ne stocke
+// jamais la valeur elle-même.
+export async function hashValeur(valeur: string): Promise<string> {
   const keyValue = Deno.env.get('PORTEFEUILLE_RATE_LIMIT_KEY')
   if (!keyValue) throw new Error('RATE_LIMIT_KEY_MISSING')
 
@@ -20,10 +22,14 @@ export async function hashClientIp(req: Request): Promise<string> {
   const signature = await crypto.subtle.sign(
     'HMAC',
     key,
-    new TextEncoder().encode(clientIp(req)),
+    new TextEncoder().encode(valeur),
   )
   return Array.from(
     new Uint8Array(signature),
     (byte) => byte.toString(16).padStart(2, '0'),
   ).join('')
+}
+
+export function hashClientIp(req: Request): Promise<string> {
+  return hashValeur(clientIp(req))
 }

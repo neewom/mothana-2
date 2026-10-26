@@ -7,18 +7,14 @@ import { Label } from './ui/label'
 import { cn } from '../lib/utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 
-export interface BrevoConfigValues {
-  apiKey: string
-  expediteurNom: string
-  expediteurEmail: string
-}
+import type { EtatConfigBrevo } from '../lib/brevoConfig'
 
 interface BrevoConfigModalProps {
   open: boolean
   onClose: () => void
-  onSaved: (values: BrevoConfigValues) => void
+  onSaved: (values: EtatConfigBrevo) => void
   organisationId: string
-  initial: BrevoConfigValues
+  initial: EtatConfigBrevo
 }
 
 // Config Brevo sortie de CampagneMailingPage.tsx vers une modale dédiée
@@ -26,8 +22,10 @@ interface BrevoConfigModalProps {
 // une fois configuré. "Enregistrer" ne s'affiche que si au moins un champ
 // diffère des valeurs chargées (state "dirty") — pas de bouton visible sans
 // modification, "Annuler" ne sauvegarde jamais partiellement.
+// La clé enregistrée n'est jamais relue (audit sécurité 2026-10-24) : le champ part vide, et le
+// laisser vide conserve la clé existante ; enregistrement par la RPC definir_config_brevo.
 export default function BrevoConfigModal({ open, onClose, onSaved, organisationId, initial }: BrevoConfigModalProps) {
-  const [apiKey, setApiKey] = useState(initial.apiKey)
+  const [apiKey, setApiKey] = useState('')
   const [expediteurNom, setExpediteurNom] = useState(initial.expediteurNom)
   const [expediteurEmail, setExpediteurEmail] = useState(initial.expediteurEmail)
   const [saving, setSaving] = useState(false)
@@ -35,14 +33,14 @@ export default function BrevoConfigModal({ open, onClose, onSaved, organisationI
 
   useEffect(() => {
     if (open) {
-      setApiKey(initial.apiKey)
+      setApiKey('')
       setExpediteurNom(initial.expediteurNom)
       setExpediteurEmail(initial.expediteurEmail)
       setError(null)
     }
   }, [open, initial])
 
-  const dirty = apiKey !== initial.apiKey || expediteurNom !== initial.expediteurNom || expediteurEmail !== initial.expediteurEmail
+  const dirty = apiKey.trim() !== '' || expediteurNom !== initial.expediteurNom || expediteurEmail !== initial.expediteurEmail
   const emailInvalid = expediteurEmail.trim() !== '' && !isValidEmail(expediteurEmail)
 
   async function handleSubmit(e: FormEvent) {
@@ -56,14 +54,12 @@ export default function BrevoConfigModal({ open, onClose, onSaved, organisationI
 
     setSaving(true)
 
-    const { error: err } = await supabase
-      .from('organisations')
-      .update({
-        brevo_api_key: apiKey.trim() || null,
-        brevo_expediteur_nom: expediteurNom.trim() || null,
-        brevo_expediteur_email: expediteurEmail.trim() || null,
-      })
-      .eq('id', organisationId)
+    const { error: err } = await supabase.rpc('definir_config_brevo', {
+      p_organisation_id: organisationId,
+      p_cle: apiKey.trim() || null,
+      p_expediteur_nom: expediteurNom.trim(),
+      p_expediteur_email: expediteurEmail.trim(),
+    })
 
     setSaving(false)
 
@@ -89,7 +85,7 @@ export default function BrevoConfigModal({ open, onClose, onSaved, organisationI
       })
     }
 
-    onSaved({ apiKey, expediteurNom, expediteurEmail })
+    onSaved({ cleConfiguree: initial.cleConfiguree || apiKey.trim() !== '', expediteurNom: expediteurNom.trim(), expediteurEmail: expediteurEmail.trim() })
     onClose()
   }
 
@@ -144,7 +140,8 @@ export default function BrevoConfigModal({ open, onClose, onSaved, organisationI
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="xkeysib-…"
+                placeholder={initial.cleConfiguree ? 'Clé enregistrée — laisser vide pour la conserver' : 'xkeysib-…'}
+                autoComplete="off"
               />
             </div>
             <div className="space-y-1.5">

@@ -7,6 +7,7 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import { getCanonicalSiteUrl } from '../lib/environment'
 import { classifyMailingRecipients, type MailingRecipientGroups } from '../lib/mailingRecipients'
 import { fetchAllRows } from '../lib/fetchAllRows'
+import { brevoConfigure, chargerEtatConfigBrevo } from '../lib/brevoConfig'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import ScrollShadowX from '../components/ScrollShadowX'
@@ -33,11 +34,6 @@ function parseEnvoyerA(value: string): { filtreStatut: FiltreStatut; tagEnvoi: s
   return { filtreStatut: rest as FiltreStatut, tagEnvoi: null }
 }
 
-interface BrevoConfig {
-  brevo_api_key: string | null
-  brevo_expediteur_nom: string | null
-  brevo_expediteur_email: string | null
-}
 
 interface Campagne {
   id: string
@@ -279,14 +275,9 @@ export default function CampagneMailingPage() {
     if (!organisationId) return
     async function fetchConfig() {
       setConfigLoading(true)
-      const { data } = await supabase
-        .from('organisations')
-        .select('brevo_api_key, brevo_expediteur_nom, brevo_expediteur_email')
-        .eq('id', organisationId)
-        .single()
-
-      const raw = data as BrevoConfig | null
-      setConfigured(!!(raw?.brevo_api_key && raw.brevo_expediteur_nom && raw.brevo_expediteur_email))
+      // État seulement : la clé API n'est jamais renvoyée au navigateur.
+      const etat = await chargerEtatConfigBrevo(organisationId)
+      setConfigured(etat !== null && brevoConfigure(etat))
       setConfigLoading(false)
     }
     fetchConfig()

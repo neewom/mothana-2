@@ -1,33 +1,35 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { classerRejet } from '../_shared/brevoRejets.ts'
+import { secretsEgaux } from '../_shared/webhookSecret.ts'
 
-// Reçoit les événements webhook Brevo (hardBounce / invalid_email) sur les
+// Reçoit les événements webhook Brevo (hard_bounce, invalid_email, blocked, error) sur les
 // campagnes mailing envoyées via send-mailing-brevo (API transactionnelle
 // Brevo /v3/smtp/email). Volet 2 de la carte Trello "Détection d'emails
 // adhérents invalides (bounce)". Enregistré automatiquement par
 // register-brevo-webhook dès qu'un admin configure sa clé API Brevo.
 //
-// Pas de vérification de signature (Brevo ne signe pas ses webhooks) :
-// sécurité par obscurité de l'URL (organisation_id en query, un UUID, même
-// posture que mailing_unsubscribe_token ailleurs dans ce projet).
+// Brevo ne signe pas ses webhooks : l'URL enregistrée par register-brevo-webhook porte un
+// secret aléatoire propre à l'organisation (?org=<uuid>&secret=<hex>, dans
+// organisation_secrets), vérifié ici avant tout traitement (audit sécurité 2026-10-24 :
+// l'UUID seul, public, permettait à n'importe qui de marquer des adresses invalides).
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// "invalid" et non "invalid_email" — nom d'événement confirmé côté API
-// Brevo en testant register-brevo-webhook (channel webhook transactionnel).
-// "blocked" ajouté sur hypothèse (domaine sans DNS/MX), puis "error" ajouté
-// après coup (2026-09-10) : le journal Transactionnel Brevo montre que le
-// vrai événement pour un domaine sans DNS/MX (ex. @exemple.fr) est "Erreur"
-// (event "error"), pas "blocked" — hypothèse initiale invalidée par un test
-// réel. "blocked" laissé souscrit par prudence (autre cas plausible : compte
-// suppression list après bounces antérieurs).
-const BOUNCE_EVENTS = ['hardBounce', 'invalid', 'blocked', 'error']
+// Tri des événements par `classerRejet` (_shared/brevoRejets.ts) : hard bounce et adresse
+// invalide marquent toujours ; blocked / error seulement si la raison ne met pas en cause
+// l'expéditeur, le domaine d'envoi ou le compte Brevo. Correction du 2026-10-23 : les `error`
+// du 2026-09-10 (@exemple.fr), pris pour des domaines sans MX, étaient en fait des refus
+// d'expéditeur non validé ; le vrai « MX introuvable » arrive en softBounce (non souscrit).
+// Noms d'événement : le payload utilise hard_bounce / invalid_email (constaté en prod : aucun
+// hardBounce n'avait jamais été marqué) ; les deux formes sont acceptées.
 
 interface BrevoEvent {
   event?: string
   email?: string
+  reason?: string
 }
 
 Deno.serve(async (req) => {
@@ -44,41 +46,64 @@ Deno.serve(async (req) => {
       })
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
+
+    const secretRecu = new URL(req.url).searchParams.get('secret')
+    const { data: secrets } = await adminClient
+      .from('organisation_secrets')
+      .select('brevo_webhook_secret')
+      .eq('organisation_id', organisationId)
+      .maybeSingle()
+    if (!secretsEgaux(secretRecu, secrets?.brevo_webhook_secret ?? null)) {
+      console.warn('brevo-bounce-webhook: secret absent ou invalide pour', organisationId)
+      return new Response(JSON.stringify({ error: 'Non autorisé' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const body = await req.json()
     const events: BrevoEvent[] = Array.isArray(body) ? body : [body]
-    const emailsInvalides = [
-      ...new Set(
-        events
-          .filter((e) => e.event && BOUNCE_EVENTS.includes(e.event) && e.email)
-          .map((e) => e.email as string),
-      ),
-    ]
 
-    if (emailsInvalides.length === 0) {
+    // Une décision par adresse (la dernière reçue l'emporte).
+    const aMarquer = new Map<string, { evenement: string; raison: string | null }>()
+    for (const e of events) {
+      if (!e.email) continue
+      const decision = classerRejet(e.event, e.reason)
+      if (decision.marquer) {
+        aMarquer.set(e.email, { evenement: decision.evenement, raison: decision.raison })
+      } else if (decision.motif === 'cote_expediteur') {
+        // Jamais imputé au destinataire : à corriger côté expéditeur / compte Brevo.
+        console.warn('brevo-bounce-webhook: rejet côté expéditeur ignoré', e.event, e.reason)
+      }
+    }
+
+    if (aMarquer.size === 0) {
       return new Response(JSON.stringify({ skipped: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const adminClient = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
+    const maintenant = new Date().toISOString()
+    for (const [email, { evenement, raison }] of aMarquer) {
+      const { error } = await adminClient
+        .from('adherents')
+        .update({ email_invalide_at: maintenant, email_invalide_evenement: evenement, email_invalide_raison: raison })
+        .eq('organisation_id', organisationId)
+        .eq('courriel', email)
 
-    const { error } = await adminClient
-      .from('adherents')
-      .update({ email_invalide_at: new Date().toISOString() })
-      .eq('organisation_id', organisationId)
-      .in('courriel', emailsInvalides)
-
-    if (error) {
-      console.error('adherents update error:', error)
-      return new Response(JSON.stringify({ error: 'Erreur serveur' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      if (error) {
+        console.error('adherents update error:', error)
+        return new Response(JSON.stringify({ error: 'Erreur serveur' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
     }
 
-    return new Response(JSON.stringify({ ok: true, emails: emailsInvalides.length }), {
+    return new Response(JSON.stringify({ ok: true, emails: aMarquer.size }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
