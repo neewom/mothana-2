@@ -44,6 +44,8 @@ export default function TemplateRecuPreviewModal({
         <div className="flex-1 overflow-y-auto p-6">
           <iframe
             title={`Aperçu du template ${nom}`}
+            // Aperçu d'un modèle saisi par un membre : aucun script, aucune origine (audit sécurité 2026-10-24).
+            sandbox=""
             srcDoc={renderCerfaPreviewHtml(htmlTemplate, css, dynamicPlaceholders)}
             className="h-[70dvh] w-full rounded-sm border border-paper-border"
           />

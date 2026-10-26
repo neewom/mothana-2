@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { sendViaResend } from '../_shared/resend.ts'
 
 // Self-service uniquement : tout compte connecté (admin ou contributeur)
-// peut changer sa propre adresse email, pas de check de rôle. Ce projet
+// peut changer sa propre adresse email — sauf les comptes techniques bénévole/vendeur. Ce projet
 // n'utilise pas l'envoi automatique Supabase pour les emails d'auth (voir
 // create-admin/request-password-reset) — même pattern ici : generateLink +
 // Resend. On envoie un lien de confirmation à l'ancienne ET à la nouvelle
@@ -43,14 +43,30 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Decode JWT payload (base64url) without verifying the signature
-    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
-    const currentEmail = payload?.email as string | undefined
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-    if (!currentEmail) {
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    })
+
+    // Jeton vérifié par l'auth (l'ancien décodage base64 n'en contrôlait pas la signature).
+    const { data: { user }, error: userError } = await adminClient.auth.getUser(token)
+    const currentEmail = user?.email
+
+    if (userError || !user || !currentEmail) {
       return new Response(
         JSON.stringify({ error: 'Session invalide' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // Comptes techniques bénévole/vendeur : adresse interne, jamais modifiable (audit 2026-10-24).
+    const roleTechnique = user.app_metadata?.role
+    if (roleTechnique === 'benevole' || roleTechnique === 'vendeur') {
+      return new Response(
+        JSON.stringify({ error: 'Changement d\'adresse non autorisé pour ce compte' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
@@ -69,13 +85,6 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-
-    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false },
-    })
 
     const redirectTo = `${site_url}/admin/parametres/compte?email_change=confirme`
 

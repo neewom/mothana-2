@@ -49,6 +49,27 @@ interface AdherentDestinataire {
   email_invalide_at: string | null
 }
 
+/** 'valide' | 'non_valide' (Brevo a répondu : expéditeur absent ou inactif) | 'impossible'. */
+async function verifierExpediteur(apiKey: string, email: string): Promise<'valide' | 'non_valide' | 'impossible'> {
+  try {
+    const res = await fetch('https://api.brevo.com/v3/senders', {
+      headers: { 'api-key': apiKey, Accept: 'application/json' },
+    })
+    if (!res.ok) {
+      console.warn('send-mailing-brevo: GET /v3/senders', res.status)
+      return 'impossible'
+    }
+    const { senders } = (await res.json()) as { senders?: { email?: string; active?: boolean }[] }
+    const cible = email.trim().toLowerCase()
+    return (senders ?? []).some((s) => s.email?.trim().toLowerCase() === cible && s.active === true)
+      ? 'valide'
+      : 'non_valide'
+  } catch (err) {
+    console.warn('send-mailing-brevo: GET /v3/senders failed', String(err))
+    return 'impossible'
+  }
+}
+
 function unsubscribeFooterHtml(): string {
   return `<hr style="margin-top:32px;border:none;border-top:1px solid #e2e8f0;" />
 <p style="margin-top:16px;font-size:11px;color:#94a3b8;">
@@ -133,6 +154,25 @@ Deno.serve(async (req) => {
         { error: "Configuration Brevo incomplète pour votre organisation. Renseignez la clé API et l'expéditeur." },
         422,
       )
+    }
+
+    // Expéditeur vérifié chez Brevo (cadré 2026-10-23) : un expéditeur non validé fait rejeter
+    // l'envoi par Brevo, destinataire par destinataire. Refus seulement si Brevo répond et que
+    // l'expéditeur est absent ou inactif ; si la vérification est impossible (clé API à
+    // permissions restreintes → 403, 401, 5xx, réseau), l'envoi part quand même —
+    // brevo-bounce-webhook ne marque de toute façon pas les rejets côté expéditeur.
+    const verification = await verifierExpediteur(org.brevo_api_key, org.brevo_expediteur_email)
+    if (verification === 'non_valide') {
+      return jsonResponse(
+        {
+          error: `L'expéditeur ${org.brevo_expediteur_email} n'est pas validé dans Brevo : validez-le ou authentifiez votre domaine, puis réessayez.`,
+          code: 'EXPEDITEUR_NON_VALIDE',
+        },
+        422,
+      )
+    }
+    if (verification === 'impossible') {
+      console.warn('send-mailing-brevo: vérification de l\'expéditeur impossible, envoi maintenu')
     }
 
     // ---------------------------------------------------------------------

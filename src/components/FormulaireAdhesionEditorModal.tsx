@@ -236,6 +236,8 @@ export default function FormulaireAdhesionEditorModal({
                   </div>
                   <iframe
                     title="Aperçu du formulaire d'adhésion"
+                    // Aperçu d'un modèle saisi par un membre : aucun script, aucune origine (audit sécurité 2026-10-24).
+                    sandbox=""
                     srcDoc={previewHtml}
                     className="min-h-[160px] w-full flex-1 rounded-sm border border-paper-border"
                   />

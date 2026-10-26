@@ -35,6 +35,9 @@ interface BrevoWebhook {
 // pour ce cas précis, pas "blocked". Les 3 restent souscrits par prudence
 // (aucun des trois ne fait de mal à être activé), "error" ajouté comme le
 // vrai signal confirmé pour ce cas.
+// Correction 2026-10-23 : les `error` observés étaient des refus d'expéditeur non validé, pas
+// des domaines sans MX (qui arrivent en softBounce, non souscrit) ; brevo-bounce-webhook trie
+// désormais blocked / error selon la raison (_shared/brevoRejets.ts).
 const WEBHOOK_EVENTS = ['hardBounce', 'invalid', 'blocked', 'error']
 
 Deno.serve(async (req) => {
