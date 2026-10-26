@@ -37,6 +37,7 @@ interface OrgRow {
   created_at: string
   fonctionnalites_activees: FonctionnalitesActivees
   archived_at: string | null
+  notif_demandes_adhesion: boolean
   nb_participants: number
   nb_adherents: number
   nb_dons: number
@@ -87,6 +88,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
   const [adherentsActifs, setAdherentsActifs] = useState(true)
   const [evenementsActifs, setEvenementsActifs] = useState(false)
   const [creditManuelActif, setCreditManuelActif] = useState(false)
+  const [notifDemandes, setNotifDemandes] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -97,7 +99,8 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
   const [initialAdherentsActifs, setInitialAdherentsActifs] = useState(true)
   const [initialEvenementsActifs, setInitialEvenementsActifs] = useState(false)
   const [initialCreditManuelActif, setInitialCreditManuelActif] = useState(false)
-  const isDirty = nom !== initialNom || donsActifs !== initialDonsActifs || adherentsActifs !== initialAdherentsActifs || evenementsActifs !== initialEvenementsActifs || creditManuelActif !== initialCreditManuelActif
+  const [initialNotifDemandes, setInitialNotifDemandes] = useState(true)
+  const isDirty = nom !== initialNom || donsActifs !== initialDonsActifs || adherentsActifs !== initialAdherentsActifs || evenementsActifs !== initialEvenementsActifs || creditManuelActif !== initialCreditManuelActif || notifDemandes !== initialNotifDemandes
 
   useEffect(() => {
     if (open) {
@@ -111,6 +114,8 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
       setInitialEvenementsActifs(org?.fonctionnalites_activees.evenements ?? false)
       setCreditManuelActif(org?.fonctionnalites_activees.credit_manuel ?? false)
       setInitialCreditManuelActif(org?.fonctionnalites_activees.credit_manuel ?? false)
+      setNotifDemandes(org?.notif_demandes_adhesion ?? true)
+      setInitialNotifDemandes(org?.notif_demandes_adhesion ?? true)
       setError(null)
     }
   }, [open, org])
@@ -123,7 +128,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
     if (isEdit && org) {
       const { error: err } = await supabase
         .from('organisations')
-        .update({ nom, fonctionnalites_activees: { ...org.fonctionnalites_activees, dons: donsActifs, adherents: adherentsActifs, evenements: evenementsActifs, credit_manuel: creditManuelActif } })
+        .update({ nom, notif_demandes_adhesion: notifDemandes, fonctionnalites_activees: { ...org.fonctionnalites_activees, dons: donsActifs, adherents: adherentsActifs, evenements: evenementsActifs, credit_manuel: creditManuelActif } })
         .eq('id', org.id)
       if (err) { setError(err.message); setSaving(false); return }
     } else {
@@ -288,6 +293,20 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
                 </div>
               </div>
             )}
+            {isEdit && (
+              <div className="space-y-1.5">
+                <Label>Notifications</Label>
+                <label className="flex items-center gap-2 font-registre text-sm text-ink">
+                  <input
+                    type="checkbox"
+                    checked={notifDemandes}
+                    onChange={(e) => setNotifDemandes(e.target.checked)}
+                    className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+                  />
+                  Prévenir l'équipe par email à chaque nouvelle demande d'adhésion
+                </label>
+              </div>
+            )}
           </form>
 
           {isEdit && org && (
@@ -301,6 +320,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
                 newFormTitle="Nouveau compte"
                 emptyLabel="Aucun compte pour cette organisation."
                 onAccountAdded={onAdminAdded}
+                notificationsEquipeActives={notifDemandes}
               />
             </div>
           )}
@@ -371,7 +391,7 @@ export default function SuperAdminPage() {
     // 1. All organisations
     const { data: orgsData, error: orgsErr } = await supabase
       .from('organisations')
-      .select('id, nom, created_at, fonctionnalites_activees, archived_at')
+      .select('id, nom, created_at, fonctionnalites_activees, archived_at, notif_demandes_adhesion')
       .order('created_at', { ascending: false })
 
     // PIN bénévole de chaque organisation (organisation_secrets, RPC réservée au super-admin) ;
@@ -447,6 +467,7 @@ export default function SuperAdminPage() {
     const rows: OrgRow[] = orgsData.map((o) => ({
       id: o.id,
       nom: o.nom,
+      notif_demandes_adhesion: o.notif_demandes_adhesion,
       code_pin_benevole: pinParOrg.get(o.id) ?? null,
       created_at: o.created_at,
       archived_at: o.archived_at,
