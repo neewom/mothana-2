@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { convertirHtmlEnPdf, escapeHtml } from '../_shared/html.ts'
 import { fetchAllRows } from '../_shared/fetchAllRows.ts'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 import qrcodeGenerator from 'https://esm.sh/qrcode-generator@1.4.4'
@@ -271,16 +272,16 @@ Deno.serve(async (req) => {
     // 4. Rendu de chaque étiquette + assemblage en planche A4
     // ---------------------------------------------------------------------
 
-    const expediteurHtml = `<div class="expediteur">Expéditeur : ${organisation.nom}<br>${[organisation.adresse, organisation.code_postal, organisation.ville].filter(Boolean).join(' ')}</div>`
+    const expediteurHtml = `<div class="expediteur">Expéditeur : ${escapeHtml(organisation.nom ?? '')}<br>${escapeHtml([organisation.adresse, organisation.code_postal, organisation.ville].filter(Boolean).join(' '))}</div>`
 
     const labelsHtml = destinataires.map((a) => {
       const civilite = CIVILITE_LABELS[a.civilite] ?? ''
       const nomComplet = [civilite, a.nom, a.prenom].filter(Boolean).join(' ')
       return `<div class="label">
         <div class="label-header">${expediteurHtml}<div class="qr">${qrSvg}</div></div>
-        <div class="label-dest-nom">${nomComplet}</div>
-        <div class="label-dest-adresse">${a.adresse}</div>
-        <div class="label-dest-adresse">${a.code_postal} ${a.ville}</div>
+        <div class="label-dest-nom">${escapeHtml(nomComplet)}</div>
+        <div class="label-dest-adresse">${escapeHtml(a.adresse ?? '')}</div>
+        <div class="label-dest-adresse">${escapeHtml(`${a.code_postal} ${a.ville}`)}</div>
       </div>`
     })
 
@@ -301,10 +302,7 @@ Deno.serve(async (req) => {
     // en Letter par défaut — décale toute la géométrie de la planche.
     gotenbergForm.append('preferCssPageSize', 'true')
 
-    const gotenbergRes = await fetch(`${gotenbergUrl}/forms/chromium/convert/html`, {
-      method: 'POST',
-      body: gotenbergForm,
-    })
+    const gotenbergRes = await convertirHtmlEnPdf(gotenbergUrl, gotenbergForm)
 
     if (!gotenbergRes.ok) {
       const detail = await gotenbergRes.text()
