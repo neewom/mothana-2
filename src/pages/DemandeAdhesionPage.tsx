@@ -25,7 +25,6 @@ interface OrganisationAssetPublic {
 }
 
 interface OrganisationPublic {
-  id: string
   nom: string
   statuts_url: string | null
   formulaire_adhesion_header_html: string | null

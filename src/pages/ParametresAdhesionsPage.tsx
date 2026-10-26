@@ -14,6 +14,8 @@ import SaveBar from '../components/parametres/SaveBar'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 import { Select } from '../components/ui/select'
 import { StatusNotice } from '../components/ui/status-notice'
+import LectureSeuleNotice from '../components/parametres/LectureSeuleNotice'
+import { usePeutModifierParametres } from '../hooks/usePeutModifierParametres'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { MOIS } from '../lib/journalModifications'
 import type { RegleFinAdhesion } from '../lib/adhesion'
@@ -54,6 +56,7 @@ interface ApercuRecalage {
 
 export default function ParametresAdhesionsPage() {
   const organisationId = useOrganisationId()
+  const peutModifier = usePeutModifierParametres()
 
   const [settings, setSettings] = useState<OrgSettings | null>(null)
   const [loading, setLoading] = useState(true)
@@ -253,11 +256,13 @@ export default function ParametresAdhesionsPage() {
         <p className="mt-1 text-sm text-ink-muted">Durée des adhésions, carte adhérent et formulaire public de demande d'adhésion.</p>
       </div>
 
+      {!peutModifier && <LectureSeuleNotice />}
+
       <ParametresSection
         title="Carte adhérent"
         description="Gérez le gabarit HTML utilisé pour imprimer les cartes adhérent (planche A4)."
       >
-        {organisationId && <CarteAdherentSection organisationId={organisationId} />}
+        {organisationId && <CarteAdherentSection organisationId={organisationId} lectureSeule={!peutModifier} />}
       </ParametresSection>
 
       <form onSubmit={handleSave} className="space-y-6">
@@ -265,7 +270,8 @@ export default function ParametresAdhesionsPage() {
         title="Durée des adhésions"
         description="Règle de calcul de la date de fin, appliquée à chaque nouvelle adhésion ou renouvellement (saisie, demande validée, import)."
       >
-        <div className="max-w-lg space-y-4">
+        {/* Contributeur : réglages désactivés (la base refuse aussi l'écriture). */}
+        <fieldset disabled={!peutModifier} className="max-w-lg space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="adhesion-regle-fin">Fin de l'adhésion</Label>
             <Select
@@ -297,7 +303,7 @@ export default function ParametresAdhesionsPage() {
             </div>
           )}
           {recalageMessage && <StatusNotice tone={recalageMessage.tone}>{recalageMessage.text}</StatusNotice>}
-        </div>
+        </fieldset>
       </ParametresSection>
 
       <ParametresSection
@@ -315,6 +321,7 @@ export default function ParametresAdhesionsPage() {
                 onChange={(e) => { setSlug(e.target.value); setSaveSuccess(false) }}
                 placeholder="ex : mon-association"
                 className="sm:flex-1"
+                disabled={!peutModifier}
               />
             </div>
             <p className="mt-1 text-xs text-ink-faint">
@@ -345,7 +352,7 @@ export default function ParametresAdhesionsPage() {
                 Voir le PDF actuel
               </a>
             )}
-            <label className="inline-flex h-8 cursor-pointer items-center rounded-sm border border-paper-border bg-white px-3 font-registre text-xs font-medium text-ink-muted hover:bg-paper">
+            {peutModifier && <label className="inline-flex h-8 cursor-pointer items-center rounded-sm border border-paper-border bg-white px-3 font-registre text-xs font-medium text-ink-muted hover:bg-paper">
               {statutsUploading ? 'Envoi…' : statutsUrl ? 'Remplacer' : 'Choisir un fichier'}
               <input
                 type="file"
@@ -357,7 +364,7 @@ export default function ParametresAdhesionsPage() {
                   e.target.value = ''
                 }}
               />
-            </label>
+            </label>}
           </div>
           {statutsError && <p className="mt-1.5 text-xs text-stamp">{statutsError}</p>}
         </div>
@@ -368,9 +375,11 @@ export default function ParametresAdhesionsPage() {
             Le formulaire central reste inchangé. Personnalisez l'en-tête et le pied de page avec vos assets (logo, bannière…) via l'éditeur.
           </p>
           <div className="flex items-center gap-3">
-            <Button type="button" variant="secondary" onClick={() => setFormulaireEditorOpen(true)}>
-              {formulaireHeaderHtml || formulaireFooterHtml ? 'Modifier' : 'Personnaliser'}
-            </Button>
+            {peutModifier && (
+              <Button type="button" variant="secondary" onClick={() => setFormulaireEditorOpen(true)}>
+                {formulaireHeaderHtml || formulaireFooterHtml ? 'Modifier' : 'Personnaliser'}
+              </Button>
+            )}
             {(formulaireHeaderHtml || formulaireFooterHtml) && (
               <span className="text-xs text-success">Personnalisé</span>
             )}
@@ -403,11 +412,12 @@ export default function ParametresAdhesionsPage() {
             onChange={(e) => { setMessageSucces(e.target.value); setSaveSuccess(false) }}
             placeholder="Votre demande d'adhésion a bien été enregistrée. Elle sera examinée par le conseil d'administration."
             rows={3}
+            disabled={!peutModifier}
           />
         </div>
       </ParametresSection>
 
-      <SaveBar
+      {peutModifier && <SaveBar
         dirty={dirty}
         saving={saving}
         success={saveSuccess}
@@ -422,7 +432,7 @@ export default function ParametresAdhesionsPage() {
           }
           setSaveError(null)
         }}
-      />
+      />}
       </form>
 
       {organisationId && (

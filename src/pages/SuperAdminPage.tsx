@@ -53,10 +53,6 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function generatePin(): string {
-  return String(Math.floor(100000 + Math.random() * 900000))
-}
-
 function sanitizeForCsv(rows: Record<string, unknown>[]): Record<string, string | number>[] {
   return rows.map((row) => {
     const out: Record<string, string | number> = {}
@@ -141,7 +137,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
 
       const { data: newOrg, error: err } = await supabase
         .from('organisations')
-        .insert({ nom, code_pin_benevole: generatePin(), slug })
+        .insert({ nom, slug })
         .select('id')
         .single()
       if (err) {
@@ -235,6 +231,15 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
                 placeholder="Ex : Les Amis du Quartier"
               />
             </div>
+            {isEdit && org && (
+              // PIN affiché dans le détail seulement (plus dans la liste ni la recherche,
+              // retour utilisateur du 2026-10-25) ; modifiable par un admin de l'organisation.
+              <div className="space-y-1.5">
+                <Label>Code PIN bénévole</Label>
+                <p className="font-registre-mono text-sm text-ink">{org.code_pin_benevole ?? '—'}</p>
+                <p className="text-xs text-ink-faint">Modifiable par un administrateur depuis Paramètres › Codes PIN.</p>
+              </div>
+            )}
             {!isEdit && (
               <p className="text-xs text-ink-faint">
                 Un code PIN bénévole aléatoire sera généré automatiquement. Il pourra être modifié depuis les paramètres de l'organisation.
@@ -365,7 +370,7 @@ export default function SuperAdminPage() {
   const [extractingId, setExtractingId] = useState<string | null>(null)
 
   const [recherche, setRecherche] = useState('')
-  const orgsTrouvees = orgs.filter((o) => correspondRecherche([o.nom, o.code_pin_benevole], recherche))
+  const orgsTrouvees = orgs.filter((o) => correspondRecherche([o.nom], recherche))
   const activeOrgs = orgsTrouvees.filter((o) => !o.archived_at)
   const archivedOrgs = orgsTrouvees.filter((o) => o.archived_at)
   const rechercheActive = recherche.trim().length > 0
@@ -386,8 +391,13 @@ export default function SuperAdminPage() {
     // 1. All organisations
     const { data: orgsData, error: orgsErr } = await supabase
       .from('organisations')
-      .select('id, nom, code_pin_benevole, created_at, fonctionnalites_activees, archived_at, notif_demandes_adhesion')
+      .select('id, nom, created_at, fonctionnalites_activees, archived_at, notif_demandes_adhesion')
       .order('created_at', { ascending: false })
+
+    // PIN bénévole de chaque organisation (organisation_secrets, RPC réservée au super-admin) ;
+    // une nouvelle organisation reçoit le sien en base (trg_organisations_creer_secrets).
+    const { data: pinsData } = await supabase.rpc('codes_pin_benevole_organisations')
+    const pinParOrg = new Map(((pinsData ?? []) as { organisation_id: string; code_pin_benevole: string | null }[]).map((p) => [p.organisation_id, p.code_pin_benevole]))
 
     if (orgsErr || !orgsData) {
       setError(orgsErr?.message ?? 'Erreur de chargement')
@@ -458,7 +468,7 @@ export default function SuperAdminPage() {
       id: o.id,
       nom: o.nom,
       notif_demandes_adhesion: o.notif_demandes_adhesion,
-      code_pin_benevole: o.code_pin_benevole,
+      code_pin_benevole: pinParOrg.get(o.id) ?? null,
       created_at: o.created_at,
       archived_at: o.archived_at,
       fonctionnalites_activees: {
@@ -639,7 +649,7 @@ export default function SuperAdminPage() {
         </div>
         {orgs.length > 0 && (
           <ListToolbar
-            search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom ou code PIN…', label: 'Rechercher une organisation' }}
+            search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom…', label: 'Rechercher une organisation' }}
           />
         )}
 
@@ -666,7 +676,6 @@ export default function SuperAdminPage() {
                   >
                     <TableCell>
                       <div className="font-medium text-ink">{org.nom}</div>
-                      <div className="font-registre-mono text-xs text-ink-faint">PIN : {org.code_pin_benevole ?? '—'}</div>
                     </TableCell>
                   </TableRow>
                 ))}

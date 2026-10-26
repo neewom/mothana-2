@@ -15,19 +15,17 @@ export default function ParametresCodesPinPage() {
   useEffect(() => {
     if (!organisationId) return
     let cancelled = false
+    // PIN lus par la RPC codes_pin (organisation_secrets) : admin de l'organisation ou super-admin.
     void supabase
-      .from('organisations')
-      .select('code_pin_benevole, code_pin_vendeur_evenement')
-      .eq('id', organisationId)
-      .single()
+      .rpc('codes_pin', { p_organisation_id: organisationId })
       .then(({ data, error: loadError }) => {
         if (cancelled) return
-        if (loadError || !data) {
-          setError(loadError?.message ?? 'Erreur de chargement')
+        if (loadError) {
+          setError(loadError.code === '42501' ? 'Les codes PIN sont réservés aux administrateurs.' : loadError.message)
           return
         }
-        const row = data as { code_pin_benevole: string | null; code_pin_vendeur_evenement: string | null }
-        setPins({ benevole: row.code_pin_benevole, vendeur: row.code_pin_vendeur_evenement })
+        const row = ((data ?? []) as { code_pin_benevole: string | null; code_pin_vendeur_evenement: string | null }[])[0]
+        setPins({ benevole: row?.code_pin_benevole ?? null, vendeur: row?.code_pin_vendeur_evenement ?? null })
       })
     return () => { cancelled = true }
   }, [organisationId])

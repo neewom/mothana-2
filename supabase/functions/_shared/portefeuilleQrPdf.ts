@@ -1,14 +1,6 @@
 import * as QRCode from 'https://esm.sh/qrcode@1.5.4'
 import type { PortefeuilleBuyerState } from './portefeuilleAccess.ts'
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;')
-}
+import { escapeHtml } from './html.ts'
 
 export async function generatePortefeuilleQrPdf(state: PortefeuilleBuyerState): Promise<ArrayBuffer> {
   const qrDataUrl = await QRCode.toDataURL(state.portefeuille.codePublic, {

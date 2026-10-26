@@ -27,7 +27,8 @@ async function uploadAssetFile(organisationId: string, identifiant: string, file
  * Visuels de l'organisation (logo, tampon, signature…) : chaque asset devient un placeholder
  * {{asset_<identifiant>}} des modèles. Actions immédiates (pas de bouton Enregistrer).
  */
-export default function AssetsManager({ organisationId }: { organisationId: string }) {
+// lectureSeule : contributeur, visuels consultables sans remplacement, suppression ni ajout.
+export default function AssetsManager({ organisationId, lectureSeule = false }: { organisationId: string; lectureSeule?: boolean }) {
   const [assets, setAssets] = useState<OrganisationAsset[]>([])
   const [assetsLoading, setAssetsLoading] = useState(true)
   const [assetActionLoading, setAssetActionLoading] = useState<Record<string, boolean>>({})
@@ -165,7 +166,7 @@ export default function AssetsManager({ organisationId }: { organisationId: stri
                 <img src={asset.url} alt={asset.libelle} className="max-h-full max-w-full object-contain" />
               </div>
               <p className="mb-2 truncate font-registre-mono text-[11px] text-stamp">{`{{asset_${asset.identifiant}}}`}</p>
-              <div className="flex flex-row items-center gap-2 sm:flex-col sm:items-start">
+              {!lectureSeule && <div className="flex flex-row items-center gap-2 sm:flex-col sm:items-start">
                 <label className="cursor-pointer rounded-sm border border-paper-border px-3 py-1.5 font-registre text-xs font-medium text-ink-muted hover:bg-paper">
                   {assetActionLoading[asset.id] ? 'Envoi…' : 'Remplacer'}
                   <input
@@ -188,12 +189,12 @@ export default function AssetsManager({ organisationId }: { organisationId: stri
                 >
                   Supprimer
                 </Button>
-              </div>
+              </div>}
               {assetError[asset.id] && <p className="mt-1.5 text-xs text-stamp">{assetError[asset.id]}</p>}
             </div>
           ))}
 
-          <div className="rounded-sm border border-dashed border-paper-border p-3">
+          {!lectureSeule && <div className="rounded-sm border border-dashed border-paper-border p-3">
             <Label htmlFor="new-asset-libelle" className="mb-1 block text-xs">
               Libellé
             </Label>
@@ -228,7 +229,7 @@ export default function AssetsManager({ organisationId }: { organisationId: stri
               />
             </label>
             {assetError.new && <p className="mt-1.5 text-xs text-stamp">{assetError.new}</p>}
-          </div>
+          </div>}
         </div>
       )}
     </div>

@@ -34,6 +34,8 @@ export type NavEntry = NavLinkItem | NavGroup
 export interface NavOptions {
   /** Admin de l'organisation (pas contributeur, pas super-admin en mode Consulter). */
   canManageTeam: boolean
+  /** Codes PIN et Intégrations (secrets) : admin de l'organisation ou super-admin. */
+  canManageSecrets?: boolean
 }
 
 export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCounters, options: NavOptions = { canManageTeam: false }): NavEntry[] {
@@ -100,9 +102,9 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
     ...(flags.adherents ? [{ label: 'Adhésions', to: '/admin/parametres/adhesions' }] : []),
     ...(flags.evenements ? [{ label: 'Porte-monnaie', to: '/admin/parametres/porte-monnaie' }] : []),
     ...(options.canManageTeam ? [{ label: 'Équipe', to: '/admin/parametres/equipe', section: 'Accès' }] : []),
-    { label: 'Codes PIN', to: '/admin/parametres/codes-pin', ...(options.canManageTeam ? {} : { section: 'Accès' }) },
-    ...(flags.adherents ? [{ label: 'Intégrations', to: '/admin/parametres/integrations', section: 'Outils' }] : []),
-    { label: 'Journal des adhérents', to: '/admin/parametres/journal', ...(flags.adherents ? {} : { section: 'Outils' }) },
+    ...(options.canManageSecrets ? [{ label: 'Codes PIN', to: '/admin/parametres/codes-pin', ...(options.canManageTeam ? {} : { section: 'Accès' }) }] : []),
+    ...(flags.adherents && options.canManageSecrets ? [{ label: 'Intégrations', to: '/admin/parametres/integrations', section: 'Outils' }] : []),
+    { label: 'Journal des adhérents', to: '/admin/parametres/journal', ...(flags.adherents && options.canManageSecrets ? {} : { section: 'Outils' }) },
   ]
   items.push({ type: 'group', label: 'Paramètres', icon: 'cog', items: parametres })
 

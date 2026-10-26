@@ -21,9 +21,13 @@ export default function ShadowHtmlBlock({ html, css, className }: ShadowHtmlBloc
     if (!shadowRef.current) {
       shadowRef.current = hostRef.current.attachShadow({ mode: 'open' })
     }
-    const clean = DOMPurify.sanitize(html)
-    shadowRef.current.innerHTML = `<style>${css ?? ''}</style>${clean}`
+    // CSS posé en texte (jamais via innerHTML : un « </style><img onerror> » dans le CSS
+    // s'exécutait) ; HTML assaini par DOMPurify et inséré comme nœuds (audit sécurité 2026-10-24).
+    const style = document.createElement('style')
+    style.textContent = css ?? ''
+    shadowRef.current.replaceChildren(style, DOMPurify.sanitize(html, { RETURN_DOM_FRAGMENT: true }))
   }, [html, css])
 
-  return <div ref={hostRef} className={className} />
+  // contain: paint : un élément position:fixed du CSS saisi reste confiné au bloc.
+  return <div ref={hostRef} className={className} style={{ contain: 'paint' }} />
 }
