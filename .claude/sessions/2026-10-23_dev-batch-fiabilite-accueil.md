@@ -11,9 +11,11 @@ Go utilisateur transmis par le lead tech pour le batch « Batch — Fiabilité &
   - Fiche adhérent : raison lisible + date sous l'avertissement (`lib/emailInvalide.ts`, testé), chargée à l'ouverture (colonnes absentes de `search_adherents`). Validation d'une demande dont la confirmation a rebondi : événement `confirmation_demande`.
   - Déployées sur staging : `brevo-bounce-webhook` (verify_jwt false conservé), `send-mailing-brevo`.
   - Vérifié : payloads simulés (error expéditeur → rien ; error MX → marqué + raison ; hard_bounce → marqué) ; fiche « Adresse inexistante (rejet définitif) » puis « Domaine introuvable » ; changement de courriel → tout effacé ; expéditeur non vérifié → 422 + message, 0 campagne, expéditeur restauré ; envoi normal à la liste « Nicolas » → delivered. Adhérent DS2 TEST remis sans courriel.
+  - Bloquant de revue corrigé (ad3f62f) : motifs « côté expéditeur » resserrés sur le compte d'envoi (`account`/`quota`/`credits` seuls attrapaient des rejets destinataire fréquents chez Wat) ; tests ajoutés ; webhook redéployé.
+- **Carte 2 — Bloc « À traiter »** (https://trello.com/c/l7rLX2Wz) — PR #279, ready for review. `components/ActionsATraiter.tsx` (liste de données + rendu commun, tests de rendu 0 / 1 / n actions) remplace les 4 encarts copiés-collés de `DashboardPage`. Pastille ambre avec le nombre, titre « À traiter », une ligne par action (lien ou bouton, nom explicite, focus visible), phrase tronquée sur ordinateur, lien sous la phrase en mobile. Contraste `text-warning` / `bg-warning-tint` 4,84 (texte secondaire en `text-warning` plein plutôt que /80). Mesuré à 1 250 px : bloc 292 px contre ~440 px (4 encarts + écarts), −34 % ; chaque ligne mène au même endroit (modale pour les emails).
 
 ## Reste à faire
-- Cartes 2 et 3.
+- Carte 3.
 
 ## Blockers
 - Aucun.
