@@ -1,13 +1,34 @@
+import { useEffect, useState } from 'react'
 import AdminAccountsManager from '../components/AdminAccountsManager'
 import ParametresSection from '../components/ParametresSection'
 import { StatusNotice } from '../components/ui/status-notice'
 import { useAuth } from '../hooks/useAuth'
+import { supabase } from '../lib/supabaseClient'
 
 // Paramètres › Équipe : contributeurs, sortis de « Mon compte ». Réservé aux admins de
 // l'organisation, comme avant (le contributeur ne gère pas les comptes ; le super-admin les
 // gère depuis son tableau de bord). Aucun changement de droits : la RLS reste la garde réelle.
 export default function ParametresEquipePage() {
   const { auth } = useAuth()
+  const organisationId = auth.type === 'admin' ? auth.organisationId : null
+  // Interrupteur de l'organisation (Paramètres › Adhésions) : grise les cases par compte s'il est coupé.
+  const [notificationsEquipeActives, setNotificationsEquipeActives] = useState(true)
+
+  useEffect(() => {
+    if (!organisationId) return
+    let cancelled = false
+    supabase
+      .from('organisations')
+      .select('notif_demandes_adhesion')
+      .eq('id', organisationId)
+      .single()
+      .then(({ data }) => {
+        if (!cancelled && data) setNotificationsEquipeActives((data as { notif_demandes_adhesion: boolean }).notif_demandes_adhesion)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [organisationId])
 
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
@@ -30,6 +51,7 @@ export default function ParametresEquipePage() {
             addButtonLabel="Ajouter un contributeur"
             newFormTitle="Nouveau contributeur"
             emptyLabel="Aucun compte pour cette organisation."
+            notificationsEquipeActives={notificationsEquipeActives}
           />
         </ParametresSection>
       ) : (

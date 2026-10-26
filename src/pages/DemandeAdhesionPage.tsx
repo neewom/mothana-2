@@ -10,6 +10,7 @@ import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '..
 import { COUNTRIES } from '../lib/countries'
 import { maxDateNaissance, isAnneeNaissanceValide } from '../lib/dateNaissance'
 import { cn } from '../lib/utils'
+import { getCanonicalSiteUrl } from '../lib/environment'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
@@ -24,7 +25,6 @@ interface OrganisationAssetPublic {
 }
 
 interface OrganisationPublic {
-  id: string
   nom: string
   statuts_url: string | null
   formulaire_adhesion_header_html: string | null
@@ -124,6 +124,8 @@ export default function DemandeAdhesionPage() {
         },
         body: JSON.stringify({
           slug,
+          // Origine du lien envoyé aux comptes de l'organisation (filtrée côté serveur).
+          site_url: getCanonicalSiteUrl(),
           site_web: siteWeb,
           civilite,
           nom,

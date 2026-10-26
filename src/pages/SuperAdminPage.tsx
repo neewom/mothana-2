@@ -37,6 +37,7 @@ interface OrgRow {
   created_at: string
   fonctionnalites_activees: FonctionnalitesActivees
   archived_at: string | null
+  notif_demandes_adhesion: boolean
   nb_participants: number
   nb_adherents: number
   nb_dons: number
@@ -50,10 +51,6 @@ interface OrgRow {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-
-function generatePin(): string {
-  return String(Math.floor(100000 + Math.random() * 900000))
 }
 
 function sanitizeForCsv(rows: Record<string, unknown>[]): Record<string, string | number>[] {
@@ -91,6 +88,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
   const [adherentsActifs, setAdherentsActifs] = useState(true)
   const [evenementsActifs, setEvenementsActifs] = useState(false)
   const [creditManuelActif, setCreditManuelActif] = useState(false)
+  const [notifDemandes, setNotifDemandes] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -101,7 +99,8 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
   const [initialAdherentsActifs, setInitialAdherentsActifs] = useState(true)
   const [initialEvenementsActifs, setInitialEvenementsActifs] = useState(false)
   const [initialCreditManuelActif, setInitialCreditManuelActif] = useState(false)
-  const isDirty = nom !== initialNom || donsActifs !== initialDonsActifs || adherentsActifs !== initialAdherentsActifs || evenementsActifs !== initialEvenementsActifs || creditManuelActif !== initialCreditManuelActif
+  const [initialNotifDemandes, setInitialNotifDemandes] = useState(true)
+  const isDirty = nom !== initialNom || donsActifs !== initialDonsActifs || adherentsActifs !== initialAdherentsActifs || evenementsActifs !== initialEvenementsActifs || creditManuelActif !== initialCreditManuelActif || notifDemandes !== initialNotifDemandes
 
   useEffect(() => {
     if (open) {
@@ -115,6 +114,8 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
       setInitialEvenementsActifs(org?.fonctionnalites_activees.evenements ?? false)
       setCreditManuelActif(org?.fonctionnalites_activees.credit_manuel ?? false)
       setInitialCreditManuelActif(org?.fonctionnalites_activees.credit_manuel ?? false)
+      setNotifDemandes(org?.notif_demandes_adhesion ?? true)
+      setInitialNotifDemandes(org?.notif_demandes_adhesion ?? true)
       setError(null)
     }
   }, [open, org])
@@ -127,7 +128,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
     if (isEdit && org) {
       const { error: err } = await supabase
         .from('organisations')
-        .update({ nom, fonctionnalites_activees: { ...org.fonctionnalites_activees, dons: donsActifs, adherents: adherentsActifs, evenements: evenementsActifs, credit_manuel: creditManuelActif } })
+        .update({ nom, notif_demandes_adhesion: notifDemandes, fonctionnalites_activees: { ...org.fonctionnalites_activees, dons: donsActifs, adherents: adherentsActifs, evenements: evenementsActifs, credit_manuel: creditManuelActif } })
         .eq('id', org.id)
       if (err) { setError(err.message); setSaving(false); return }
     } else {
@@ -136,7 +137,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
 
       const { data: newOrg, error: err } = await supabase
         .from('organisations')
-        .insert({ nom, code_pin_benevole: generatePin(), slug })
+        .insert({ nom, slug })
         .select('id')
         .single()
       if (err) {
@@ -230,6 +231,15 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
                 placeholder="Ex : Les Amis du Quartier"
               />
             </div>
+            {isEdit && org && (
+              // PIN affiché dans le détail seulement (plus dans la liste ni la recherche,
+              // retour utilisateur du 2026-10-25) ; modifiable par un admin de l'organisation.
+              <div className="space-y-1.5">
+                <Label>Code PIN bénévole</Label>
+                <p className="font-registre-mono text-sm text-ink">{org.code_pin_benevole ?? '—'}</p>
+                <p className="text-xs text-ink-faint">Modifiable par un administrateur depuis Paramètres › Codes PIN.</p>
+              </div>
+            )}
             {!isEdit && (
               <p className="text-xs text-ink-faint">
                 Un code PIN bénévole aléatoire sera généré automatiquement. Il pourra être modifié depuis les paramètres de l'organisation.
@@ -283,6 +293,20 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
                 </div>
               </div>
             )}
+            {isEdit && (
+              <div className="space-y-1.5">
+                <Label>Notifications</Label>
+                <label className="flex items-center gap-2 font-registre text-sm text-ink">
+                  <input
+                    type="checkbox"
+                    checked={notifDemandes}
+                    onChange={(e) => setNotifDemandes(e.target.checked)}
+                    className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+                  />
+                  Prévenir l'équipe par email à chaque nouvelle demande d'adhésion
+                </label>
+              </div>
+            )}
           </form>
 
           {isEdit && org && (
@@ -296,6 +320,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
                 newFormTitle="Nouveau compte"
                 emptyLabel="Aucun compte pour cette organisation."
                 onAccountAdded={onAdminAdded}
+                notificationsEquipeActives={notifDemandes}
               />
             </div>
           )}
@@ -345,7 +370,7 @@ export default function SuperAdminPage() {
   const [extractingId, setExtractingId] = useState<string | null>(null)
 
   const [recherche, setRecherche] = useState('')
-  const orgsTrouvees = orgs.filter((o) => correspondRecherche([o.nom, o.code_pin_benevole], recherche))
+  const orgsTrouvees = orgs.filter((o) => correspondRecherche([o.nom], recherche))
   const activeOrgs = orgsTrouvees.filter((o) => !o.archived_at)
   const archivedOrgs = orgsTrouvees.filter((o) => o.archived_at)
   const rechercheActive = recherche.trim().length > 0
@@ -366,8 +391,13 @@ export default function SuperAdminPage() {
     // 1. All organisations
     const { data: orgsData, error: orgsErr } = await supabase
       .from('organisations')
-      .select('id, nom, code_pin_benevole, created_at, fonctionnalites_activees, archived_at')
+      .select('id, nom, created_at, fonctionnalites_activees, archived_at, notif_demandes_adhesion')
       .order('created_at', { ascending: false })
+
+    // PIN bénévole de chaque organisation (organisation_secrets, RPC réservée au super-admin) ;
+    // une nouvelle organisation reçoit le sien en base (trg_organisations_creer_secrets).
+    const { data: pinsData } = await supabase.rpc('codes_pin_benevole_organisations')
+    const pinParOrg = new Map(((pinsData ?? []) as { organisation_id: string; code_pin_benevole: string | null }[]).map((p) => [p.organisation_id, p.code_pin_benevole]))
 
     if (orgsErr || !orgsData) {
       setError(orgsErr?.message ?? 'Erreur de chargement')
@@ -437,7 +467,8 @@ export default function SuperAdminPage() {
     const rows: OrgRow[] = orgsData.map((o) => ({
       id: o.id,
       nom: o.nom,
-      code_pin_benevole: o.code_pin_benevole,
+      notif_demandes_adhesion: o.notif_demandes_adhesion,
+      code_pin_benevole: pinParOrg.get(o.id) ?? null,
       created_at: o.created_at,
       archived_at: o.archived_at,
       fonctionnalites_activees: {
@@ -618,7 +649,7 @@ export default function SuperAdminPage() {
         </div>
         {orgs.length > 0 && (
           <ListToolbar
-            search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom ou code PIN…', label: 'Rechercher une organisation' }}
+            search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom…', label: 'Rechercher une organisation' }}
           />
         )}
 
@@ -645,7 +676,6 @@ export default function SuperAdminPage() {
                   >
                     <TableCell>
                       <div className="font-medium text-ink">{org.nom}</div>
-                      <div className="font-registre-mono text-xs text-ink-faint">PIN : {org.code_pin_benevole ?? '—'}</div>
                     </TableCell>
                   </TableRow>
                 ))}

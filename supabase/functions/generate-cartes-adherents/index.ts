@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { convertirHtmlEnPdf, renderTemplate } from '../_shared/html.ts'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 
 const corsHeaders = {
@@ -69,10 +70,6 @@ const CIVILITE_ADHERENT_LABELS: Record<number, string> = {
 function formatDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-')
   return `${day}/${month}/${year}`
-}
-
-function renderTemplate(html: string, values: Record<string, string>): string {
-  return html.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? '')
 }
 
 // Mise en page planche A4 fixe, non éditable — distincte du gabarit de
@@ -257,10 +254,7 @@ Deno.serve(async (req) => {
     const gotenbergForm = new FormData()
     gotenbergForm.append('files', new Blob([fullHtml], { type: 'text/html' }), 'index.html')
 
-    const gotenbergRes = await fetch(`${gotenbergUrl}/forms/chromium/convert/html`, {
-      method: 'POST',
-      body: gotenbergForm,
-    })
+    const gotenbergRes = await convertirHtmlEnPdf(gotenbergUrl, gotenbergForm)
 
     if (!gotenbergRes.ok) {
       const detail = await gotenbergRes.text()

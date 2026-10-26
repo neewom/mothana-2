@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { adherentsARenouveler, chargerDernieresAdhesions, type AdherentARenouveler } from '../lib/dernieresAdhesions'
 import { useOrganisationId } from '../hooks/useOrganisationId'
+import { ActionsATraiter, type ActionATraiter } from '../components/ActionsATraiter'
 import { useAdminOutletContext } from '../hooks/useAdminOutletContext'
 import { compterDonsReguliersAConfirmer } from '../lib/donsReguliers'
 import { StatTiles } from '../components/ui/stat-tiles'
@@ -197,112 +198,47 @@ export default function DashboardPage() {
     )
   }
 
+  const nbEmailsInvalides = adherentsEmailInvalideList.length
+  const actionsATraiter: ActionATraiter[] = [
+    ...(adherentsActifs && demandesEnAttente > 0 ? [{
+      key: 'demandes',
+      icone: 'M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-8.25 3h.008v.008h-.008V12.75z',
+      titre: `${demandesEnAttente} demande${demandesEnAttente > 1 ? 's' : ''} d'adhésion en attente de ratification`,
+      detail: "Soumises via le formulaire public, à examiner par le conseil d'administration.",
+      libelle: 'Examiner',
+      to: '/admin/adherents/demandes',
+    }] : []),
+    ...(donsActifs && donsReguliersAConfirmer > 0 ? [{
+      key: 'dons-reguliers',
+      icone: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3M3.75 6h16.5a1.5 1.5 0 011.5 1.5v9a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5v-9a1.5 1.5 0 011.5-1.5z',
+      titre: `${donsReguliersAConfirmer} don${donsReguliersAConfirmer > 1 ? 's' : ''} régulier${donsReguliersAConfirmer > 1 ? 's' : ''} en attente de confirmation`,
+      detail: 'Prélèvements mensuels à valider avant enregistrement définitif.',
+      libelle: 'Confirmer',
+      to: '/admin/dons-reguliers',
+    }] : []),
+    ...(adherentsActifs && nbEmailsInvalides > 0 ? [{
+      key: 'emails-invalides',
+      icone: 'M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75',
+      titre: `${nbEmailsInvalides} adresse${nbEmailsInvalides > 1 ? 's' : ''} email d'adhérent${nbEmailsInvalides > 1 ? 's' : ''} invalide${nbEmailsInvalides > 1 ? 's' : ''}`,
+      detail: "Un envoi précédent n'a pas pu être délivré — à corriger sur la fiche de l'adhérent.",
+      libelle: 'Voir les adhérents',
+      onClick: () => setEmailInvalideModalOpen(true),
+    }] : []),
+    ...(adherentsActifs && statutsUrl === null ? [{
+      key: 'statuts',
+      icone: 'M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z',
+      titre: "Statuts de l'association non configurés",
+      detail: "Le formulaire public de demande d'adhésion ne peut pas les proposer à la lecture.",
+      libelle: 'Configurer',
+      to: '/admin/parametres/adhesions',
+    }] : []),
+  ]
+
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       <PageHeader title="Tableau de bord" subtitle="Vue d'ensemble de votre organisation." />
 
-      {adherentsActifs && demandesEnAttente > 0 && (
-        <Link
-          to="/admin/adherents/demandes"
-          className="flex flex-col gap-4 rounded-sm border-2 border-warning-border bg-warning-tint px-6 py-5 transition-colors hover:bg-warning-tint/70 sm:flex-row sm:items-center"
-        >
-          <div className="flex items-center gap-4 sm:min-w-0 sm:flex-1">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-warning text-white">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-8.25 3h.008v.008h-.008V12.75z" />
-              </svg>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-bold text-warning">
-                {demandesEnAttente} demande{demandesEnAttente > 1 ? 's' : ''} d'adhésion en attente de ratification
-              </p>
-              <p className="mt-0.5 text-sm text-warning">
-                Soumises via le formulaire public, à examiner par le conseil d'administration.
-              </p>
-            </div>
-          </div>
-          <span className="w-full shrink-0 rounded-sm border border-warning bg-white px-4 py-2 text-center text-sm font-semibold text-warning sm:w-auto">
-            Examiner →
-          </span>
-        </Link>
-      )}
-
-      {donsActifs && donsReguliersAConfirmer > 0 && (
-        <Link
-          to="/admin/dons-reguliers"
-          className="flex flex-col gap-4 rounded-sm border-2 border-warning-border bg-warning-tint px-6 py-5 transition-colors hover:bg-warning-tint/70 sm:flex-row sm:items-center"
-        >
-          <div className="flex items-center gap-4 sm:min-w-0 sm:flex-1">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-warning text-white">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3M3.75 6h16.5a1.5 1.5 0 011.5 1.5v9a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5v-9a1.5 1.5 0 011.5-1.5z" />
-              </svg>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-bold text-warning">
-                {donsReguliersAConfirmer} don{donsReguliersAConfirmer > 1 ? 's' : ''} régulier{donsReguliersAConfirmer > 1 ? 's' : ''} en attente de confirmation
-              </p>
-              <p className="mt-0.5 text-sm text-warning">
-                Prélèvements mensuels à valider avant enregistrement définitif.
-              </p>
-            </div>
-          </div>
-          <span className="w-full shrink-0 rounded-sm border border-warning bg-white px-4 py-2 text-center text-sm font-semibold text-warning sm:w-auto">
-            Confirmer →
-          </span>
-        </Link>
-      )}
-
-      {adherentsActifs && adherentsEmailInvalideList.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setEmailInvalideModalOpen(true)}
-          className="flex w-full flex-col gap-4 rounded-sm border-2 border-warning-border bg-warning-tint px-6 py-5 text-left transition-colors hover:bg-warning-tint/70 sm:flex-row sm:items-center"
-        >
-          <div className="flex items-center gap-4 sm:min-w-0 sm:flex-1">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-warning text-white">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-              </svg>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-bold text-warning">
-                {adherentsEmailInvalideList.length} adresse{adherentsEmailInvalideList.length > 1 ? 's' : ''} email d'adhérent{adherentsEmailInvalideList.length > 1 ? 's' : ''} invalide{adherentsEmailInvalideList.length > 1 ? 's' : ''}
-              </p>
-              <p className="mt-0.5 text-sm text-warning">
-                Un envoi précédent n'a pas pu être délivré — à corriger sur la fiche de l'adhérent.
-              </p>
-            </div>
-          </div>
-          <span className="w-full shrink-0 rounded-sm border border-warning bg-white px-4 py-2 text-center text-sm font-semibold text-warning sm:w-auto">
-            Voir les adhérents →
-          </span>
-        </button>
-      )}
-
-      {adherentsActifs && statutsUrl === null && (
-        <Link
-          to="/admin/parametres/adhesions"
-          className="flex flex-col gap-4 rounded-sm border-2 border-warning-border bg-warning-tint px-6 py-5 transition-colors hover:bg-warning-tint/70 sm:flex-row sm:items-center"
-        >
-          <div className="flex items-center gap-4 sm:min-w-0 sm:flex-1">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-warning text-white">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-              </svg>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-bold text-warning">Statuts de l'association non configurés</p>
-              <p className="mt-0.5 text-sm text-warning">
-                Le formulaire public de demande d'adhésion ne peut pas les proposer à la lecture.
-              </p>
-            </div>
-          </div>
-          <span className="w-full shrink-0 rounded-sm border border-warning bg-white px-4 py-2 text-center text-sm font-semibold text-warning sm:w-auto">
-            Configurer →
-          </span>
-        </Link>
-      )}
+      <ActionsATraiter actions={actionsATraiter} />
 
       {/* Stats */}
       {(donsActifs || adherentsActifs) && (

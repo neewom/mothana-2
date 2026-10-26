@@ -1,12 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import ParametresSection from '../components/ParametresSection'
+import LectureSeuleNotice from '../components/parametres/LectureSeuleNotice'
 import SaveBar from '../components/parametres/SaveBar'
 import TemplatesRecuSection from '../components/TemplatesRecuSection'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
 import { useOrganisationId } from '../hooks/useOrganisationId'
+import { usePeutModifierParametres } from '../hooks/usePeutModifierParametres'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 import { DEFAULT_MODELE } from '../lib/modeleRecu'
 import { supabase } from '../lib/supabaseClient'
@@ -32,6 +34,7 @@ function toForm(modele: ModeleRecu): RecusForm {
 
 export default function ParametresRecusFiscauxPage() {
   const organisationId = useOrganisationId()
+  const peutModifier = usePeutModifierParametres()
   const [saved, setSaved] = useState<RecusForm | null>(null)
   const [form, setForm] = useState<RecusForm | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
@@ -128,7 +131,11 @@ export default function ParametresRecusFiscauxPage() {
           <p className="mt-1 text-sm text-ink-muted">Mention légale, taux, numérotation et modèles des reçus remis à vos donateurs.</p>
         </div>
 
+        {!peutModifier && <LectureSeuleNotice />}
+
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Contributeur : champs désactivés d'un bloc (la base refuse aussi l'écriture). */}
+          <fieldset disabled={!peutModifier} className="min-w-0 space-y-6">
           <ParametresSection
             title="Informations fiscales"
             description="Affichées sur chaque reçu. L'adresse, le RNA, le SIREN et l'objet social se règlent dans Organisation."
@@ -192,7 +199,9 @@ export default function ParametresRecusFiscauxPage() {
             </div>
           </ParametresSection>
 
-          <SaveBar
+          </fieldset>
+
+          {peutModifier && <SaveBar
             dirty={dirty}
             saving={saving}
             success={success}
@@ -201,14 +210,14 @@ export default function ParametresRecusFiscauxPage() {
               setForm(saved)
               setError(null)
             }}
-          />
+          />}
         </form>
 
         <ParametresSection
           title="Modèles de reçus fiscaux"
           description="Gérez les templates HTML utilisés pour générer les reçus 11580 (particuliers) et 16216 (entreprises). Enregistrés depuis leur éditeur."
         >
-          {organisationId && <TemplatesRecuSection organisationId={organisationId} />}
+          {organisationId && <TemplatesRecuSection organisationId={organisationId} lectureSeule={!peutModifier} />}
         </ParametresSection>
       </div>
       {guardDialog}

@@ -14,6 +14,8 @@ import SaveBar from '../components/parametres/SaveBar'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 import { Select } from '../components/ui/select'
 import { StatusNotice } from '../components/ui/status-notice'
+import LectureSeuleNotice from '../components/parametres/LectureSeuleNotice'
+import { usePeutModifierParametres } from '../hooks/usePeutModifierParametres'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { MOIS } from '../lib/journalModifications'
 import type { RegleFinAdhesion } from '../lib/adhesion'
@@ -42,6 +44,7 @@ interface OrgSettings {
   formulaire_adhesion_footer_html: string | null
   formulaire_adhesion_css: string | null
   formulaire_adhesion_message_succes: string | null
+  notif_demandes_adhesion: boolean
   adhesion_regle_fin: RegleFinAdhesion
   adhesion_mois_bascule: number
 }
@@ -53,6 +56,7 @@ interface ApercuRecalage {
 
 export default function ParametresAdhesionsPage() {
   const organisationId = useOrganisationId()
+  const peutModifier = usePeutModifierParametres()
 
   const [settings, setSettings] = useState<OrgSettings | null>(null)
   const [loading, setLoading] = useState(true)
@@ -73,6 +77,7 @@ export default function ParametresAdhesionsPage() {
   const [formulaireEditorOpen, setFormulaireEditorOpen] = useState(false)
   const [messageSucces, setMessageSucces] = useState('')
   const [messageSuccesInitial, setMessageSuccesInitial] = useState('')
+  const [notifDemandes, setNotifDemandes] = useState(true)
   const [regleFin, setRegleFin] = useState<RegleFinAdhesion>('glissante')
   const [moisBascule, setMoisBascule] = useState(12)
   // Après un changement de règle : proposer de recalculer les adhésions existantes.
@@ -84,7 +89,7 @@ export default function ParametresAdhesionsPage() {
   // (envoi de fichier) et l'éditeur d'en-tête restent des actions immédiates.
   const regleModifiee = settings !== null
     && (regleFin !== settings.adhesion_regle_fin || (regleFin === 'annee_civile' && moisBascule !== settings.adhesion_mois_bascule))
-  const dirty = settings !== null && (slug !== settings.slug || messageSucces.trim() !== messageSuccesInitial || regleModifiee)
+  const dirty = settings !== null && (slug !== settings.slug || messageSucces.trim() !== messageSuccesInitial || regleModifiee || notifDemandes !== settings.notif_demandes_adhesion)
   const guardDialog = useUnsavedChangesGuard(dirty)
 
   useEffect(() => {
@@ -97,7 +102,7 @@ export default function ParametresAdhesionsPage() {
       const { data, error } = await supabase
         .from('organisations')
         .select(
-          'slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css, formulaire_adhesion_message_succes, adhesion_regle_fin, adhesion_mois_bascule',
+          'slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css, formulaire_adhesion_message_succes, notif_demandes_adhesion, adhesion_regle_fin, adhesion_mois_bascule',
         )
         .eq('id', organisationId)
         .single()
@@ -118,6 +123,7 @@ export default function ParametresAdhesionsPage() {
       setFormulaireCss(raw.formulaire_adhesion_css)
       setMessageSucces(raw.formulaire_adhesion_message_succes ?? '')
       setMessageSuccesInitial(raw.formulaire_adhesion_message_succes ?? '')
+      setNotifDemandes(raw.notif_demandes_adhesion)
       setRegleFin(raw.adhesion_regle_fin)
       setMoisBascule(raw.adhesion_mois_bascule)
       setLoading(false)
@@ -145,6 +151,7 @@ export default function ParametresAdhesionsPage() {
       .update({
         slug: normalized,
         formulaire_adhesion_message_succes: trimmed || null,
+        notif_demandes_adhesion: notifDemandes,
         adhesion_regle_fin: regleFin,
         adhesion_mois_bascule: moisBascule,
       })
@@ -155,7 +162,7 @@ export default function ParametresAdhesionsPage() {
     } else {
       setSlug(normalized)
       setSettings((current) => (current
-        ? { ...current, slug: normalized, adhesion_regle_fin: regleFin, adhesion_mois_bascule: moisBascule }
+        ? { ...current, slug: normalized, notif_demandes_adhesion: notifDemandes, adhesion_regle_fin: regleFin, adhesion_mois_bascule: moisBascule }
         : current))
       setMessageSucces(trimmed)
       setMessageSuccesInitial(trimmed)
@@ -249,11 +256,13 @@ export default function ParametresAdhesionsPage() {
         <p className="mt-1 text-sm text-ink-muted">Durée des adhésions, carte adhérent et formulaire public de demande d'adhésion.</p>
       </div>
 
+      {!peutModifier && <LectureSeuleNotice />}
+
       <ParametresSection
         title="Carte adhérent"
         description="Gérez le gabarit HTML utilisé pour imprimer les cartes adhérent (planche A4)."
       >
-        {organisationId && <CarteAdherentSection organisationId={organisationId} />}
+        {organisationId && <CarteAdherentSection organisationId={organisationId} lectureSeule={!peutModifier} />}
       </ParametresSection>
 
       <form onSubmit={handleSave} className="space-y-6">
@@ -261,7 +270,8 @@ export default function ParametresAdhesionsPage() {
         title="Durée des adhésions"
         description="Règle de calcul de la date de fin, appliquée à chaque nouvelle adhésion ou renouvellement (saisie, demande validée, import)."
       >
-        <div className="max-w-lg space-y-4">
+        {/* Contributeur : réglages désactivés (la base refuse aussi l'écriture). */}
+        <fieldset disabled={!peutModifier} className="max-w-lg space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="adhesion-regle-fin">Fin de l'adhésion</Label>
             <Select
@@ -293,7 +303,7 @@ export default function ParametresAdhesionsPage() {
             </div>
           )}
           {recalageMessage && <StatusNotice tone={recalageMessage.tone}>{recalageMessage.text}</StatusNotice>}
-        </div>
+        </fieldset>
       </ParametresSection>
 
       <ParametresSection
@@ -311,6 +321,7 @@ export default function ParametresAdhesionsPage() {
                 onChange={(e) => { setSlug(e.target.value); setSaveSuccess(false) }}
                 placeholder="ex : mon-association"
                 className="sm:flex-1"
+                disabled={!peutModifier}
               />
             </div>
             <p className="mt-1 text-xs text-ink-faint">
@@ -341,7 +352,7 @@ export default function ParametresAdhesionsPage() {
                 Voir le PDF actuel
               </a>
             )}
-            <label className="inline-flex h-8 cursor-pointer items-center rounded-sm border border-paper-border bg-white px-3 font-registre text-xs font-medium text-ink-muted hover:bg-paper">
+            {peutModifier && <label className="inline-flex h-8 cursor-pointer items-center rounded-sm border border-paper-border bg-white px-3 font-registre text-xs font-medium text-ink-muted hover:bg-paper">
               {statutsUploading ? 'Envoi…' : statutsUrl ? 'Remplacer' : 'Choisir un fichier'}
               <input
                 type="file"
@@ -353,7 +364,7 @@ export default function ParametresAdhesionsPage() {
                   e.target.value = ''
                 }}
               />
-            </label>
+            </label>}
           </div>
           {statutsError && <p className="mt-1.5 text-xs text-stamp">{statutsError}</p>}
         </div>
@@ -364,13 +375,31 @@ export default function ParametresAdhesionsPage() {
             Le formulaire central reste inchangé. Personnalisez l'en-tête et le pied de page avec vos assets (logo, bannière…) via l'éditeur.
           </p>
           <div className="flex items-center gap-3">
-            <Button type="button" variant="secondary" onClick={() => setFormulaireEditorOpen(true)}>
-              {formulaireHeaderHtml || formulaireFooterHtml ? 'Modifier' : 'Personnaliser'}
-            </Button>
+            {peutModifier && (
+              <Button type="button" variant="secondary" onClick={() => setFormulaireEditorOpen(true)}>
+                {formulaireHeaderHtml || formulaireFooterHtml ? 'Modifier' : 'Personnaliser'}
+              </Button>
+            )}
             {(formulaireHeaderHtml || formulaireFooterHtml) && (
               <span className="text-xs text-success">Personnalisé</span>
             )}
           </div>
+        </div>
+
+        <div className="mt-6 max-w-lg">
+          <p className="mb-2 text-sm font-medium text-ink-muted">Notification de l'équipe</p>
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={notifDemandes}
+              onChange={(e) => { setNotifDemandes(e.target.checked); setSaveSuccess(false) }}
+              className="mt-0.5 h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+            />
+            Prévenir l'équipe par email à chaque nouvelle demande d'adhésion
+          </label>
+          <p className="mt-1 text-xs text-ink-faint">
+            Chaque compte peut aussi couper cet email pour lui-même (Mon compte), ou un administrateur pour un compte (Équipe).
+          </p>
         </div>
 
         <div className="mt-6 max-w-lg">
@@ -383,11 +412,12 @@ export default function ParametresAdhesionsPage() {
             onChange={(e) => { setMessageSucces(e.target.value); setSaveSuccess(false) }}
             placeholder="Votre demande d'adhésion a bien été enregistrée. Elle sera examinée par le conseil d'administration."
             rows={3}
+            disabled={!peutModifier}
           />
         </div>
       </ParametresSection>
 
-      <SaveBar
+      {peutModifier && <SaveBar
         dirty={dirty}
         saving={saving}
         success={saveSuccess}
@@ -396,12 +426,13 @@ export default function ParametresAdhesionsPage() {
           if (settings) setSlug(settings.slug)
           setMessageSucces(messageSuccesInitial)
           if (settings) {
+            setNotifDemandes(settings.notif_demandes_adhesion)
             setRegleFin(settings.adhesion_regle_fin)
             setMoisBascule(settings.adhesion_mois_bascule)
           }
           setSaveError(null)
         }}
-      />
+      />}
       </form>
 
       {organisationId && (

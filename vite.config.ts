@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import path from 'node:path'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -13,6 +14,11 @@ export default defineConfig(({ mode }) => ({
     },
   },
   plugins: [react()],
+  // Vitest ne lance que les tests du front : les tests des Edge Functions (Deno.test, dans
+  // supabase/functions) passent par `npm run test:edge` (deno test).
+  test: {
+    include: ['src/**/*.test.{ts,tsx}'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

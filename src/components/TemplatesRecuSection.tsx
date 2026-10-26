@@ -11,6 +11,8 @@ import { Dialog, DialogContent } from './ui/dialog'
 
 interface TemplatesRecuSectionProps {
   organisationId: string
+  /** Contributeur : aperçu seulement, aucune action de modification (paramètres admin). */
+  lectureSeule?: boolean
 }
 
 const TYPE_LABELS: Record<'11580' | '16216', string> = {
@@ -22,7 +24,7 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSectionProps) {
+export default function TemplatesRecuSection({ organisationId, lectureSeule = false }: TemplatesRecuSectionProps) {
   const [templates, setTemplates] = useState<TemplateRecu[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -202,19 +204,21 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
         <p className="text-sm text-ink-muted">
           Un seul template actif par type à la fois. Le template actif est celui utilisé pour générer les reçus.
         </p>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => setImportOpen(true)}>
-            Importer un PDF
-          </Button>
-          <Button
-            onClick={() => {
-              setWizardDraft(null)
-              setEditorState('new')
-            }}
-          >
-            Nouveau template
-          </Button>
-        </div>
+        {!lectureSeule && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              Importer un PDF
+            </Button>
+            <Button
+              onClick={() => {
+                setWizardDraft(null)
+                setEditorState('new')
+              }}
+            >
+              Nouveau template
+            </Button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -259,30 +263,34 @@ export default function TemplatesRecuSection({ organisationId }: TemplatesRecuSe
                           <Button type="button" variant="secondary" size="sm" onClick={() => setPreviewTemplate(template)}>
                             Prévisualiser
                           </Button>
-                          {!template.is_archived && (
-                            <Button type="button" variant="secondary" size="sm" onClick={() => setEditorState(template)}>
-                              Modifier
-                            </Button>
+                          {!lectureSeule && (
+                            <>
+                              {!template.is_archived && (
+                                <Button type="button" variant="secondary" size="sm" onClick={() => setEditorState(template)}>
+                                  Modifier
+                                </Button>
+                              )}
+                              {!template.is_archived && !template.is_active && (
+                                <Button type="button" size="sm" onClick={() => handleActivate(template)} disabled={isLoading}>
+                                  Activer
+                                </Button>
+                              )}
+                              {!template.is_archived && (
+                                <Button
+                                  type="button"
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={() => (template.is_active ? setArchiveConfirm(template) : handleArchive(template))}
+                                  disabled={isLoading}
+                                >
+                                  Archiver
+                                </Button>
+                              )}
+                              <Button type="button" variant="danger" size="sm" onClick={() => openDeleteConfirm(template)} disabled={isLoading}>
+                                Supprimer
+                              </Button>
+                            </>
                           )}
-                          {!template.is_archived && !template.is_active && (
-                            <Button type="button" size="sm" onClick={() => handleActivate(template)} disabled={isLoading}>
-                              Activer
-                            </Button>
-                          )}
-                          {!template.is_archived && (
-                            <Button
-                              type="button"
-                              variant="danger"
-                              size="sm"
-                              onClick={() => (template.is_active ? setArchiveConfirm(template) : handleArchive(template))}
-                              disabled={isLoading}
-                            >
-                              Archiver
-                            </Button>
-                          )}
-                          <Button type="button" variant="danger" size="sm" onClick={() => openDeleteConfirm(template)} disabled={isLoading}>
-                            Supprimer
-                          </Button>
                         </div>
                       </div>
                     )

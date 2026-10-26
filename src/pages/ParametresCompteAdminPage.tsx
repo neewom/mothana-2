@@ -9,6 +9,7 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
+import { cn } from '../lib/utils'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -62,6 +63,8 @@ export default function ParametresCompteAdminPage() {
   const [notifSaving, setNotifSaving] = useState(false)
   const [notifSuccess, setNotifSuccess] = useState(false)
   const [notifError, setNotifError] = useState<string | null>(null)
+  // Interrupteur de l'organisation : coupé, aucun email de demande ne part (case grisée).
+  const [notifOrgActive, setNotifOrgActive] = useState(true)
 
   useEffect(() => {
     if (searchParams.get('email_change') === 'confirme') {
@@ -90,6 +93,12 @@ export default function ParametresCompteAdminPage() {
         setNotifDemandes(row.notif_demandes_adhesion)
         initialNotifRef.current = row.notif_demandes_adhesion
       }
+      const { data: org } = await supabase
+        .from('organisations')
+        .select('notif_demandes_adhesion')
+        .eq('id', auth.organisationId)
+        .single()
+      if (org) setNotifOrgActive((org as { notif_demandes_adhesion: boolean }).notif_demandes_adhesion)
       setLoading(false)
     }
     fetchProfil()
@@ -139,13 +148,14 @@ export default function ParametresCompteAdminPage() {
     setPwdSending(true)
     setPwdMessage(null)
 
-    await fetch(`${SUPABASE_URL}/functions/v1/request-password-reset`, {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/request-password-reset`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
       body: JSON.stringify({ email: auth.user.email, site_url: getCanonicalSiteUrl() }),
     })
+    const json = await res.json().catch(() => ({}))
 
-    setPwdMessage('Un email de réinitialisation vous a été envoyé.')
+    setPwdMessage(res.ok ? 'Un email de réinitialisation vous a été envoyé.' : json.error ?? "L'envoi a échoué, réessayez plus tard.")
     setPwdSending(false)
   }
 
@@ -157,13 +167,12 @@ export default function ParametresCompteAdminPage() {
     setNotifError(null)
     setNotifSuccess(false)
 
-    const { error } = await supabase
-      .from('profils_organisation')
-      .update({
-        notif_demandes_adhesion: next,
-        ...(next !== initialNotifRef.current ? { notif_demandes_adhesion_updated_at: new Date().toISOString() } : {}),
-      })
-      .eq('utilisateur_id', auth.user.id)
+    // Même RPC que Paramètres → Équipe et l'espace super-admin (seule écriture de ce réglage).
+    const { error } = await supabase.rpc('definir_notification_demandes', {
+      p_utilisateur_id: auth.user.id,
+      p_organisation_id: auth.organisationId,
+      p_actif: next,
+    })
 
     if (error) {
       setNotifDemandes(!next)
@@ -255,18 +264,23 @@ export default function ParametresCompteAdminPage() {
               <div className="mb-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{notifError}</div>
             )}
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm text-ink">
+              <label className={cn('flex items-center gap-2 text-sm text-ink', !notifOrgActive && 'opacity-50')}>
                 <input
                   type="checkbox"
                   checked={notifDemandes}
                   onChange={handleToggleNotif}
-                  disabled={notifSaving}
+                  disabled={notifSaving || !notifOrgActive}
                   className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
                 />
-                Recevoir les notifications de demandes d'adhésion
+                Recevoir l'email des nouvelles demandes d'adhésion
               </label>
               {notifSuccess && <span className="text-sm text-ink-muted">Enregistré</span>}
             </div>
+            {!notifOrgActive && (
+              <p className="mt-2 text-xs text-ink-faint">
+                Sans effet pour l'instant : les emails des demandes d'adhésion sont désactivés pour l'organisation.
+              </p>
+            )}
           </ParametresSection>
 
         </>

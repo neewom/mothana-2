@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import ParametresSection from '../components/ParametresSection'
 import AssetsManager from '../components/parametres/AssetsManager'
+import LectureSeuleNotice from '../components/parametres/LectureSeuleNotice'
 import SaveBar from '../components/parametres/SaveBar'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
 import { useOrganisationId } from '../hooks/useOrganisationId'
+import { usePeutModifierParametres } from '../hooks/usePeutModifierParametres'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 import { DEFAULT_MODELE } from '../lib/modeleRecu'
 import { supabase } from '../lib/supabaseClient'
@@ -55,6 +57,7 @@ function toForm(row: OrganisationRow): OrganisationForm {
 
 export default function ParametresOrganisationPage() {
   const organisationId = useOrganisationId()
+  const peutModifier = usePeutModifierParametres()
   const [saved, setSaved] = useState<OrganisationForm | null>(null)
   const [form, setForm] = useState<OrganisationForm | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
@@ -161,6 +164,11 @@ export default function ParametresOrganisationPage() {
           <p className="mt-1 text-sm text-ink-muted">Identité de l’association, signataire et visuels utilisés sur les reçus et les cartes.</p>
         </div>
 
+        {!peutModifier && <LectureSeuleNotice />}
+
+        {/* Contributeur : champs et visuels désactivés d'un bloc (la base refuse aussi l'écriture). */}
+        <fieldset disabled={!peutModifier} className="min-w-0 space-y-6">
+
         <ParametresSection title="Identité" description="Nom, adresse et identifiants, affichés sur les reçus fiscaux.">
           <div className="max-w-lg space-y-4">
             <div>
@@ -214,10 +222,11 @@ export default function ParametresOrganisationPage() {
         </ParametresSection>
 
         <ParametresSection title="Visuels" description="Logo, tampon, signature : utilisés à la fois par les reçus fiscaux et par la carte adhérent.">
-          <AssetsManager organisationId={organisationId} />
+          <AssetsManager organisationId={organisationId} lectureSeule={!peutModifier} />
         </ParametresSection>
+        </fieldset>
 
-        <SaveBar
+        {peutModifier && <SaveBar
           dirty={dirty}
           saving={saving}
           success={success}
@@ -226,7 +235,7 @@ export default function ParametresOrganisationPage() {
             setForm(saved)
             setError(null)
           }}
-        />
+        />}
       </form>
       {guardDialog}
     </div>

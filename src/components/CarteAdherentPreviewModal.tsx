@@ -43,6 +43,8 @@ export default function CarteAdherentPreviewModal({
         <div className="flex-1 overflow-y-auto p-6">
           <iframe
             title={`Aperçu de la carte ${nom}`}
+            // Aperçu d'un modèle saisi par un membre : aucun script, aucune origine (audit sécurité 2026-10-24).
+            sandbox=""
             srcDoc={renderCartePreviewHtml(htmlTemplate, css, dynamicPlaceholders)}
             className="h-[50dvh] w-full rounded-sm border border-paper-border"
           />

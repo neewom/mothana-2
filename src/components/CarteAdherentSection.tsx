@@ -11,13 +11,15 @@ import { Dialog, DialogContent } from './ui/dialog'
 
 interface CarteAdherentSectionProps {
   organisationId: string
+  /** Contributeur : aperçu seulement, aucune action de modification (paramètres admin). */
+  lectureSeule?: boolean
 }
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-export default function CarteAdherentSection({ organisationId }: CarteAdherentSectionProps) {
+export default function CarteAdherentSection({ organisationId, lectureSeule = false }: CarteAdherentSectionProps) {
   const [templates, setTemplates] = useState<TemplateCarteAdherent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -157,19 +159,21 @@ export default function CarteAdherentSection({ organisationId }: CarteAdherentSe
         <p className="text-sm text-ink-muted">
           Un seul gabarit actif à la fois. Celui-ci est utilisé pour l'impression des cartes adhérent.
         </p>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => setImportOpen(true)}>
-            Importer un modèle
-          </Button>
-          <Button
-            onClick={() => {
-              setWizardDraft(null)
-              setEditorState('new')
-            }}
-          >
-            Nouveau gabarit
-          </Button>
-        </div>
+        {!lectureSeule && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              Importer un modèle
+            </Button>
+            <Button
+              onClick={() => {
+                setWizardDraft(null)
+                setEditorState('new')
+              }}
+            >
+              Nouveau gabarit
+            </Button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -209,30 +213,34 @@ export default function CarteAdherentSection({ organisationId }: CarteAdherentSe
                   <Button type="button" variant="secondary" size="sm" onClick={() => setPreviewTemplate(template)}>
                     Prévisualiser
                   </Button>
-                  {!template.is_archived && (
-                    <Button type="button" variant="secondary" size="sm" onClick={() => setEditorState(template)}>
-                      Modifier
-                    </Button>
+                  {!lectureSeule && (
+                    <>
+                      {!template.is_archived && (
+                        <Button type="button" variant="secondary" size="sm" onClick={() => setEditorState(template)}>
+                          Modifier
+                        </Button>
+                      )}
+                      {!template.is_archived && !template.is_active && (
+                        <Button type="button" size="sm" onClick={() => handleActivate(template)} disabled={isLoading}>
+                          Activer
+                        </Button>
+                      )}
+                      {!template.is_archived && (
+                        <Button
+                          type="button"
+                          variant="danger"
+                          size="sm"
+                          onClick={() => (template.is_active ? setArchiveConfirm(template) : handleArchive(template))}
+                          disabled={isLoading}
+                        >
+                          Archiver
+                        </Button>
+                      )}
+                      <Button type="button" variant="danger" size="sm" onClick={() => setDeleteConfirm(template)} disabled={isLoading}>
+                        Supprimer
+                      </Button>
+                    </>
                   )}
-                  {!template.is_archived && !template.is_active && (
-                    <Button type="button" size="sm" onClick={() => handleActivate(template)} disabled={isLoading}>
-                      Activer
-                    </Button>
-                  )}
-                  {!template.is_archived && (
-                    <Button
-                      type="button"
-                      variant="danger"
-                      size="sm"
-                      onClick={() => (template.is_active ? setArchiveConfirm(template) : handleArchive(template))}
-                      disabled={isLoading}
-                    >
-                      Archiver
-                    </Button>
-                  )}
-                  <Button type="button" variant="danger" size="sm" onClick={() => setDeleteConfirm(template)} disabled={isLoading}>
-                    Supprimer
-                  </Button>
                 </div>
               </div>
             )

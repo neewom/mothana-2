@@ -14,6 +14,8 @@ import { Label } from './ui/label'
 
 interface CouponDonneesPersonnellesSectionProps {
   organisationId: string
+  /** Contributeur : réglages consultables, non modifiables (paramètres admin). */
+  lectureSeule?: boolean
   /** Remonte l'état « modifié non enregistré » à la page (garde de sortie). */
   onDirtyChange?: (dirty: boolean) => void
 }
@@ -24,7 +26,7 @@ interface Settings {
 }
 
 /** Paramètres RGPD du porte-monnaie événementiel (durée de conservation, politique de confidentialité). */
-export default function CouponDonneesPersonnellesSection({ organisationId, onDirtyChange }: CouponDonneesPersonnellesSectionProps) {
+export default function CouponDonneesPersonnellesSection({ organisationId, onDirtyChange, lectureSeule = false }: CouponDonneesPersonnellesSectionProps) {
   const [saved, setSaved] = useState<Settings | null>(null)
   const [mois, setMois] = useState(String(CONSERVATION_MOIS_DEFAUT))
   const [url, setUrl] = useState('')
@@ -98,6 +100,7 @@ export default function CouponDonneesPersonnellesSection({ organisationId, onDir
       description="Portefeuilles événement : durée de conservation des emails et information des acheteurs."
     >
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
+        <fieldset disabled={lectureSeule} className="min-w-0 space-y-4">
         <div>
           <Label htmlFor="coupon-conservation">Durée de conservation (mois)</Label>
           <Input
@@ -137,13 +140,15 @@ export default function CouponDonneesPersonnellesSection({ organisationId, onDir
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        </fieldset>
+
+        {!lectureSeule && <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={saving || saved === null || unchanged || mois.length === 0 || moisInvalid || urlInvalid}>
             {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
           </Button>
           {success && <span className="text-sm text-success">Enregistré</span>}
           {error && <span className="text-sm text-stamp">{error}</span>}
-        </div>
+        </div>}
       </form>
     </ParametresSection>
   )
