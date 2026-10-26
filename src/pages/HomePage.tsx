@@ -42,6 +42,7 @@ export default function HomePage() {
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotSending, setForgotSending] = useState(false)
   const [forgotMessage, setForgotMessage] = useState<string | null>(null)
+  const [forgotIsError, setForgotIsError] = useState(false)
 
   useEffect(() => {
     if (auth.type === 'super_admin') navigate('/super-admin', { replace: true })
@@ -78,7 +79,13 @@ export default function HomePage() {
     })
     const json = await res.json().catch(() => ({}))
     setForgotSending(false)
-    setForgotMessage(json.message ?? "Si un compte existe pour cette adresse, un email de réinitialisation a été envoyé.")
+    // 429 (trop de demandes) : message d'erreur de la fonction plutôt que le message générique
+    setForgotIsError(!res.ok)
+    setForgotMessage(
+      res.ok
+        ? json.message ?? "Si un compte existe pour cette adresse, un email de réinitialisation a été envoyé."
+        : json.error ?? "L'envoi a échoué, réessayez plus tard.",
+    )
   }
 
   function backToLogin() {
@@ -181,12 +188,18 @@ export default function HomePage() {
 
               {forgotMessage ? (
                 <div className="mt-6 space-y-4">
-                  <div className="flex items-center gap-2 rounded-sm border border-success-border bg-success-tint px-4 py-3 text-sm text-success">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                    </svg>
-                    {forgotMessage}
-                  </div>
+                  {forgotIsError ? (
+                    <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">
+                      {forgotMessage}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-sm border border-success-border bg-success-tint px-4 py-3 text-sm text-success">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                      {forgotMessage}
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={backToLogin}
