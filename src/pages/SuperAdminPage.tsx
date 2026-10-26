@@ -226,6 +226,15 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
                 placeholder="Ex : Les Amis du Quartier"
               />
             </div>
+            {isEdit && org && (
+              // PIN affiché dans le détail seulement (plus dans la liste ni la recherche,
+              // retour utilisateur du 2026-10-25) ; modifiable par un admin de l'organisation.
+              <div className="space-y-1.5">
+                <Label>Code PIN bénévole</Label>
+                <p className="font-registre-mono text-sm text-ink">{org.code_pin_benevole ?? '—'}</p>
+                <p className="text-xs text-ink-faint">Modifiable par un administrateur depuis Paramètres › Codes PIN.</p>
+              </div>
+            )}
             {!isEdit && (
               <p className="text-xs text-ink-faint">
                 Un code PIN bénévole aléatoire sera généré automatiquement. Il pourra être modifié depuis les paramètres de l'organisation.
@@ -341,7 +350,7 @@ export default function SuperAdminPage() {
   const [extractingId, setExtractingId] = useState<string | null>(null)
 
   const [recherche, setRecherche] = useState('')
-  const orgsTrouvees = orgs.filter((o) => correspondRecherche([o.nom, o.code_pin_benevole], recherche))
+  const orgsTrouvees = orgs.filter((o) => correspondRecherche([o.nom], recherche))
   const activeOrgs = orgsTrouvees.filter((o) => !o.archived_at)
   const archivedOrgs = orgsTrouvees.filter((o) => o.archived_at)
   const rechercheActive = recherche.trim().length > 0
@@ -619,7 +628,7 @@ export default function SuperAdminPage() {
         </div>
         {orgs.length > 0 && (
           <ListToolbar
-            search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom ou code PIN…', label: 'Rechercher une organisation' }}
+            search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom…', label: 'Rechercher une organisation' }}
           />
         )}
 
@@ -646,7 +655,6 @@ export default function SuperAdminPage() {
                   >
                     <TableCell>
                       <div className="font-medium text-ink">{org.nom}</div>
-                      <div className="font-registre-mono text-xs text-ink-faint">PIN : {org.code_pin_benevole ?? '—'}</div>
                     </TableCell>
                   </TableRow>
                 ))}
