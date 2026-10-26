@@ -315,6 +315,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
                 newFormTitle="Nouveau compte"
                 emptyLabel="Aucun compte pour cette organisation."
                 onAccountAdded={onAdminAdded}
+                notificationsEquipeActives={notifDemandes}
               />
             </div>
           )}
