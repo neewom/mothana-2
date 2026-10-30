@@ -62,6 +62,10 @@ export interface DemandeAdhesion {
   accepte_statuts: boolean
   consent_rgpd: boolean
   statut: 'en_attente' | 'ratifiee' | 'refusee'
+  /** 'renouvellement' : demande envoyée depuis un lien de renouvellement (adherent_vise_id). */
+  type: 'adhesion' | 'renouvellement'
+  /** Adhérent visé par un renouvellement (null pour une adhésion, ou s'il a été supprimé). */
+  adherent_vise_id: string | null
   decided_at: string | null
   decided_by: string | null
   adherent_id: string | null
