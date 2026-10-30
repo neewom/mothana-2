@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
-import Editor, { type OnMount } from '@monaco-editor/react'
+import type { OnMount } from '@monaco-editor/react'
+import CodeEditor from './CodeEditor'
 import { supabase } from '../lib/supabaseClient'
 import {
   DEFAULT_FORMULAIRE_ADHESION_HEADER_HTML,
@@ -214,7 +215,7 @@ export default function FormulaireAdhesionEditorModal({
                     </button>
                   </div>
                   <div className="min-h-[160px] flex-1 overflow-hidden rounded-sm border border-paper-border">
-                    <Editor
+                    <CodeEditor
                       height="100%"
                       language={editorLang}
                       value={editorValue}
