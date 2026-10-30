@@ -5,7 +5,7 @@
 do $$
 declare
   v_demo uuid; v_autre uuid; v_benevole uuid; v_admin uuid; v_super uuid; v_adh uuid; v_adh_autre uuid;
-  v_l1 uuid; v_l2 uuid; v_l3 uuid; n int; r text := '';
+  v_l1 uuid; v_l2 uuid; v_l3 uuid; v_la uuid; v_lb uuid; v_ls uuid; n int; r text := '';
 begin
   select id into v_demo from public.organisations where nom = 'Association Démo Staging';
   select organisation_id into v_autre from public.adherents where organisation_id <> v_demo limit 1;
@@ -16,14 +16,16 @@ begin
   select id into v_adh from public.adherents where organisation_id = v_demo order by created_at limit 1;
   select id into v_adh_autre from public.adherents where organisation_id = v_autre limit 1;
 
-  -- Données (service) : deux liens pour l'adhérent démo
-  insert into public.liens_renouvellement (organisation_id, adherent_id, secret_hash)
-    values (v_demo, v_adh, repeat('a', 64)) returning id into v_l1;
+  -- Données (service) : deux liens pour l'adhérent démo. cree_le vaut now(), constant dans la
+  -- transaction du test : on le fixe explicitement pour ordonner les envois.
+  insert into public.liens_renouvellement (organisation_id, adherent_id, secret_hash, cree_le, expire_le)
+    values (v_demo, v_adh, repeat('a', 64), now() - interval '1 hour', now() - interval '1 hour' + interval '90 days')
+    returning id into v_l1;
   insert into public.liens_renouvellement (organisation_id, adherent_id, secret_hash)
     values (v_demo, v_adh, repeat('b', 64)) returning id into v_l2;
 
   -- 1. Expiration par défaut à 90 jours, empreinte hex obligatoire
-  r := r || '1.expire_90j=' || ((select expire_le - cree_le from public.liens_renouvellement where id = v_l1) = interval '90 days');
+  r := r || '1.expire_90j=' || ((select expire_le - cree_le from public.liens_renouvellement where id = v_l2) = interval '90 days');
   begin
     insert into public.liens_renouvellement (organisation_id, adherent_id, secret_hash) values (v_demo, v_adh, 'secret-en-clair');
     r := r || ' hash_non_hex=ACCEPTE(KO)';
@@ -51,6 +53,20 @@ begin
     values (v_demo, v_adh, repeat('d', 64)) returning id into v_l3;
   r := r || ' | 4.revoquer=' || public.revoquer_liens_renouvellement(array[v_l3]);
   r := r || ' l2_toujours_actif=' || ((select revoque_le from public.liens_renouvellement where id = v_l2) is null);
+
+  -- 4b. Deux envois qui se chevauchent : A insère LA, B insère LB (plus récent), A remplace puis
+  -- B remplace. Le dernier lien inséré (LB) reste actif, pas d'annulation croisée.
+  insert into public.liens_renouvellement (organisation_id, adherent_id, secret_hash, cree_le)
+    values (v_demo, v_adh, repeat('1', 64), now() + interval '1 second') returning id into v_la;
+  insert into public.liens_renouvellement (organisation_id, adherent_id, secret_hash, cree_le)
+    values (v_demo, v_adh, repeat('2', 64), now() + interval '2 seconds') returning id into v_lb;
+  r := r || ' | 4b.remplacer_A=' || public.remplacer_liens_renouvellement(array[v_la]);
+  r := r || ' remplacer_B=' || public.remplacer_liens_renouvellement(array[v_lb]);
+  r := r || ' LA_revoque=' || ((select revoque_le from public.liens_renouvellement where id = v_la) is not null);
+  r := r || ' LB_actif=' || ((select revoque_le from public.liens_renouvellement where id = v_lb) is null);
+  r := r || ' l2_revoque=' || ((select revoque_le from public.liens_renouvellement where id = v_l2) is not null);
+  r := r || ' actifs_adherent=' || (select count(*) from public.liens_renouvellement
+    where adherent_id = v_adh and revoque_le is null and utilise_le is null);
 
   -- 5. Session bénévole : ni lecture, ni écriture, ni RPC
   perform set_config('request.jwt.claims', json_build_object('sub', v_benevole, 'role', 'authenticated',
@@ -88,26 +104,48 @@ begin
   end;
   execute 'reset role';
 
-  -- 7. Admin de l'organisation : lit les liens de son organisation, rien d'une autre
+  -- 7. Admin de l'organisation : lit les liens de son organisation, rien d'une autre, n'écrit rien
   perform set_config('request.jwt.claims', json_build_object('sub', v_admin, 'role', 'authenticated', 'app_metadata', json_build_object())::text, true);
   execute 'set local role authenticated';
   r := r || ' | 7.admin_lecture=' || (select count(*) from public.liens_renouvellement where id in (v_l1, v_l2, v_l3));
   r := r || ' admin_autre_org=' || (select count(*) from public.liens_renouvellement where organisation_id <> v_demo);
   begin
+    insert into public.liens_renouvellement (organisation_id, adherent_id, secret_hash) values (v_demo, v_adh, repeat('7', 64));
+    r := r || ' admin_insert=ACCEPTE(KO)';
+  exception when insufficient_privilege then r := r || ' admin_insert=refuse';
+  end;
+  begin
     insert into public.liens_renouvellement (organisation_id, adherent_id, secret_hash) values (v_autre, coalesce(v_adh_autre, v_adh), repeat('f', 64));
     r := r || ' admin_insert_autre_org=ACCEPTE(KO)';
   exception when insufficient_privilege or check_violation then r := r || ' admin_insert_autre_org=refuse';
   end;
+  update public.liens_renouvellement set revoque_le = null where organisation_id = v_demo;
+  get diagnostics n = row_count;
+  r := r || ' admin_update=' || n;
+  delete from public.liens_renouvellement where organisation_id = v_demo;
+  get diagnostics n = row_count;
+  r := r || ' admin_delete=' || n;
+  begin
+    perform public.remplacer_liens_renouvellement(array[v_lb]);
+    r := r || ' admin_remplacer=ACCEPTE(KO)';
+  exception when insufficient_privilege then r := r || ' admin_remplacer=refuse';
+  end;
   execute 'reset role';
 
-  -- 8. Super-admin : bypass (lecture et mise à jour)
+  -- 8. Super-admin : bypass (lecture, insertion, mise à jour, suppression)
   perform set_config('request.jwt.claims', json_build_object('sub', v_super, 'role', 'authenticated',
     'app_metadata', json_build_object('is_super_admin', true))::text, true);
   execute 'set local role authenticated';
   r := r || ' | 8.super_lecture=' || (select count(*) from public.liens_renouvellement where id in (v_l1, v_l2, v_l3));
+  insert into public.liens_renouvellement (organisation_id, adherent_id, secret_hash)
+    values (v_demo, v_adh, repeat('8', 64)) returning id into v_ls;
+  r := r || ' super_insert=' || (v_ls is not null);
   update public.liens_renouvellement set utilise_le = now() where id = v_l2;
   get diagnostics n = row_count;
   r := r || ' super_update=' || n;
+  delete from public.liens_renouvellement where id = v_ls;
+  get diagnostics n = row_count;
+  r := r || ' super_delete=' || n;
   execute 'reset role';
 
   raise exception 'RESULTATS: %', r;

@@ -5,7 +5,9 @@
 -- /adhesion/<slug>/renouveler#<secret>) ; seule l'empreinte SHA-256 (hex) est stockée ici.
 --
 -- Un lien est valide tant que : revoque_le is null and utilise_le is null and expire_le > now().
--- Un nouvel envoi au même adhérent révoque ses liens encore actifs (remplacer_liens_renouvellement).
+-- Un nouvel envoi au même adhérent révoque ses liens actifs plus anciens (remplacer_liens_renouvellement).
+-- Écritures : service_role et super-admin seulement ; admin/contributeur en lecture sur son organisation.
+-- Ré-exécutable (create if not exists / or replace, drop policy if exists).
 -- Lecteurs prévus : page publique de renouvellement (carte 2/3, par empreinte, via une RPC
 -- security definer à créer), traitement admin (carte 3/3).
 begin;
@@ -60,26 +62,29 @@ create policy liens_renouvellement_select on public.liens_renouvellement for sel
   using ((((select auth.jwt()) -> 'app_metadata' ->> 'is_super_admin')::boolean = true
     or organisation_id = (select current_user_organisation_id())));
 
+-- Écritures réservées au service_role (send-mailing-brevo, RPC security definer) et au
+-- super-admin (bypass habituel) : un admin/contributeur ne fait que lire les liens de son organisation.
 drop policy if exists liens_renouvellement_insert on public.liens_renouvellement;
 create policy liens_renouvellement_insert on public.liens_renouvellement for insert to authenticated
-  with check ((((select auth.jwt()) -> 'app_metadata' ->> 'is_super_admin')::boolean = true
-    or organisation_id = (select current_user_organisation_id())));
+  with check (coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'is_super_admin')::boolean, false));
 
 drop policy if exists liens_renouvellement_update on public.liens_renouvellement;
 create policy liens_renouvellement_update on public.liens_renouvellement for update to authenticated
-  using ((((select auth.jwt()) -> 'app_metadata' ->> 'is_super_admin')::boolean = true
-    or organisation_id = (select current_user_organisation_id())))
-  with check ((((select auth.jwt()) -> 'app_metadata' ->> 'is_super_admin')::boolean = true
-    or organisation_id = (select current_user_organisation_id())));
+  using (coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'is_super_admin')::boolean, false))
+  with check (coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'is_super_admin')::boolean, false));
 
 drop policy if exists liens_renouvellement_delete on public.liens_renouvellement;
 create policy liens_renouvellement_delete on public.liens_renouvellement for delete to authenticated
-  using ((((select auth.jwt()) -> 'app_metadata' ->> 'is_super_admin')::boolean = true
-    or organisation_id = (select current_user_organisation_id())));
+  using (coalesce(((select auth.jwt()) -> 'app_metadata' ->> 'is_super_admin')::boolean, false));
 
--- Remplacement après un envoi réussi : révoque les liens encore actifs des mêmes adhérents,
--- sauf ceux qui viennent d'être envoyés. Appelée par send-mailing-brevo (service_role) seulement :
--- un tableau d'identifiants dans le corps de la requête, pas dans l'URL (lots de 1000).
+-- Remplacement après un envoi réussi : révoque les liens encore actifs des mêmes adhérents
+-- créés AVANT un des liens qui viennent d'être envoyés (comparaison sur cree_le). Ne jamais
+-- révoquer un lien plus récent : deux envois qui se chevauchent sur le même adhérent
+-- s'annuleraient mutuellement (A révoquerait le lien de B et inversement). Égalité de cree_le :
+-- seulement pour des liens insérés dans la même transaction (cree_le = now()), donc du même
+-- envoi ; aucun n'est révoqué, choix sûr (pas de départage par id, qui n'a pas de sens d'ordre).
+-- Appelée par send-mailing-brevo (service_role) seulement : un tableau d'identifiants dans le
+-- corps de la requête, pas dans l'URL (lots de 1000).
 create or replace function public.remplacer_liens_renouvellement(p_nouveaux uuid[])
 returns integer
 language sql
@@ -92,8 +97,12 @@ as $$
      where l.revoque_le is null
        and l.utilise_le is null
        and l.id <> all (p_nouveaux)
-       and (l.adherent_id, l.organisation_id) in (
-         select n.adherent_id, n.organisation_id from public.liens_renouvellement n where n.id = any (p_nouveaux)
+       and exists (
+         select 1 from public.liens_renouvellement n
+          where n.id = any (p_nouveaux)
+            and n.adherent_id = l.adherent_id
+            and n.organisation_id = l.organisation_id
+            and n.cree_le > l.cree_le
        )
     returning 1
   )
