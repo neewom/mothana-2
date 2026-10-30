@@ -8,6 +8,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage'
 import BenevoleLoginPage from './pages/BenevoleLoginPage'
 import VendeurLoginPage from './pages/VendeurLoginPage'
 import DemandeAdhesionPage from './pages/DemandeAdhesionPage'
+import RenouvellementAdhesionPage from './pages/RenouvellementAdhesionPage'
 import DesinscriptionMailingPage from './pages/DesinscriptionMailingPage'
 import DecouvrirPage from './pages/DecouvrirPage'
 import AidePage from './pages/AidePage'
@@ -53,6 +54,7 @@ function App() {
         <Route path="/login/benevole" element={<BenevoleLoginPage />} />
         <Route path="/login/vendeur" element={<VendeurLoginPage />} />
         <Route path="/adhesion/:slug" element={<DemandeAdhesionPage />} />
+        <Route path="/adhesion/:slug/renouveler" element={<RenouvellementAdhesionPage />} />
         <Route path="/desinscription" element={<DesinscriptionMailingPage />} />
         <Route path="/decouvrir" element={<DecouvrirPage />} />
         <Route path="/aide" element={<AidePage />} />
