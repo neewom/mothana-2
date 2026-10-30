@@ -3,6 +3,7 @@
 // l'Edge Function generate-recu (brief §2.2), valeurs fictives cohérentes.
 
 import { supabase } from './supabaseClient'
+import { substitutePreviewPlaceholders } from './htmlEscape'
 
 export const CERFA_PREVIEW_PLACEHOLDERS: Record<string, string> = {
   organisation_nom: 'Wat Velouvanaram',
@@ -51,15 +52,20 @@ export function getMissingMandatoryPlaceholders(html: string): string[] {
   return hasRnaOrSiren ? missing : [...missing, 'organisation_rna ou organisation_siren']
 }
 
+// Clés dont la valeur est un fragment HTML voulu (cf. fragmentsHtml de generate-recu).
+export const CERFA_PREVIEW_FRAGMENTS_HTML: ReadonlySet<string> = new Set(['dons_detail'])
+
 export function renderCerfaPreviewHtml(
   html: string,
   css: string,
   extraPlaceholders: Record<string, string> = {},
 ): string {
-  let body = html
-  for (const [key, value] of Object.entries({ ...CERFA_PREVIEW_PLACEHOLDERS, ...extraPlaceholders })) {
-    body = body.split(`{{${key}}}`).join(value)
-  }
+  // Même règle que generate-recu : valeurs échappées, sauf le fragment HTML dons_detail.
+  const body = substitutePreviewPlaceholders(
+    html,
+    { ...CERFA_PREVIEW_PLACEHOLDERS, ...extraPlaceholders },
+    CERFA_PREVIEW_FRAGMENTS_HTML,
+  )
   return `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body>${body}</body></html>`
 }
 

@@ -11,11 +11,10 @@ export function escapeHtml(value: string): string {
     .replaceAll("'", '&#039;')
 }
 
-// Échappe une valeur texte en gardant les retours à la ligne `<br>` déjà saisis dans
-// certains champs de configuration (ex. objet social d'une organisation réelle) : seule
-// balise conservée, sans attribut, donc sans contenu actif possible.
+// Échappe strictement une valeur texte (aucune balise conservée, `<br>` saisi compris), puis
+// rend ses retours à la ligne (`\n`, `\r\n`, `\r`) en `<br>`, ajoutés après l'échappement.
 export function escapeHtmlTexte(value: string): string {
-  return escapeHtml(value).replace(/&lt;br\s*\/?&gt;/gi, '<br>')
+  return escapeHtml(value).replace(/\r\n|\r|\n/g, '<br>')
 }
 
 // Remplace les {{variables}} d'un gabarit par leurs valeurs échappées. `fragmentsHtml` liste
@@ -27,7 +26,7 @@ export function renderTemplate(
   fragmentsHtml: ReadonlySet<string> = new Set(),
 ): string {
   return html.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
-    const value = values[key] ?? ''
+    const value = (Object.hasOwn(values, key) ? values[key] : undefined) ?? ''
     return fragmentsHtml.has(key) ? value : escapeHtmlTexte(value)
   })
 }
