@@ -32,3 +32,7 @@ Deno.test('les fragments HTML déclarés sont insérés tels quels, les variable
     '<table>\n<tr><td>a<br>b</td></tr></table>|&lt;b&gt;|',
   )
 })
+
+Deno.test('une variable au nom d’une propriété héritée (constructor, toString) est vide, sans planter', () => {
+  egal(renderTemplate('[{{constructor}}][{{toString}}][{{nom}}]', { nom: 'A' }), '[][][A]')
+})

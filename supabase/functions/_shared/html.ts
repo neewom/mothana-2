@@ -26,7 +26,7 @@ export function renderTemplate(
   fragmentsHtml: ReadonlySet<string> = new Set(),
 ): string {
   return html.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
-    const value = values[key] ?? ''
+    const value = (Object.hasOwn(values, key) ? values[key] : undefined) ?? ''
     return fragmentsHtml.has(key) ? value : escapeHtmlTexte(value)
   })
 }
