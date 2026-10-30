@@ -1,6 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { fetchAllRows } from '../_shared/fetchAllRows.ts'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
+import { secretAleatoire } from '../_shared/secretAleatoire.ts'
+import {
+  avecBoutonRenouvellement,
+  empreinteSecret,
+  lienRenouvellement,
+  origineSite,
+  utiliseLienRenouvellement,
+} from './lienRenouvellement.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,6 +49,7 @@ function validateAttachments(pieces: unknown): PieceJointe[] | null {
 }
 
 interface AdherentDestinataire {
+  id: string
   courriel: string
   nom: string
   prenom: string | null
@@ -144,7 +153,7 @@ Deno.serve(async (req) => {
 
     // Clé API dans organisation_secrets (plus lisible par les membres), expéditeur dans organisations.
     const [{ data: expediteur }, { data: secret }] = await Promise.all([
-      adminClient.from('organisations').select('brevo_expediteur_nom, brevo_expediteur_email').eq('id', organisationId).single(),
+      adminClient.from('organisations').select('slug, brevo_expediteur_nom, brevo_expediteur_email').eq('id', organisationId).single(),
       adminClient.from('organisation_secrets').select('brevo_api_key').eq('organisation_id', organisationId).maybeSingle(),
     ])
     const org = expediteur ? { ...expediteur, brevo_api_key: secret?.brevo_api_key ?? null } : null
@@ -175,6 +184,16 @@ Deno.serve(async (req) => {
       console.warn('send-mailing-brevo: vérification de l\'expéditeur impossible, envoi maintenu')
     }
 
+    // Lien personnel de renouvellement : généré seulement si le corps l'utilise.
+    const avecLienRenouvellement = utiliseLienRenouvellement(corps_html)
+    if (avecLienRenouvellement && !org.slug) {
+      return jsonResponse(
+        { error: "Lien de renouvellement impossible : l'organisation n'a pas d'adresse de formulaire d'adhésion (identifiant public)." },
+        422,
+      )
+    }
+    const origine = origineSite(site_url, supabaseUrl)
+
     // ---------------------------------------------------------------------
     // 2. Destinataires
     // ---------------------------------------------------------------------
@@ -183,7 +202,7 @@ Deno.serve(async (req) => {
     const { data: adherentsData, error: adherentsError } = await fetchAllRows<AdherentDestinataire>((from, to) => {
       let query = adminClient
         .from('adherents')
-        .select('courriel, nom, prenom, mailing_unsubscribe_token, tags, email_invalide_at')
+        .select('id, courriel, nom, prenom, mailing_unsubscribe_token, tags, email_invalide_at')
         .eq('organisation_id', organisationId)
         .eq('mailing_opt_out', false)
 
@@ -225,10 +244,34 @@ Deno.serve(async (req) => {
       ? attachments.map((a) => ({ content: a.contenu_base64, name: a.nom }))
       : undefined
 
-    const htmlContentAvecFooter = corps_html + unsubscribeFooterHtml()
+    const htmlContentAvecFooter =
+      (avecLienRenouvellement ? avecBoutonRenouvellement(corps_html) : corps_html) + unsubscribeFooterHtml()
 
     for (let i = 0; i < destinataires.length; i += BREVO_BATCH_SIZE) {
       const chunk = destinataires.slice(i, i + BREVO_BATCH_SIZE)
+
+      // Un secret par destinataire, gardé en mémoire le temps de l'appel Brevo ; seule son
+      // empreinte est insérée. Les liens précédents ne sont révoqués qu'après un envoi réussi.
+      let liensParAdherent: Map<string, string> | null = null
+      let nouveauxLiens: string[] = []
+      if (avecLienRenouvellement) {
+        const secrets = chunk.map((a) => ({ adherentId: a.id, secret: secretAleatoire() }))
+        const lignes = await Promise.all(secrets.map(async ({ adherentId, secret }) => ({
+          organisation_id: organisationId,
+          adherent_id: adherentId,
+          secret_hash: await empreinteSecret(secret),
+        })))
+        const { data: inseres, error: lienError } = await adminClient
+          .from('liens_renouvellement')
+          .insert(lignes)
+          .select('id')
+        if (lienError || !inseres) {
+          console.error('send-mailing-brevo: insertion des liens de renouvellement', lienError?.code, lienError?.message)
+          return jsonResponse({ error: 'Erreur lors de la création des liens de renouvellement' }, 500)
+        }
+        nouveauxLiens = inseres.map((l) => l.id as string)
+        liensParAdherent = new Map(secrets.map(({ adherentId, secret }) => [adherentId, lienRenouvellement(origine, org.slug!, secret)]))
+      }
 
       const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
@@ -247,6 +290,7 @@ Deno.serve(async (req) => {
               prenom: a.prenom ?? '',
               nom: a.nom,
               lien_desinscription: `${site_url}/desinscription?token=${a.mailing_unsubscribe_token}`,
+              ...(liensParAdherent ? { lien_renouvellement: liensParAdherent.get(a.id) } : {}),
             },
           })),
           ...(brevoAttachment ? { attachment: brevoAttachment } : {}),
@@ -256,7 +300,17 @@ Deno.serve(async (req) => {
       if (!brevoRes.ok) {
         const detail = await brevoRes.text()
         console.error('Brevo error:', brevoRes.status, detail)
+        if (nouveauxLiens.length > 0) {
+          const { error } = await adminClient.rpc('revoquer_liens_renouvellement', { p_ids: nouveauxLiens })
+          if (error) console.error('send-mailing-brevo: révocation des liens non envoyés', error.code, error.message)
+        }
         return jsonResponse({ error: "Erreur lors de l'envoi via Brevo", detail }, 502)
+      }
+
+      if (nouveauxLiens.length > 0) {
+        const { error } = await adminClient.rpc('remplacer_liens_renouvellement', { p_nouveaux: nouveauxLiens })
+        // Non bloquant : l'email est parti ; l'ancien lien reste seulement valide jusqu'à son expiration.
+        if (error) console.error('send-mailing-brevo: révocation des anciens liens', error.code, error.message)
       }
     }
 
