@@ -1,11 +1,10 @@
 import type { JournalModification } from '../types'
 import {
   ACTION_LABELS,
-  TABLE_CIBLE_LABELS,
   describeJournalEntry,
+  libelleTableCible,
   formatDiffLines,
   type ActionJournal,
-  type TableCibleJournal,
   type ChampsModifies,
 } from '../lib/journalModifications'
 import Tooltip from './Tooltip'
@@ -32,7 +31,7 @@ export default function JournalActionLabel({ entry, showTable = true, showName =
         <span className="font-medium text-ink">{actionLabel}</span>
       )}
       {showTable && (
-        <span className="text-ink-faint"> · {TABLE_CIBLE_LABELS[entry.table_cible as TableCibleJournal] ?? entry.table_cible}</span>
+        <span className="text-ink-faint"> · {libelleTableCible(entry)}</span>
       )}
       {showName && <span className="text-ink-faint"> — {describeJournalEntry(entry)}</span>}
     </>
