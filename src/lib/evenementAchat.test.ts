@@ -47,4 +47,8 @@ describe('achatSimuleErrorMessage', () => {
     expect(achatSimuleErrorMessage('COMMANDE_DEJA_TRAITEE')).toContain('déjà crédité')
     expect(achatSimuleErrorMessage('COMMANDE_DEJA_TRAITEE')).not.toContain('envoyé')
   })
+
+  it('signale la limite de débit sans détail sur le seuil', () => {
+    expect(achatSimuleErrorMessage('TROP_DE_REQUETES')).toBe('Trop de demandes en peu de temps. Réessayez plus tard.')
+  })
 })
