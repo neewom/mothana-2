@@ -6,13 +6,15 @@ import SaveBar from '../components/parametres/SaveBar'
 import TemplatesRecuSection from '../components/TemplatesRecuSection'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
+import { Select } from '../components/ui/select'
 import { Textarea } from '../components/ui/textarea'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { usePeutModifierParametres } from '../hooks/usePeutModifierParametres'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 import { DEFAULT_MODELE } from '../lib/modeleRecu'
+import { exempleNumeroRecu, formatNumeroRecu } from '../lib/numeroRecu'
 import { supabase } from '../lib/supabaseClient'
-import type { ModeleRecu } from '../types'
+import type { FormatNumeroRecu, ModeleRecu } from '../types'
 
 // Paramètres › Reçus fiscaux : ce qui reste purement fiscal de l'ancienne page Fiscalité
 // (mention légale, taux, numérotation) et les modèles de reçus. L'identité de l'association
@@ -20,6 +22,7 @@ import type { ModeleRecu } from '../types'
 
 interface RecusForm {
   mentionLegale: string
+  formatNumeroRecu: FormatNumeroRecu
   numeroRecuDepart: number
   tauxReduction: number
 }
@@ -27,6 +30,7 @@ interface RecusForm {
 function toForm(modele: ModeleRecu): RecusForm {
   return {
     mentionLegale: modele.mention_legale,
+    formatNumeroRecu: formatNumeroRecu(modele.format_numero_recu),
     numeroRecuDepart: modele.numero_recu_depart,
     tauxReduction: modele.taux_reduction,
   }
@@ -42,6 +46,7 @@ export default function ParametresRecusFiscauxPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const anneeExemple = new Date().getFullYear()
   const dirty = saved !== null && form !== null && JSON.stringify(saved) !== JSON.stringify(form)
   const guardDialog = useUnsavedChangesGuard(dirty)
 
@@ -96,6 +101,7 @@ export default function ParametresRecusFiscauxPage() {
       ...DEFAULT_MODELE,
       ...((current as { modele_recu_pdf: Partial<ModeleRecu> | null }).modele_recu_pdf ?? {}),
       mention_legale: form.mentionLegale,
+      format_numero_recu: form.formatNumeroRecu,
       numero_recu_depart: form.numeroRecuDepart,
       taux_reduction: form.tauxReduction,
     }
@@ -167,18 +173,43 @@ export default function ParametresRecusFiscauxPage() {
                 <p className="mt-1 text-xs text-ink-faint">Affichée sur le reçu pour justifier l'éligibilité au mécénat.</p>
               </div>
 
+              <div>
+                <Label htmlFor="modele-format-numero-recu">Format du numéro de reçu</Label>
+                <Select
+                  id="modele-format-numero-recu"
+                  value={form.formatNumeroRecu}
+                  onChange={(e) => update('formatNumeroRecu', formatNumeroRecu(e.target.value))}
+                  className="mt-1 w-full"
+                >
+                  <option value="sequence">Séquence annuelle</option>
+                  <option value="donateur">Année + numéro de donateur</option>
+                </Select>
+                <p className="mt-1 text-xs text-ink-faint">
+                  Exemple :{' '}
+                  <span className="font-medium text-ink">
+                    {exempleNumeroRecu(form.formatNumeroRecu, anneeExemple, { numeroDepart: form.numeroRecuDepart })}
+                  </span>
+                  {form.formatNumeroRecu === 'donateur'
+                    ? ' pour le donateur n° 2803. Un donateur sans numéro de donateur ne peut pas recevoir de reçu.'
+                    : ', puis la suite de la séquence, qui repart chaque 1er janvier.'}
+                  {' '}Un reçu déjà émis garde son numéro.
+                </p>
+              </div>
+
               <div className="flex gap-3">
-                <div className="flex-1">
-                  <Label htmlFor="modele-numero-recu-depart">Numéro du premier reçu</Label>
-                  <Input
-                    id="modele-numero-recu-depart"
-                    type="number"
-                    min={1}
-                    value={form.numeroRecuDepart}
-                    onChange={(e) => update('numeroRecuDepart', Number(e.target.value))}
-                    className="mt-1"
-                  />
-                </div>
+                {form.formatNumeroRecu === 'sequence' && (
+                  <div className="flex-1">
+                    <Label htmlFor="modele-numero-recu-depart">Numéro du premier reçu</Label>
+                    <Input
+                      id="modele-numero-recu-depart"
+                      type="number"
+                      min={1}
+                      value={form.numeroRecuDepart}
+                      onChange={(e) => update('numeroRecuDepart', Number(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                )}
                 <div className="flex-1">
                   <Label htmlFor="modele-taux-reduction">Taux de réduction fiscale</Label>
                   <div className="relative mt-1">

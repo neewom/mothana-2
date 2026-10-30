@@ -8,6 +8,7 @@ export const DEFAULT_MODELE: ModeleRecu = {
   objet_social: '',
   mention_legale: MENTION_LEGALE_DEFAUT,
   numero_recu_depart: 1,
+  format_numero_recu: 'sequence',
   taux_reduction: 66,
   president_nom: '',
   president_titre: '',

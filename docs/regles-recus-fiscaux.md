@@ -70,8 +70,12 @@ Chaque participant est validé individuellement avant génération. Si des champ
 
 ## 4. Règles de numérotation
 
-- Numérotation automatique, séquence annuelle : `{ANNÉE}-{N°}` (ex: `2026-001`)
-- Le numéro de départ est configurable dans les Paramètres (pour continuité avec une numérotation existante)
+- Numérotation automatique, au format choisi par l'organisation dans Paramètres › Reçus fiscaux (`modele_recu_pdf.format_numero_recu`, depuis le 2026-10-31) :
+  - **Séquence annuelle** (`sequence`, défaut quand la clé est absente) : `{ANNÉE}-{N°}` (ex: `2026-001`), RPC `next_numero_recu`. Le numéro de départ est configurable dans les Paramètres (pour continuité avec une numérotation existante)
+  - **Année + numéro de donateur** (`donateur`) : `{ANNÉE}-{numéro de donateur}` (ex: `2026-2803`), numéro de donateur = `profils_participant.id_externe` repris tel quel (pas de zéros ajoutés), sans consommer la séquence. Un donateur sans numéro de donateur (ou dont le numéro contient autre chose que chiffres, lettres, tiret et tiret bas) ne peut pas recevoir de reçu dans ce format : erreur explicite, aucun reçu créé. Unicité : `id_externe` est unique par organisation et il n'y a qu'un reçu par donateur et par année
+- La règle vit côté serveur (Edge Function `generate-recu`, `supabase/functions/_shared/numeroRecu.ts`) ; le front n'affiche qu'un exemple
+- Garde anti-collision dans `generate-recu` : un nouveau numéro déjà porté par un autre reçu de l'organisation (formats mélangés dans une même année, numéro de donateur réattribué) est refusé (409) plutôt que d'écraser le PDF de l'autre reçu
+- Changer de format ne renumérote rien : les reçus déjà émis gardent leur numéro, le nouveau format ne s'applique qu'aux reçus créés ensuite
 - Un numéro attribué est **définitif** — même en cas de regénération du reçu, le même numéro est conservé
 - La séquence repart à partir du numéro de départ configuré chaque 1er janvier
 - Tenu en base depuis le 2026-10-30 (`recus_fiscaux_immutabilite.sql`) : un trigger refuse tout changement d'un `numero_ordre` déjà attribué, ainsi que de `organisation_id`, `profil_participant_id` et `annee`, pour tous les rôles. Une migration de correction devra désactiver explicitement le trigger `recus_fiscaux_verrou_identite` le temps de l'opération

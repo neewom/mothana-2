@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { convertirHtmlEnPdf, escapeHtml, renderTemplate } from '../_shared/html.ts'
+import { formatNumeroRecu, numeroRecuDonateur } from '../_shared/numeroRecu.ts'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 
 const corsHeaders = {
@@ -37,6 +38,7 @@ interface ModeleRecu {
   objet_social?: string
   mention_legale?: string
   numero_recu_depart?: number
+  format_numero_recu?: string
   taux_reduction?: number
   president_nom?: string
   president_titre?: string
@@ -458,16 +460,54 @@ Deno.serve(async (req) => {
 
     let numeroOrdre = existingRecu?.numero_ordre as string | null
 
+    // Un numéro déjà attribué est définitif (§4), même si le format a changé depuis.
     if (!numeroOrdre) {
-      const { data: numeroData, error: numeroError } = await adminClient.rpc('next_numero_recu', {
-        org_id: organisationId,
-        annee: anneeNum,
-      })
-      if (numeroError || !numeroData) {
-        console.error('next_numero_recu error:', numeroError)
+      const format = formatNumeroRecu(organisation.modele_recu_pdf?.format_numero_recu)
+      if (format === 'donateur') {
+        // Année + numéro de donateur : aucune séquence consommée.
+        numeroOrdre = numeroRecuDonateur(anneeNum, participant.id_externe as string | null)
+        if (!numeroOrdre) {
+          return jsonResponse(
+            {
+              error: participant.id_externe
+                ? 'Le numéro de donateur de ce donateur contient des caractères non autorisés (chiffres, lettres, tiret et tiret bas seulement) : le numéro du reçu ne peut pas en être tiré.'
+                : "Ce donateur n'a pas de numéro de donateur : le reçu ne peut pas être numéroté au format « année + numéro de donateur ».",
+            },
+            422,
+          )
+        }
+      } else {
+        const { data: numeroData, error: numeroError } = await adminClient.rpc('next_numero_recu', {
+          org_id: organisationId,
+          annee: anneeNum,
+        })
+        if (numeroError || !numeroData) {
+          console.error('next_numero_recu error:', numeroError)
+          return jsonResponse({ error: "Erreur lors de l'attribution du numéro de reçu" }, 500)
+        }
+        numeroOrdre = numeroData as string
+      }
+
+      // Garde anti-collision : deux formats mélangés dans une même année (ou un numéro de
+      // donateur réattribué) pourraient produire un numéro déjà porté par un autre reçu de
+      // l'organisation, dont le PDF serait écrasé dans le Storage.
+      const { data: doublon, error: doublonError } = await adminClient
+        .from('recus_fiscaux')
+        .select('id')
+        .eq('organisation_id', organisationId)
+        .eq('numero_ordre', numeroOrdre)
+        .neq('profil_participant_id', profil_participant_id)
+        .limit(1)
+      if (doublonError) {
+        console.error('numero_ordre collision check error:', doublonError)
         return jsonResponse({ error: "Erreur lors de l'attribution du numéro de reçu" }, 500)
       }
-      numeroOrdre = numeroData as string
+      if (doublon && doublon.length > 0) {
+        return jsonResponse(
+          { error: `Le numéro de reçu ${numeroOrdre} est déjà attribué à un autre reçu de l'organisation. Contactez le support.` },
+          409,
+        )
+      }
     }
 
     // ---------------------------------------------------------------------
