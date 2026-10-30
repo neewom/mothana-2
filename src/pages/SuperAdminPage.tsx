@@ -22,6 +22,7 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Table, TableBody, TableRow, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
+import BrevoWebhooksGlobalDialog from '../components/BrevoWebhooksGlobalDialog'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -368,6 +369,7 @@ export default function SuperAdminPage() {
 
   const [tab, setTab] = useState<'actives' | 'archivees'>('actives')
   const [extractingId, setExtractingId] = useState<string | null>(null)
+  const [webhooksBrevoOpen, setWebhooksBrevoOpen] = useState(false)
 
   const [recherche, setRecherche] = useState('')
   const orgsTrouvees = orgs.filter((o) => correspondRecherche([o.nom], recherche))
@@ -725,6 +727,26 @@ export default function SuperAdminPage() {
           </ScrollShadowX>
         )}
       </div>
+
+      {/* Actions globales (toutes organisations) */}
+      <div className="rounded-sm border border-paper-border bg-white">
+        <div className="border-b border-paper-border px-6 py-4">
+          <h2 className="text-lg font-semibold text-ink">Actions globales</h2>
+        </div>
+        <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-ink">Webhooks Brevo</div>
+            <p className="mt-0.5 text-sm text-ink-muted">
+              Réenregistre le webhook de rebonds de toutes les organisations ayant une clé API Brevo.
+            </p>
+          </div>
+          <Button type="button" variant="secondary" className="shrink-0" onClick={() => setWebhooksBrevoOpen(true)}>
+            Réenregistrer les webhooks Brevo
+          </Button>
+        </div>
+      </div>
+
+      <BrevoWebhooksGlobalDialog open={webhooksBrevoOpen} onClose={() => setWebhooksBrevoOpen(false)} />
 
       {/* Create / edit modal */}
       <OrgModal
