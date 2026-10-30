@@ -97,7 +97,7 @@ export default function BrevoWebhooksGlobalDialog({ open, onClose }: Props) {
             </ul>
           )}
           {erreur && (
-            <div className="mt-4 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{erreur}</div>
+            <div role="alert" className="mt-4 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{erreur}</div>
           )}
           <div className="mt-5 flex justify-end gap-3">
             {lignes === null ? (
