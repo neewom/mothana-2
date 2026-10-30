@@ -50,7 +50,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; img-src 'self' data: blob: https://bocqfdhmxmleracrwvbu.supabase.co; connect-src 'self' https://bocqfdhmxmleracrwvbu.supabase.co wss://bocqfdhmxmleracrwvbu.supabase.co; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://bocqfdhmxmleracrwvbu.supabase.co; connect-src 'self' https://bocqfdhmxmleracrwvbu.supabase.co wss://bocqfdhmxmleracrwvbu.supabase.co; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
         }
       ]
     },
@@ -65,7 +65,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; img-src 'self' data: blob: https://bocqfdhmxmleracrwvbu.supabase.co; connect-src 'self' https://bocqfdhmxmleracrwvbu.supabase.co wss://bocqfdhmxmleracrwvbu.supabase.co; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://bocqfdhmxmleracrwvbu.supabase.co; connect-src 'self' https://bocqfdhmxmleracrwvbu.supabase.co wss://bocqfdhmxmleracrwvbu.supabase.co; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
         }
       ]
     },
@@ -80,7 +80,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; img-src 'self' data: blob: https://bocqfdhmxmleracrwvbu.supabase.co; connect-src 'self' https://bocqfdhmxmleracrwvbu.supabase.co wss://bocqfdhmxmleracrwvbu.supabase.co; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://bocqfdhmxmleracrwvbu.supabase.co; connect-src 'self' https://bocqfdhmxmleracrwvbu.supabase.co wss://bocqfdhmxmleracrwvbu.supabase.co; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
         }
       ]
     },
@@ -95,7 +95,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; img-src 'self' data: blob: https://cxngcmvxktddhyxboyyx.supabase.co; connect-src 'self' https://cxngcmvxktddhyxboyyx.supabase.co wss://cxngcmvxktddhyxboyyx.supabase.co; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://cxngcmvxktddhyxboyyx.supabase.co; connect-src 'self' https://cxngcmvxktddhyxboyyx.supabase.co wss://cxngcmvxktddhyxboyyx.supabase.co; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
         }
       ]
     },
@@ -122,7 +122,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/; img-src 'self' data: blob: https://cxngcmvxktddhyxboyyx.supabase.co https://bocqfdhmxmleracrwvbu.supabase.co; connect-src 'self' https://cxngcmvxktddhyxboyyx.supabase.co https://bocqfdhmxmleracrwvbu.supabase.co wss://cxngcmvxktddhyxboyyx.supabase.co wss://bocqfdhmxmleracrwvbu.supabase.co; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://cxngcmvxktddhyxboyyx.supabase.co https://bocqfdhmxmleracrwvbu.supabase.co; connect-src 'self' https://cxngcmvxktddhyxboyyx.supabase.co https://bocqfdhmxmleracrwvbu.supabase.co wss://cxngcmvxktddhyxboyyx.supabase.co wss://bocqfdhmxmleracrwvbu.supabase.co; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
         }
       ]
     }

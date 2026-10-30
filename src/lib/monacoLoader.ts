@@ -1,10 +1,8 @@
-import { loader } from '@monaco-editor/react'
-
-// Monaco est chargé depuis jsDelivr par @monaco-editor/react. La version est épinglée ici
-// parce que la Content-Security-Policy (vercel.json) n'autorise que ce chemin précis :
-// changer de version = changer aussi la CSP (le test monacoLoader.test.ts le vérifie).
-export const MONACO_CDN_BASE = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/'
-
-export function configurerMonaco(): void {
-  loader.config({ paths: { vs: `${MONACO_CDN_BASE}min/vs` } })
+// Monaco est servi depuis notre build (monacoSetup.ts), plus depuis un CDN : la CSP de
+// vercel.json n'a ainsi à autoriser aucune origine tierce pour l'éditeur. Le chargement
+// est différé à la première ouverture d'un éditeur (import dynamique, chunk séparé).
+// Pas de réessai ici : lazy() (CodeEditor) mémorise un échec, le réessai passe par le
+// rechargement de la page proposé par LoadErrorBoundary.
+export function chargerMonaco(): Promise<void> {
+  return import('./monacoSetup').then(() => undefined)
 }
