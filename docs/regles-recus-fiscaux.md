@@ -74,6 +74,7 @@ Chaque participant est validé individuellement avant génération. Si des champ
 - Le numéro de départ est configurable dans les Paramètres (pour continuité avec une numérotation existante)
 - Un numéro attribué est **définitif** — même en cas de regénération du reçu, le même numéro est conservé
 - La séquence repart à partir du numéro de départ configuré chaque 1er janvier
+- Tenu en base depuis le 2026-10-30 (`recus_fiscaux_immutabilite.sql`) : un trigger refuse tout changement d'un `numero_ordre` déjà attribué, ainsi que de `organisation_id`, `profil_participant_id` et `annee`, pour tous les rôles. Une migration de correction devra désactiver explicitement le trigger `recus_fiscaux_verrou_identite` le temps de l'opération
 
 ---
 
