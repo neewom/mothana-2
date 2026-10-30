@@ -19,22 +19,23 @@ import { usePeutModifierParametres } from '../hooks/usePeutModifierParametres'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { MOIS } from '../lib/journalModifications'
 import type { RegleFinAdhesion } from '../lib/adhesion'
+import { storageUploadErrorMessage, type StorageUploadResult } from '../lib/storageUpload'
 
 const MAX_STATUTS_SIZE = 2 * 1024 * 1024
 
 // Réutilise le bucket public organisation-assets (déjà scopé par organisation_id,
 // pas de confidentialité à préserver pour un document destiné à être consulté publiquement).
-async function uploadStatutsFile(organisationId: string, file: File): Promise<string | null> {
+async function uploadStatutsFile(organisationId: string, file: File): Promise<StorageUploadResult> {
   const path = `${organisationId}/statuts-${Date.now()}.pdf`
 
   const { error: uploadError } = await supabase.storage
     .from('organisation-assets')
     .upload(path, file, { contentType: 'application/pdf' })
 
-  if (uploadError) return null
+  if (uploadError) return { url: null, error: storageUploadErrorMessage(uploadError, 'PDF') }
 
   const { data } = supabase.storage.from('organisation-assets').getPublicUrl(path)
-  return data.publicUrl
+  return { url: data.publicUrl, error: null }
 }
 
 interface OrgSettings {
@@ -212,9 +213,9 @@ export default function ParametresAdhesionsPage() {
     setStatutsError(null)
     setStatutsUploading(true)
 
-    const url = await uploadStatutsFile(organisationId, file)
+    const { url, error: uploadError } = await uploadStatutsFile(organisationId, file)
     if (!url) {
-      setStatutsError("Erreur lors de l'envoi du fichier")
+      setStatutsError(uploadError)
       setStatutsUploading(false)
       return
     }

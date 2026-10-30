@@ -1,0 +1,15 @@
+# Gabarit — consignes du sous-agent relecteur
+
+Boucle de relecture avant la revue du lead tech (workflow v2.1, `AGENTS.md`, section « Organisation », Lead tech). Le TL lance un sous-agent avec : « Lis et suis à la lettre `/Users/vichithboulom/Projects/mothana-2-review/docs/relecteur.md`, avec `<PR>` = …, `<BRANCHE>` = …, `<BASE>` = … (`dev` ou la branche amont en batch empilé), `<CARD_ID>` = …, `<SCRATCH>` = … ».
+
+---
+
+Tu relis la PR `<PR>` de Mothana pour le lead tech, **avant** sa revue et le test de l'utilisateur, avec la même exigence qu'eux. Tu réponds en français. **Tu ne modifies aucun fichier du dépôt, ne pousses rien, ne postes rien sur GitHub ni sur Trello, n'écris rien sur staging** : ton seul livrable est ton rapport.
+
+1. Ne change pas de branche dans `/Users/vichithboulom/Projects/mothana-2-review` (c'est le worktree du TL). Lis le code de la PR par `git fetch origin`, `git diff origin/<BASE>...origin/<BRANCHE>` et `git show origin/<BRANCHE>:<fichier>`. Pour lancer les checks, fais une copie jetable : `git worktree add --detach <SCRATCH>/arbre origin/<BRANCHE>`, `npm ci` dedans, puis `npx tsc -b`, `npm test`, `npx eslint <fichiers touchés>`, `npm run lint:ds` (et `npm run test:edge` si `supabase/functions` est touché) ; retire-la à la fin (`git worktree remove --force <SCRATCH>/arbre`).
+2. Lis `AGENTS.md` (Schéma de données, Conventions de code, Sécurité — règles absolues, Modèle d'authentification) : ses règles font foi. Lis le ticket : `set -a; . ./.env; set +a; curl -s "https://api.trello.com/1/cards/<CARD_ID>?fields=name,desc&key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}"` (depuis `/Users/vichithboulom/Projects/mothana-2-review`). `DESIGN.md` si l'interface est touchée.
+3. Lis `/Users/vichithboulom/Projects/mothana-2-review/docs/catalogue-bloquants.md` (version de `origin/dev`) et pose **chaque question du catalogue** au code de la PR.
+4. Lis le diff **puis le code touché autour** : pour chaque donnée écrite ou modifiée (table, colonne, RPC, policy, statut, Edge Function, type TS, clé de config), cherche tous ses lecteurs (`grep` dans `src/`, `supabase/migrations/`, `supabase/functions/`) et vérifie qu'ils restent justes — y compris les RPC qui renvoient la ligne (ex. `search_adherents`) et les autres rôles (admin, contributeur, bénévole, vendeur, super-admin en mode Consulter, visiteur anonyme).
+5. Les tests SQL de la PR (`supabase/tests/*.sql`, transactionnels, rien n'est conservé) peuvent se lancer sur staging depuis `/Users/vichithboulom/Projects/mothana-2-review` : `npx supabase db query --linked -f <SCRATCH>/arbre/supabase/tests/<fichier>.sql` (vérifie d'abord que `supabase/.temp/linked-project.json` pointe sur `cxngcmvxktddhyxboyyx`). Aucune autre requête d'écriture ; jamais rien en prod (aucune variable `PROD_*`). Reproduis ce qui peut l'être dans un test jetable dans `<SCRATCH>` (jamais dans le dépôt).
+
+**Rapport** (court) : résultat des checks ; **bloquants** (fichier:ligne, scénario concret, résultat faux, correctif minimal) ; points mineurs ; questions du catalogue vérifiées sans problème ; verdict « prête à fusionner » ou « à corriger ». Pas de remarques de style sans conséquence.

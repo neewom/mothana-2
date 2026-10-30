@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { slugifyIdentifiant, type OrganisationAsset } from '../../lib/organisationAssets'
+import { storageUploadErrorMessage, type StorageUploadResult } from '../../lib/storageUpload'
 import { supabase } from '../../lib/supabaseClient'
 import { cn } from '../../lib/utils'
 import { Button } from '../ui/button'
@@ -9,7 +10,7 @@ import { Label } from '../ui/label'
 const MAX_ASSET_SIZE = 2 * 1024 * 1024
 const ALLOWED_ASSET_TYPES = ['image/png', 'image/jpeg']
 
-async function uploadAssetFile(organisationId: string, identifiant: string, file: File): Promise<string | null> {
+async function uploadAssetFile(organisationId: string, identifiant: string, file: File): Promise<StorageUploadResult> {
   const ext = file.type === 'image/png' ? 'png' : 'jpg'
   const path = `${organisationId}/${identifiant}-${Date.now()}.${ext}`
 
@@ -17,10 +18,10 @@ async function uploadAssetFile(organisationId: string, identifiant: string, file
     .from('organisation-assets')
     .upload(path, file, { contentType: file.type })
 
-  if (uploadError) return null
+  if (uploadError) return { url: null, error: storageUploadErrorMessage(uploadError, 'PNG ou JPEG') }
 
   const { data } = supabase.storage.from('organisation-assets').getPublicUrl(path)
-  return data.publicUrl
+  return { url: data.publicUrl, error: null }
 }
 
 /**
@@ -82,9 +83,9 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
     setAssetError((prev) => ({ ...prev, new: null }))
     setAssetActionLoading((prev) => ({ ...prev, new: true }))
 
-    const url = await uploadAssetFile(organisationId, identifiant, file)
+    const { url, error: uploadError } = await uploadAssetFile(organisationId, identifiant, file)
     if (!url) {
-      setAssetError((prev) => ({ ...prev, new: "Erreur lors de l'envoi du fichier" }))
+      setAssetError((prev) => ({ ...prev, new: uploadError }))
       setAssetActionLoading((prev) => ({ ...prev, new: false }))
       return
     }
@@ -113,9 +114,9 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
     setAssetError((prev) => ({ ...prev, [asset.id]: null }))
     setAssetActionLoading((prev) => ({ ...prev, [asset.id]: true }))
 
-    const url = await uploadAssetFile(organisationId, asset.identifiant, file)
+    const { url, error: uploadError } = await uploadAssetFile(organisationId, asset.identifiant, file)
     if (!url) {
-      setAssetError((prev) => ({ ...prev, [asset.id]: "Erreur lors de l'envoi du fichier" }))
+      setAssetError((prev) => ({ ...prev, [asset.id]: uploadError }))
       setAssetActionLoading((prev) => ({ ...prev, [asset.id]: false }))
       return
     }

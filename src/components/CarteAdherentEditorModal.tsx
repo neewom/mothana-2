@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
-import Editor, { type OnMount } from '@monaco-editor/react'
+import type { OnMount } from '@monaco-editor/react'
+import CodeEditor from './CodeEditor'
 import { supabase } from '../lib/supabaseClient'
 import {
   renderCartePreviewHtml,
@@ -248,7 +249,7 @@ export default function CarteAdherentEditorModal({
                   </div>
                   <div className="min-h-[160px] flex-1 overflow-hidden rounded-sm border border-paper-border">
                     {activeTab === 'html' ? (
-                      <Editor
+                      <CodeEditor
                         height="100%"
                         language="html"
                         value={htmlTemplate}
@@ -257,7 +258,7 @@ export default function CarteAdherentEditorModal({
                         options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on' }}
                       />
                     ) : (
-                      <Editor
+                      <CodeEditor
                         height="100%"
                         language="css"
                         value={css}

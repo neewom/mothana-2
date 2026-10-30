@@ -3,6 +3,8 @@
 // lib/cerfaPreview.ts, réutilise directement fetchOrganisationAssets /
 // fetchOrganisationPreviewOverrides (génériques, pas spécifiques au Cerfa).
 
+import { substitutePreviewPlaceholders } from './htmlEscape'
+
 export const CARTE_PREVIEW_PLACEHOLDERS: Record<string, string> = {
   organisation_nom: 'Wat Velouvanaram',
   organisation_adresse: '5 All. Madame de Montespan',
@@ -35,10 +37,8 @@ export function renderCartePreviewHtml(
   css: string,
   extraPlaceholders: Record<string, string> = {},
 ): string {
-  let body = html
-  for (const [key, value] of Object.entries({ ...CARTE_PREVIEW_PLACEHOLDERS, ...extraPlaceholders })) {
-    body = body.split(`{{${key}}}`).join(value)
-  }
+  // Même règle que generate-cartes-adherents : toutes les valeurs échappées.
+  const body = substitutePreviewPlaceholders(html, { ...CARTE_PREVIEW_PLACEHOLDERS, ...extraPlaceholders })
   // Centré sur fond gris pour l'aperçu — la carte fait ~324×204px à l'écran
   // (85,6×54mm), sans ça elle s'affiche minuscule en haut à gauche.
   return `<!doctype html><html><head><meta charset="utf-8"><style>body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f1f5f9; } ${css}</style></head><body>${body}</body></html>`

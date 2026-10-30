@@ -17,7 +17,10 @@ git fetch origin dev
 git worktree add --detach "$dir" origin/dev
 
 # Fichiers non versionnés que git ne transporte pas dans un worktree
-[ -f "$main/.env" ] && cp "$main/.env" "$dir/.env"
+# Accès prod (PROD_*) réservé au worktree de revue du lead tech : retiré des autres
+if [ -f "$main/.env" ]; then
+  if [ "$agent" = "review" ]; then cp "$main/.env" "$dir/.env"; else grep -v '^PROD_' "$main/.env" > "$dir/.env"; fi
+fi
 [ -d "$main/supabase/.temp" ] && mkdir -p "$dir/supabase/.temp" && cp -R "$main/supabase/.temp/." "$dir/supabase/.temp/"
 
 (cd "$dir" && npm install --no-audit --no-fund)

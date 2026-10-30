@@ -1,6 +1,6 @@
 import * as QRCode from 'https://esm.sh/qrcode@1.5.4'
 import type { PortefeuilleBuyerState } from './portefeuilleAccess.ts'
-import { escapeHtml } from './html.ts'
+import { convertirHtmlEnPdf, escapeHtml } from './html.ts'
 
 export async function generatePortefeuilleQrPdf(state: PortefeuilleBuyerState): Promise<ArrayBuffer> {
   const qrDataUrl = await QRCode.toDataURL(state.portefeuille.codePublic, {
@@ -42,11 +42,7 @@ export async function generatePortefeuilleQrPdf(state: PortefeuilleBuyerState): 
   const gotenbergUrl = Deno.env.get('GOTENBERG_URL')
   if (!gotenbergUrl) throw new Error('GOTENBERG_URL_MISSING')
 
-  const response = await fetch(`${gotenbergUrl}/forms/chromium/convert/html`, {
-    method: 'POST',
-    body: form,
-    signal: AbortSignal.timeout(20_000),
-  })
+  const response = await convertirHtmlEnPdf(gotenbergUrl, form, { timeoutMs: 20_000 })
   if (!response.ok) {
     console.error('Gotenberg wallet QR error:', response.status)
     throw new Error('GOTENBERG_ERROR')
