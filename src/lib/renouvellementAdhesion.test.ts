@@ -63,6 +63,8 @@ describe('valeursPreremplies', () => {
 describe('formatDateFinAdhesion', () => {
   it('formate une date AAAA-MM-JJ, sinon null', () => {
     expect(formatDateFinAdhesion('2026-12-31')).toBe('31 décembre 2026')
+    expect(formatDateFinAdhesion('2027-12-01')).toBe('1er décembre 2027')
+    expect(formatDateFinAdhesion('2027-12-11')).toBe('11 décembre 2027')
     expect(formatDateFinAdhesion(null)).toBeNull()
     expect(formatDateFinAdhesion('31/12/2026')).toBeNull()
   })

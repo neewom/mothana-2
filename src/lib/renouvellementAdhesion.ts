@@ -55,6 +55,8 @@ export function valeursPreremplies(adherent: AdherentPrerempli): ChampsAdhesionV
 /** « 31 décembre 2026 » ; null si la date est absente ou mal formée. */
 export function formatDateFinAdhesion(dateFin: string | null | undefined): string | null {
   if (!dateFin || !/^\d{4}-\d{2}-\d{2}$/.test(dateFin)) return null
-  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const texte = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     .format(new Date(`${dateFin}T12:00:00`))
+  // « 1er janvier », pas « 1 janvier ».
+  return texte.replace(/^1 /, '1er ')
 }
