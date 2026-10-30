@@ -64,12 +64,27 @@ export function estRenouvellement(demande: Pick<DemandeAdhesion, 'type'>): boole
   return demande.type === 'renouvellement'
 }
 
+export const MESSAGE_ERREUR_GENERIQUE = "La demande n'a pas pu être validée. Rechargez la page et réessayez ; si le problème persiste, contactez le support."
+
+export const MESSAGE_DEMANDE_DEJA_TRAITEE = 'Cette demande a déjà été traitée.'
+
 /** Message lisible pour une erreur de valider_renouvellement (code levé par la RPC). */
 export function messageErreurValidation(message: string): string {
   if (message.includes('ADHERENT_INTROUVABLE')) return "L'adhérent visé par cette demande a été supprimé : elle ne peut plus être validée."
   if (message.includes('ADHERENT_ARCHIVE')) return "L'adhérent est archivé : confirmez sa réactivation pour valider."
-  if (message.includes('DEMANDE_DEJA_TRAITEE')) return 'Cette demande a déjà été traitée.'
+  if (message.includes('DEMANDE_DEJA_TRAITEE')) return MESSAGE_DEMANDE_DEJA_TRAITEE
   if (message.includes('ACCES_REFUSE')) return "Vous n'avez pas les droits pour valider cette demande."
   if (message.includes('DATE_ADHESION_REQUISE')) return "La date d'adhésion est obligatoire."
+  if (message.includes('REGLE_ADHESION_INTROUVABLE')) {
+    return "Aucune durée d'adhésion n'est configurée pour l'organisation : réglez-la dans Paramètres → Adhésions."
+  }
+  // Tout autre code levé par la base (DEMANDE_PAS_UN_RENOUVELLEMENT, CHAMP_INVALIDE…) : jamais le
+  // code brut à l'écran. Un message technique non codé (réseau…) reste affiché tel quel.
+  if (/\b[A-Z][A-Z0-9]*(_[A-Z0-9]+)+\b/.test(message)) return MESSAGE_ERREUR_GENERIQUE
   return message
+}
+
+/** Une mise à jour filtrée sur `statut = 'en_attente'` qui ne renvoie aucune ligne signifie qu'un autre admin a déjà décidé. */
+export function demandeDejaTraitee(lignes: unknown[] | null): boolean {
+  return !lignes || lignes.length === 0
 }

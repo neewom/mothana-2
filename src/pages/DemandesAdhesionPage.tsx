@@ -27,7 +27,13 @@ import { useNavCountersContext } from '../hooks/useNavCounters'
 import { Link } from 'react-router-dom'
 import { Badge } from '../components/ui/badge'
 import ValidationRenouvellementModal, { type ResultatValidationRenouvellement } from '../components/ValidationRenouvellementModal'
-import { differencesCoordonnees, estRenouvellement, type ChampCoordonnee } from '../lib/validationRenouvellement'
+import {
+  demandeDejaTraitee,
+  differencesCoordonnees,
+  estRenouvellement,
+  MESSAGE_DEMANDE_DEJA_TRAITEE,
+  type ChampCoordonnee,
+} from '../lib/validationRenouvellement'
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -111,7 +117,13 @@ export default function DemandesAdhesionPage() {
     const list = (data ?? []) as DemandeAdhesion[]
     const idsVises = list.map((d) => d.adherent_vise_id).filter((id): id is string => !!id)
     if (idsVises.length > 0) {
-      const { data: vises } = await supabase.from('adherents').select('*').in('id', idsVises)
+      const { data: vises, error: errVises } = await supabase.from('adherents').select('*').in('id', idsVises)
+      if (errVises) {
+        // Sans les fiches visées, impossible de distinguer un adhérent supprimé d'un échec de lecture.
+        setError(errVises.message)
+        setLoading(false)
+        return
+      }
       setAdherentsVises(Object.fromEntries(((vises ?? []) as Adherent[]).map((a) => [a.id, a])))
     } else {
       setAdherentsVises({})
@@ -198,7 +210,7 @@ export default function DemandesAdhesionPage() {
     setRefusing(true)
 
     const { data: { user } } = await supabase.auth.getUser()
-    const { error: err } = await supabase
+    const { data: lignes, error: err } = await supabase
       .from('demandes_adhesion')
       .update({
         statut: 'refusee',
@@ -207,11 +219,23 @@ export default function DemandesAdhesionPage() {
         motif_refus: motifRefus.trim() || null,
       })
       .eq('id', refusingDemande.id)
+      // Garde contre une décision concurrente : un autre admin a pu la ratifier/valider entre-temps.
+      .eq('statut', 'en_attente')
+      .select('id')
 
     setRefusing(false)
 
     if (err) {
       setError(err.message)
+      return
+    }
+
+    if (demandeDejaTraitee(lignes)) {
+      setRefusingDemande(null)
+      setMotifRefus('')
+      await fetchDemandes()
+      setError(MESSAGE_DEMANDE_DEJA_TRAITEE)
+      refreshNavCounters()
       return
     }
 
@@ -551,6 +575,12 @@ export default function DemandesAdhesionPage() {
                             Seules les lignes cochées seront appliquées à la fiche ; les autres coordonnées sont identiques.
                           </p>
                         </>
+                      )}
+                      {/* Le bloc détaillé (et son indicateur sous Courriel) est masqué par le comparatif. */}
+                      {detailDemande.email_bounced_at && (
+                        <p className="mt-1.5 break-words font-registre-mono text-[11px] text-warning">
+                          Email invalide{detailDemande.courriel ? ` (${detailDemande.courriel})` : ''} — le message de confirmation n'a pas pu être délivré
+                        </p>
                       )}
                     </div>
                   )}
