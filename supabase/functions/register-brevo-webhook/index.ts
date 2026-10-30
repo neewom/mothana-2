@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
-import { genererSecretWebhook, secretsEgaux } from '../_shared/webhookSecret.ts'
+import { genererSecretWebhook } from '../_shared/webhookSecret.ts'
+import { autoriserToutesOrganisations } from './autorisation.ts'
 
 // Appelée depuis BrevoConfigModal juste après l'enregistrement d'une clé API
 // Brevo : enregistre automatiquement (idempotent) le webhook de bounce côté
@@ -12,8 +13,10 @@ import { genererSecretWebhook, secretsEgaux } from '../_shared/webhookSecret.ts'
 // Audit sécurité 2026-10-24 : l'URL du webhook porte un secret propre à l'organisation
 // (organisation_secrets.brevo_webhook_secret, créé ici au premier enregistrement), vérifié par
 // brevo-bounce-webhook. Un webhook déjà enregistré sans secret est mis à jour (même id Brevo).
-// Appelée avec la clé service_role et { toutes_organisations: true }, la fonction
-// réenregistre toutes les organisations ayant une clé Brevo (migration des webhooks existants).
+// Appelée par une session super-admin avec { toutes_organisations: true } (bouton de
+// /super-admin), la fonction réenregistre toutes les organisations ayant une clé Brevo
+// (migration des webhooks existants). Plus de clé service_role côté appelant depuis la
+// migration des clés API prod (2026-10-21) : cf. autorisation.ts.
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -185,30 +188,45 @@ Deno.serve(async (req) => {
 
     const corps = await req.json().catch(() => ({}))
 
-    // Migration des webhooks existants : réservée à la clé service_role.
-    if (corps?.toutes_organisations === true) {
-      if (!secretsEgaux(authHeader.replace(/^Bearer\s+/i, ''), serviceRoleKey)) {
-        return jsonResponse({ error: 'Accès refusé' }, 403)
-      }
-      const { data: organisations, error: listeError } = await adminClient
-        .from('organisation_secrets')
-        .select('organisation_id')
-        .not('brevo_api_key', 'is', null)
-      if (listeError) return jsonResponse({ error: 'Erreur serveur' }, 500)
-
-      const resultats: Record<string, unknown> = {}
-      for (const { organisation_id } of organisations ?? []) {
-        const resultat = await enregistrerWebhook(adminClient, supabaseUrl, organisation_id)
-        resultats[organisation_id] = 'error' in resultat ? { error: resultat.error, status: resultat.status } : resultat
-      }
-      return jsonResponse({ ok: true, resultats })
-    }
-
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false },
     })
     const { data: { user }, error: userError } = await userClient.auth.getUser()
+
+    // Migration des webhooks existants : réservée au super-admin.
+    if (corps?.toutes_organisations === true) {
+      const decision = autoriserToutesOrganisations(user, userError)
+      if (!decision.autorise) return jsonResponse({ error: decision.error }, decision.status)
+
+      const { data: organisations, error: listeError } = await adminClient
+        .from('organisation_secrets')
+        .select('organisation_id, organisations(nom)')
+        .not('brevo_api_key', 'is', null)
+      if (listeError) return jsonResponse({ error: 'Erreur serveur' }, 500)
+
+      // Une erreur Brevo sur une organisation n'interrompt pas les suivantes.
+      const resultats: unknown[] = []
+      for (const ligne of organisations ?? []) {
+        const organisationId = ligne.organisation_id as string
+        const org = ligne.organisations as { nom?: string } | { nom?: string }[] | null
+        const nom = (Array.isArray(org) ? org[0]?.nom : org?.nom) ?? null
+        let resultat: Resultat
+        try {
+          resultat = await enregistrerWebhook(adminClient, supabaseUrl, organisationId)
+        } catch (err) {
+          console.error('register-brevo-webhook organisation error:', organisationId, err)
+          resultat = { error: 'Erreur inattendue', status: 500 }
+        }
+        resultats.push({
+          organisation_id: organisationId,
+          nom,
+          ...('error' in resultat ? { error: resultat.error, status: resultat.status } : resultat),
+        })
+      }
+      return jsonResponse({ ok: true, resultats })
+    }
+
     if (userError || !user) return jsonResponse({ error: 'Non autorisé' }, 401)
 
     const resolved = await resolveOrganisationId(adminClient, user, corps?.organisation_id)
