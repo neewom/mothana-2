@@ -11,6 +11,7 @@ export type AchatSimuleErrorCode =
   | 'COMMANDE_DEJA_TRAITEE'
   | 'SERVICE_INDISPONIBLE'
   | 'REQUETE_INVALIDE'
+  | 'TROP_DE_REQUETES'
 
 export function isEvenementPublic(value: unknown): value is EvenementPublic {
   if (!value || typeof value !== 'object') return false
@@ -44,6 +45,8 @@ export function achatSimuleErrorMessage(code: string | null): string {
       return "Cette opération a déjà crédité un portefeuille. Consultez l'email reçu ou contactez l'organisateur avant de réessayer."
     case 'REQUETE_INVALIDE':
       return 'Les informations envoyées ne sont pas valides.'
+    case 'TROP_DE_REQUETES':
+      return 'Trop de demandes en peu de temps. Réessayez plus tard.'
     default:
       return 'Le service est momentanément indisponible. Réessayez dans un instant.'
   }
