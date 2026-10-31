@@ -1,6 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { convertirHtmlEnPdf, escapeHtml, renderTemplate } from '../_shared/html.ts'
-import { formatNumeroRecu, numeroRecuDonateur } from '../_shared/numeroRecu.ts'
+import {
+  estConflitStorage,
+  formatNumeroRecu,
+  messageNumeroDejaPris,
+  numeroDonateurAffiche,
+  numeroRecuDonateur,
+} from '../_shared/numeroRecu.ts'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 
 const corsHeaders = {
@@ -459,10 +465,13 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     let numeroOrdre = existingRecu?.numero_ordre as string | null
+    // Numéro attribué par cet appel (et non repris d'un reçu existant) : son PDF ne doit jamais
+    // écraser un objet Storage existant, et il est supprimé si la ligne du reçu ne s'écrit pas.
+    const numeroNouveau = !numeroOrdre
+    const format = formatNumeroRecu(organisation.modele_recu_pdf?.format_numero_recu)
 
     // Un numéro déjà attribué est définitif (§4), même si le format a changé depuis.
     if (!numeroOrdre) {
-      const format = formatNumeroRecu(organisation.modele_recu_pdf?.format_numero_recu)
       if (format === 'donateur') {
         // Année + numéro de donateur : aucune séquence consommée.
         numeroOrdre = numeroRecuDonateur(anneeNum, participant.id_externe as string | null)
@@ -488,9 +497,10 @@ Deno.serve(async (req) => {
         numeroOrdre = numeroData as string
       }
 
-      // Garde anti-collision : deux formats mélangés dans une même année (ou un numéro de
-      // donateur réattribué) pourraient produire un numéro déjà porté par un autre reçu de
-      // l'organisation, dont le PDF serait écrasé dans le Storage.
+      // Garde anti-collision (refus précoce, avant Gotenberg) : deux formats mélangés dans une
+      // même année (ou un numéro de donateur réattribué) pourraient produire un numéro déjà
+      // porté par un autre reçu de l'organisation. Non atomique : l'upload sans upsert (§8) et
+      // l'index unique (organisation_id, numero_ordre) font foi en cas de course.
       const { data: doublon, error: doublonError } = await adminClient
         .from('recus_fiscaux')
         .select('id')
@@ -503,10 +513,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Erreur lors de l'attribution du numéro de reçu" }, 500)
       }
       if (doublon && doublon.length > 0) {
-        return jsonResponse(
-          { error: `Le numéro de reçu ${numeroOrdre} est déjà attribué à un autre reçu de l'organisation. Contactez le support.` },
-          409,
-        )
+        return jsonResponse({ error: messageNumeroDejaPris(format, numeroOrdre) }, 409)
       }
     }
 
@@ -573,7 +580,7 @@ Deno.serve(async (req) => {
       donateur_adresse: personne.adresse ?? '',
       donateur_code_postal: personne.code_postal ?? '',
       donateur_ville: personne.ville ?? '',
-      numero_donateur: participant.id_externe ?? '',
+      numero_donateur: numeroDonateurAffiche(participant.id_externe as string | null),
       don_montant_chiffres: formatMontant(totalMontant),
       don_montant_lettres: numberToWords(totalMontant),
       dons_detail: buildDonsDetailHtml(donsDetail),
@@ -612,14 +619,21 @@ Deno.serve(async (req) => {
 
     const storagePath = `${organisationId}/${anneeNum}/${numeroOrdre}.pdf`
 
+    // Numéro nouveau : upsert: false, le Storage refuse atomiquement un objet déjà existant (PDF
+    // d'un autre reçu) au lieu de l'écraser. Régénération au même numéro par le même reçu :
+    // upsert: true, le PDF de ce reçu est remplacé.
     const { error: uploadError } = await adminClient.storage
       .from('recus-fiscaux')
       .upload(storagePath, pdfBuffer, {
         contentType: 'application/pdf',
-        upsert: true,
+        upsert: !numeroNouveau,
       })
 
     if (uploadError) {
+      if (numeroNouveau && estConflitStorage(uploadError)) {
+        console.error('Storage upload conflict (numero_ordre already used):', storagePath, uploadError)
+        return jsonResponse({ error: messageNumeroDejaPris(format, numeroOrdre) }, 409)
+      }
       console.error('Storage upload error:', uploadError)
       return jsonResponse({ error: 'Erreur upload PDF', detail: uploadError.message }, 500)
     }
@@ -649,7 +663,23 @@ Deno.serve(async (req) => {
 
     if (upsertError) {
       console.error('Upsert error:', upsertError)
-      // Non-blocking: PDF was uploaded, return success anyway
+      // Bloquant : sans sa ligne, le reçu n'existe pas. Le PDF d'un numéro nouveau, déposé par cet
+      // appel, est retiré ; celui d'un reçu existant (régénération) n'est jamais supprimé.
+      if (numeroNouveau) {
+        const { error: removeError } = await adminClient.storage.from('recus-fiscaux').remove([storagePath])
+        if (removeError) console.error('Storage cleanup error:', storagePath, removeError)
+      }
+      if (upsertError.code === '23505') {
+        return jsonResponse({ error: messageNumeroDejaPris(format, numeroOrdre) }, 409)
+      }
+      return jsonResponse(
+        {
+          error: numeroNouveau
+            ? "Erreur lors de l'enregistrement du reçu : aucun reçu n'a été créé. Réessayez ou contactez le support."
+            : "Erreur lors de l'enregistrement du reçu régénéré. Réessayez ou contactez le support.",
+        },
+        500,
+      )
     }
 
     return jsonResponse({ fichier_url: storagePath, numero_ordre: numeroOrdre, type_cerfa: typeCerfa })

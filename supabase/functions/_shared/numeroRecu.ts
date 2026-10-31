@@ -19,3 +19,29 @@ export function numeroRecuDonateur(annee: number, idExterne: string | null | und
   if (!numero || !NUMERO_DONATEUR_VALIDE.test(numero)) return null
   return `${annee}-${numero}`
 }
+
+// Numéro de donateur tel qu'il figure sur le reçu (placeholder numero_donateur) : même valeur
+// nettoyée que celle qui sert au numéro du reçu.
+export function numeroDonateurAffiche(idExterne: string | null | undefined): string {
+  return (idExterne ?? '').trim()
+}
+
+// Message renvoyé (409) quand un numéro nouvellement attribué est déjà porté par un autre reçu
+// de l'organisation (garde applicative, objet Storage existant ou index unique en base).
+export function messageNumeroDejaPris(format: FormatNumeroRecu, numero: string): string {
+  if (format === 'donateur') {
+    return `Le numéro de reçu ${numero} est déjà porté par un autre reçu de cette année (cela arrive notamment quand les deux formats de numérotation ont été utilisés dans la même année). Aucun reçu n'a été créé : contactez le support.`
+  }
+  return `Le numéro de reçu ${numero} est déjà porté par un autre reçu de l'organisation. Aucun reçu n'a été créé : un nouvel essai attribuera le numéro suivant.`
+}
+
+// Refus du Storage quand l'objet existe déjà (upload avec upsert: false).
+export function estConflitStorage(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const e = error as { status?: unknown; statusCode?: unknown; message?: unknown }
+  return (
+    String(e.status) === '409' ||
+    String(e.statusCode) === '409' ||
+    (typeof e.message === 'string' && /already exists/i.test(e.message))
+  )
+}
