@@ -157,12 +157,16 @@ export interface TemplateCarteAdherent {
 // Organisation (rna, siren, objet_social, president_nom/titre) et pour partie sur Paramètres >
 // Reçus fiscaux (mention_legale, numérotation, taux) : chaque page relit l'objet juste avant
 // d'écrire et ne remplace que ses propres champs.
+export type FormatNumeroRecu = 'sequence' | 'donateur'
+
 export interface ModeleRecu {
   rna: string
   siren: string
   objet_social: string
   mention_legale: string
   numero_recu_depart: number
+  // Format du numéro de reçu (regles-recus-fiscaux.md §4) : clé absente = 'sequence'.
+  format_numero_recu: FormatNumeroRecu
   taux_reduction: number
   president_nom: string
   president_titre: string

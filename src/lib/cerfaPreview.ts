@@ -4,6 +4,7 @@
 
 import { supabase } from './supabaseClient'
 import { substitutePreviewPlaceholders } from './htmlEscape'
+import { exempleNumeroRecu, formatNumeroRecu } from './numeroRecu'
 
 export const CERFA_PREVIEW_PLACEHOLDERS: Record<string, string> = {
   organisation_nom: 'Wat Velouvanaram',
@@ -90,10 +91,17 @@ export async function fetchOrganisationPreviewOverrides(
     objet_social?: string
     mention_legale?: string
     taux_reduction?: number
+    format_numero_recu?: string
     president_nom?: string
     president_titre?: string
   }
   const overrides: Record<string, string> = {}
+  // Numéro d'exemple cohérent avec le format choisi (mêmes année et n° de donateur fictifs).
+  if (formatNumeroRecu(modele.format_numero_recu) === 'donateur') {
+    overrides.recu_numero_ordre = exempleNumeroRecu('donateur', Number(CERFA_PREVIEW_PLACEHOLDERS.don_annee), {
+      numeroDonateur: CERFA_PREVIEW_PLACEHOLDERS.numero_donateur,
+    })
+  }
   if (modele.president_nom) overrides.president_nom = modele.president_nom
   if (modele.president_titre) overrides.president_titre = modele.president_titre
   if (modele.rna) overrides.organisation_rna = modele.rna
