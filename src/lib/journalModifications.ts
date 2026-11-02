@@ -11,6 +11,14 @@ export const TABLE_CIBLE_LABELS: Record<TableCibleJournal, string> = {
   organisations: 'Organisation',
 }
 
+/** Libellé de la table d'une entrée : une demande de renouvellement (details.type) se distingue. */
+export function libelleTableCible(entry: Pick<JournalModification, 'table_cible' | 'details'>): string {
+  if (entry.table_cible === 'demandes_adhesion' && entry.details?.type === 'renouvellement') {
+    return 'Demande de renouvellement'
+  }
+  return TABLE_CIBLE_LABELS[entry.table_cible as TableCibleJournal] ?? entry.table_cible
+}
+
 export const ACTION_LABELS: Record<ActionJournal, string> = {
   creation: 'Création',
   modification: 'Modification',
