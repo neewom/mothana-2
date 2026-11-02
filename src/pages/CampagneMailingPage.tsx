@@ -106,6 +106,11 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
+// Lien personnel de renouvellement : généré par send-mailing-brevo pour chaque destinataire
+// (lienRenouvellement.ts), rendu en bouton « Renouveler mon adhésion » dans l'email.
+const PLACEHOLDER_LIEN_RENOUVELLEMENT = '{{params.lien_renouvellement}}'
+const LIEN_RENOUVELLEMENT_REGEX = /\{\{\s*params\.lien_renouvellement\s*\}\}/
+
 const PLACEHOLDERS = [
   { key: 'prenom', label: 'Prénom' },
   { key: 'nom', label: 'Nom' },
@@ -548,6 +553,8 @@ export default function CampagneMailingPage() {
     fetchHistorique()
   }
 
+  const avecLienRenouvellement = LIEN_RENOUVELLEMENT_REGEX.test(corpsHtml)
+
   const canSend = sujet.trim() !== '' && !corpsVide && configured && (destinatairesCount?.avecEmail ?? 0) > 0
 
   if (configLoading) {
@@ -599,7 +606,7 @@ export default function CampagneMailingPage() {
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink-muted">Message</label>
             <div className="rounded-sm border border-paper-border bg-white">
-              <div className="flex items-center gap-1 border-b border-paper-border px-2 py-1.5">
+              <div className="flex flex-wrap items-center gap-1 border-b border-paper-border px-2 py-1.5">
                 <EditorToolbarButton
                   label="Gras"
                   active={editor?.isActive('bold') ?? false}
@@ -648,10 +655,32 @@ export default function CampagneMailingPage() {
                     </div>
                   )}
                 </div>
+                <EditorToolbarButton
+                  label="Insérer le lien de renouvellement"
+                  active={false}
+                  onClick={() => {
+                    editor
+                      ?.chain()
+                      .focus()
+                      .insertContent({ type: 'text', text: PLACEHOLDER_LIEN_RENOUVELLEMENT })
+                      .insertContent({ type: 'text', text: ' ' })
+                      .run()
+                  }}
+                >
+                  Lien de renouvellement
+                </EditorToolbarButton>
               </div>
               <EditorContent editor={editor} className="prose prose-sm max-w-none px-3 py-2 font-registre text-ink [&_.ProseMirror]:min-h-[150px] [&_.ProseMirror]:outline-none" />
             </div>
           </div>
+
+          {avecLienRenouvellement && (
+            <StatusNotice heading="Lien de renouvellement personnel">
+              Chaque destinataire recevra son propre lien vers le formulaire de renouvellement, sous la forme d'un bouton
+              « Renouveler mon adhésion ». Il est valable 90 jours et utilisable une seule fois ; un lien envoyé
+              précédemment au même adhérent est annulé.
+            </StatusNotice>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-muted">Pièces jointes (facultatif, {MAX_ATTACHMENTS} max)</label>
@@ -965,6 +994,11 @@ export default function CampagneMailingPage() {
               <span className="font-medium text-ink">{destinatairesCount?.avecEmail ?? 0} destinataire{(destinatairesCount?.avecEmail ?? 0) > 1 ? 's' : ''}</span>.
               Cette action est irréversible.
             </p>
+            {avecLienRenouvellement && (
+              <p className="mt-2 font-registre text-sm text-ink-muted">
+                Chacun recevra un lien de renouvellement personnel, valable 90 jours ; les liens envoyés précédemment seront annulés.
+              </p>
+            )}
             {sendError && (
               <div className="mt-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
                 {sendError}
