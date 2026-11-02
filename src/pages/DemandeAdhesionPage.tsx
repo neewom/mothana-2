@@ -1,20 +1,16 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
-import type { CiviliteAdherent } from '../types'
-import { CIVILITE_ADHERENT_OPTIONS } from '../lib/civiliteAdherent'
 import SignaturePad from '../components/SignaturePad'
 import ShadowHtmlBlock from '../components/ShadowHtmlBlock'
+import ChampsAdhesion, { ConsentementsAdhesion } from '../components/ChampsAdhesion'
 import { substituteFormulaireAdhesionPlaceholders } from '../lib/formulaireAdhesionPreview'
-import { toUpperName, toCapitalizedName, isValidEmail, sanitizeDigits } from '../lib/textFormat'
-import { COUNTRIES } from '../lib/countries'
-import { maxDateNaissance, isAnneeNaissanceValide } from '../lib/dateNaissance'
-import { cn } from '../lib/utils'
+import { CHAMPS_ADHESION_VIDES, champsAdhesionPayload, type ChampsAdhesionValeurs } from '../lib/champsAdhesion'
+import { isValidEmail } from '../lib/textFormat'
+import { isAnneeNaissanceValide } from '../lib/dateNaissance'
 import { getCanonicalSiteUrl } from '../lib/environment'
 import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Select } from '../components/ui/select'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -41,16 +37,7 @@ export default function DemandeAdhesionPage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
-  const [civilite, setCivilite] = useState<CiviliteAdherent>(0)
-  const [nom, setNom] = useState('')
-  const [prenom, setPrenom] = useState('')
-  const [dateNaissance, setDateNaissance] = useState('')
-  const [adresse, setAdresse] = useState('')
-  const [codePostal, setCodePostal] = useState('')
-  const [ville, setVille] = useState('')
-  const [pays, setPays] = useState('France')
-  const [telephone, setTelephone] = useState('')
-  const [courriel, setCourriel] = useState('')
+  const [valeurs, setValeurs] = useState<ChampsAdhesionValeurs>(CHAMPS_ADHESION_VIDES)
   const [accepteStatuts, setAccepteStatuts] = useState(false)
   const [consentRgpd, setConsentRgpd] = useState(false)
   const [signature, setSignature] = useState<string | null>(null)
@@ -60,7 +47,7 @@ export default function DemandeAdhesionPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
-  const courrielInvalid = courriel.length > 0 && !isValidEmail(courriel)
+  const { courriel, dateNaissance, codePostal } = valeurs
   const dateNaissanceInvalid = dateNaissance !== '' && !isAnneeNaissanceValide(dateNaissance)
 
   useEffect(() => {
@@ -127,16 +114,7 @@ export default function DemandeAdhesionPage() {
           // Origine du lien envoyé aux comptes de l'organisation (filtrée côté serveur).
           site_url: getCanonicalSiteUrl(),
           site_web: siteWeb,
-          civilite,
-          nom,
-          prenom: prenom || null,
-          date_naissance: dateNaissance || null,
-          adresse: adresse || null,
-          code_postal: codePostal || null,
-          ville: ville || null,
-          pays: pays || null,
-          telephone: telephone || null,
-          courriel: courriel || null,
+          ...champsAdhesionPayload(valeurs),
           signature_data_url: signature,
           // Sans statuts_url, la case n'est pas affichée (rien à accepter) : le serveur ne
           // l'exige alors pas.
@@ -230,198 +208,16 @@ export default function DemandeAdhesionPage() {
             className="absolute -left-[9999px] h-0 w-0 opacity-0"
           />
 
-          <div>
-            <Label>
-              Civilité <span className="text-stamp">*</span>
-            </Label>
-            <Select
-              required
-              value={civilite === 0 ? '' : civilite}
-              onChange={(e) => setCivilite(e.target.value ? (Number(e.target.value) as CiviliteAdherent) : 0)}
-              className="mt-1 w-full"
-            >
-              <option value="" disabled>Sélectionner…</option>
-              {CIVILITE_ADHERENT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </Select>
-          </div>
+          <ChampsAdhesion valeurs={valeurs} onChange={(patch) => setValeurs((v) => ({ ...v, ...patch }))} />
 
-          <div>
-            <Label htmlFor="nom">
-              Nom <span className="text-stamp">*</span>
-            </Label>
-            <Input
-              id="nom"
-              type="text"
-              required
-              value={nom}
-              onChange={(e) => setNom(toUpperName(e.target.value))}
-              placeholder="DUPONT"
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="prenom">
-              Prénom <span className="text-stamp">*</span>
-            </Label>
-            <Input
-              id="prenom"
-              type="text"
-              required
-              value={prenom}
-              onChange={(e) => setPrenom(toCapitalizedName(e.target.value))}
-              placeholder="Jean"
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="date-naissance">
-              Date de naissance <span className="text-stamp">*</span>
-            </Label>
-            <Input
-              id="date-naissance"
-              type="date"
-              required
-              value={dateNaissance}
-              onChange={(e) => setDateNaissance(e.target.value)}
-              aria-invalid={dateNaissanceInvalid}
-              className={cn('mt-1', dateNaissanceInvalid && 'border-stamp focus-visible:ring-stamp/70')}
-            />
-            {dateNaissanceInvalid && (
-              <p className="mt-1 text-xs text-stamp">
-                L'année de naissance doit être {maxDateNaissance().slice(0, 4)} ou antérieure.
-              </p>
-            )}
-          </div>
-
-          <div>
-            <Label htmlFor="adresse">
-              Adresse <span className="text-stamp">*</span>
-            </Label>
-            <Input
-              id="adresse"
-              type="text"
-              required
-              value={adresse}
-              onChange={(e) => setAdresse(e.target.value)}
-              placeholder="12 rue des Lilas"
-              className="mt-1"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="code-postal">
-                Code postal <span className="text-stamp">*</span>
-              </Label>
-              <Input
-                id="code-postal"
-                type="text"
-                required
-                inputMode="numeric"
-                maxLength={5}
-                value={codePostal}
-                onChange={(e) => setCodePostal(sanitizeDigits(e.target.value))}
-                placeholder="75000"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="ville">
-                Ville <span className="text-stamp">*</span>
-              </Label>
-              <Input
-                id="ville"
-                type="text"
-                required
-                value={ville}
-                onChange={(e) => setVille(e.target.value)}
-                placeholder="Paris"
-                className="mt-1"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label>Pays</Label>
-            <Select value={pays} onChange={(e) => setPays(e.target.value)} className="mt-1 w-full">
-              {COUNTRIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="telephone">Téléphone</Label>
-            <Input
-              id="telephone"
-              type="tel"
-              inputMode="numeric"
-              minLength={10}
-              maxLength={25}
-              value={telephone}
-              onChange={(e) => setTelephone(sanitizeDigits(e.target.value))}
-              placeholder="0600000000"
-              className="mt-1"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="courriel">Courriel</Label>
-            <Input
-              id="courriel"
-              type="email"
-              value={courriel}
-              onChange={(e) => setCourriel(e.target.value)}
-              placeholder="jean.dupont@exemple.fr"
-              aria-invalid={courrielInvalid}
-              className={cn('mt-1', courrielInvalid && 'border-stamp focus-visible:ring-stamp/70')}
-            />
-            {courrielInvalid && <p className="mt-1 text-xs text-stamp">Format d'email invalide.</p>}
-          </div>
-
-          <div className="border-t border-paper-border pt-4">
-            {organisation.statuts_url && (
-              <label className="flex items-start gap-2 text-sm text-ink-muted">
-                <input
-                  type="checkbox"
-                  required
-                  checked={accepteStatuts}
-                  onChange={(e) => setAccepteStatuts(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded-sm border-paper-border text-stamp focus:ring-stamp/70"
-                />
-                <span>
-                  J'ai pris connaissance{' '}
-                  <a
-                    href={organisation.statuts_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium text-stamp hover:underline"
-                  >
-                    des statuts de l'association
-                  </a>{' '}
-                  et les approuve. <span className="text-stamp">*</span>
-                </span>
-              </label>
-            )}
-
-            <label className="mt-3 flex items-start gap-2 text-sm text-ink-muted">
-              <input
-                type="checkbox"
-                required
-                checked={consentRgpd}
-                onChange={(e) => setConsentRgpd(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded-sm border-paper-border text-stamp focus:ring-stamp/70"
-              />
-              <span>
-                J'accepte que les informations saisies dans ce formulaire soient utilisées par l'association dans le
-                cadre du traitement de ma demande d'adhésion. <span className="text-stamp">*</span>
-              </span>
-            </label>
-          </div>
+          <ConsentementsAdhesion
+            statutsUrl={organisation.statuts_url}
+            accepteStatuts={accepteStatuts}
+            consentRgpd={consentRgpd}
+            onAccepteStatutsChange={setAccepteStatuts}
+            onConsentRgpdChange={setConsentRgpd}
+            objet="ma demande d'adhésion"
+          />
 
           <div>
             <Label>

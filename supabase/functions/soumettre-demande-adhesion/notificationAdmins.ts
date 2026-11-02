@@ -1,4 +1,5 @@
-// Email aux comptes de l'organisation à chaque demande d'adhésion soumise (cadré 2026-10-23).
+// Email aux comptes de l'organisation à chaque demande d'adhésion soumise (cadré 2026-10-23),
+// ou de renouvellement par lien personnel (Renouvellement 2/3, 2026-10-30).
 // Aucune donnée du demandeur (décision du 2026-09-15) ; le lien ne pointe jamais vers une origine
 // fournie par le client sans passer par la liste blanche de normaliseSiteUrl.
 // Module pur : testé par Vitest (src/lib/notificationAdmins.test.ts).
@@ -14,13 +15,24 @@ export function lienPageDemandes(siteUrlClient: unknown, supabaseUrl: string | u
   return `${origine}/admin/adherents/demandes`
 }
 
-export const SUJET_NOTIFICATION_ADMINS = "Nouvelle demande d'adhésion à examiner"
+export type TypeDemande = 'adhesion' | 'renouvellement'
 
-export function notificationAdminsHtml(lien: string): string {
+export const SUJET_NOTIFICATION_ADMINS = "Nouvelle demande d'adhésion à examiner"
+export const SUJET_NOTIFICATION_ADMINS_RENOUVELLEMENT = 'Nouvelle demande de renouvellement à examiner'
+
+export function sujetNotificationAdmins(type: TypeDemande = 'adhesion'): string {
+  return type === 'renouvellement' ? SUJET_NOTIFICATION_ADMINS_RENOUVELLEMENT : SUJET_NOTIFICATION_ADMINS
+}
+
+export function notificationAdminsHtml(lien: string, type: TypeDemande = 'adhesion'): string {
+  const titre = type === 'renouvellement' ? 'Nouvelle demande de renouvellement' : "Nouvelle demande d'adhésion"
+  const texte = type === 'renouvellement'
+    ? "Un adhérent vient d'envoyer une demande de renouvellement de son adhésion par son lien personnel. Elle est à examiner par le conseil d'administration."
+    : "Une demande d'adhésion vient d'être envoyée par le formulaire en ligne. Elle est à examiner par le conseil d'administration."
   return `<!doctype html><html><body style="font-family: ui-sans-serif, system-ui, sans-serif; background: #f8fafc; padding: 32px;">
   <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e2e8f0;">
-    <h1 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">Nouvelle demande d'adhésion</h1>
-    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Une demande d'adhésion vient d'être envoyée par le formulaire en ligne. Elle est à examiner par le conseil d'administration.</p>
+    <h1 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">${titre}</h1>
+    <p style="color: #475569; font-size: 14px; line-height: 1.5;">${texte}</p>
     <p style="margin: 24px 0;"><a href="${lien}" style="display: inline-block; background: #a8281f; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 4px;">Voir les demandes</a></p>
     <p style="color: #94a3b8; font-size: 12px;">Vous recevez cet email car vous avez un compte sur l'espace de gestion de l'association.</p>
   </div>

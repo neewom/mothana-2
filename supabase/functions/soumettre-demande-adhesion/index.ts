@@ -1,14 +1,12 @@
-import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { hashClientIp } from '../_shared/rateLimit.ts'
 import { sendViaResend } from '../_shared/resend.ts'
 import { escapeHtml, motifIlikeExact, validerDemandeAdhesion } from './validation.ts'
-import { SUJET_NOTIFICATION_ADMINS, lienPageDemandes, notificationAdminsHtml } from './notificationAdmins.ts'
+import { lienPageDemandes } from './notificationAdmins.ts'
+import { prevenirComptesOrganisation } from './prevenirComptes.ts'
 
 // Tâches poursuivies après la réponse (runtime Supabase Edge) ; absent en local → attendues.
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined
-
-// Borne du nombre de comptes prévenus par demande (une association compte quelques comptes).
-const NOTIFICATION_ADMINS_MAX = 20
 
 // Soumission du formulaire public d'adhésion (/adhesion/<slug>) — cadré 2026-10-17 (carte
 // Trello « Sécurité : le formulaire d'adhésion en ligne et son email de confirmation peuvent
@@ -152,7 +150,7 @@ Deno.serve(async (req) => {
   // pas Resend et ne dépend pas de son succès.
   // Coupé pour l'organisation (Paramètres → Adhésions) : aucun email.
   if (organisation.notif_demandes_adhesion) {
-    const notification = prevenirComptesOrganisation(adminClient, organisation.id, lienPageDemandes(corps?.site_url, Deno.env.get('SUPABASE_URL')))
+    const notification = prevenirComptesOrganisation(adminClient, organisation.id, lienPageDemandes(corps?.site_url, Deno.env.get('SUPABASE_URL')), 'adhesion')
       .catch((err) => console.error('soumettre-demande-adhesion: notification des comptes impossible', String(err)))
     if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(notification)
     else await notification
@@ -160,30 +158,3 @@ Deno.serve(async (req) => {
 
   return jsonResponse({ ok: true })
 })
-
-/** Un email par compte actif (admin ou contributeur, non désactivé, réglage actif) de l'organisation. */
-async function prevenirComptesOrganisation(
-  adminClient: SupabaseClient,
-  organisationId: string,
-  lien: string,
-): Promise<void> {
-  const { data: profils, error } = await adminClient
-    .from('profils_organisation')
-    .select('utilisateur_id')
-    .eq('organisation_id', organisationId)
-    .in('role', ['admin', 'contributeur'])
-    // Réglage du compte (Mon compte, Paramètres → Équipe, espace super-admin).
-    .eq('notif_demandes_adhesion', true)
-    .limit(NOTIFICATION_ADMINS_MAX)
-  if (error) throw new Error(error.message)
-
-  const html = notificationAdminsHtml(lien)
-  for (const { utilisateur_id } of (profils ?? []) as { utilisateur_id: string }[]) {
-    const { data } = await adminClient.auth.admin.getUserById(utilisateur_id)
-    const compte = data?.user
-    // Compte désactivé (disable-admin bannit le compte) ou sans email : pas de notification.
-    if (!compte?.email || (compte.banned_until && new Date(compte.banned_until) > new Date())) continue
-    const resultat = await sendViaResend(compte.email, SUJET_NOTIFICATION_ADMINS, html)
-    if (!resultat.ok) console.error('soumettre-demande-adhesion: notification Resend', resultat.detail)
-  }
-}
