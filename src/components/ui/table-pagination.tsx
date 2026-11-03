@@ -7,7 +7,7 @@ import { Select } from './select'
 // la page appelante garde l'état (page, taille) et la logique (pagination client ou serveur).
 // Sous `sm`, les boutons Précédent/Suivant perdent leur libellé texte (flèches seules, nom
 // accessible via `aria-label`) pour que la navigation tienne sur une seule ligne à 375 px.
-export const DEFAULT_PAGE_SIZE_OPTIONS = [25, 50, 100, 250] as const
+const DEFAULT_PAGE_SIZE_OPTIONS = [25, 50, 100, 250] as const
 
 export interface TablePaginationProps {
   /** Page affichée (1-indexée), déjà bornée à `pageCount` par l'appelant. */
