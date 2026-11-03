@@ -686,7 +686,7 @@ export default function AdherentsPage() {
 
           {!loading && adherents.length > 0 && (
             <TablePagination
-              page={currentPage}
+              page={Math.min(currentPage, pageCount)}
               pageCount={pageCount}
               totalCount={totalCount}
               pageSize={pageSize}

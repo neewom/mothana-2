@@ -7,6 +7,8 @@ import { Select } from './select'
 // la page appelante garde l'état (page, taille) et la logique (pagination client ou serveur).
 // Sous `sm`, les boutons Précédent/Suivant perdent leur libellé texte (flèches seules, nom
 // accessible via `aria-label`) pour que la navigation tienne sur une seule ligne à 375 px.
+// Le compteur passe à la ligne sous le Select plutôt que de l'écraser (Select en `shrink-0`)
+// quand il atteint 4-5 chiffres à 375 px.
 const DEFAULT_PAGE_SIZE_OPTIONS = [25, 50, 100, 250] as const
 
 export interface TablePaginationProps {
@@ -41,33 +43,33 @@ export function TablePagination({
 
   return (
     <div className={cn('flex flex-wrap items-center justify-between gap-3 border-t border-paper-border px-4 py-3 md:px-6', className)}>
-      <div className="flex items-center gap-2 whitespace-nowrap font-registre-mono text-xs text-ink-faint">
-        <span>Lignes par page</span>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-registre-mono text-xs text-ink-faint">
+        <span className="whitespace-nowrap">Lignes par page</span>
         <Select
           aria-label="Lignes par page"
           value={pageSize}
           onChange={(e) => { onPageSizeChange(Number(e.target.value)); onPageChange(1) }}
-          className="py-1 pl-2 pr-7 text-xs"
+          className="shrink-0 py-1 pl-2 pr-7 text-xs"
         >
           {pageSizeOptions.map((size) => (
             <option key={size} value={size}>{size}</option>
           ))}
         </Select>
-        <span>
+        <span className="whitespace-nowrap">
           {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalCount)} sur {totalCount}
         </span>
       </div>
 
       <nav aria-label="Pagination" className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
-        <Button variant="secondary" size="sm" onClick={() => goTo(1)} disabled={isFirst} aria-label="Première page">«</Button>
-        <Button variant="secondary" size="sm" onClick={() => goTo(page - 1)} disabled={isFirst} aria-label="Page précédente">
+        <Button type="button" variant="secondary" size="sm" onClick={() => goTo(1)} disabled={isFirst} aria-label="Première page">«</Button>
+        <Button type="button" variant="secondary" size="sm" onClick={() => goTo(page - 1)} disabled={isFirst} aria-label="Page précédente">
           <span className="sm:hidden">‹</span><span className="hidden sm:inline">‹ Précédent</span>
         </Button>
         <span className="whitespace-nowrap font-registre-mono text-xs text-ink-faint">Page {page} / {pageCount}</span>
-        <Button variant="secondary" size="sm" onClick={() => goTo(page + 1)} disabled={isLast} aria-label="Page suivante">
+        <Button type="button" variant="secondary" size="sm" onClick={() => goTo(page + 1)} disabled={isLast} aria-label="Page suivante">
           <span className="sm:hidden">›</span><span className="hidden sm:inline">Suivant ›</span>
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => goTo(pageCount)} disabled={isLast} aria-label="Dernière page">»</Button>
+        <Button type="button" variant="secondary" size="sm" onClick={() => goTo(pageCount)} disabled={isLast} aria-label="Dernière page">»</Button>
       </nav>
     </div>
   )
