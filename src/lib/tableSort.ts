@@ -17,7 +17,11 @@ export type SortValue = string | number | Date | null | undefined
 
 export interface SortColumn<T> {
   type: SortValueType
-  value: (row: T) => SortValue
+  /**
+   * Valeur triée. Un tableau compare élément par élément, dans le même sens (ex. `[nom, prénom]`,
+   * `[date, créé le]`) ; chaque élément vide passe en dernier.
+   */
+  value: (row: T) => SortValue | readonly SortValue[]
 }
 
 export type SortColumns<T, F extends string> = Record<F, SortColumn<T>>
@@ -39,8 +43,12 @@ export function nextSortState<F extends string>(
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true })
 
-function isEmpty(v: SortValue): v is null | undefined | '' {
-  return v === null || v === undefined || (typeof v === 'string' && v.trim() === '') || (v instanceof Date && Number.isNaN(v.getTime()))
+/** Vide : absent, chaîne blanche, ou valeur illisible pour le type (nombre NaN, date invalide). */
+function isEmpty(v: SortValue, type: SortValueType): boolean {
+  if (v === null || v === undefined || (typeof v === 'string' && v.trim() === '')) return true
+  if (type === 'number') return Number.isNaN(Number(v))
+  if (type === 'date') return Number.isNaN(toTime(v))
+  return false
 }
 
 function toTime(v: string | number | Date): number {
@@ -67,11 +75,27 @@ function compareFilled(a: string | number | Date, b: string | number | Date, typ
  * Texte : sans tenir compte des accents ni de la casse, chiffres comparés comme des nombres
  * (« 2026-10 » après « 2026-9 »). Date : chaîne ISO, timestamp ou `Date`.
  */
-export function compareValues(a: SortValue, b: SortValue, type: SortValueType, direction: SortDirection): number {
-  const emptyA = isEmpty(a)
-  const emptyB = isEmpty(b)
+export function compareValues(
+  a: SortValue | readonly SortValue[],
+  b: SortValue | readonly SortValue[],
+  type: SortValueType,
+  direction: SortDirection,
+): number {
+  if (Array.isArray(a) || Array.isArray(b)) {
+    const listA: readonly SortValue[] = Array.isArray(a) ? a : [a as SortValue]
+    const listB: readonly SortValue[] = Array.isArray(b) ? b : [b as SortValue]
+    for (let i = 0; i < Math.max(listA.length, listB.length); i++) {
+      const result = compareValues(listA[i], listB[i], type, direction)
+      if (result !== 0) return result
+    }
+    return 0
+  }
+  const valueA = a as SortValue
+  const valueB = b as SortValue
+  const emptyA = isEmpty(valueA, type)
+  const emptyB = isEmpty(valueB, type)
   if (emptyA || emptyB) return emptyA === emptyB ? 0 : emptyA ? 1 : -1
-  const result = compareFilled(a as string | number | Date, b as string | number | Date, type)
+  const result = compareFilled(valueA as string | number | Date, valueB as string | number | Date, type)
   return direction === 'asc' ? result : -result
 }
 
