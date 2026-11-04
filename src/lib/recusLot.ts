@@ -67,6 +67,7 @@ export function messageErreurLot(message: string | undefined | null): string {
   if (m.includes('AUCUN_RECU_A_ENVOYER')) return 'Aucun reçu à envoyer pour cette année.'
   if (m.includes('ENVOI_EN_COURS')) return "L'envoi arrêté termine l'email en cours : réessayez dans quelques minutes."
   if (m.includes('GENERATION_EN_COURS')) return 'Une génération des reçus de cette année est en cours : attendez sa fin pour lancer l’envoi.'
+  if (m.includes('BREVO_REQUIS')) return 'Configurez Brevo dans Paramètres › Intégrations pour envoyer les reçus en lot.'
   if (m.includes('LOT_INTROUVABLE')) return 'Ce lot est introuvable : rechargez la page.'
   // Code inconnu : jamais affiché brut.
   return 'Une erreur est survenue. Réessayez ou rechargez la page.'

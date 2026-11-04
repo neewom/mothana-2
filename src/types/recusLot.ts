@@ -45,4 +45,6 @@ export interface RecapitulatifEnvoi {
   par_jour: number
   par_minute: number
   envoyes_24h: number
+  /** Envoi en lot réservé aux organisations qui ont configuré Brevo (BREVO_REQUIS sinon). */
+  brevo_configure: boolean
 }

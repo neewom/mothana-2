@@ -42,6 +42,7 @@ describe('lotTraites / messageErreurLot', () => {
     expect(messageErreurLot('AUCUN_RECU_MANQUANT')).toContain('Aucun reçu manquant')
     expect(messageErreurLot('ENVOI_EN_COURS')).toContain('réessayez dans quelques minutes')
     expect(messageErreurLot('GENERATION_EN_COURS')).toContain('génération')
+    expect(messageErreurLot('BREVO_REQUIS')).toBe('Configurez Brevo dans Paramètres › Intégrations pour envoyer les reçus en lot.')
     expect(messageErreurLot('LOT_INTROUVABLE')).toBe('Ce lot est introuvable : rechargez la page.')
     // Code inconnu ou absent : message générique, jamais le code brut.
     expect(messageErreurLot('boom')).toBe('Une erreur est survenue. Réessayez ou rechargez la page.')

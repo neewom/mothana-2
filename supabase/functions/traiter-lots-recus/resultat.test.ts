@@ -60,3 +60,8 @@ Deno.test('erreur serveur avant envoi ou refus Resend : nouvelle tentative ; ref
     { recuId: null, versionId: null, envoyeLe: null, canal: null, dejaEnvoye: false, resultat: 'echec', erreur: 'Aucune adresse email pour ce participant' })
   egal(classerEnvoiLot({ ok: false, status: 404, error: 'Aucun reçu', incertain: false }).resultat, 'echec')
 })
+
+Deno.test('envoi en lot sans Brevo (sans secours Resend) : échec définitif ; refus Brevo 4xx : nouvelle tentative', () => {
+  egal(classerEnvoiLot({ ok: false, status: 422, error: "Brevo n'est pas configuré", incertain: false }).resultat, 'echec')
+  egal(classerEnvoiLot({ ok: false, status: 500, error: 'Envoi refusé par Brevo (400) : x', incertain: false }).resultat, 'reessayer')
+})

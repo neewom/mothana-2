@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { StatusNotice } from '../components/ui/status-notice'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
@@ -34,7 +35,6 @@ import { messageErreurLot, messageLancementLot } from '../lib/recusLot'
 import RecusLotBandeau from '../components/RecusLotBandeau'
 import RecusLotRecapitulatifDialog from '../components/RecusLotRecapitulatifDialog'
 import EmailInvalideIndicateur from '../components/EmailInvalideIndicateur'
-import { brevoConfigure, chargerEtatConfigBrevo } from '../lib/brevoConfig'
 import type { RecapitulatifEnvoi } from '../types/recusLot'
 import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
@@ -147,7 +147,6 @@ export default function RecusFiscauxPage() {
   const [recapEnvoiOpen, setRecapEnvoiOpen] = useState(false)
   const [recapEnvoiError, setRecapEnvoiError] = useState<string | null>(null)
   const [recapEnvoiLoading, setRecapEnvoiLoading] = useState(false)
-  const [brevoOk, setBrevoOk] = useState<boolean | null>(null)
 
   // Regénération (confirmation) et édition participant
   const [regenerateConfirm, setRegenerateConfirm] = useState<ParticipantRow | null>(null)
@@ -472,6 +471,8 @@ export default function RecusFiscauxPage() {
   const afficherLotEnvoi = !!lotEnvoi && (lotEnvoiEnCours || !(bilansFermes[lotEnvoi.id] ?? bilanDejaFerme(lotEnvoi.id)))
   const nbAEnvoyer = recapEnvoi?.a_envoyer ?? 0
   const rythmeEnvoiOrg = recapEnvoi ? { parJour: recapEnvoi.par_jour, parMinute: recapEnvoi.par_minute } : undefined
+  // Envoi en lot réservé à Brevo (décision utilisateur 2026-11-04) ; l'envoi unitaire reste possible.
+  const brevoLot = recapEnvoi ? recapEnvoi.brevo_configure : null
 
   const chargerRecapEnvoi = useCallback(async () => {
     if (!organisationId) return
@@ -495,14 +496,6 @@ export default function RecusFiscauxPage() {
     void chargerRecapEnvoi()
   }, [rows, loading, chargerRecapEnvoi])
 
-  useEffect(() => {
-    if (!organisationId) return
-    let cancelled = false
-    void chargerEtatConfigBrevo(organisationId).then((etat) => {
-      if (!cancelled) setBrevoOk(etat ? brevoConfigure(etat) : null)
-    })
-    return () => { cancelled = true }
-  }, [organisationId])
 
   function ouvrirRecapEnvoi() {
     setRecapEnvoiError(null)
@@ -674,11 +667,13 @@ export default function RecusFiscauxPage() {
               <Button
                 variant="secondary"
                 onClick={ouvrirRecapEnvoi}
-                disabled={recusEnvoi.actif || recusEnvoi.loading || recusLot.actif || !recapEnvoi || nbAEnvoyer === 0}
+                disabled={recusEnvoi.actif || recusEnvoi.loading || recusLot.actif || !recapEnvoi || nbAEnvoyer === 0 || brevoLot === false}
                 title={
                   lotEnvoiEnCours
                     ? `Un envoi des reçus ${annee} est déjà en cours`
-                    : recusLot.actif
+                    : brevoLot === false
+                      ? 'Configurez Brevo dans Paramètres › Intégrations pour envoyer les reçus en lot'
+                      : recusLot.actif
                       ? 'Une génération en lot est en cours : attendez sa fin pour envoyer les reçus'
                       : recapEnvoi && nbAEnvoyer === 0
                         ? 'Aucun reçu à envoyer (reçus déjà envoyés, ou donateurs sans email valide)'
@@ -747,6 +742,16 @@ export default function RecusFiscauxPage() {
             ))}
           </p>
         </div>
+      )}
+
+      {/* Envoi en lot réservé à Brevo : bouton désactivé, raison visible (le title ne s'affiche pas au toucher) */}
+      {rows.length > 0 && brevoLot === false && !lotEnvoiEnCours && (
+        <StatusNotice tone="warning">
+          <Link to="/admin/parametres/integrations" className="font-medium underline underline-offset-2 hover:no-underline">
+            Configurez Brevo dans Paramètres › Intégrations
+          </Link>{' '}
+          pour envoyer les reçus en lot. Sans Brevo, chaque reçu s'envoie depuis son détail.
+        </StatusNotice>
       )}
 
       {/* Lot de génération : progression, puis bilan */}
@@ -1063,7 +1068,7 @@ export default function RecusFiscauxPage() {
         error={recapEnvoiError}
         rythme={rythmeEnvoiOrg}
         envoyes24h={recapEnvoi?.envoyes_24h ?? 0}
-        brevoConfigure={brevoOk}
+        brevoConfigure={brevoLot}
         chargement={recapEnvoiLoading && !recapEnvoi}
       />
 

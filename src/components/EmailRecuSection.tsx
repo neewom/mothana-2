@@ -110,13 +110,15 @@ export default function EmailRecuSection({
           Brevo n'est pas configuré pour votre organisation : les reçus sont envoyés depuis noreply@samakan.fr et les
           réponses de vos donateurs ne vous parviennent pas. Configurez Brevo dans{' '}
           <Link to="/admin/parametres/integrations" className="font-medium underline underline-offset-2">Paramètres › Intégrations</Link>{' '}
-          pour les envoyer depuis votre propre adresse.
+          pour les envoyer depuis votre propre adresse. L'envoi en lot des reçus («&nbsp;Envoyer les reçus non envoyés&nbsp;»)
+          exige Brevo : sans Brevo, chaque reçu s'envoie depuis son détail.
         </StatusNotice>
       )}
       {etatBrevo && brevoConfigure(etatBrevo) && (
         <p className="text-sm text-ink-muted">
           Expéditeur : <span className="font-medium text-ink break-all">{etatBrevo.expediteurNom} &lt;{etatBrevo.expediteurEmail}&gt;</span>, via votre compte Brevo.
-          Si cet expéditeur n'est pas validé chez Brevo, les reçus partent depuis noreply@samakan.fr.
+          Si cet expéditeur n'est pas validé chez Brevo, un reçu envoyé depuis son détail part depuis noreply@samakan.fr
+          et l'envoi en lot échoue.
         </p>
       )}
 

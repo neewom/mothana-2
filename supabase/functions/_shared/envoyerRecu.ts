@@ -1,7 +1,7 @@
 // Cœur de l'envoi d'un reçu fiscal par email, partagé par send-recu-email (envoi unitaire, depuis le
 // détail d'un reçu) et traiter-lots-recus (lots d'envoi, carte « Reçus en lot 4/5 ») : lecture du
 // donateur et de la dernière version du reçu, PDF, modèle d'email de l'organisation, envoi par le
-// Brevo de l'organisation ou Resend en secours (envoiRecuEmail.ts), puis marquage de la version
+// Brevo de l'organisation ou Resend en secours (envoiRecuEmail.ts ; lots : Brevo seul), puis marquage de la version
 // envoyée (recus_fiscaux_versions.email_envoye_le) et du reçu (email_envoye_at, email_canal).
 // L'appelant a déjà vérifié les droits sur l'organisation.
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -18,6 +18,8 @@ export interface ParametresEnvoiRecu {
   refuserEmailInvalide?: boolean
   /** Adresse en .invalid (jamais délivrable) : version marquée envoyée sans aucun email (staging). */
   simulerAdressesInvalid?: boolean
+  /** Lot : Brevo seulement, jamais de secours Resend (décision utilisateur, 2026-11-04). */
+  sansSecoursResend?: boolean
 }
 
 export type CanalEnvoiRecu = CanalEmail | 'simulation'
@@ -191,12 +193,17 @@ export async function envoyerRecuDonateur(
         expediteurEmail: org.brevo_expediteur_email,
       },
       deps,
+      { sansSecours: params.sansSecoursResend },
     )
 
     if (!emailResult.ok) {
       console.error('envoyerRecuDonateur: envoi impossible', emailResult.detail)
       // Envoi incertain (Brevo ou Resend) : message explicite, et aucun marquage (email_envoye_at / _le).
       if (emailResult.incertain) return echec(502, emailResult.detail, true)
+      // Lot sans secours : Brevo absent ou expéditeur refusé → échec définitif ; refus Brevo 4xx →
+      // erreur ordinaire (nouvelle tentative), avec le détail Brevo.
+      if (emailResult.definitif) return echec(422, emailResult.detail)
+      if (params.sansSecoursResend) return echec(500, emailResult.detail)
       return echec(500, "Erreur lors de l'envoi de l'email")
     }
     canal = emailResult.canal

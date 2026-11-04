@@ -35,11 +35,12 @@ export interface ResultatLigneEnvoi {
 }
 
 // Classement d'un envoi dans un lot (carte « Reçus en lot 4/5 »). Jamais de nouvelle tentative
-// automatique quand l'email a pu partir : envoi Brevo ou Resend ambigu (pas de statut, ≥ 500, délai
-// dépassé, exception réseau) ou exception pendant l'envoi → « a_verifier ». Passagère (nouvelle
-// tentative au passage suivant) : erreur serveur avant tout envoi (lecture du reçu, téléchargement du
-// PDF) ou refus explicite (4xx) de Resend.
-// Définitive : donateur sans email ou email invalide, reçu introuvable.
+// automatique quand l'email a pu partir : envoi Brevo ambigu (pas de statut, ≥ 500, délai dépassé,
+// exception réseau) ou exception pendant l'envoi → « a_verifier ». Un lot n'utilise jamais le secours
+// Resend (décision utilisateur, 2026-11-04). Passagère (nouvelle tentative au passage suivant) : erreur
+// serveur avant tout envoi (lecture du reçu, téléchargement du PDF) ou refus explicite (4xx) de Brevo.
+// Définitive : donateur sans email ou email invalide, reçu introuvable, Brevo non configuré ou
+// expéditeur refusé par Brevo.
 export function classerEnvoiLot(resultat: ResultatEnvoiRecuDonateur | null, exception?: unknown): ResultatLigneEnvoi {
   const vide = { recuId: null, versionId: null, envoyeLe: null, canal: null, dejaEnvoye: false }
   if (!resultat) {

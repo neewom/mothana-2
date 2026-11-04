@@ -2,7 +2,8 @@
 --   npx supabase db query --linked -f supabase/tests/recus_lots_envoi.sql
 -- Bloc terminé par une exception : rien n'est conservé (organisation, donateurs, reçus, lots créés ici).
 -- Aucun email : seules les fonctions SQL sont appelées. Dépend de l'org « Association Démo Staging »
--- (compte bénévole, un admin) et d'un super-admin. Chaque résultat attendu est suffixé « ok ».
+-- (compte bénévole, un admin) et d'un super-admin. L'organisation de test reçoit une config Brevo factice
+-- (section 5) : l'envoi en lot exige Brevo. Chaque résultat attendu est suffixé « ok ».
 do $$
 declare
   v_demo uuid; v_benevole uuid; v_admin uuid; v_super uuid;
@@ -121,6 +122,33 @@ begin
   v_j := public.recapitulatif_envoi_lot_recus(v_org, 2025);
   r := r || ' | 5.recap=' || (v_j ->> 'a_envoyer') || '/' || jsonb_array_length(v_j -> 'exclus') || '/' || (v_j ->> 'par_jour') || '/' || (v_j ->> 'par_minute')
     || case when v_j ->> 'a_envoyer' = '6' and jsonb_array_length(v_j -> 'exclus') = 3 and v_j ->> 'par_jour' = '250' and v_j ->> 'par_minute' = '5' then ' ok' else ' KO' end;
+  -- Envoi en lot réservé à Brevo (décision utilisateur 2026-11-04) : refusé sans Brevo configuré
+  r := r || ' recap_brevo=' || (v_j ->> 'brevo_configure') || case when v_j ->> 'brevo_configure' = 'false' then ' ok' else ' KO' end;
+  begin
+    perform public.lancer_lot_envoi_recus(v_org, 2025);
+    r := r || ' sans_brevo=ACCEPTE(KO)';
+  exception when others then r := r || ' sans_brevo=' || sqlerrm || case when sqlerrm = 'BREVO_REQUIS' then ' ok' else ' KO' end;
+  end;
+  execute 'reset role';
+  -- Clé seule (expéditeur absent) : toujours refusé
+  insert into public.organisation_secrets (organisation_id, brevo_api_key) values (v_org, 'xkeysib-test')
+    on conflict (organisation_id) do update set brevo_api_key = excluded.brevo_api_key;
+  execute 'set local role authenticated';
+  begin
+    perform public.lancer_lot_envoi_recus(v_org, 2025);
+    r := r || ' cle_seule=ACCEPTE(KO)';
+  exception when others then r := r || ' cle_seule=' || sqlerrm || case when sqlerrm = 'BREVO_REQUIS' then ' ok' else ' KO' end;
+  end;
+  execute 'reset role';
+  update public.organisations set brevo_expediteur_nom = 'Test', brevo_expediteur_email = 'test@example.invalid' where id = v_org;
+  execute 'set local role authenticated';
+  v_j := public.recapitulatif_envoi_lot_recus(v_org, 2025);
+  r := r || ' recap_brevo_ok=' || (v_j ->> 'brevo_configure') || case when v_j ->> 'brevo_configure' = 'true' then ' ok' else ' KO' end;
+  begin
+    perform public.brevo_configure_organisation(v_org);
+    r := r || ' helper_client=ACCEPTE(KO)';
+  exception when insufficient_privilege then r := r || ' helper_client=refuse ok';
+  end;
   execute 'reset role';
   insert into public.recus_lots (organisation_id, annee, type) values (v_org, 2025, 'generation') returning id into v_gen;
   execute 'set local role authenticated';

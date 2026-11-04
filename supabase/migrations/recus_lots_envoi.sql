@@ -14,6 +14,9 @@
 --     interrompue pendant l'envoi) passe « a_verifier » : jamais de nouvelle tentative automatique ;
 --   - un lot d'envoi ne se lance pas pendant une génération en lot de la même année (un reçu en cours
 --     de génération n'est pas envoyé).
+--   - envoi en lot réservé aux organisations qui ont configuré Brevo (clé API et expéditeur) :
+--     lancer_lot_envoi_recus refuse sinon (BREVO_REQUIS), recapitulatif_envoi_lot_recus renvoie
+--     brevo_configure pour l'écran ; un lot n'utilise jamais le secours Resend (l'envoi unitaire, si).
 -- Lecture organisation + bypass super-admin (policies de recus_lots.sql) ; aucune écriture client.
 -- Ré-exécutable.
 
@@ -214,8 +217,32 @@ grant execute on function public.classer_ligne_envoi_interrompue(uuid) to servic
 -- 4. Récapitulatif et lancement (admin ou contributeur de l'organisation, ou super-admin)
 -- ---------------------------------------------------------------------------
 
+-- Envoi en lot réservé aux organisations qui ont configuré Brevo (décision utilisateur, 2026-11-04) :
+-- clé API (organisation_secrets) et expéditeur (nom et adresse, organisations), comme
+-- brevoConfigure (src/lib/brevoConfig.ts) et brevoUtilisable (_shared/envoiRecuEmail.ts). Le lot
+-- n'utilise jamais le secours Resend ; l'envoi unitaire reste possible sans Brevo.
+create or replace function public.brevo_configure_organisation(p_organisation_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select coalesce((
+    select nullif(btrim(s.brevo_api_key), '') is not null
+           and nullif(btrim(o.brevo_expediteur_nom), '') is not null
+           and nullif(btrim(o.brevo_expediteur_email), '') is not null
+      from public.organisations o
+      left join public.organisation_secrets s on s.organisation_id = o.id
+     where o.id = p_organisation_id
+  ), false);
+$$;
+
+revoke execute on function public.brevo_configure_organisation(uuid) from public, anon, authenticated;
+grant execute on function public.brevo_configure_organisation(uuid) to service_role;
+
 -- Récapitulatif avant lancement : nombre de reçus à envoyer, exclus avec leur raison, rythme, envois
--- des dernières 24 h.
+-- des dernières 24 h, Brevo configuré ou non.
 create or replace function public.recapitulatif_envoi_lot_recus(p_organisation_id uuid, p_annee integer)
 returns jsonb
 language plpgsql
@@ -249,7 +276,8 @@ begin
     ), '[]'::jsonb),
     'par_jour', v_rythme.par_jour,
     'par_minute', v_rythme.par_minute,
-    'envoyes_24h', public.envois_recus_depuis(p_organisation_id, now() - interval '24 hours')
+    'envoyes_24h', public.envois_recus_depuis(p_organisation_id, now() - interval '24 hours'),
+    'brevo_configure', public.brevo_configure_organisation(p_organisation_id)
   );
 end;
 $$;
@@ -279,6 +307,11 @@ begin
 
   if p_annee is null or p_annee < 2000 or p_annee > 2100 then
     raise exception 'ANNEE_INVALIDE';
+  end if;
+
+  -- Envoi en lot réservé à Brevo (voir brevo_configure_organisation).
+  if not coalesce(public.brevo_configure_organisation(p_organisation_id), false) then
+    raise exception 'BREVO_REQUIS';
   end if;
 
   if exists (

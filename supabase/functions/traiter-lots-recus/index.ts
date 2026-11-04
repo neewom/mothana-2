@@ -28,7 +28,8 @@ import { classerEnvoiLot, classerResultatLot } from './resultat.ts'
 // Lots d'envoi (type 'envoi', carte « Reçus en lot 4/5 », migration recus_lots_envoi.sql) : chaque
 // exécution envoie au plus budget_envoi_lot_recus emails pour le lot (rythme par minute et par jour de
 // l'organisation, envois manuels de reçus compris), avec le cœur de send-recu-email
-// (_shared/envoyerRecu.ts) ; quota du jour atteint : le lot attend en base (en_attente_jusqu_a). Un
+// (_shared/envoyerRecu.ts), par le Brevo de l'organisation seulement (jamais de secours Resend :
+// lancer_lot_envoi_recus exige Brevo, BREVO_REQUIS) ; quota du jour atteint : le lot attend en base (en_attente_jusqu_a). Un
 // envoi ambigu (Brevo sans statut, ≥ 500, délai dépassé, exception) passe « a_verifier », sans
 // nouvelle tentative. Adresses en .invalid (organisation de test) : jamais envoyées ; avec le secret
 // SIMULER_ENVOI_RECUS_INVALID=true (staging seulement, jamais en prod) l'envoi est simulé (version
@@ -141,6 +142,7 @@ async function traiterEnvoi(adminClient: SupabaseClient, lot: Lot, bilan: Bilan,
           seulementSiNonEnvoye: true,
           refuserEmailInvalide: true,
           simulerAdressesInvalid: simuler,
+          sansSecoursResend: true,
         },
         { fetchFn: fetch, envoyerResend: sendViaResend },
       )

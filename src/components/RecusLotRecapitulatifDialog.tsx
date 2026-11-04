@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Dialog, DialogContent } from './ui/dialog'
 import { Button } from './ui/button'
 import { estimerDureeEnvoi, estimerDureeLot, formatDureeApprox, formatDureeEnvoi, type RythmeEnvoi } from '../lib/recusLot'
@@ -24,7 +25,7 @@ interface RecusLotRecapitulatifDialogProps {
   /** Envoi : rythme de l'organisation et envois de reçus des dernières 24 h (quota entamé). */
   rythme?: RythmeEnvoi
   envoyes24h?: number
-  /** Envoi : canal (false : les reçus partent de Samakan, Resend, faute de Brevo configuré). */
+  /** Envoi : Brevo configuré (false : envoi en lot impossible, BREVO_REQUIS). */
   brevoConfigure?: boolean | null
   /** Envoi : récapitulatif en cours de chargement. */
   chargement?: boolean
@@ -70,8 +71,10 @@ export default function RecusLotRecapitulatifDialog({
                 )}
                 {brevoConfigure === false && (
                   <p className="rounded-sm border border-warning-border bg-warning-tint px-3 py-2 text-warning">
-                    Le compte Brevo de l'association n'est pas configuré : les reçus partiront de l'adresse de Samakan.
-                    Configurez Brevo dans Paramètres › Intégrations pour les envoyer depuis votre adresse.
+                    <Link to="/admin/parametres/integrations" className="font-medium underline underline-offset-2 hover:no-underline">
+                      Configurez Brevo dans Paramètres › Intégrations
+                    </Link>{' '}
+                    pour envoyer les reçus en lot.
                   </p>
                 )}
                 {exclus.length > 0 && (
@@ -102,7 +105,7 @@ export default function RecusLotRecapitulatifDialog({
             <Button type="button" variant="secondary" onClick={onClose} disabled={lancement}>
               Annuler
             </Button>
-            <Button type="button" onClick={onConfirm} disabled={lancement || chargement || nbAGenerer === 0}>
+            <Button type="button" onClick={onConfirm} disabled={lancement || chargement || nbAGenerer === 0 || brevoConfigure === false}>
               {lancement ? 'Lancement…' : "Lancer l'envoi"}
             </Button>
           </div>

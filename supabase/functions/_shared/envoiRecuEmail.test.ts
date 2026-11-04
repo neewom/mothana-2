@@ -1,6 +1,6 @@
 // deno test --no-lock supabase/functions/_shared/envoiRecuEmail.test.ts
 // Chemin Brevo testé avec un fetch simulé (aucun appel réseau) ; Resend remplacé par un double.
-import { type ConfigBrevoOrganisation, type DependancesEnvoi, type EmailRecu, envoyerEmailRecu, MESSAGE_ENVOI_BREVO_INCERTAIN, MESSAGE_ENVOI_INCERTAIN } from './envoiRecuEmail.ts'
+import { type ConfigBrevoOrganisation, type DependancesEnvoi, type EmailRecu, envoyerEmailRecu, MESSAGE_BREVO_REQUIS, MESSAGE_ENVOI_BREVO_INCERTAIN, MESSAGE_ENVOI_INCERTAIN, MESSAGE_EXPEDITEUR_BREVO_NON_VALIDE } from './envoiRecuEmail.ts'
 
 function vrai(condition: boolean, message: string) {
   if (!condition) throw new Error(message)
@@ -148,4 +148,47 @@ Deno.test('délai dépassé à l\'envoi Brevo : incertain, pas de secours Resend
   const { deps, appels } = dependances({ envoi: 'bloque' })
   deps.delaiEnvoiBrevoMs = 20
   envoiIncertain(await envoyerEmailRecu(EMAIL, BREVO, deps), appels)
+})
+
+// Lots d'envoi (décision utilisateur 2026-11-04) : option sansSecours, jamais de Resend.
+Deno.test('lot sans secours, Brevo configuré : envoi Brevo', async () => {
+  const { deps, appels } = dependances({})
+  const res = await envoyerEmailRecu(EMAIL, BREVO, deps, { sansSecours: true })
+  vrai(res.ok && res.canal === 'brevo', JSON.stringify(res))
+  vrai(appels.resend.length === 0, 'Resend appelé')
+})
+
+Deno.test('lot sans secours, Brevo non configuré : échec définitif, ni Brevo ni Resend', async () => {
+  const { deps, appels } = dependances({})
+  const res = await envoyerEmailRecu(EMAIL, { apiKey: null, expediteurNom: 'Asso', expediteurEmail: 'contact@asso.fr' }, deps, { sansSecours: true })
+  vrai(!res.ok && res.definitif === true && !res.incertain && res.detail === MESSAGE_BREVO_REQUIS, JSON.stringify(res))
+  vrai(appels.brevo.length === 0 && appels.resend.length === 0, 'appel inattendu')
+})
+
+Deno.test('lot sans secours, expéditeur non validé : échec définitif, pas de Resend', async () => {
+  const { deps, appels } = dependances({ senders: { status: 200, senders: [{ email: 'autre@asso.fr', active: true }] } })
+  const res = await envoyerEmailRecu(EMAIL, BREVO, deps, { sansSecours: true })
+  vrai(!res.ok && res.definitif === true && res.detail === MESSAGE_EXPEDITEUR_BREVO_NON_VALIDE, JSON.stringify(res))
+  vrai(appels.resend.length === 0, 'Resend appelé')
+})
+
+Deno.test('lot sans secours, refus Brevo 4xx : erreur ordinaire avec le détail, pas de Resend', async () => {
+  const { deps, appels } = dependances({ envoi: 400 })
+  const res = await envoyerEmailRecu(EMAIL, BREVO, deps, { sansSecours: true })
+  vrai(!res.ok && !res.incertain && !res.definitif && res.detail.includes('Brevo (400)'), JSON.stringify(res))
+  vrai(appels.resend.length === 0, 'Resend appelé')
+})
+
+Deno.test('lot sans secours, Brevo 5xx : incertain, pas de Resend', async () => {
+  const { deps, appels } = dependances({ envoi: 503 })
+  const res = await envoyerEmailRecu(EMAIL, BREVO, deps, { sansSecours: true })
+  vrai(!res.ok && res.incertain && res.detail === MESSAGE_ENVOI_BREVO_INCERTAIN, JSON.stringify(res))
+  vrai(appels.resend.length === 0, 'Resend appelé')
+})
+
+Deno.test('envoi unitaire inchangé : refus Brevo 4xx → secours Resend', async () => {
+  const { deps, appels } = dependances({ envoi: 400 })
+  const res = await envoyerEmailRecu(EMAIL, BREVO, deps)
+  vrai(res.ok && res.canal === 'resend' && res.motifSecours === 'erreur_brevo', JSON.stringify(res))
+  vrai(appels.resend.length === 1, 'Resend non appelé')
 })
