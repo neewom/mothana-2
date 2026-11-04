@@ -27,7 +27,7 @@ import { TablePagination } from '../components/ui/table-pagination'
 import { ListToolbar } from '../components/ui/list-toolbar'
 import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { cn } from '../lib/utils'
-import { recusAGenerer } from '../lib/recusAGenerer'
+import { comparerOrdreAttribution, recusAGenerer } from '../lib/recusAGenerer'
 import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
 import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
@@ -223,10 +223,7 @@ export default function RecusFiscauxPage() {
 
     // Sort by nom then prenom — garde l'ordre de « Tout générer » (attribution des numéros),
     // indépendant du tri affiché.
-    built.sort((a, b) =>
-      a.profil.personnes.nom.localeCompare(b.profil.personnes.nom) ||
-      (a.profil.personnes.prenom ?? '').localeCompare(b.profil.personnes.prenom ?? '')
-    )
+    built.sort(comparerOrdreAttribution)
 
     setRows(built)
     setLoading(false)
