@@ -30,6 +30,7 @@ export const HEX_EXCEPTIONS = [
   'src/components/EvenementAfficheModal.tsx', // affiche imprimable (HTML autonome) + couleurs du QR code (canvas)
   'src/pages/PortefeuillePage.tsx', // couleurs du QR code acheteur (canvas qrcode)
   'src/components/SignaturePad.tsx', // trait de signature (canvas 2D)
+  'src/components/SignatureFullscreen.tsx', // trait de signature, grande zone (canvas 2D)
   'src/pages/ComptabilitePage.tsx', // palettes et traits Recharts (SVG piloté en props, pas en classes)
 ]
 
