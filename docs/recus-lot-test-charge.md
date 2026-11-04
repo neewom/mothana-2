@@ -6,7 +6,8 @@ Carte : [Reçus en lot 5/5 : test de charge sur staging](https://trello.com/c/BW
 
 - **Génération : 300 reçus en 12 min 29 s, sans aucun échec ni nouvelle tentative**, numéros `2022-001` à `2022-300` consécutifs dans l'ordre alphabétique, une version par reçu, aucun doublon. Le débit (24 reçus/min) est plafonné par le paquet de 25 lignes par exécution, ni par Gotenberg ni par la base.
 - **Bloquant pour Wat (3 335 donateurs), hors du code des lots** : au format de numérotation « séquence », `next_numero_recu` tronque les numéros à partir du 1 000ᵉ reçu d'une année (`lpad(…, 3, '0')`) : le 1 000ᵉ reçu reçoit `AAAA-100`, et tous les suivants échouent sur un numéro déjà pris. Reproduit sur staging (§ 3).
-- **Envoi : non mesuré.** L'organisation de test n'a pas de configuration Brevo (ni clé, ni expéditeur), donc `lancer_lot_envoi_recus` refuse le lot (`BREVO_REQUIS`). Consigne respectée : je n'ai posé aucune clé (§ 4).
+- **Envoi (simulé, adresses `.invalid`) : conforme.** Avec 30 par jour et 5 par minute : 5 envois par minute exactement, mise en attente au 30ᵉ envoi jusqu'à « premier envoi + 24 h + 1 min », estimation de 10 jours juste. Sur 5 lots arrêtés puis relancés : 60 envois, 60 donateurs distincts, **aucun double envoi**, aucune ligne « à vérifier » (§ 4).
+- **Point d'attention (envoi)** : augmenter le quota du jour ne réveille pas un lot déjà en attente, qui attend ses 24 h. Il faut l'arrêter et le relancer (§ 4.3).
 
 ## 1. Données de test ajoutées (elles restent)
 
@@ -19,8 +20,10 @@ Carte : [Reçus en lot 5/5 : test de charge sur staging](https://trello.com/c/BW
 | Dons 2021 | 5 | profils ci-dessus |
 | Reçus 2021 : `2021-998`, `2021-999`, `2021-100` (numéro tronqué) | 3 | lot `26da4225-52cc-4cc5-be0b-c29514fdfe4c` |
 | Séquences de numéros | 2022 à 300, 2021 à 1006 | `recu_seq_87213abf_…_2021` / `_2022` |
+| Lots d'envoi 2022, tous arrêtés | 5 | `e1e3bb5a…`, `86cd62c7…`, `d2aa9d5b…`, `e94c2abe…`, `312a023d…` |
+| Versions de reçus 2022 marquées envoyées (canal « simulation », aucun email) | 60 | `recus_fiscaux_versions.email_envoye_le` ; 240 restent à envoyer |
 
-Mélange de civilités : Monsieur et Madame en majorité, 30 Foyer, 15 Société ; noms accentués (Àlvarez, Écuyer, Œuvray, de la Tour…) pour vérifier l'ordre français. Les 32 donateurs déjà présents n'ont aucun don en 2021 ni en 2022 : le lot 2022 contenait exactement les 300 nouveaux. Réglages de l'organisation : `numero_recu_depart` passé à 998 le temps du test de débordement puis remis à 1 ; rythme d'envoi jamais modifié (absent : valeurs par défaut 250 par jour et 5 par minute).
+Mélange de civilités : Monsieur et Madame en majorité, 30 Foyer, 15 Société ; noms accentués (Àlvarez, Écuyer, Œuvray, de la Tour…) pour vérifier l'ordre français. Les 32 donateurs déjà présents n'ont aucun don en 2021 ni en 2022 : le lot 2022 contenait exactement les 300 nouveaux. Réglages de l'organisation : `numero_recu_depart` passé à 998 le temps du test de débordement puis remis à 1 ; rythme d'envoi réglé à 30, puis 40, puis 60 par jour (5 par minute) pendant le test d'envoi, puis remis par défaut (clés retirées : 250 par jour et 5 par minute, vérifié par `rythme_envoi_recus`). La configuration Brevo factice posée par le lead tech (clé non valide, expéditeur `test-lots@example.invalid`) reste en place.
 
 ## 2. Génération : 300 reçus (année 2022)
 
@@ -81,24 +84,57 @@ Dans un lot, le 409 est classé « passager » : chaque ligne bloquée est reten
 
 **Correction proposée (à coder dans une carte dédiée, hors de ce rapport)** : `lpad(next_val::text, greatest(3, length(next_val::text)), '0')`. Les numéros existants (≤ 999) ne changent pas ; à partir de 1 000 : `AAAA-1000`, `AAAA-1001`… Attention aux tris : un tri texte de `numero_ordre` placerait `2022-1000` avant `2022-101` ; trier par la partie numérique (ou par date de génération) là où l'ordre compte (liste des reçus, exports). Ajouter un test SQL qui passe le cap des 999.
 
-## 4. Envoi en lot : bloqué par l'absence de configuration Brevo
+## 4. Envoi en lot (simulé) : rythme, quota, arrêt et relance
 
-État constaté sur staging avant toute action :
+Préalable : le lead tech a posé sur l'organisation de test une configuration Brevo **factice** (clé `cle-factice-test-charge-non-valide`, expéditeur « Test lots reçus » `test-lots@example.invalid`). Avant cela, `lancer_lot_envoi_recus` refusait le lot (`BREVO_REQUIS`, clé et expéditeur vides). Le secret `SIMULER_ENVOI_RECUS_INVALID` est posé sur staging. Lancements par RPC en session super-admin, année 2022 (300 reçus générés au § 2, adresses `chargeN@example.invalid`).
 
-- `organisations.brevo_expediteur_nom` et `brevo_expediteur_email` : vides ;
-- `organisation_secrets` : une ligne existe pour l'organisation, mais `brevo_api_key` est vide ;
-- donc `brevo_configure_organisation` = faux ; `recapitulatif_envoi_lot_recus(…, 2022)` renvoie `{"a_envoyer": 300, "exclus": [], "par_jour": 250, "par_minute": 5, "envoyes_24h": 0, "brevo_configure": false}` et `lancer_lot_envoi_recus(…, 2022)` lève **`BREVO_REQUIS`** ;
-- le secret `SIMULER_ENVOI_RECUS_INVALID` est bien posé sur staging (mis à jour le 2026-11-04 à 18:56 UTC).
+### 4.1 Rythme et mise en attente au quota (30 par jour, 5 par minute)
 
-Le chemin simulé lui-même n'a pas besoin de Brevo : dans `_shared/envoyerRecu.ts`, une adresse en `.invalid` avec la simulation active est marquée envoyée (canal « simulation ») sans aucun appel à Brevo ni téléchargement du PDF. Seule la garde de lancement bloque. Pour faire le test, il faut poser sur l'organisation de test une configuration Brevo factice complète (clé quelconque **qui n'est pas une vraie clé**, nom et adresse d'expéditeur), par l'écran des paramètres ; je ne l'ai pas fait (consigne : aucune manipulation de clé).
+Récapitulatif avant lancement : `{"a_envoyer": 300, "exclus": [], "par_jour": 30, "par_minute": 5, "envoyes_24h": 0, "brevo_configure": true}`. Lot `e1e3bb5a…` lancé à 21:07:06 UTC.
 
-Rien n'a donc été envoyé ni simulé, et aucun email n'est parti. Le rythme d'envoi de l'organisation n'a jamais été modifié (pas de `envoi_lot_par_jour` / `envoi_lot_par_minute` dans `modele_recu_pdf`) : il est resté par défaut.
+| Mesure | Valeur |
+|---|---|
+| Premier envoi | 21:08 (premier passage de pg_cron après le lancement, pas d'exécution immédiate) |
+| Débit | **5 envois par minute exactement**, 21:08 à 21:13 (aucune minute à plus de 5 sur tout le test) |
+| 30ᵉ envoi (quota du jour) | 21:13, soit 6 min |
+| Mise en attente | au passage de 21:14 : `en_attente_jusqu_a` = 2026-11-05 21:09:02, soit premier envoi compté + 24 h + 1 min, comme prévu |
+| Estimation affichée avant lancement (`estimerDureeEnvoi(300, 30/j, 5/min)`) | 9 jours et 7 min, affichés « environ 10 jours » : c'est le calcul exact (30 le premier jour, puis 9 tranches de 30) |
+| Échecs / à vérifier | 0 / 0 |
 
-Protocole à rejouer une fois la configuration factice posée (≈ 15 min) : rythme 30 par jour et 5 par minute, puis lancer le lot 2022 (300 reçus). Attendu : 5 envois simulés par minute, 30 au bout de 6 min, puis `en_attente_jusqu_a` ≈ premier envoi + 24 h + 1 min et une fin estimée à ≈ 10 jours. Arrêter le lot, le relancer, vérifier que les 30 versions déjà marquées envoyées sont exclues (`a_envoyer` = 270) et qu'aucune ligne ne repasse. Remettre enfin le rythme par défaut.
+Pendant l'attente, le bandeau affiche « Quota d'envoi atteint : reprise … » (`RecusLotBandeau`), à partir de `en_attente_jusqu_a`. Petite imprécision, sans gravité : l'estimation en cours d'envoi (`estimerDureeEnvoi(restants, rythme)`) ne retranche pas les envois des dernières 24 h. Elle peut donc sous-estimer d'une tranche, c'est-à-dire d'un jour, quand le quota du jour est déjà entamé.
 
-### Estimation d'envoi par le calcul (non mesurée)
+### 4.2 Arrêt puis relance : aucun double envoi
 
-Une exécution envoie au plus `min(par_minute, 25)` emails par minute (le paquet `MAX_LIGNES` vaut aussi pour l'envoi), et au plus `par_jour` sur 24 h glissantes.
+| Étape | Lot | Résultat |
+|---|---|---|
+| Arrêt du lot en attente (21:14:52), récapitulatif | `e1e3bb5a…` | `a_envoyer` = 270, `envoyes_24h` = 30 : les 30 reçus envoyés sont exclus |
+| Relance (21:14:53) | `86cd62c7…` (270 lignes) | mis en attente dès le passage suivant (quota toujours atteint), 0 envoi |
+| Quota porté à 40, arrêt puis relance (21:19:58) | `d2aa9d5b…` (270 lignes) | 10 envois (21:20 et 21:21, 5 par minute), puis attente |
+| Quota porté à 60, relance, puis arrêt **pendant qu'une exécution tenait le lot** (bail posé, 21:24:00) | `e94c2abe…` (260 lignes) | arrêt pris en compte avant la première ligne : 0 envoi, bail libéré aussitôt ; relance acceptée dans la même seconde |
+| Relance (21:24:00) | `312a023d…` (260 lignes) | 20 envois (21:25 à 21:28), puis attente ; arrêté à la fin du test |
+
+Vérifié en base sur les 5 lots : 60 lignes « fait », **60 donateurs distincts**, 60 versions marquées envoyées, une seule version par reçu (l'envoi n'en crée pas), aucune ligne « en_cours », « à vérifier » ou « échec », aucun donateur marqué email invalide. Le garde-fou `ENVOI_EN_COURS` (relance refusée tant que le bail d'un lot arrêté court) n'a pas pu être pris en défaut : avec la simulation, une exécution libère le lot en moins d'une seconde après l'arrêt. Il reste couvert par les tests SQL de la PR #343.
+
+### 4.3 Point d'attention : le changement de quota ne réveille pas un lot en attente
+
+Après le passage du quota de 30 à 40 par jour (21:16), le lot `86cd62c7…`, en attente, n'a rien envoyé pendant 3 minutes. `prendre_lot_recus` ignore un lot tant que `en_attente_jusqu_a` est dans le futur, et cette date n'est recalculée que par `budget_envoi_lot_recus`, appelé seulement pour un lot pris. Le lot aurait attendu 24 h malgré le nouveau quota. L'arrêter puis le relancer règle le problème (lot `d2aa9d5b…`, reprise à la minute suivante). Deux options : effacer `en_attente_jusqu_a` des lots d'envoi en cours de l'organisation quand son rythme change, ou dire dans l'écran des réglages qu'un lot en attente doit être relancé. C'est une décision de produit, à trancher par le lead tech ; rien n'est codé ici.
+
+### 4.4 Aucun appel réel à Brevo ni à Resend
+
+- **Journaux de `traiter-lots-recus` non lus** : la CLI Supabase (v2.119) n'a pas de commande pour lire les journaux des fonctions, et aucun jeton de l'API de gestion n'est disponible dans le worktree. À confirmer dans le tableau de bord (Edge Functions → traiter-lots-recus → Logs, 21:08 à 21:29 UTC) : aucune ligne `send error`, `Brevo` ou `Resend` n'est attendue.
+- **Preuves indirectes, en base et dans le code** :
+  - les 60 lignes « fait » ont le canal **« simulation »** (`recus_lot_lignes.email_canal`, `recus_fiscaux.email_canal`), qui n'est posé que par la branche `.invalid` de `_shared/envoyerRecu.ts`. Cette branche ne contacte ni Brevo ni Resend et ne télécharge pas le PDF ;
+  - avec la clé factice, un vrai appel à Brevo aurait été refusé (401), et la ligne serait passée en échec ou en nouvelle tentative : il n'y en a aucune ;
+  - le secours Resend est coupé en lot (`sansSecoursResend: true`).
+- **Vérification d'expéditeur** : elle n'a pas bloqué le chemin simulé. Dans `envoyerRecu.ts`, le test `.invalid` passe avant toute lecture de la clé Brevo ou de l'expéditeur. Seule la garde de lancement (`brevo_configure_organisation`) exige une configuration renseignée, quelle qu'elle soit.
+
+### 4.5 Remise en état
+
+Dernier lot arrêté, aucun lot en cours dans l'organisation, rythme remis par défaut (clés `envoi_lot_par_jour` / `envoi_lot_par_minute` retirées : 250 par jour, 5 par minute). Les 60 envois simulés comptent dans les « envois des dernières 24 h » de l'organisation jusqu'au 2026-11-05 vers 21:29 UTC.
+
+### Estimation d'envoi par le calcul
+
+Une exécution envoie au plus `min(par_minute, 25)` emails par minute (le paquet `MAX_LIGNES` vaut aussi pour l'envoi), et au plus `par_jour` sur 24 h glissantes. Le test a confirmé ce modèle à 5 par minute (mesuré) ; les lignes ci-dessous en découlent.
 
 | Rythme | 300 reçus (test) | 3 335 reçus (Wat) |
 |---|---|---|
@@ -129,3 +165,4 @@ Une exécution envoie au plus `min(par_minute, 25)` emails par minute (le paquet
 3. Wat doit avoir Brevo configuré (clé + expéditeur) avant tout envoi en lot ; regarder son plan Brevo pour régler le rythme.
 4. Premier lot réel : le lancer hors heures de bureau, suivre les journaux de `traiter-lots-recus` (temps CPU, erreurs Gotenberg) et l'utilisation de Railway pendant les premières exécutions.
 5. Envois : suivre les lignes « à vérifier » (envois incertains, jamais renvoyés automatiquement) et les rejets Brevo des premiers jours.
+6. Après un changement de rythme en cours d'envoi, arrêter puis relancer le lot en attente (§ 4.3), tant que ce n'est pas automatisé.
