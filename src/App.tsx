@@ -7,7 +7,6 @@ import HomePage from './pages/HomePage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import BenevoleLoginPage from './pages/BenevoleLoginPage'
 import VendeurLoginPage from './pages/VendeurLoginPage'
-import DemandeAdhesionPage from './pages/DemandeAdhesionPage'
 import RenouvellementAdhesionPage from './pages/RenouvellementAdhesionPage'
 import DesinscriptionMailingPage from './pages/DesinscriptionMailingPage'
 import DecouvrirPage from './pages/DecouvrirPage'
@@ -53,7 +52,7 @@ function App() {
         <Route path="/mot-de-passe/nouveau" element={<ResetPasswordPage />} />
         <Route path="/login/benevole" element={<BenevoleLoginPage />} />
         <Route path="/login/vendeur" element={<VendeurLoginPage />} />
-        <Route path="/adhesion/:slug" element={<DemandeAdhesionPage />} />
+        {/* /adhesion/<slug> seul (ancien formulaire public, retiré) : aucune route, comme une adresse inconnue. */}
         <Route path="/adhesion/:slug/renouveler" element={<RenouvellementAdhesionPage />} />
         <Route path="/desinscription" element={<DesinscriptionMailingPage />} />
         <Route path="/decouvrir" element={<DecouvrirPage />} />
