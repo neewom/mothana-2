@@ -337,7 +337,10 @@ export default function AdminLayout() {
         )}
 
         {/* Top bar — une seule ligne à toutes les largeurs : nom d'organisation tronqué (nom
-            complet en infobulle), aide et compte regroupés dans le menu compte. */}
+            complet en infobulle), aide et compte regroupés dans le menu compte. À partir de `sm`,
+            le bloc logo + nom prend sa largeur naturelle (pas de plafond fixe, qu'un logo large
+            mangerait) et ne se tronque que si la recherche, qui garde au moins 12rem, manque de
+            place. */}
         <header className="flex h-16 items-center gap-3 border-b border-paper-border bg-white px-4">
           <button
             type="button"
@@ -347,13 +350,13 @@ export default function AdminLayout() {
           >
             <MenuIcon />
           </button>
-          <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-[16rem] sm:flex-none">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-initial">
             <OrganisationLogo url={logoUrl} className="h-8 max-w-[4rem] sm:max-w-[6rem]" />
             <Tooltip bare placement="bottom" className="min-w-0 max-w-full" content={organisationNom ?? organisationId ?? '—'} triggerClassName="block truncate font-registre text-sm font-semibold text-ink">
               {organisationNom ?? organisationId ?? '—'}
             </Tooltip>
           </div>
-          <div className="flex min-w-0 justify-end sm:flex-1">
+          <div className="flex min-w-0 justify-end sm:min-w-[12rem] sm:flex-1">
             <GlobalSearch organisationId={organisationId} />
           </div>
           <div className="flex shrink-0 items-center gap-2">
