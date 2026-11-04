@@ -6,6 +6,8 @@ import type { RecuLot, RecuLotEchec } from '../types/recusLot'
 interface RecusLotBandeauProps {
   lot: RecuLot
   echecs: RecuLotEchec[]
+  /** Erreur de lecture de la liste des échecs. */
+  erreurEchecs: string | null
   /** Reçus manquants prêts à générer (relance possible). */
   nbManquants: number
   /** Lot arrêté dont le reçu en cours de génération n'est pas encore terminé. */
@@ -34,7 +36,7 @@ function nomDonateur(e: RecuLotEchec): string {
  * (générés, échecs et leur raison, relance).
  */
 export default function RecusLotBandeau({
-  lot, echecs, nbManquants, arretEnCours, actionEnCours, onArreter, onRelancer, onFermer, maintenant,
+  lot, echecs, erreurEchecs, nbManquants, arretEnCours, actionEnCours, onArreter, onRelancer, onFermer, maintenant,
 }: RecusLotBandeauProps) {
   const traites = lotTraites(lot)
   const pourcent = lot.nb_total > 0 ? Math.min(100, Math.round((traites / lot.nb_total) * 100)) : 0
@@ -93,6 +95,7 @@ export default function RecusLotBandeau({
       {arrete && !arretEnCours && nonTraites > 0 && (
         <p>{pluriel(nonTraites, 'reçu non traité', 'reçus non traités')}{lot.nb_echecs > 0 && `, ${pluriel(lot.nb_echecs, 'échec')}`}.</p>
       )}
+      {erreurEchecs && <p className="mt-2 font-medium text-stamp">{erreurEchecs}</p>}
       {echecs.length > 0 && (
         <ul className="mt-2 max-h-48 divide-y divide-warning-border overflow-y-auto rounded-sm border border-warning-border bg-white">
           {echecs.map((e) => (

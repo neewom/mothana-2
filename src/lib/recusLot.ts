@@ -64,5 +64,13 @@ export function messageErreurLot(message: string | undefined | null): string {
   if (m.includes('LOT_NON_EN_COURS')) return "Ce lot n'est plus en cours."
   if (m.includes('ACCES_REFUSE')) return "Vous n'avez pas les droits pour gérer les lots de reçus de cette organisation."
   if (m.includes('ANNEE_INVALIDE')) return 'Année invalide.'
-  return m ? `Erreur : ${m}` : 'Erreur inconnue'
+  if (m.includes('LOT_INTROUVABLE')) return 'Ce lot est introuvable : rechargez la page.'
+  // Code inconnu : jamais affiché brut.
+  return 'Une erreur est survenue. Réessayez ou rechargez la page.'
+}
+
+/** Message de lancement d'un lot, avec le nombre de reçus retenu par le serveur (null : inconnu). */
+export function messageLancementLot(nbTotal: number | null): string {
+  if (nbTotal === null) return 'Génération des reçus lancée'
+  return `Génération de ${new Intl.NumberFormat('fr-FR').format(nbTotal)} reçu${nbTotal > 1 ? 's' : ''} lancée`
 }

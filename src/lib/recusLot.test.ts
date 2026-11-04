@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { estimerDureeLot, estimerTempsRestant, formatDureeApprox, formatTempsRestant, lotActif, lotTraites, messageErreurLot } from './recusLot'
+import { estimerDureeLot, estimerTempsRestant, formatDureeApprox, formatTempsRestant, lotActif, lotTraites, messageErreurLot, messageLancementLot } from './recusLot'
 
 const lancement = '2026-11-04T10:00:00.000Z'
 const t0 = new Date(lancement).getTime()
@@ -37,8 +37,20 @@ describe('lotTraites / messageErreurLot', () => {
   it('traduit les codes des RPC', () => {
     expect(messageErreurLot('LOT_DEJA_EN_COURS')).toBe('Un lot est déjà en cours pour cette année.')
     expect(messageErreurLot('AUCUN_RECU_MANQUANT')).toContain('Aucun reçu manquant')
-    expect(messageErreurLot('boom')).toBe('Erreur : boom')
-    expect(messageErreurLot(null)).toBe('Erreur inconnue')
+    expect(messageErreurLot('LOT_INTROUVABLE')).toBe('Ce lot est introuvable : rechargez la page.')
+    // Code inconnu ou absent : message générique, jamais le code brut.
+    expect(messageErreurLot('boom')).toBe('Une erreur est survenue. Réessayez ou rechargez la page.')
+    expect(messageErreurLot(null)).toBe('Une erreur est survenue. Réessayez ou rechargez la page.')
+  })
+})
+
+describe('messageLancementLot', () => {
+  it('utilise le nombre de reçus retenu par le serveur', () => {
+    expect(messageLancementLot(1)).toBe('Génération de 1 reçu lancée')
+    expect(messageLancementLot(1234)).toBe('Génération de 1\u202f234 reçus lancée')
+  })
+  it('sans nombre connu, message sans compte', () => {
+    expect(messageLancementLot(null)).toBe('Génération des reçus lancée')
   })
 })
 
