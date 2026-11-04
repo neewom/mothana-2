@@ -14,7 +14,8 @@
 -- Storage : le bucket recus-fiscaux n'a qu'une policy de lecture (aucun insert / update / delete client) ;
 -- elle reçoit ici le bypass super-admin en lecture.
 -- Reprise de l'existant : une version 1 par reçu existant, pointant sur son fichier actuel (les versions
--- déjà écrasées avant cette migration sont perdues). Ré-exécutable.
+-- déjà écrasées avant cette migration sont perdues) ; elle n'est marquée envoyée que si l'email est
+-- postérieur à la génération du fichier actuel. Ré-exécutable.
 begin;
 
 -- ---------------------------------------------------------------------------
@@ -156,7 +157,8 @@ begin
         montant_total, type_cerfa, template_id, snapshot_donateur, snapshot_organisation, genere_le, email_envoye_le)
       values (v_ancien.id, v_ancien.organisation_id, 1, v_ancien.fichier_url, v_ancien.numero_ordre,
         v_ancien.montant_total, v_ancien.type_cerfa, v_ancien.template_id, v_ancien.snapshot_donateur,
-        v_ancien.snapshot_organisation, coalesce(v_ancien.date_generation, v_maintenant), v_ancien.email_envoye_at);
+        v_ancien.snapshot_organisation, coalesce(v_ancien.date_generation, v_maintenant),
+        case when v_ancien.email_envoye_at >= v_ancien.date_generation then v_ancien.email_envoye_at end);
   end if;
 
   select coalesce(max(v.version), 0) + 1 into v_attendue
@@ -206,10 +208,17 @@ insert into public.recus_fiscaux_versions (recu_id, organisation_id, version, fi
     montant_total, type_cerfa, template_id, snapshot_donateur, snapshot_organisation, genere_le, email_envoye_le)
   select rf.id, rf.organisation_id, 1, rf.fichier_url, rf.numero_ordre, rf.montant_total, rf.type_cerfa,
          rf.template_id, rf.snapshot_donateur, rf.snapshot_organisation, coalesce(rf.date_generation, now()),
-         rf.email_envoye_at
+         case when rf.email_envoye_at >= rf.date_generation then rf.email_envoye_at end
     from public.recus_fiscaux rf
    where rf.fichier_url is not null
      and not exists (select 1 from public.recus_fiscaux_versions v where v.recu_id = rf.id);
+
+-- Un email envoyé avant la date de génération du fichier actuel portait un PDF depuis écrasé : la
+-- version reprise n'est pas celle qui a été envoyée (la date d'envoi reste sur recus_fiscaux).
+-- Correction des versions déjà reprises par une première exécution (seule colonne modifiable).
+update public.recus_fiscaux_versions v
+   set email_envoye_le = null
+ where v.version = 1 and v.genere_par is null and v.email_envoye_le < v.genere_le;
 
 -- ---------------------------------------------------------------------------
 -- 6. Storage : lecture des PDF de reçus avec bypass super-admin (aucune écriture client)

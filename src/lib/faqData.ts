@@ -162,7 +162,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'Puis-je régénérer un reçu déjà émis ?',
         answer:
-          "Oui, mais le numéro attribué à l'origine est définitif — une régénération ne change jamais le numéro, même si le contenu ou le montant a changé depuis.",
+          "Oui, mais le numéro attribué à l'origine est définitif — une régénération ne change jamais le numéro, même si le contenu ou le montant a changé depuis. Chaque régénération crée une nouvelle version du PDF : les versions précédentes restent conservées et téléchargeables dans l'historique du reçu.",
       },
     ],
   },

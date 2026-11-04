@@ -132,6 +132,17 @@ export interface RecuFiscal {
   email_envoye_at: string | null
 }
 
+// Version d'un reçu fiscal (une par génération, immuable, jamais supprimée) — recus_fiscaux_versions.
+export interface RecuFiscalVersion {
+  id: string
+  recu_id: string
+  version: number
+  fichier_url: string
+  montant_total: number
+  genere_le: string
+  email_envoye_le: string | null
+}
+
 export interface TemplateRecu {
   id: string
   organisation_id: string

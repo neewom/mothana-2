@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
-import type { RecuFiscal, ProfilParticipant } from '../types'
+import type { RecuFiscal, RecuFiscalVersion, ProfilParticipant } from '../types'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { participantFullName, matchesParticipantSearch } from '../lib/participantSearch'
 import {
@@ -54,6 +54,11 @@ function formatDateHeure(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+// Date et heure : plusieurs versions d'un même reçu peuvent être générées le même jour.
+function formatDateEtHeure(iso: string): string {
+  return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
 function yearOptions() {
   const cy = currentYear()
   return [cy, cy - 1, cy - 2, cy - 3]
@@ -101,6 +106,12 @@ export default function RecusFiscauxPage() {
   const [editingProfil, setEditingProfil] = useState<ProfilParticipant | undefined>(undefined)
   const [participantModalOpen, setParticipantModalOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  // Historique des versions du reçu affiché dans le panneau de détail
+  const [versions, setVersions] = useState<RecuFiscalVersion[]>([])
+  const [versionsLoading, setVersionsLoading] = useState(false)
+  const [versionsError, setVersionsError] = useState<string | null>(null)
+  const [versionDlLoading, setVersionDlLoading] = useState<Record<string, boolean>>({})
 
   // ---------------------------------------------------------------------------
   // Organisation fiscale (indépendante de l'année)
@@ -259,24 +270,34 @@ export default function RecusFiscauxPage() {
   // Download a recu (signed URL)
   // ---------------------------------------------------------------------------
 
+  async function openSignedRecu(path: string): Promise<boolean> {
+    const { data, error: urlErr } = await supabase.storage
+      .from('recus-fiscaux')
+      .createSignedUrl(path, 3600)
+    if (urlErr || !data?.signedUrl) return false
+    window.open(data.signedUrl, '_blank')
+    return true
+  }
+
   async function downloadRecu(row: ParticipantRow) {
     if (!row.recu?.fichier_url) return
     const id = row.profil.id
     setDlLoading((prev) => ({ ...prev, [id]: true }))
     setDlError((prev) => ({ ...prev, [id]: '' }))
 
-    const { data, error: urlErr } = await supabase.storage
-      .from('recus-fiscaux')
-      .createSignedUrl(row.recu.fichier_url, 3600)
-
-    if (urlErr || !data?.signedUrl) {
-      setDlError((prev) => ({ ...prev, [id]: 'Impossible de générer le lien' }))
-      setDlLoading((prev) => ({ ...prev, [id]: false }))
-      return
-    }
-
-    window.open(data.signedUrl, '_blank')
+    const ok = await openSignedRecu(row.recu.fichier_url)
+    if (!ok) setDlError((prev) => ({ ...prev, [id]: 'Impossible de générer le lien' }))
     setDlLoading((prev) => ({ ...prev, [id]: false }))
+  }
+
+  async function downloadVersion(row: ParticipantRow, version: RecuFiscalVersion) {
+    const id = row.profil.id
+    setVersionDlLoading((prev) => ({ ...prev, [version.id]: true }))
+    setDlError((prev) => ({ ...prev, [id]: '' }))
+
+    const ok = await openSignedRecu(version.fichier_url)
+    if (!ok) setDlError((prev) => ({ ...prev, [id]: `Impossible de générer le lien de la version ${version.version}` }))
+    setVersionDlLoading((prev) => ({ ...prev, [version.id]: false }))
   }
 
   // ---------------------------------------------------------------------------
@@ -354,6 +375,37 @@ export default function RecusFiscauxPage() {
   // Récapitulatif 222 bis (toutes années) : rechargé quand la liste de l'année change.
   const recapitulatif = useRecapitulatif222Bis(organisationId, rows)
   const selectedRow = rows.find((r) => r.profil.id === selectedId) ?? null
+
+  // Versions rechargées à l'ouverture du panneau et après chaque génération / envoi (la fiche du
+  // reçu change alors de date de génération ou d'envoi).
+  const selectedRecuId = selectedRow?.recu?.id ?? null
+  const selectedRecuStamp = selectedRow?.recu ? `${selectedRow.recu.date_generation}|${selectedRow.recu.email_envoye_at ?? ''}` : null
+  useEffect(() => {
+    if (!selectedRecuId) {
+      setVersions([])
+      setVersionsError(null)
+      return
+    }
+    let cancelled = false
+    setVersionsLoading(true)
+    setVersionsError(null)
+    supabase
+      .from('recus_fiscaux_versions')
+      .select('id, recu_id, version, fichier_url, montant_total, genere_le, email_envoye_le')
+      .eq('recu_id', selectedRecuId)
+      .order('version', { ascending: false })
+      .then(({ data, error: err }) => {
+        if (cancelled) return
+        if (err) {
+          setVersionsError("Impossible de charger l'historique des versions")
+          setVersions([])
+        } else {
+          setVersions((data ?? []) as RecuFiscalVersion[])
+        }
+        setVersionsLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [selectedRecuId, selectedRecuStamp])
   // N° de reçu laissé au panneau quand celui-ci réduit le tableau (rien hors écran à 1 400 px).
   const secondaryCol = selectedRow ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
 
@@ -641,6 +693,47 @@ export default function RecusFiscauxPage() {
                   {selectedRow.recu.email_envoye_at ? `Envoyé le ${formatDateHeure(selectedRow.recu.email_envoye_at)}` : 'Pas encore envoyé'}
                 </DetailField>
               )}
+              {selectedRow.recu && (
+                <DetailField label="Historique des versions">
+                  {versionsLoading && versions.length === 0 ? (
+                    <p className="text-ink-muted">Chargement…</p>
+                  ) : versionsError ? (
+                    <p className="text-stamp">{versionsError}</p>
+                  ) : versions.length === 0 ? (
+                    <p className="text-ink-muted">Aucune version enregistrée.</p>
+                  ) : (
+                    <ul className="divide-y divide-paper-border rounded-sm border border-paper-border">
+                      {versions.map((v, index) => (
+                        <li key={v.id} className={cn('flex items-start justify-between gap-3 px-3 py-2.5', index === 0 && 'bg-paper')}>
+                          <div className="min-w-0">
+                            <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="font-semibold">Version {v.version}</span>
+                              {index === 0 && <Badge variant="success">Actuelle</Badge>}
+                            </p>
+                            <p className="mt-0.5 flex flex-wrap gap-x-3 font-registre-mono text-xs text-ink-muted">
+                              <span className="whitespace-nowrap">{formatDateEtHeure(v.genere_le)}</span>
+                              <span className="whitespace-nowrap">{formatMontant(Number(v.montant_total))}</span>
+                            </p>
+                            <p className="mt-0.5 text-xs text-ink-muted">
+                              {v.email_envoye_le ? `Envoyée le ${formatDateEtHeure(v.email_envoye_le)}` : 'Non envoyée'}
+                            </p>
+                          </div>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="shrink-0"
+                            onClick={() => downloadVersion(selectedRow, v)}
+                            disabled={versionDlLoading[v.id]}
+                            aria-label={`Télécharger la version ${v.version}`}
+                          >
+                            {versionDlLoading[v.id] ? 'Ouverture…' : 'Télécharger'}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </DetailField>
+              )}
               {validationMessage && (
                 <div className="rounded-sm border border-warning-border bg-warning-tint px-3 py-2.5 text-sm text-warning">
                   <p>{validationMessage}</p>
@@ -674,7 +767,8 @@ export default function RecusFiscauxPage() {
                 Un reçu a déjà été généré pour{' '}
                 <span className="font-medium text-ink">« {participantFullName(regenerateConfirm.profil)} »</span> en {annee}
                 {regenerateConfirm.recu?.numero_ordre && <> (n° {regenerateConfirm.recu.numero_ordre})</>}.
-                Le fichier PDF sera remplacé, mais le numéro d'ordre est conservé.
+                Une nouvelle version du PDF sera créée avec le même numéro d'ordre ; la version précédente est conservée
+                dans l'historique du reçu.
               </p>
               <div className="mt-5 flex justify-end gap-3">
                 <Button type="button" variant="secondary" onClick={() => setRegenerateConfirm(null)}>

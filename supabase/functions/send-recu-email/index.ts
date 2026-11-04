@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
 
     const { data: recu } = await adminClient
       .from('recus_fiscaux')
-      .select('fichier_url')
+      .select('id, fichier_url')
       .eq('profil_participant_id', profil_participant_id)
       .eq('organisation_id', organisationId)
       .eq('annee', anneeNum)
@@ -138,9 +138,27 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Aucun reçu généré pour ce participant et cette année' }, 404)
     }
 
+    // Dernière version du reçu (docs/regles-recus-fiscaux.md §5) : c'est elle qui est envoyée et
+    // marquée comme envoyée. Un reçu sans version enregistrée (antérieur aux versions) envoie son
+    // fichier actuel.
+    const { data: derniereVersion, error: versionError } = await adminClient
+      .from('recus_fiscaux_versions')
+      .select('id, fichier_url')
+      .eq('recu_id', recu.id)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (versionError) {
+      console.error('recus_fiscaux_versions read error:', versionError)
+      return jsonResponse({ error: 'Erreur lors de la récupération du reçu' }, 500)
+    }
+
+    const fichierEnvoye = (derniereVersion?.fichier_url as string | undefined) ?? recu.fichier_url
+
     const { data: pdfFile, error: downloadError } = await adminClient.storage
       .from('recus-fiscaux')
-      .download(recu.fichier_url)
+      .download(fichierEnvoye)
 
     if (downloadError || !pdfFile) {
       console.error('Storage download error:', downloadError)
@@ -162,9 +180,22 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Erreur lors de l'envoi de l'email" }, 500)
     }
 
+    const envoyeLe = new Date().toISOString()
+
+    if (derniereVersion) {
+      const { error: versionUpdateError } = await adminClient
+        .from('recus_fiscaux_versions')
+        .update({ email_envoye_le: envoyeLe })
+        .eq('id', derniereVersion.id)
+      if (versionUpdateError) {
+        console.error('Update email_envoye_le error:', versionUpdateError)
+        // Non bloquant : l'email est parti
+      }
+    }
+
     const { error: updateError } = await adminClient
       .from('recus_fiscaux')
-      .update({ email_envoye_at: new Date().toISOString() })
+      .update({ email_envoye_at: envoyeLe })
       .eq('profil_participant_id', profil_participant_id)
       .eq('organisation_id', organisationId)
       .eq('annee', anneeNum)

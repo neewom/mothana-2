@@ -45,3 +45,25 @@ export function estConflitStorage(error: unknown): boolean {
     (typeof e.message === 'string' && /already exists/i.test(e.message))
   )
 }
+
+// ---------------------------------------------------------------------------
+// Versions d'un reçu (docs/regles-recus-fiscaux.md §5) : chaque génération crée une version et un
+// nouveau fichier, jamais écrasé. La version 1 garde le nom historique <numéro>.pdf (fichiers déjà
+// émis, repris tels quels comme version 1), les suivantes sont suffixées : <numéro>-v<N>.pdf.
+// ---------------------------------------------------------------------------
+
+export function cheminFichierRecu(organisationId: string, annee: number, numero: string, version: number): string {
+  const suffixe = version > 1 ? `-v${version}` : ''
+  return `${organisationId}/${annee}/${numero}${suffixe}.pdf`
+}
+
+// Version créée par la prochaine génération. Un reçu existant sans version enregistrée (antérieur
+// aux versions) a implicitement une version 1 : enregistrer_version_recu la crée avant la 2.
+export function prochaineVersionRecu(recuExiste: boolean, derniereVersion: number | null | undefined): number {
+  if (!recuExiste) return 1
+  return Math.max(derniereVersion ?? 1, 1) + 1
+}
+
+// Message renvoyé (409) quand une autre génération du même reçu a eu lieu en même temps.
+export const MESSAGE_GENERATION_SIMULTANEE =
+  "Une autre génération de ce reçu vient d'avoir lieu en même temps : aucune nouvelle version n'a été créée. Rechargez la page puis réessayez si besoin."

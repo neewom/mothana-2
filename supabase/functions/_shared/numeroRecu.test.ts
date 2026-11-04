@@ -1,5 +1,5 @@
 // deno test --no-lock supabase/functions/_shared/numeroRecu.test.ts
-import { estConflitStorage, formatNumeroRecu, messageNumeroDejaPris, numeroDonateurAffiche, numeroRecuDonateur } from './numeroRecu.ts'
+import { cheminFichierRecu, estConflitStorage, formatNumeroRecu, messageNumeroDejaPris, numeroDonateurAffiche, numeroRecuDonateur, prochaineVersionRecu } from './numeroRecu.ts'
 
 function egal(obtenu: unknown, attendu: unknown) {
   if (obtenu !== attendu) throw new Error(`attendu ${JSON.stringify(attendu)}, obtenu ${JSON.stringify(obtenu)}`)
@@ -48,4 +48,19 @@ Deno.test('conflit Storage : objet déjà existant', () => {
   egal(estConflitStorage({ status: 400, statusCode: '400', message: 'The resource already exists' }), true)
   egal(estConflitStorage({ status: 500, message: 'Internal error' }), false)
   egal(estConflitStorage(null), false)
+})
+
+Deno.test('chemin du fichier : version 1 au nom historique, suivantes suffixées', () => {
+  egal(cheminFichierRecu('org', 2026, '2026-001', 1), 'org/2026/2026-001.pdf')
+  egal(cheminFichierRecu('org', 2026, '2026-001', 2), 'org/2026/2026-001-v2.pdf')
+  egal(cheminFichierRecu('org', 2026, '2026-2803', 12), 'org/2026/2026-2803-v12.pdf')
+})
+
+Deno.test('prochaine version : 1 pour un nouveau reçu, dernière + 1 sinon', () => {
+  egal(prochaineVersionRecu(false, null), 1)
+  egal(prochaineVersionRecu(true, 1), 2)
+  egal(prochaineVersionRecu(true, 4), 5)
+  // Reçu antérieur aux versions : sa version 1 implicite est conservée, la génération crée la 2.
+  egal(prochaineVersionRecu(true, null), 2)
+  egal(prochaineVersionRecu(true, undefined), 2)
 })
