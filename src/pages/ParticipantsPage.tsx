@@ -28,6 +28,7 @@ import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
 import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
+import { MESSAGE_DONATEUR_AVEC_RECUS, estRefusConservationRecus } from '../lib/recusConservation'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -333,6 +334,10 @@ export default function ParticipantsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<ProfilParticipant | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  // Reçus fiscaux émis : vérifiés à l'ouverture de la confirmation, avant toute écriture
+  // (versions conservées 6 ans → suppression impossible)
+  const [deleteCheck, setDeleteCheck] = useState<'checking' | 'blocked' | 'ok'>('checking')
+  const deleteCheckIdRef = useRef<string | null>(null)
   const [importOpen, setImportOpen] = useState(false)
 
   // Participant detail dons — fetch when a participant is selected
@@ -458,13 +463,33 @@ export default function ParticipantsPage() {
     setDonModalOpen(true)
   }
 
-  function openDelete(p: ProfilParticipant) {
+  async function aDesRecusEmis(profilId: string): Promise<boolean | null> {
+    const { count, error: err } = await supabase
+      .from('recus_fiscaux')
+      .select('id', { count: 'exact', head: true })
+      .eq('profil_participant_id', profilId)
+    if (err) return null
+    return (count ?? 0) > 0
+  }
+
+  async function openDelete(p: ProfilParticipant) {
     setDeleteConfirm(p)
     setDeleteError(null)
+    setDeleteCheck('checking')
+    deleteCheckIdRef.current = p.id
+    const aDesRecus = await aDesRecusEmis(p.id)
+    if (deleteCheckIdRef.current !== p.id) return // autre donateur ouvert entre-temps
+    if (aDesRecus === null) {
+      setDeleteCheck('blocked')
+      setDeleteError('Impossible de vérifier les reçus fiscaux de ce donateur. Réessayez.')
+      return
+    }
+    setDeleteCheck(aDesRecus ? 'blocked' : 'ok')
+    if (aDesRecus) setDeleteError(MESSAGE_DONATEUR_AVEC_RECUS)
   }
 
   async function handleDelete() {
-    if (!deleteConfirm) return
+    if (!deleteConfirm || deleteCheck !== 'ok') return
 
     const linkedDons = dons.filter((d) => d.profil_participant_id === deleteConfirm.id).length
     if (linkedDons > 0) {
@@ -479,7 +504,13 @@ export default function ParticipantsPage() {
     setDeleting(false)
 
     if (err) {
-      setDeleteError(err.message)
+      // Reçu émis entre la vérification et la suppression : message clair, jamais l'erreur brute
+      if (estRefusConservationRecus(err)) {
+        setDeleteCheck('blocked')
+        setDeleteError(MESSAGE_DONATEUR_AVEC_RECUS)
+      } else {
+        setDeleteError(err.message)
+      }
       return
     }
 
@@ -735,8 +766,8 @@ export default function ParticipantsPage() {
               )}
               <div className="mt-5 flex justify-end gap-3">
                 <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
-                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-                  {deleting ? 'Suppression…' : 'Supprimer'}
+                <Button variant="destructive" onClick={handleDelete} disabled={deleting || deleteCheck !== 'ok'}>
+                  {deleting ? 'Suppression…' : deleteCheck === 'checking' ? 'Vérification…' : 'Supprimer'}
                 </Button>
               </div>
             </div>

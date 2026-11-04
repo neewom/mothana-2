@@ -27,6 +27,7 @@ import { TablePagination } from '../components/ui/table-pagination'
 import { ListToolbar } from '../components/ui/list-toolbar'
 import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { cn } from '../lib/utils'
+import { recusAGenerer } from '../lib/recusAGenerer'
 import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
 import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
@@ -356,13 +357,15 @@ export default function RecusFiscauxPage() {
   }
 
   // ---------------------------------------------------------------------------
-  // Generate all (skips les lignes bloquées)
+  // Générer les reçus manquants : seulement les reçus pas encore générés (une
+  // régénération crée une nouvelle version conservée, elle passe par « Regénérer »)
   // ---------------------------------------------------------------------------
+
+  const manquants = useMemo(() => recusAGenerer(rows, orgMissing.length > 0), [rows, orgMissing])
 
   async function generateAll() {
     setGenerateAllLoading(true)
-    const eligible = rows.filter((r) => orgMissing.length === 0 && !r.validation.blocking && r.validation.missing.length === 0)
-    for (const row of eligible) {
+    for (const row of manquants) {
       await generateRecu(row)
     }
     setGenerateAllLoading(false)
@@ -504,8 +507,14 @@ export default function RecusFiscauxPage() {
             {rows.length > 0 && (
               <Button
                 onClick={generateAll}
-                disabled={generateAllLoading || orgMissing.length > 0}
-                title={orgMissing.length > 0 ? "Complétez les paramètres de l'organisation pour générer des reçus" : undefined}
+                disabled={generateAllLoading || manquants.length === 0}
+                title={
+                  orgMissing.length > 0
+                    ? "Complétez les paramètres de l'organisation pour générer des reçus"
+                    : manquants.length === 0
+                      ? 'Aucun reçu manquant prêt à générer (un reçu existant se régénère depuis son détail)'
+                      : undefined
+                }
               >
                 {generateAllLoading ? (
                   <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -517,7 +526,11 @@ export default function RecusFiscauxPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
                 )}
-                Générer tous
+                {orgMissing.length > 0
+                  ? 'Générer les reçus manquants'
+                  : manquants.length === 0
+                    ? 'Aucun reçu à générer'
+                    : `Générer ${manquants.length === 1 ? 'le reçu manquant' : `les ${manquants.length} reçus manquants`}`}
               </Button>
             )}
           </>

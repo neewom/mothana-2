@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../hooks/useAuth'
@@ -11,6 +11,7 @@ import { isRecette, isStagingSupabaseProject } from '../lib/environment'
 import { seedDemoOrganisationData } from '../lib/demoOrgSeed'
 import { downloadCsv } from '../lib/csvExport'
 import { cn } from '../lib/utils'
+import { MESSAGE_ORGANISATION_AVEC_RECUS, estRefusConservationRecus } from '../lib/recusConservation'
 import ScrollShadowX from '../components/ScrollShadowX'
 import AdminAccountsManager from '../components/AdminAccountsManager'
 import { ListToolbar } from '../components/ui/list-toolbar'
@@ -379,6 +380,10 @@ export default function SuperAdminPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  // Reçus fiscaux émis : vérifiés à l'ouverture de la confirmation (et par delete-org-admins
+  // côté serveur), avant toute suppression — versions conservées 6 ans
+  const [deleteCheck, setDeleteCheck] = useState<'checking' | 'blocked' | 'ok'>('checking')
+  const deleteCheckIdRef = useRef<string | null>(null)
 
   const [tab, setTab] = useState<'actives' | 'archivees'>('actives')
   const [extractingId, setExtractingId] = useState<string | null>(null)
@@ -519,8 +524,32 @@ export default function SuperAdminPage() {
   // Delete
   // ---------------------------------------------------------------------------
 
+  async function openDelete(org: OrgRow) {
+    setDeleteConfirm(org)
+    setDeleteError(null)
+    setDeleteConfirmText('')
+    setDeleteCheck('checking')
+    deleteCheckIdRef.current = org.id
+    const { count, error: err } = await supabase
+      .from('recus_fiscaux')
+      .select('id', { count: 'exact', head: true })
+      .eq('organisation_id', org.id)
+    if (deleteCheckIdRef.current !== org.id) return // autre organisation ouverte entre-temps
+    if (err) {
+      setDeleteCheck('blocked')
+      setDeleteError("Impossible de vérifier les reçus fiscaux de l'organisation. Réessayez.")
+      return
+    }
+    if ((count ?? 0) > 0) {
+      setDeleteCheck('blocked')
+      setDeleteError(MESSAGE_ORGANISATION_AVEC_RECUS)
+      return
+    }
+    setDeleteCheck('ok')
+  }
+
   async function handleDelete() {
-    if (!deleteConfirm) return
+    if (!deleteConfirm || deleteCheck !== 'ok') return
     setDeleting(true)
     setDeleteError(null)
 
@@ -543,6 +572,8 @@ export default function SuperAdminPage() {
     })
     if (!adminsRes.ok) {
       const json = await adminsRes.json().catch(() => ({}))
+      // 409 : reçus émis détectés par le serveur, rien n'a été supprimé
+      if (adminsRes.status === 409) setDeleteCheck('blocked')
       setDeleteError(json.error ?? 'Erreur lors de la suppression des comptes admin')
       setDeleting(false)
       return
@@ -554,7 +585,12 @@ export default function SuperAdminPage() {
       .eq('id', deleteConfirm.id)
 
     if (err) {
-      setDeleteError(err.message)
+      if (estRefusConservationRecus(err)) {
+        setDeleteCheck('blocked')
+        setDeleteError(MESSAGE_ORGANISATION_AVEC_RECUS)
+      } else {
+        setDeleteError(err.message)
+      }
       setDeleting(false)
       return
     }
@@ -747,7 +783,7 @@ export default function SuperAdminPage() {
                           type="button"
                           variant="danger"
                           size="sm"
-                          onClick={() => { setDeleteConfirm(org); setDeleteError(null); setDeleteConfirmText('') }}
+                          onClick={() => openDelete(org)}
                         >
                           Supprimer
                         </Button>
@@ -809,16 +845,20 @@ export default function SuperAdminPage() {
                 <li>{deleteConfirm.nb_dons} don{deleteConfirm.nb_dons !== 1 ? 's' : ''}</li>
                 <li>{deleteConfirm.nb_admins} compte{deleteConfirm.nb_admins !== 1 ? 's' : ''} admin{deleteConfirm.nb_admins !== 1 ? 's' : ''}</li>
               </ul>
-              <Label htmlFor="delete-org-confirm" className="mt-4 block">
-                Pour confirmer, saisissez le nom de l'organisation : <span className="font-medium text-ink">{deleteConfirm.nom}</span>
-              </Label>
-              <Input
-                id="delete-org-confirm"
-                type="text"
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                className="mt-2"
-              />
+              {deleteCheck !== 'blocked' && (
+                <>
+                  <Label htmlFor="delete-org-confirm" className="mt-4 block">
+                    Pour confirmer, saisissez le nom de l'organisation : <span className="font-medium text-ink">{deleteConfirm.nom}</span>
+                  </Label>
+                  <Input
+                    id="delete-org-confirm"
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    className="mt-2"
+                  />
+                </>
+              )}
               {deleteError && (
                 <div className="mt-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">{deleteError}</div>
               )}
@@ -830,9 +870,9 @@ export default function SuperAdminPage() {
                   type="button"
                   variant="destructive"
                   onClick={handleDelete}
-                  disabled={deleting || deleteConfirmText !== deleteConfirm.nom}
+                  disabled={deleting || deleteCheck !== 'ok' || deleteConfirmText !== deleteConfirm.nom}
                 >
-                  {deleting ? 'Suppression…' : 'Supprimer'}
+                  {deleting ? 'Suppression…' : deleteCheck === 'checking' ? 'Vérification…' : 'Supprimer'}
                 </Button>
               </div>
             </div>

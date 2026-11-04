@@ -150,7 +150,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         answer: 'Depuis Reçus fiscaux :',
         steps: [
           "Sélectionnez l'année concernée.",
-          'Générez le reçu d’un donateur, ou tous les reçus en une fois.',
+          'Générez le reçu d’un donateur, ou tous les reçus manquants en une fois (un reçu existant se régénère depuis son détail).',
           'Le bon modèle Cerfa (11580 particulier, 16216 personne morale) est choisi automatiquement selon la civilité du donateur.',
         ],
       },
