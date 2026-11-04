@@ -11,6 +11,7 @@ import { brevoConfigure, chargerEtatConfigBrevo } from '../lib/brevoConfig'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import ScrollShadowX from '../components/ScrollShadowX'
+import EditorToolbarButton from '../components/EditorToolbarButton'
 import AdherentModal from '../components/AdherentModal'
 import type { Adherent } from '../types'
 import { Button } from '../components/ui/button'
@@ -128,22 +129,6 @@ const PLACEHOLDERS = [
   { key: 'prenom', label: 'Prénom' },
   { key: 'nom', label: 'Nom' },
 ]
-
-function EditorToolbarButton({ active, onClick, children, label }: { active: boolean; onClick: () => void; children: React.ReactNode; label: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      aria-pressed={active}
-      className={`rounded-sm px-2.5 py-1.5 font-registre text-sm font-medium transition-colors ${
-        active ? 'bg-stamp text-white' : 'text-ink-muted hover:bg-paper-border/40'
-      }`}
-    >
-      {children}
-    </button>
-  )
-}
 
 // Carte titre + description + contenu, propre à cette page (pas la ParametresSection
 // partagée : les 4 autres sous-pages de Paramètres ne sont pas encore migrées vers les

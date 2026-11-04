@@ -51,3 +51,9 @@ export function classerRejet(evenement: unknown, raison: unknown): DecisionRejet
   }
   return { marquer: true, evenement: normalise, raison: texte }
 }
+
+// Clé de comparaison d'une adresse (repli par adresse de brevo-bounce-webhook) : même
+// normalisation que la RPC profils_donateur_par_emails, lower(btrim(email, ' \t\r\n')).
+export function normaliserEmail(email: string): string {
+  return email.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '').toLowerCase()
+}

@@ -185,6 +185,9 @@ export interface ModeleRecu {
   taux_reduction: number
   president_nom: string
   president_titre: string
+  // Email d'envoi des reçus (send-recu-email, _shared/recuEmail.ts) : absent ou null = modèle par défaut.
+  email_objet?: string | null
+  email_html?: string | null
 }
 
 export interface Don {

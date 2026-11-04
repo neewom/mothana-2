@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { verifierExpediteurBrevo } from '../_shared/brevo.ts'
 import { fetchAllRows } from '../_shared/fetchAllRows.ts'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 import { secretAleatoire } from '../_shared/secretAleatoire.ts'
@@ -56,27 +57,6 @@ interface AdherentDestinataire {
   mailing_unsubscribe_token: string
   tags: string[]
   email_invalide_at: string | null
-}
-
-/** 'valide' | 'non_valide' (Brevo a répondu : expéditeur absent ou inactif) | 'impossible'. */
-async function verifierExpediteur(apiKey: string, email: string): Promise<'valide' | 'non_valide' | 'impossible'> {
-  try {
-    const res = await fetch('https://api.brevo.com/v3/senders', {
-      headers: { 'api-key': apiKey, Accept: 'application/json' },
-    })
-    if (!res.ok) {
-      console.warn('send-mailing-brevo: GET /v3/senders', res.status)
-      return 'impossible'
-    }
-    const { senders } = (await res.json()) as { senders?: { email?: string; active?: boolean }[] }
-    const cible = email.trim().toLowerCase()
-    return (senders ?? []).some((s) => s.email?.trim().toLowerCase() === cible && s.active === true)
-      ? 'valide'
-      : 'non_valide'
-  } catch (err) {
-    console.warn('send-mailing-brevo: GET /v3/senders failed', String(err))
-    return 'impossible'
-  }
 }
 
 function unsubscribeFooterHtml(): string {
@@ -170,7 +150,7 @@ Deno.serve(async (req) => {
     // l'expéditeur est absent ou inactif ; si la vérification est impossible (clé API à
     // permissions restreintes → 403, 401, 5xx, réseau), l'envoi part quand même —
     // brevo-bounce-webhook ne marque de toute façon pas les rejets côté expéditeur.
-    const verification = await verifierExpediteur(org.brevo_api_key, org.brevo_expediteur_email)
+    const verification = await verifierExpediteurBrevo(org.brevo_api_key, org.brevo_expediteur_email, 'send-mailing-brevo')
     if (verification === 'non_valide') {
       return jsonResponse(
         {
