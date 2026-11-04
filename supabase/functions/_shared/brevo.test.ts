@@ -17,6 +17,9 @@ Deno.test('rejet d\'un reçu : profil lu dans `tags` ou dans `tag` (JSON)', () =
   vrai(parTableau.type === 'recu' && parTableau.profilParticipantId === PROFIL, JSON.stringify(parTableau))
   const parChaine = cibleRejet({ tag: JSON.stringify(tagsEmailRecu(PROFIL)) })
   vrai(parChaine.type === 'recu' && parChaine.profilParticipantId === PROFIL, JSON.stringify(parChaine))
+  // Forme relevée sur l'API statistiques Brevo (2026-11-04) : tags joints par des virgules.
+  const parVirgules = cibleRejet({ tag: `recu-fiscal,profil:${PROFIL}` })
+  vrai(parVirgules.type === 'recu' && parVirgules.profilParticipantId === PROFIL, JSON.stringify(parVirgules))
 })
 
 Deno.test('rejet d\'un reçu avec un profil mal formé : profil inconnu', () => {

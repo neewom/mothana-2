@@ -40,8 +40,9 @@ export function tagsEmailRecu(profilParticipantId: string): string[] {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-// Événement webhook → tags. Brevo envoie `tags` (tableau) et `tag` (premier tag, parfois un tableau
-// sérialisé en JSON) : les deux formes sont lues.
+// Événement webhook → tags. Brevo envoie `tags` (tableau) et `tag` (chaîne : tags joints par des
+// virgules, constaté sur l'API statistiques le 2026-11-04, ou tableau sérialisé en JSON) : toutes les
+// formes sont lues.
 export function tagsEvenement(evenement: { tags?: unknown; tag?: unknown }): string[] {
   const tags: string[] = []
   if (Array.isArray(evenement.tags)) {
@@ -54,10 +55,10 @@ export function tagsEvenement(evenement: { tags?: unknown; tag?: unknown }): str
         const liste = JSON.parse(brut)
         if (Array.isArray(liste)) for (const t of liste) if (typeof t === 'string') tags.push(t)
       } catch {
-        tags.push(brut)
+        tags.push(...brut.split(',').map((t) => t.trim()).filter(Boolean))
       }
     } else {
-      tags.push(brut)
+      tags.push(...brut.split(',').map((t) => t.trim()).filter(Boolean))
     }
   }
   return tags
