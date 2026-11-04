@@ -167,6 +167,45 @@ begin
     where ligne_id = (v_res ->> 'adherent_id')::uuid and details ->> 'origine' = 'benevole' and details ->> 'signature' = 'tactile';
   r := r || ' journal=' || v_n;
 
+  -- 10. Bornes du montant et de la date, nettoyage des textes (bénévole, réglage actif)
+  execute 'reset role';
+  update public.organisations set saisie_adhesion_benevole = true where id = v_demo;
+  perform set_config('request.jwt.claims', json_build_object('sub', v_benevole, 'role', 'authenticated',
+    'app_metadata', json_build_object('role', 'benevole', 'organisation_id', v_demo))::text, true);
+  execute 'set local role authenticated';
+  begin
+    perform public.creer_adhesion_benevole(v_demo, c_adherent, true, true, null, true, current_date, 'NaN'::numeric, null);
+    r := r || ' | 10.nan=ACCEPTE(KO)';
+  exception when invalid_parameter_value then r := r || ' | 10.nan=refuse';
+  end;
+  begin
+    perform public.creer_adhesion_benevole(v_demo, c_adherent, true, true, null, true, current_date, -5, null);
+    r := r || ' negatif=ACCEPTE(KO)';
+  exception when invalid_parameter_value then r := r || ' negatif=refuse';
+  end;
+  begin
+    perform public.creer_adhesion_benevole(v_demo, c_adherent, true, true, null, true, current_date, 100000.01, null);
+    r := r || ' trop_grand=ACCEPTE(KO)';
+  exception when invalid_parameter_value then r := r || ' trop_grand=refuse';
+  end;
+  begin
+    perform public.creer_adhesion_benevole(v_demo, c_adherent, true, true, null, true, date '1899-12-31', null, null);
+    r := r || ' date_basse=ACCEPTE(KO)';
+  exception when invalid_parameter_value then r := r || ' date_basse=refuse';
+  end;
+  begin
+    perform public.creer_adhesion_benevole(v_demo, c_adherent, true, true, null, true, current_date + 400, null, null);
+    r := r || ' date_haute=ACCEPTE(KO)';
+  exception when invalid_parameter_value then r := r || ' date_haute=refuse';
+  end;
+  v_res := public.creer_adhesion_benevole(v_demo,
+    c_adherent || jsonb_build_object('nom', E'\tTEST-NETTOYAGE\n', 'prenom', E'\u00a0Zoé\r\n', 'code_postal', E'75001\n'),
+    true, true, null, true, current_date, 100000, null);
+  execute 'reset role';
+  select count(*) into v_n from public.adherents
+    where id = (v_res ->> 'adherent_id')::uuid and nom = 'TEST-NETTOYAGE' and prenom = 'Zoé' and code_postal = '75001';
+  r := r || ' nettoye=' || v_n;
+
   raise exception 'RESULTATS: %', r;
 end;
 $$;

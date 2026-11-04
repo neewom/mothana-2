@@ -106,6 +106,25 @@ $$;
 
 revoke all on function public.peut_saisir_adhesion_benevole(uuid) from public, anon, authenticated;
 
+-- 3 bis. Nettoyage des textes saisis, aligné sur String.prototype.trim() : espaces,
+-- tabulations, retours à la ligne, espaces insécables et autres blancs Unicode (btrim() ne
+-- retire que l'espace ASCII).
+create or replace function public.nettoyer_texte_saisie(p_texte text)
+returns text
+language sql
+immutable
+set search_path = public, pg_temp
+as $$
+  select regexp_replace(
+    p_texte,
+    '^[\s\u00a0\ufeff\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\s\u00a0\ufeff\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$',
+    '',
+    'g'
+  );
+$$;
+
+revoke all on function public.nettoyer_texte_saisie(text) from public, anon, authenticated;
+
 -- 4. Numéro d'adhérent : même séquence (adherent_id_externe_seq_<org>) que
 -- next_adherent_id_externe, sans sa garde utilisateur (qui refuse le bénévole). Resynchronisée
 -- sur le plus grand numéro présent (cf. next_adherent_id_externe_resync.sql), jamais en arrière.
@@ -160,13 +179,13 @@ as $$
     where a.organisation_id = p_organisation_id
       and (
         (
-          nullif(btrim(p_nom), '') is not null
-          and lower(btrim(a.nom)) = lower(btrim(p_nom))
-          and lower(coalesce(btrim(a.prenom), '')) = lower(coalesce(btrim(p_prenom), ''))
+          nullif(public.nettoyer_texte_saisie(p_nom), '') is not null
+          and lower(public.nettoyer_texte_saisie(a.nom)) = lower(public.nettoyer_texte_saisie(p_nom))
+          and lower(coalesce(public.nettoyer_texte_saisie(a.prenom), '')) = lower(coalesce(public.nettoyer_texte_saisie(p_prenom), ''))
         )
         or (
-          nullif(btrim(p_courriel), '') is not null
-          and lower(btrim(a.courriel)) = lower(btrim(p_courriel))
+          nullif(public.nettoyer_texte_saisie(p_courriel), '') is not null
+          and lower(public.nettoyer_texte_saisie(a.courriel)) = lower(public.nettoyer_texte_saisie(p_courriel))
         )
       )
   );
@@ -249,19 +268,19 @@ begin
   end if;
   for v_cle in select jsonb_object_keys(c_bornes) loop
     if jsonb_typeof(p_adherent -> v_cle) not in ('string', 'null')
-       or length(btrim(p_adherent ->> v_cle)) > (c_bornes ->> v_cle)::int then
+       or length(public.nettoyer_texte_saisie(p_adherent ->> v_cle)) > (c_bornes ->> v_cle)::int then
       raise exception 'ADHESION_INVALIDE' using errcode = '22023';
     end if;
   end loop;
 
-  v_nom         := nullif(btrim(p_adherent ->> 'nom'), '');
-  v_prenom      := nullif(btrim(p_adherent ->> 'prenom'), '');
-  v_adresse     := nullif(btrim(p_adherent ->> 'adresse'), '');
-  v_code_postal := nullif(btrim(p_adherent ->> 'code_postal'), '');
-  v_ville       := nullif(btrim(p_adherent ->> 'ville'), '');
-  v_pays        := nullif(btrim(p_adherent ->> 'pays'), '');
-  v_telephone   := nullif(btrim(p_adherent ->> 'telephone'), '');
-  v_courriel    := nullif(btrim(p_adherent ->> 'courriel'), '');
+  v_nom         := nullif(public.nettoyer_texte_saisie(p_adherent ->> 'nom'), '');
+  v_prenom      := nullif(public.nettoyer_texte_saisie(p_adherent ->> 'prenom'), '');
+  v_adresse     := nullif(public.nettoyer_texte_saisie(p_adherent ->> 'adresse'), '');
+  v_code_postal := nullif(public.nettoyer_texte_saisie(p_adherent ->> 'code_postal'), '');
+  v_ville       := nullif(public.nettoyer_texte_saisie(p_adherent ->> 'ville'), '');
+  v_pays        := nullif(public.nettoyer_texte_saisie(p_adherent ->> 'pays'), '');
+  v_telephone   := nullif(public.nettoyer_texte_saisie(p_adherent ->> 'telephone'), '');
+  v_courriel    := nullif(public.nettoyer_texte_saisie(p_adherent ->> 'courriel'), '');
 
   if jsonb_typeof(p_adherent -> 'civilite') is distinct from 'number'
      or (p_adherent ->> 'civilite') not in ('0', '1', '2') then
@@ -279,16 +298,16 @@ begin
     raise exception 'ADHESION_INVALIDE' using errcode = '22023';
   end if;
 
-  if nullif(btrim(p_adherent ->> 'date_naissance'), '') is not null then
-    if btrim(p_adherent ->> 'date_naissance') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
+  if nullif(public.nettoyer_texte_saisie(p_adherent ->> 'date_naissance'), '') is not null then
+    if public.nettoyer_texte_saisie(p_adherent ->> 'date_naissance') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then
       raise exception 'ADHESION_INVALIDE' using errcode = '22023';
     end if;
     begin
-      v_date_naissance := btrim(p_adherent ->> 'date_naissance')::date;
+      v_date_naissance := public.nettoyer_texte_saisie(p_adherent ->> 'date_naissance')::date;
     exception when others then
       raise exception 'ADHESION_INVALIDE' using errcode = '22023';
     end;
-    if to_char(v_date_naissance, 'YYYY-MM-DD') <> btrim(p_adherent ->> 'date_naissance')
+    if to_char(v_date_naissance, 'YYYY-MM-DD') <> public.nettoyer_texte_saisie(p_adherent ->> 'date_naissance')
        or extract(year from v_date_naissance) < 1900
        or extract(year from v_date_naissance) > extract(year from current_date) - 1 then
       raise exception 'ADHESION_INVALIDE' using errcode = '22023';
@@ -320,7 +339,14 @@ begin
   if p_date_debut is null then
     raise exception 'DATE_ADHESION_REQUISE' using errcode = '22023';
   end if;
-  if p_montant_cotisation is not null and p_montant_cotisation < 0 then
+  if p_date_debut < date '1900-01-01' or p_date_debut > (current_date + interval '1 year')::date then
+    raise exception 'DATE_ADHESION_INVALIDE' using errcode = '22023';
+  end if;
+  -- NaN et Infinity (numeric) refusés explicitement ; borne haute raisonnable.
+  if p_montant_cotisation is not null
+     and (p_montant_cotisation = 'NaN'::numeric
+          or p_montant_cotisation < 0
+          or p_montant_cotisation > 100000) then
     raise exception 'MONTANT_INVALIDE' using errcode = '22023';
   end if;
   if p_mode_paiement is not null and p_mode_paiement not in (1, 2, 3, 4) then
