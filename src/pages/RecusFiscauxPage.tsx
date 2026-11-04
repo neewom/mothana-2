@@ -638,16 +638,15 @@ export default function RecusFiscauxPage() {
           }
           return (
             <>
-              <div className="flex gap-2">
-                <Button className="flex-1" onClick={() => downloadRecu(selectedRow)} disabled={dlLoading[id]}>
-                  {dlLoading[id] ? 'Ouverture…' : 'Télécharger le PDF'}
+              {/* Boutons empilés pleine largeur : côte à côte, ils débordaient du panneau (w-80). */}
+              <Button className="w-full" onClick={() => downloadRecu(selectedRow)} disabled={dlLoading[id]}>
+                {dlLoading[id] ? 'Ouverture…' : 'Télécharger le PDF'}
+              </Button>
+              {selectedRow.profil.personnes.email && (
+                <Button variant="secondary" className="w-full" onClick={() => sendRecuEmail(selectedRow)} disabled={sendLoading[id]}>
+                  {sendLoading[id] ? 'Envoi…' : 'Envoyer par email'}
                 </Button>
-                {selectedRow.profil.personnes.email && (
-                  <Button variant="secondary" className="flex-1" onClick={() => sendRecuEmail(selectedRow)} disabled={sendLoading[id]}>
-                    {sendLoading[id] ? 'Envoi…' : 'Envoyer par email'}
-                  </Button>
-                )}
-              </div>
+              )}
               <Button
                 variant="secondary"
                 className="w-full"
