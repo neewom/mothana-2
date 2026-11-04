@@ -22,6 +22,11 @@ import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Textarea } from '../components/ui/textarea'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import { TablePagination } from '../components/ui/table-pagination'
+import SortableTableHead from '../components/SortableTableHead'
+import { useTableSort } from '../hooks/useTableSort'
+import { useClientPagination } from '../hooks/useClientPagination'
+import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import { useNavCountersContext } from '../hooks/useNavCounters'
 import { Link } from 'react-router-dom'
@@ -53,6 +58,13 @@ function adherentFullName(a: Adherent): string {
 
 type Tab = 'en_attente' | 'ratifiee' | 'refusee'
 
+type SortField = 'civilite' | 'nom' | 'prenom' | 'date'
+
+// Date affichée dans la colonne : soumission (en attente) ou décision (ratifiées / refusées).
+function dateAffichee(d: DemandeAdhesion, tab: Tab): string {
+  return tab === 'en_attente' ? d.created_at : (d.decided_at ?? d.created_at)
+}
+
 const TABS: { value: Tab; label: string }[] = [
   { value: 'en_attente', label: 'En attente' },
   { value: 'ratifiee', label: 'Ratifiées' },
@@ -78,6 +90,25 @@ export default function DemandesAdhesionPage() {
     () => demandes.filter((d) => correspondRecherche([d.nom, d.prenom, d.courriel], recherche)),
     [demandes, recherche]
   )
+
+  // Tri navigateur sur toute la liste filtrée (chargée en entier), avant pagination.
+  // Défaut : date de la colonne, plus récente en premier.
+  const { sortField, sortDirection, sort, toggleSort } = useTableSort<SortField>({
+    initial: { field: 'date', direction: 'desc' },
+    initialDirection: (field) => directionInitiale(field === 'date' ? 'date' : 'text'),
+    onSortChange: () => setCurrentPage(1),
+  })
+  const demandesTriees = useMemo(() => {
+    const columns: SortColumns<DemandeAdhesion, SortField> = {
+      civilite: { type: 'text', value: (d) => (d.civilite ? CIVILITE_ADHERENT_LABELS[d.civilite] : null) },
+      nom: { type: 'text', value: (d) => [d.nom, d.prenom] },
+      prenom: { type: 'text', value: (d) => [d.prenom, d.nom] },
+      date: { type: 'date', value: (d) => [dateAffichee(d, tab), d.created_at] },
+    }
+    return sortRows(demandesFiltrees, columns, sort, (a, b) => compareText(a.nom, b.nom) || compareText(a.prenom, b.prenom))
+  }, [demandesFiltrees, sort, tab])
+
+  const { pageRows: demandesPage, setCurrentPage, paginationProps } = useClientPagination(demandesTriees)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -300,7 +331,7 @@ export default function DemandesAdhesionPage() {
             {TABS.map((t) => (
               <button
                 key={t.value}
-                onClick={() => setTab(t.value)}
+                onClick={() => { setTab(t.value); setCurrentPage(1) }}
                 className={cn(
                   'rounded-t-sm px-3 py-2 text-sm font-medium transition-colors',
                   tab === t.value
@@ -315,7 +346,7 @@ export default function DemandesAdhesionPage() {
 
           {!loading && demandes.length > 0 && (
             <ListToolbar
-              search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom, prénom, email…', label: 'Rechercher une demande' }}
+              search={{ value: recherche, onChange: (v) => { setRecherche(v); setCurrentPage(1) }, placeholder: 'Nom, prénom, email…', label: 'Rechercher une demande' }}
             />
           )}
 
@@ -336,16 +367,16 @@ export default function DemandesAdhesionPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="hidden md:table-cell">Civilité</TableHead>
-                    <TableHead>Nom</TableHead>
-                    <TableHead>Prénom</TableHead>
+                    <SortableTableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
+                    <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                    <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                     <TableHead className="hidden md:table-cell">Contact</TableHead>
-                    <TableHead>{tab === 'en_attente' ? 'Soumise le' : 'Décidée le'}</TableHead>
+                    <SortableTableHead field="date" label={tab === 'en_attente' ? 'Soumise le' : 'Décidée le'} sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                     <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {demandesFiltrees.map((d) => {
+                  {demandesPage.map((d) => {
                     const hasDuplicate = (duplicatesMap[d.id]?.length ?? 0) > 0
                     return (
                       <TableRow
@@ -387,7 +418,7 @@ export default function DemandesAdhesionPage() {
                           {d.telephone && <p className="font-registre-mono text-xs text-ink-faint">{d.telephone}</p>}
                         </TableCell>
                         <TableCell className="font-registre-mono text-xs text-ink-faint">
-                          {formatDateTime(tab === 'en_attente' ? d.created_at : (d.decided_at ?? d.created_at))}
+                          {formatDateTime(dateAffichee(d, tab))}
                         </TableCell>
                         <TableCell className="text-right text-ink-faint">
                           <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -400,6 +431,10 @@ export default function DemandesAdhesionPage() {
                 </TableBody>
               </Table>
             </ScrollShadowX>
+          )}
+
+          {!loading && demandesFiltrees.length > 0 && (
+            <TablePagination {...paginationProps} />
           )}
         </div>
       </div>

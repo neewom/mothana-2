@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -17,6 +17,9 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import SortableTableHead from '../components/SortableTableHead'
+import { useTableSort } from '../hooks/useTableSort'
+import { directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../components/ui/dialog'
 import { Link } from 'react-router-dom'
 import { StatusNotice } from '../components/ui/status-notice'
@@ -41,6 +44,16 @@ interface Campagne {
   nombre_destinataires: number
   nombre_exclus: number
   created_at: string
+}
+
+type HistoriqueSortField = 'date' | 'sujet' | 'destinataires' | 'exclus'
+
+// Historique : les 20 dernières campagnes (limite de la requête), triées dans le navigateur.
+const HISTORIQUE_SORT_COLUMNS: SortColumns<Campagne, HistoriqueSortField> = {
+  date: { type: 'date', value: (c) => c.created_at },
+  sujet: { type: 'text', value: (c) => c.sujet },
+  destinataires: { type: 'number', value: (c) => c.nombre_destinataires },
+  exclus: { type: 'number', value: (c) => c.nombre_exclus },
 }
 
 interface PieceJointeState {
@@ -206,6 +219,14 @@ export default function CampagneMailingPage() {
   // Historique
   const [historique, setHistorique] = useState<Campagne[]>([])
   const [historiqueLoading, setHistoriqueLoading] = useState(true)
+  const historiqueSort = useTableSort<HistoriqueSortField>({
+    initial: { field: 'date', direction: 'desc' },
+    initialDirection: (field) => directionInitiale(HISTORIQUE_SORT_COLUMNS[field].type),
+  })
+  const historiqueTrie = useMemo(
+    () => sortRows(historique, HISTORIQUE_SORT_COLUMNS, historiqueSort.sort, (a, b) => b.created_at.localeCompare(a.created_at)),
+    [historique, historiqueSort.sort]
+  )
 
   // Modèles réutilisables
   const [templates, setTemplates] = useState<MailingTemplate[]>([])
@@ -849,14 +870,14 @@ export default function CampagneMailingPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Sujet</TableHead>
-                  <TableHead>Destinataires</TableHead>
-                  <TableHead>Exclus</TableHead>
+                  <SortableTableHead field="date" label="Date" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
+                  <SortableTableHead field="sujet" label="Sujet" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
+                  <SortableTableHead field="destinataires" label="Destinataires" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
+                  <SortableTableHead field="exclus" label="Exclus" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {historique.map((c) => (
+                {historiqueTrie.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="whitespace-nowrap text-ink-muted">{formatDateTime(c.created_at)}</TableCell>
                     <TableCell className="max-w-[45vw] truncate font-medium text-ink sm:max-w-none" title={c.sujet}>{c.sujet}</TableCell>

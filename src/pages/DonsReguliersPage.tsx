@@ -17,6 +17,11 @@ import { PageHeader } from '../components/ui/page-header'
 import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import ScrollShadowX from '../components/ScrollShadowX'
+import { TablePagination } from '../components/ui/table-pagination'
+import SortableTableHead from '../components/SortableTableHead'
+import { useTableSort } from '../hooks/useTableSort'
+import { useClientPagination } from '../hooks/useClientPagination'
+import { directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { ListToolbar } from '../components/ui/list-toolbar'
 import { correspondRecherche } from '../lib/textSearch'
 import { useNavCountersContext } from '../hooks/useNavCounters'
@@ -240,6 +245,20 @@ function StatutBadge({ statut }: { statut: DonRegulier['statut'] }) {
 // DonsReguliersPage
 // ---------------------------------------------------------------------------
 
+// `creation` : ordre d'ouverture de la page (engagement le plus récent d'abord), sans colonne affichée.
+type SortField = 'creation' | 'donateur' | 'montant' | 'statut' | 'periode' | 'activite'
+
+const ENGAGEMENT_SORT_COLUMNS: SortColumns<DonRegulier, SortField> = {
+  creation: { type: 'date', value: (e) => e.created_at },
+  // Ordre d'annuaire : nom puis prénom (l'affichage reste « Prénom Nom »).
+  donateur: { type: 'text', value: (e) => [e.profils_participant.personnes.nom, e.profils_participant.personnes.prenom] },
+  montant: { type: 'number', value: (e) => e.montant },
+  statut: { type: 'text', value: (e) => (e.statut === 'actif' ? 'Actif' : 'Arrêté') },
+  // Période : date de début, puis date de fin (en cours = vide, en dernier).
+  periode: { type: 'date', value: (e) => [e.date_debut, e.date_fin] },
+  activite: { type: 'text', value: (e) => e.activites?.nom },
+}
+
 interface LigneAConfirmer {
   key: string
   engagement: DonRegulier
@@ -375,6 +394,17 @@ export default function DonsReguliersPage() {
     () => engagements.filter((e) => correspondRecherche([participantFullName(e.profils_participant), e.activites?.nom], recherche)),
     [engagements, recherche]
   )
+  // Tri navigateur sur toute la liste filtrée (chargée en entier), avant pagination.
+  const { sortField, sortDirection, sort, toggleSort } = useTableSort<SortField>({
+    initial: { field: 'creation', direction: 'desc' },
+    initialDirection: (field) => directionInitiale(ENGAGEMENT_SORT_COLUMNS[field].type),
+    onSortChange: () => setCurrentPage(1),
+  })
+  const engagementsTries = useMemo(
+    () => sortRows(engagementsFiltres, ENGAGEMENT_SORT_COLUMNS, sort, (a, b) => b.created_at.localeCompare(a.created_at)),
+    [engagementsFiltres, sort]
+  )
+  const { pageRows: engagementsPage, setCurrentPage, paginationProps } = useClientPagination(engagementsTries)
   const actifs = engagements.filter((e) => e.statut === 'actif')
   const totalMensuel = actifs.reduce((sum, e) => sum + e.montant, 0)
   // Période et activité restent dans le panneau quand il réduit le tableau (rien hors écran à 1 400 px).
@@ -563,7 +593,7 @@ export default function DonsReguliersPage() {
             </div>
             {!loading && engagements.length > 0 && (
               <ListToolbar
-                search={{ value: recherche, onChange: setRecherche, placeholder: 'Donateur, activité…', label: 'Rechercher un engagement' }}
+                search={{ value: recherche, onChange: (v) => { setRecherche(v); setCurrentPage(1) }, placeholder: 'Donateur, activité…', label: 'Rechercher un engagement' }}
               />
             )}
             {loading ? (
@@ -581,16 +611,16 @@ export default function DonsReguliersPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Donateur</TableHead>
-                      <TableHead className="text-right">Montant</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead className={secondaryCol}>Période</TableHead>
-                      <TableHead className={secondaryCol}>Activité</TableHead>
+                      <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableTableHead field="montant" label="Montant" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
+                      <SortableTableHead field="statut" label="Statut" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableTableHead field="periode" label="Période" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={secondaryCol} />
+                      <SortableTableHead field="activite" label="Activité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={secondaryCol} />
                       <TableHead className="hidden md:table-cell" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {engagementsFiltres.map((e) => (
+                    {engagementsPage.map((e) => (
                       <TableRow
                         key={e.id}
                         onClick={() => setSelectedId(e.id === selectedId ? null : e.id)}
@@ -617,6 +647,9 @@ export default function DonsReguliersPage() {
                   </TableBody>
                 </Table>
               </ScrollShadowX>
+            )}
+            {!loading && engagementsFiltres.length > 0 && (
+              <TablePagination {...paginationProps} />
             )}
           </div>
 
