@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { comparerOrdreAttribution, recusAGenerer } from './recusAGenerer'
+import { comparerOrdreAttribution, raisonExclusion, recusAGenerer, recusExclus } from './recusAGenerer'
 
 const ok = { blocking: false, missing: [] }
 
@@ -28,6 +28,34 @@ describe('recusAGenerer', () => {
 
   it('renvoie une liste vide quand tous les reçus sont déjà générés', () => {
     expect(recusAGenerer([{ recu: { id: 'r1' }, validation: ok }], false)).toEqual([])
+  })
+})
+
+describe('recusExclus', () => {
+  const rows = [
+    { id: 'a', recu: null, validation: { blocking: true, missing: [], message: 'Civilité du donateur manquante' } },
+    { id: 'b', recu: null, validation: { blocking: false, missing: ['adresse'] } },
+    { id: 'c', recu: null, validation: ok },
+    { id: 'd', recu: { id: 'r1' }, validation: { blocking: false, missing: ['ville'] } },
+  ]
+
+  it('liste les fiches incomplètes sans reçu, complément exact de recusAGenerer', () => {
+    expect(recusExclus(rows, false).map((r) => r.id)).toEqual(['a', 'b'])
+    const sansRecu = rows.filter((r) => !r.recu).map((r) => r.id)
+    const partition = [...recusAGenerer(rows, false), ...recusExclus(rows, false)].map((r) => r.id).sort()
+    expect(partition).toEqual(sansRecu)
+  })
+
+  it('ne liste rien si l’organisation est incomplète', () => {
+    expect(recusExclus(rows, true)).toEqual([])
+  })
+})
+
+describe('raisonExclusion', () => {
+  it('reprend le message de blocage, sinon les champs manquants', () => {
+    expect(raisonExclusion({ blocking: true, missing: [], message: 'Don au nom d’une famille' })).toBe('Don au nom d’une famille')
+    expect(raisonExclusion({ blocking: false, missing: ['adresse', 'ville'] })).toBe('Champs manquants : adresse, ville.')
+    expect(raisonExclusion(ok)).toBe('')
   })
 })
 

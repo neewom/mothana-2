@@ -13,7 +13,29 @@ interface LigneRecu {
  */
 export function recusAGenerer<T extends LigneRecu>(rows: T[], organisationIncomplete: boolean): T[] {
   if (organisationIncomplete) return []
-  return rows.filter((r) => !r.recu && !r.validation.blocking && r.validation.missing.length === 0)
+  return rows.filter((r) => !r.recu && !estIncomplete(r.validation))
+}
+
+function estIncomplete(v: ParticipantValidation): boolean {
+  return v.blocking || v.missing.length > 0
+}
+
+/**
+ * Donateurs écartés d'un lot (récapitulatif avant lancement) : sans reçu pour l'année mais fiche
+ * incomplète. Complément exact de `recusAGenerer` parmi les lignes sans reçu, donc de la règle
+ * serveur `recus_manquants_lot` (réécriture de `validateParticipantCerfa`). Aucun si l'organisation
+ * est incomplète (le lot ne peut pas être lancé, la bannière de la page le dit déjà).
+ */
+export function recusExclus<T extends LigneRecu>(rows: T[], organisationIncomplete: boolean): T[] {
+  if (organisationIncomplete) return []
+  return rows.filter((r) => !r.recu && estIncomplete(r.validation))
+}
+
+/** Raison d'exclusion lisible d'une fiche incomplète (message de blocage ou champs manquants). */
+export function raisonExclusion(v: ParticipantValidation): string {
+  if (v.message) return v.message
+  if (v.missing.length > 0) return `Champs manquants : ${v.missing.join(', ')}.`
+  return ''
 }
 
 interface LigneOrdre {
