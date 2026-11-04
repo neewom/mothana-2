@@ -29,7 +29,8 @@ import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { cn } from '../lib/utils'
 import { comparerOrdreAttribution, raisonExclusion, recusAGenerer, recusExclus } from '../lib/recusAGenerer'
 import { useRecusLot } from '../hooks/useRecusLot'
-import { messageErreurLot } from '../lib/recusLot'
+import { useCleCourante } from '../hooks/useCleCourante'
+import { messageErreurLot, messageLancementLot } from '../lib/recusLot'
 import RecusLotBandeau from '../components/RecusLotBandeau'
 import RecusLotRecapitulatifDialog from '../components/RecusLotRecapitulatifDialog'
 import EmailInvalideIndicateur from '../components/EmailInvalideIndicateur'
@@ -119,6 +120,8 @@ export default function RecusFiscauxPage() {
     return yearOptions().includes(demandee) ? demandee : currentYear()
   })
   const [rows, setRows] = useState<ParticipantRow[]>([])
+  // Organisation et année affichées : une réponse arrivée après leur changement est ignorée.
+  const estCleCourante = useCleCourante(`${organisationId}|${annee}`)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -305,7 +308,9 @@ export default function RecusFiscauxPage() {
   // Relecture du seul reçu d'un donateur (après génération) : la réponse de generate-recu ne
   // porte ni l'id ni le montant ni la date du reçu, et un rechargement complet de la liste après
   // chaque reçu était lent sur une grosse organisation.
-  async function rafraichirLigne(profilId: string) {
+  // Une réponse arrivée après un changement d'année ou d'organisation est ignorée.
+  const rafraichirLigne = useCallback(async (profilId: string) => {
+    const cle = `${organisationId}|${annee}`
     const { data, error: err } = await supabase
       .from('recus_fiscaux')
       .select('*')
@@ -313,13 +318,15 @@ export default function RecusFiscauxPage() {
       .eq('profil_participant_id', profilId)
       .eq('annee', annee)
       .maybeSingle()
+    if (!estCleCourante(cle)) return
     if (err) {
       fetchData()
       return
     }
     const recu = (data as RecuFiscal | null) ?? null
     setRows((prev) => prev.map((r) => (r.profil.id === profilId ? { ...r, recu } : r)))
-  }
+  }, [organisationId, annee, fetchData, estCleCourante])
+
 
   function handleGenerateClick(row: ParticipantRow) {
     if (row.recu) {
@@ -438,7 +445,7 @@ export default function RecusFiscauxPage() {
       return
     }
     setRecapOpen(false)
-    showToast(`Génération de ${manquants.length} reçu${manquants.length > 1 ? 's' : ''} lancée`)
+    showToast(messageLancementLot('generation', res.nbTotal))
   }
 
   async function arreterLot() {
@@ -505,7 +512,6 @@ export default function RecusFiscauxPage() {
 
   async function lancerEnvoi() {
     setRecapEnvoiError(null)
-    const n = nbAEnvoyer
     const res = await recusEnvoi.lancer()
     if (!res.ok) {
       setRecapEnvoiError(res.message)
@@ -513,7 +519,7 @@ export default function RecusFiscauxPage() {
       return
     }
     setRecapEnvoiOpen(false)
-    showToast(`Envoi de ${n} reçu${n > 1 ? 's' : ''} lancé`)
+    showToast(messageLancementLot('envoi', res.nbTotal))
     void chargerRecapEnvoi()
   }
 
@@ -748,6 +754,7 @@ export default function RecusFiscauxPage() {
         <RecusLotBandeau
           lot={lot}
           echecs={recusLot.echecs}
+          erreurEchecs={recusLot.erreurEchecs}
           nbRestants={manquants.length}
           arretEnCours={recusLot.actif && !lotEnCours}
           actionEnCours={recusLot.actionEnCours}
@@ -762,6 +769,7 @@ export default function RecusFiscauxPage() {
         <RecusLotBandeau
           lot={lotEnvoi}
           echecs={recusEnvoi.echecs}
+          erreurEchecs={recusEnvoi.erreurEchecs}
           nbRestants={nbAEnvoyer}
           arretEnCours={recusEnvoi.actif && !lotEnvoiEnCours}
           actionEnCours={recusEnvoi.actionEnCours}

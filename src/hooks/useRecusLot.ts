@@ -13,9 +13,12 @@ interface UseRecusLot {
   echecs: RecuLotEchec[]
   /** Lot d'envoi terminé ou arrêté : lignes faites sans email (dernière version déjà envoyée entre-temps). */
   nbDejaEnvoyes: number
+  /** Erreur de lecture de la liste des échecs (bilan). */
+  erreurEchecs: string | null
   loading: boolean
   error: string | null
-  lancer: () => Promise<{ ok: true } | { ok: false; message: string }>
+  /** nbTotal : reçus retenus par le serveur pour le lot lancé (null si la relecture a échoué). */
+  lancer: () => Promise<{ ok: true; nbTotal: number | null } | { ok: false; message: string }>
   arreter: () => Promise<{ ok: true } | { ok: false; message: string }>
   actionEnCours: boolean
   /** En cours, ou arrêté avec un reçu encore en génération (la progression est encore relue). */
@@ -41,6 +44,7 @@ export function useRecusLot(organisationId: string, annee: number, type: RecuLot
   const [lot, setLot] = useState<RecuLot | null>(null)
   const [echecs, setEchecs] = useState<RecuLotEchec[]>([])
   const [nbDejaEnvoyes, setNbDejaEnvoyes] = useState(0)
+  const [erreurEchecs, setErreurEchecs] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionEnCours, setActionEnCours] = useState(false)
@@ -54,8 +58,9 @@ export function useRecusLot(organisationId: string, annee: number, type: RecuLot
   // Clé de la requête courante : une réponse arrivée après un changement d'année est ignorée.
   const cleRef = useRef('')
 
-  const charger = useCallback(async () => {
-    if (!organisationId) return
+  // Renvoie le lot lu (null si aucun), undefined si la lecture a échoué ou est périmée.
+  const charger = useCallback(async (): Promise<RecuLot | null | undefined> => {
+    if (!organisationId) return undefined
     const cle = `${organisationId}|${annee}|${type}`
     cleRef.current = cle
     const { data, error: err } = await supabase
@@ -67,11 +72,11 @@ export function useRecusLot(organisationId: string, annee: number, type: RecuLot
       .order('cree_le', { ascending: false })
       .limit(1)
       .maybeSingle()
-    if (cleRef.current !== cle) return
+    if (cleRef.current !== cle) return undefined
     if (err) {
       setError('Impossible de lire l’état du lot de reçus')
       setLoading(false)
-      return
+      return undefined
     }
     const courant = (data as RecuLot | null) ?? null
     const maintenant = Date.now()
@@ -89,15 +94,21 @@ export function useRecusLot(organisationId: string, annee: number, type: RecuLot
     }
 
     if (courant && courant.statut !== 'en_cours' && courant.nb_echecs + (courant.nb_a_verifier ?? 0) > 0) {
-      const { data: lignes } = await supabase
+      const { data: lignes, error: errLignes } = await supabase
         .from('recus_lot_lignes')
         .select('id, profil_participant_id, rang, statut, erreur, profils_participant(personnes(nom, prenom))')
         .eq('lot_id', courant.id)
         .in('statut', ['echec', 'a_verifier'])
         .order('rang', { ascending: true })
-      if (cleRef.current !== cle) return
-      setEchecs((lignes ?? []) as unknown as RecuLotEchec[])
+      if (cleRef.current !== cle) return undefined
+      if (errLignes) {
+        setErreurEchecs('Impossible de charger la liste des échecs')
+      } else {
+        setErreurEchecs(null)
+        setEchecs((lignes ?? []) as unknown as RecuLotEchec[])
+      }
     } else {
+      setErreurEchecs(null)
       setEchecs([])
     }
 
@@ -107,11 +118,12 @@ export function useRecusLot(organisationId: string, annee: number, type: RecuLot
         .select('id', { count: 'exact', head: true })
         .eq('lot_id', courant.id)
         .eq('deja_envoye', true)
-      if (cleRef.current !== cle) return
+      if (cleRef.current !== cle) return undefined
       setNbDejaEnvoyes(count ?? 0)
     } else {
       setNbDejaEnvoyes(0)
     }
+    return courant
   }, [organisationId, annee, type])
 
   // Lecture initiale (et à chaque changement d'année) : reprend l'affichage d'un lot en cours.
@@ -121,6 +133,7 @@ export function useRecusLot(organisationId: string, annee: number, type: RecuLot
     setActif(false)
     setEchecs([])
     setNbDejaEnvoyes(0)
+    setErreurEchecs(null)
     setLoading(true)
     charger()
   }, [charger])
@@ -139,12 +152,14 @@ export function useRecusLot(organisationId: string, annee: number, type: RecuLot
 
   const lancer = useCallback(async () => {
     setActionEnCours(true)
-    const { error: err } = await supabase.rpc(RPC_LANCEMENT[type], { p_organisation_id: organisationId, p_annee: annee })
+    const { data: lotId, error: err } = await supabase.rpc(RPC_LANCEMENT[type], { p_organisation_id: organisationId, p_annee: annee })
     // Succès comme refus (lot déjà en cours lancé ailleurs, plus rien à générer) : l'état affiché
     // est relu.
-    await charger()
+    const lu = await charger()
     setActionEnCours(false)
-    return err ? { ok: false as const, message: messageErreurLot(err.message) } : { ok: true as const }
+    if (err) return { ok: false as const, message: messageErreurLot(err.message) }
+    // Nombre de reçus retenu par le serveur (peut différer de la liste affichée si elle est périmée).
+    return { ok: true as const, nbTotal: lu && lu.id === lotId ? lu.nb_total : null }
   }, [organisationId, annee, type, charger])
 
   const arreter = useCallback(async () => {
@@ -156,5 +171,5 @@ export function useRecusLot(organisationId: string, annee: number, type: RecuLot
     return err ? { ok: false as const, message: messageErreurLot(err.message) } : { ok: true as const }
   }, [lot, charger])
 
-  return { lot, echecs, nbDejaEnvoyes, loading, error, lancer, arreter, actionEnCours, actif, luLe }
+  return { lot, echecs, nbDejaEnvoyes, erreurEchecs, loading, error, lancer, arreter, actionEnCours, actif, luLe }
 }

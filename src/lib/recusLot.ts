@@ -1,4 +1,4 @@
-import type { RecuLot } from '../types/recusLot'
+import type { RecuLot, RecuLotType } from '../types/recusLot'
 
 /**
  * Lot encore actif côté serveur : en cours, ou arrêté alors qu'une exécution tient encore le bail
@@ -66,7 +66,17 @@ export function messageErreurLot(message: string | undefined | null): string {
   if (m.includes('ANNEE_INVALIDE')) return 'Année invalide.'
   if (m.includes('AUCUN_RECU_A_ENVOYER')) return 'Aucun reçu à envoyer pour cette année.'
   if (m.includes('GENERATION_EN_COURS')) return 'Une génération des reçus de cette année est en cours : attendez sa fin pour lancer l’envoi.'
-  return m ? `Erreur : ${m}` : 'Erreur inconnue'
+  if (m.includes('LOT_INTROUVABLE')) return 'Ce lot est introuvable : rechargez la page.'
+  // Code inconnu : jamais affiché brut.
+  return 'Une erreur est survenue. Réessayez ou rechargez la page.'
+}
+
+/** Message de lancement d'un lot, avec le nombre de reçus retenu par le serveur (null : inconnu). */
+export function messageLancementLot(type: RecuLotType, nbTotal: number | null): string {
+  const action = type === 'envoi' ? 'Envoi' : 'Génération'
+  const accord = type === 'envoi' ? 'lancé' : 'lancée'
+  if (nbTotal === null) return `${action} des reçus ${accord}`
+  return `${action} de ${new Intl.NumberFormat('fr-FR').format(nbTotal)} reçu${nbTotal > 1 ? 's' : ''} ${accord}`
 }
 
 // ---------------------------------------------------------------------------

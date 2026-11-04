@@ -8,6 +8,8 @@ import type { RecuLot, RecuLotEchec } from '../types/recusLot'
 interface RecusLotBandeauProps {
   lot: RecuLot
   echecs: RecuLotEchec[]
+  /** Erreur de lecture de la liste des échecs. */
+  erreurEchecs: string | null
   /** Reçus encore à traiter (relance possible) : manquants prêts à générer, ou non envoyés. */
   nbRestants: number
   /** Lot arrêté dont le reçu en cours de traitement n'est pas encore terminé. */
@@ -69,7 +71,7 @@ const LIBELLES = {
  * (traités, échecs et envois à vérifier avec leur raison, relance).
  */
 export default function RecusLotBandeau({
-  lot, echecs, nbRestants, arretEnCours, actionEnCours, onArreter, onRelancer, onFermer, maintenant, rythme, nbDejaEnvoyes = 0,
+  lot, echecs, erreurEchecs, nbRestants, arretEnCours, actionEnCours, onArreter, onRelancer, onFermer, maintenant, rythme, nbDejaEnvoyes = 0,
 }: RecusLotBandeauProps) {
   const envoi = lot.type === 'envoi'
   const l = LIBELLES[lot.type]
@@ -157,6 +159,7 @@ export default function RecusLotBandeau({
           depuis le détail du reçu ; ces reçus ne sont pas renvoyés automatiquement.
         </p>
       )}
+      {erreurEchecs && <p className="mt-2 font-medium text-stamp">{erreurEchecs}</p>}
       {echecs.length > 0 && (
         <ul className="mt-2 max-h-48 divide-y divide-warning-border overflow-y-auto rounded-sm border border-warning-border bg-white">
           {echecs.map((e) => (
