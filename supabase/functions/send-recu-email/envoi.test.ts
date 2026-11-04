@@ -1,6 +1,6 @@
 // deno test --no-lock supabase/functions/send-recu-email/envoi.test.ts
 // Chemin Brevo testé avec un fetch simulé (aucun appel réseau) ; Resend remplacé par un double.
-import { type ConfigBrevoOrganisation, type DependancesEnvoi, type EmailRecu, envoyerEmailRecu } from './envoi.ts'
+import { type ConfigBrevoOrganisation, type DependancesEnvoi, type EmailRecu, envoyerEmailRecu, MESSAGE_ENVOI_BREVO_INCERTAIN } from './envoi.ts'
 
 function vrai(condition: boolean, message: string) {
   if (!condition) throw new Error(message)
@@ -21,7 +21,9 @@ interface Appels {
   resend: { to: string; subject: string; attachments: unknown }[]
 }
 
-function dependances(options: { senders?: { status: number; senders: unknown }; envoi?: number }): { deps: DependancesEnvoi; appels: Appels } {
+// envoi : statut HTTP de /v3/smtp/email, 'exception' (réseau) ou 'bloque' (aucune réponse : seul
+// le signal de délai y met fin).
+function dependances(options: { senders?: { status: number; senders: unknown }; envoi?: number | 'exception' | 'bloque' }): { deps: DependancesEnvoi; appels: Appels } {
   const appels: Appels = { brevo: [], resend: [] }
   const fetchFn = ((input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
@@ -29,6 +31,12 @@ function dependances(options: { senders?: { status: number; senders: unknown }; 
     if (url.endsWith('/v3/senders')) {
       const s = options.senders ?? { status: 200, senders: [{ email: 'contact@asso.fr', active: true }] }
       return Promise.resolve(new Response(JSON.stringify({ senders: s.senders }), { status: s.status }))
+    }
+    if (options.envoi === 'exception') return Promise.reject(new TypeError('error sending request: connection reset'))
+    if (options.envoi === 'bloque') {
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(init.signal!.reason))
+      })
     }
     const status = options.envoi ?? 201
     return Promise.resolve(new Response(status < 300 ? JSON.stringify({ messageId: '<m@brevo>' }) : 'refus', { status }))
@@ -88,4 +96,26 @@ Deno.test('échec Resend : erreur remontée', async () => {
   deps.envoyerResend = () => Promise.resolve({ ok: false, detail: 'quota' })
   const res = await envoyerEmailRecu(EMAIL, { apiKey: null, expediteurNom: null, expediteurEmail: null }, deps)
   vrai(!res.ok && res.detail === 'quota', JSON.stringify(res))
+})
+
+function envoiIncertain(res: Awaited<ReturnType<typeof envoyerEmailRecu>>, appels: Appels) {
+  vrai(!res.ok && res.incertain && res.detail === MESSAGE_ENVOI_BREVO_INCERTAIN, JSON.stringify(res))
+  vrai(appels.resend.length === 0, 'Resend appelé après un échec Brevo ambigu')
+  vrai(appels.brevo.some((a) => a.url.endsWith('/v3/smtp/email')), 'envoi Brevo non tenté')
+}
+
+Deno.test('exception réseau à l\'envoi Brevo : incertain, pas de secours Resend', async () => {
+  const { deps, appels } = dependances({ envoi: 'exception' })
+  envoiIncertain(await envoyerEmailRecu(EMAIL, BREVO, deps), appels)
+})
+
+Deno.test('503 de Brevo à l\'envoi : incertain, pas de secours Resend', async () => {
+  const { deps, appels } = dependances({ envoi: 503 })
+  envoiIncertain(await envoyerEmailRecu(EMAIL, BREVO, deps), appels)
+})
+
+Deno.test('délai dépassé à l\'envoi Brevo : incertain, pas de secours Resend', async () => {
+  const { deps, appels } = dependances({ envoi: 'bloque' })
+  deps.delaiEnvoiBrevoMs = 20
+  envoiIncertain(await envoyerEmailRecu(EMAIL, BREVO, deps), appels)
 })

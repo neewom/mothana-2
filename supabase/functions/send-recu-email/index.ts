@@ -167,6 +167,8 @@ Deno.serve(async (req) => {
 
     if (!emailResult.ok) {
       console.error('send-recu-email: envoi impossible', emailResult.detail)
+      // Envoi Brevo incertain : message explicite, et aucun marquage (email_envoye_at / _le).
+      if (emailResult.incertain) return jsonResponse({ error: emailResult.detail, incertain: true }, 502)
       return jsonResponse({ error: "Erreur lors de l'envoi de l'email" }, 500)
     }
     // Trace du canal : journal de la fonction + recus_fiscaux.email_canal.

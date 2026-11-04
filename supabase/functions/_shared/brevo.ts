@@ -1,6 +1,12 @@
 // Appels à l'API Brevo du compte d'une organisation (clé dans organisation_secrets.brevo_api_key),
 // partagés par send-mailing-brevo et send-recu-email. `fetchFn` est injectable pour les tests.
 
+// Délais maximaux des appels Brevo (relecture PR #339) : sans eux, un Brevo qui ne répond pas
+// bloquerait la fonction jusqu'à son propre délai d'exécution. Un délai dépassé à l'envoi est une
+// erreur sans statut HTTP (status null), donc « ambiguë » pour send-recu-email (envoi.ts).
+export const DELAI_VERIFICATION_BREVO_MS = 10_000
+export const DELAI_ENVOI_BREVO_MS = 20_000
+
 export type VerificationExpediteur = 'valide' | 'non_valide' | 'impossible'
 
 /** 'valide' | 'non_valide' (Brevo a répondu : expéditeur absent ou inactif) | 'impossible'. */
@@ -9,10 +15,12 @@ export async function verifierExpediteurBrevo(
   email: string,
   contexte: string,
   fetchFn: typeof fetch = fetch,
+  delaiMs: number = DELAI_VERIFICATION_BREVO_MS,
 ): Promise<VerificationExpediteur> {
   try {
     const res = await fetchFn('https://api.brevo.com/v3/senders', {
       headers: { 'api-key': apiKey, Accept: 'application/json' },
+      signal: AbortSignal.timeout(delaiMs),
     })
     if (!res.ok) {
       console.warn(`${contexte}: GET /v3/senders`, res.status)
@@ -90,14 +98,17 @@ export type ResultatEnvoiBrevo =
   | { ok: true; messageId: string | null }
   | { ok: false; status: number | null; detail: string }
 
+/** Échec sans statut HTTP (exception réseau, délai dépassé) : status null. */
 export async function envoyerEmailBrevo(
   apiKey: string,
   email: EmailBrevo,
   fetchFn: typeof fetch = fetch,
+  delaiMs: number = DELAI_ENVOI_BREVO_MS,
 ): Promise<ResultatEnvoiBrevo> {
   try {
     const res = await fetchFn('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
+      signal: AbortSignal.timeout(delaiMs),
       headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
         sender: { name: email.expediteur.nom, email: email.expediteur.email },

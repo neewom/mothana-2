@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { cibleRejet } from '../_shared/brevo.ts'
-import { classerRejet } from '../_shared/brevoRejets.ts'
+import { classerRejet, normaliserEmail } from '../_shared/brevoRejets.ts'
 import { secretsEgaux } from '../_shared/webhookSecret.ts'
 
 // Reçoit les événements webhook Brevo (hard_bounce, invalid_email, blocked, error) sur les
@@ -90,30 +90,30 @@ Deno.serve(async (req) => {
         const cible = cibleRejet(e)
         if (cible.type === 'adherent') aMarquer.set(e.email, marquage)
         else if (cible.profilParticipantId) profilsAMarquer.set(cible.profilParticipantId, marquage)
-        else donateursParEmail.set(e.email, marquage)
+        else donateursParEmail.set(normaliserEmail(e.email), marquage)
       } else if (decision.motif === 'cote_expediteur') {
         // Jamais imputé au destinataire : à corriger côté expéditeur / compte Brevo.
         console.warn('brevo-bounce-webhook: rejet côté expéditeur ignoré', e.event, e.reason)
       }
     }
 
-    // Donateur sans tag de profil : profils de l'organisation dont la personne a cette adresse.
+    // Donateur sans tag de profil : profils de l'organisation dont la personne a cette adresse,
+    // comparée sans casse ni espaces de bord (RPC profils_donateur_par_emails, service_role seul).
     if (donateursParEmail.size > 0) {
-      const { data: profils, error } = await adminClient
-        .from('profils_participant')
-        .select('id, personnes!inner(email)')
-        .eq('organisation_id', organisationId)
-        .in('personnes.email', [...donateursParEmail.keys()])
+      const { data: profils, error } = await adminClient.rpc('profils_donateur_par_emails', {
+        p_organisation_id: organisationId,
+        p_emails: [...donateursParEmail.keys()],
+      })
       if (error) {
-        console.error('profils_participant lookup error:', error.code, error.message)
+        console.error('profils_donateur_par_emails error:', error.code, error.message)
         return new Response(JSON.stringify({ error: 'Erreur serveur' }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
-      for (const p of (profils ?? []) as unknown as { id: string; personnes: { email: string | null } }[]) {
-        const marquage = p.personnes?.email ? donateursParEmail.get(p.personnes.email) : undefined
-        if (marquage) profilsAMarquer.set(p.id, marquage)
+      for (const p of (profils ?? []) as { profil_id: string; email_normalise: string }[]) {
+        const marquage = donateursParEmail.get(p.email_normalise)
+        if (marquage) profilsAMarquer.set(p.profil_id, marquage)
       }
     }
 

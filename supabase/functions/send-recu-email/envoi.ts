@@ -1,7 +1,10 @@
 // Choix du canal d'envoi d'un reçu fiscal (carte « Reçus en lot 3/5 », 2026-11-04) : le compte Brevo
 // de l'organisation quand il est configuré et que son expéditeur est validé, sinon Resend (compte
-// Samakan, noreply@samakan.fr) comme avant. Un échec de Brevo retombe aussi sur Resend, pour que le
-// donateur reçoive son reçu. Dépendances injectées pour les tests (envoi.test.ts).
+// Samakan, noreply@samakan.fr) comme avant. Un refus explicite de Brevo (4xx) retombe aussi sur
+// Resend, pour que le donateur reçoive son reçu. Un échec ambigu (exception réseau, délai dépassé,
+// statut ≥ 500 : Brevo a peut-être envoyé quand même) ne retombe pas sur Resend, pour ne pas envoyer
+// le reçu deux fois par deux expéditeurs (décision TL, relecture PR #339) : erreur `incertain`, et
+// l'appelant ne marque pas l'envoi. Dépendances injectées pour les tests (envoi.test.ts).
 import { envoyerEmailBrevo, tagsEmailRecu, verifierExpediteurBrevo } from '../_shared/brevo.ts'
 import type { SendResult } from '../_shared/resend.ts'
 
@@ -29,11 +32,20 @@ export interface DependancesEnvoi {
     html: string,
     options: { attachments: { filename: string; content: string }[] },
   ) => Promise<SendResult>
+  /** Délai maximal de l'envoi Brevo (défaut DELAI_ENVOI_BREVO_MS) ; réduit dans les tests. */
+  delaiEnvoiBrevoMs?: number
 }
+
+export const MESSAGE_ENVOI_BREVO_INCERTAIN = 'Envoi Brevo incertain : vérifiez dans Brevo avant de renvoyer'
 
 export type ResultatEnvoiRecu =
   | { ok: true; canal: CanalEmail; motifSecours: string | null }
-  | { ok: false; detail: string }
+  | { ok: false; incertain: boolean; detail: string }
+
+/** Échec Brevo après lequel l'email a pu partir quand même : pas de secours Resend. */
+export function echecBrevoAmbigu(status: number | null): boolean {
+  return status === null || status >= 500
+}
 
 export function brevoUtilisable(config: ConfigBrevoOrganisation): config is {
   apiKey: string
@@ -70,8 +82,13 @@ export async function envoyerEmailRecu(
           tags: tagsEmailRecu(email.profilParticipantId),
         },
         deps.fetchFn,
+        deps.delaiEnvoiBrevoMs,
       )
       if (resultat.ok) return { ok: true, canal: 'brevo', motifSecours: null }
+      if (echecBrevoAmbigu(resultat.status)) {
+        console.error('send-recu-email: envoi Brevo incertain, pas de secours Resend', resultat.status, resultat.detail)
+        return { ok: false, incertain: true, detail: MESSAGE_ENVOI_BREVO_INCERTAIN }
+      }
       console.error('send-recu-email: envoi Brevo refusé, secours Resend', resultat.status, resultat.detail)
       motifSecours = 'erreur_brevo'
     }
@@ -80,6 +97,6 @@ export async function envoyerEmailRecu(
   const resend = await deps.envoyerResend(email.destinataire.email, email.objet, email.html, {
     attachments: [{ filename: email.pieceJointe.nom, content: email.pieceJointe.contenuBase64 }],
   })
-  if (!resend.ok) return { ok: false, detail: resend.detail ?? 'Erreur Resend' }
+  if (!resend.ok) return { ok: false, incertain: false, detail: resend.detail ?? 'Erreur Resend' }
   return { ok: true, canal: 'resend', motifSecours }
 }
