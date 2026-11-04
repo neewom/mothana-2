@@ -9,9 +9,9 @@ export function lotActif(lot: Pick<RecuLot, 'statut' | 'traitement_jusqu_a'>, ma
   return lot.statut === 'arrete' && !!lot.traitement_jusqu_a && new Date(lot.traitement_jusqu_a).getTime() > maintenant
 }
 
-/** Reçus traités (générés ou en échec définitif) d'un lot. */
-export function lotTraites(lot: Pick<RecuLot, 'nb_faits' | 'nb_echecs'>): number {
-  return lot.nb_faits + lot.nb_echecs
+/** Reçus traités d'un lot : générés ou envoyés, en échec définitif, à vérifier (envoi ambigu). */
+export function lotTraites(lot: Pick<RecuLot, 'nb_faits' | 'nb_echecs'> & Partial<Pick<RecuLot, 'nb_a_verifier'>>): number {
+  return lot.nb_faits + lot.nb_echecs + (lot.nb_a_verifier ?? 0)
 }
 
 /**
@@ -64,5 +64,54 @@ export function messageErreurLot(message: string | undefined | null): string {
   if (m.includes('LOT_NON_EN_COURS')) return "Ce lot n'est plus en cours."
   if (m.includes('ACCES_REFUSE')) return "Vous n'avez pas les droits pour gérer les lots de reçus de cette organisation."
   if (m.includes('ANNEE_INVALIDE')) return 'Année invalide.'
+  if (m.includes('AUCUN_RECU_A_ENVOYER')) return 'Aucun reçu à envoyer pour cette année.'
+  if (m.includes('GENERATION_EN_COURS')) return 'Une génération des reçus de cette année est en cours : attendez sa fin pour lancer l’envoi.'
   return m ? `Erreur : ${m}` : 'Erreur inconnue'
+}
+
+// ---------------------------------------------------------------------------
+// Lots d'envoi (carte « Reçus en lot 4/5 ») : rythme réglé par l'organisation
+// ---------------------------------------------------------------------------
+
+export interface RythmeEnvoi {
+  parJour: number
+  parMinute: number
+}
+
+// Mêmes défauts et bornes que public.rythme_envoi_recus (recus_lots_envoi.sql).
+export const RYTHME_ENVOI_DEFAUT: RythmeEnvoi = { parJour: 250, parMinute: 5 }
+export const RYTHME_ENVOI_BORNES = { parJour: { min: 1, max: 10_000 }, parMinute: { min: 1, max: 60 } }
+
+/** Valeur stockée (modele_recu_pdf.envoi_lot_par_jour / _par_minute) → rythme, défaut hors bornes. */
+export function rythmeEnvoi(modele: { envoi_lot_par_jour?: unknown; envoi_lot_par_minute?: unknown } | null | undefined): RythmeEnvoi {
+  const lire = (v: unknown, b: { min: number; max: number }, defaut: number) =>
+    typeof v === 'number' && Number.isInteger(v) && v >= b.min && v <= b.max ? v : defaut
+  return {
+    parJour: lire(modele?.envoi_lot_par_jour, RYTHME_ENVOI_BORNES.parJour, RYTHME_ENVOI_DEFAUT.parJour),
+    parMinute: lire(modele?.envoi_lot_par_minute, RYTHME_ENVOI_BORNES.parMinute, RYTHME_ENVOI_DEFAUT.parMinute),
+  }
+}
+
+/**
+ * Durée prévisible de l'envoi de n emails (ms) au rythme donné : la tâche planifiée passe chaque
+ * minute ; au-delà du quota du jour (diminué des envois des dernières 24 h), l'envoi reprend 24 h
+ * après le début de chaque tranche.
+ */
+export function estimerDureeEnvoi(n: number, rythme: RythmeEnvoi, envoyes24h = 0): number {
+  if (n <= 0) return 0
+  const minutesTranche = (k: number) => Math.ceil(k / rythme.parMinute)
+  const premiere = Math.max(0, rythme.parJour - envoyes24h)
+  if (n <= premiere) return (minutesTranche(n) + 1) * 60_000
+  const reste = n - premiere
+  const tranchesSuivantes = Math.ceil(reste / rythme.parJour)
+  const derniere = reste - (tranchesSuivantes - 1) * rythme.parJour
+  return (tranchesSuivantes * 24 * 60 + minutesTranche(derniere) + 1) * 60_000
+}
+
+/** « environ 12 min », « environ 2 h 05 », « environ 4 jours ». */
+export function formatDureeEnvoi(ms: number): string {
+  const jours = ms / 86_400_000
+  if (jours < 1) return formatDureeApprox(ms)
+  const arrondi = Math.ceil(jours)
+  return `environ ${arrondi} jour${arrondi > 1 ? 's' : ''}`
 }

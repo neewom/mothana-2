@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { ProfilParticipant, Don, Activite } from '../types'
 import ParticipantModal from '../components/ParticipantModal'
+import EmailInvalideIndicateur from '../components/EmailInvalideIndicateur'
 import DonModal from '../components/DonModal'
 import { CIVILITE_LABELS } from '../lib/civilite'
 import { fetchAllRows } from '../lib/fetchAllRows'
@@ -102,7 +103,7 @@ function useParticipants(organisationId: string): ParticipantsData {
         fetchAllRows<ProfilParticipant>((from, to) =>
           supabase
             .from('profils_participant')
-            .select(`id, personne_id, organisation_id, notes, id_externe, created_at, personnes!inner(id, nom, prenom, email, telephone, civilite, nom2, prenom2, adresse, code_postal, ville, pays)`)
+            .select(`id, personne_id, organisation_id, notes, id_externe, created_at, email_invalide_at, email_invalide_evenement, email_invalide_raison, personnes!inner(id, nom, prenom, email, telephone, civilite, nom2, prenom2, adresse, code_postal, ville, pays)`)
             .eq('organisation_id', organisationId)
             .order('id', { ascending: true })
             .range(from, to) as unknown as PromiseLike<{ data: ProfilParticipant[] | null; error: { message: string } | null }>
@@ -214,6 +215,16 @@ function DetailPanel({
           )}
           <p className="mt-1 font-semibold text-ink">{participantFullName(participant)}</p>
           {p.email && <p className="text-sm text-ink-muted">{p.email}</p>}
+          {participant.email_invalide_at && (
+            <div className="mt-1">
+              <EmailInvalideIndicateur
+                variante="detail"
+                invalideLe={participant.email_invalide_at}
+                evenement={participant.email_invalide_evenement}
+                raison={participant.email_invalide_raison}
+              />
+            </div>
+          )}
           {p.telephone && <p className="font-registre-mono text-sm text-ink-muted">{p.telephone}</p>}
         </div>
 

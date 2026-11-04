@@ -1,20 +1,26 @@
 import { StatusNotice } from './ui/status-notice'
 import { Button } from './ui/button'
-import { estimerTempsRestant, formatTempsRestant, lotTraites } from '../lib/recusLot'
+import {
+  estimerDureeEnvoi, estimerTempsRestant, formatDureeEnvoi, formatTempsRestant, lotTraites, type RythmeEnvoi,
+} from '../lib/recusLot'
 import type { RecuLot, RecuLotEchec } from '../types/recusLot'
 
 interface RecusLotBandeauProps {
   lot: RecuLot
   echecs: RecuLotEchec[]
-  /** Reçus manquants prêts à générer (relance possible). */
-  nbManquants: number
-  /** Lot arrêté dont le reçu en cours de génération n'est pas encore terminé. */
+  /** Reçus encore à traiter (relance possible) : manquants prêts à générer, ou non envoyés. */
+  nbRestants: number
+  /** Lot arrêté dont le reçu en cours de traitement n'est pas encore terminé. */
   arretEnCours: boolean
   actionEnCours: boolean
   onArreter: () => void
   onRelancer: () => void
   onFermer: () => void
   maintenant: number
+  /** Lot d'envoi : rythme de l'organisation (estimation de fin). */
+  rythme?: RythmeEnvoi
+  /** Lot d'envoi : lignes faites sans email (dernière version déjà envoyée entre-temps). */
+  nbDejaEnvoyes?: number
 }
 
 const nf = new Intl.NumberFormat('fr-FR')
@@ -29,33 +35,75 @@ function nomDonateur(e: RecuLotEchec): string {
   return [p.prenom, p.nom].filter(Boolean).join(' ')
 }
 
+function formatReprise(iso: string): string {
+  return new Date(iso).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+}
+
+const LIBELLES = {
+  generation: {
+    enCours: 'Génération des reçus',
+    termine: 'Génération {annee} terminée',
+    arrete: 'Génération {annee} arrêtée',
+    demarrage: 'Démarrage du traitement dans la minute…',
+    continue: 'La génération continue sur le serveur : vous pouvez fermer cette page.',
+    fait: ['reçu généré', 'reçus générés'],
+    arretEnCours: 'Arrêt en cours : le reçu en cours de génération se termine…',
+    reprendre: 'Reprendre la génération',
+    rienARelancer: 'Aucun reçu manquant prêt à générer (fiches à compléter, ou reçus déjà générés).',
+  },
+  envoi: {
+    enCours: 'Envoi des reçus',
+    termine: 'Envoi {annee} terminé',
+    arrete: 'Envoi {annee} arrêté',
+    demarrage: "Démarrage de l'envoi dans la minute…",
+    continue: "L'envoi continue sur le serveur : vous pouvez fermer cette page.",
+    fait: ['reçu envoyé', 'reçus envoyés'],
+    arretEnCours: "Arrêt en cours : l'email en cours d'envoi se termine…",
+    reprendre: "Reprendre l'envoi",
+    rienARelancer: 'Aucun reçu à envoyer (emails manquants ou invalides, ou reçus déjà envoyés).',
+  },
+} as const
+
 /**
- * Lot de génération de reçus : progression pendant le traitement (avec arrêt), puis bilan
- * (générés, échecs et leur raison, relance).
+ * Lot de reçus (génération ou envoi) : progression pendant le traitement (avec arrêt), puis bilan
+ * (traités, échecs et envois à vérifier avec leur raison, relance).
  */
 export default function RecusLotBandeau({
-  lot, echecs, nbManquants, arretEnCours, actionEnCours, onArreter, onRelancer, onFermer, maintenant,
+  lot, echecs, nbRestants, arretEnCours, actionEnCours, onArreter, onRelancer, onFermer, maintenant, rythme, nbDejaEnvoyes = 0,
 }: RecusLotBandeauProps) {
+  const envoi = lot.type === 'envoi'
+  const l = LIBELLES[lot.type]
   const traites = lotTraites(lot)
   const pourcent = lot.nb_total > 0 ? Math.min(100, Math.round((traites / lot.nb_total) * 100)) : 0
+  const nbAVerifier = lot.nb_a_verifier ?? 0
 
   if (lot.statut === 'en_cours') {
-    const restant = estimerTempsRestant(lot, maintenant)
+    const enAttente = envoi && lot.en_attente_jusqu_a && new Date(lot.en_attente_jusqu_a).getTime() > maintenant
+      ? lot.en_attente_jusqu_a
+      : null
+    const restants = Math.max(0, lot.nb_total - traites)
+    let avancement: string | null
+    if (enAttente) avancement = `Quota d'envoi atteint : reprise ${formatReprise(enAttente)}`
+    else if (traites === 0) avancement = l.demarrage
+    else if (envoi && rythme) avancement = `${formatDureeEnvoi(estimerDureeEnvoi(restants, rythme))} au rythme actuel`
+    else {
+      const restant = estimerTempsRestant(lot, maintenant)
+      avancement = restant !== null ? formatTempsRestant(restant) : null
+    }
     return (
-      <StatusNotice tone="neutral" aria-live="polite" heading={`Génération des reçus ${lot.annee} en cours`}>
+      <StatusNotice tone="neutral" aria-live="polite" heading={`${l.enCours} ${lot.annee} en cours`}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0 flex-1">
             <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span className="font-registre-mono text-base font-semibold text-ink">
                 {nf.format(traites)} / {nf.format(lot.nb_total)}
               </span>
-              <span>
-                {traites === 0
-                  ? 'Démarrage du traitement dans la minute…'
-                  : restant !== null && formatTempsRestant(restant)}
-              </span>
+              {avancement && <span>{avancement}</span>}
               {lot.nb_echecs > 0 && (
                 <span className="font-medium text-warning">{pluriel(lot.nb_echecs, 'échec')}</span>
+              )}
+              {nbAVerifier > 0 && (
+                <span className="font-medium text-warning">{pluriel(nbAVerifier, 'à vérifier', 'à vérifier')}</span>
               )}
             </p>
             <div
@@ -69,7 +117,8 @@ export default function RecusLotBandeau({
               <div className="h-full rounded-full bg-success transition-[width] duration-500" style={{ width: `${pourcent}%` }} />
             </div>
             <p className="mt-2 text-xs text-ink-faint">
-              La génération continue sur le serveur : vous pouvez fermer cette page.
+              {l.continue}
+              {envoi && rythme && ` Rythme : ${pluriel(rythme.parMinute, 'email')} par minute, ${nf.format(rythme.parJour)} par jour au plus.`}
             </p>
           </div>
           <Button variant="danger" size="sm" className="shrink-0 self-start sm:self-end" onClick={onArreter} disabled={actionEnCours}>
@@ -82,36 +131,56 @@ export default function RecusLotBandeau({
 
   const arrete = lot.statut === 'arrete'
   const nonTraites = Math.max(0, lot.nb_total - traites)
-  const tone = arrete || lot.nb_echecs > 0 ? 'warning' : 'success'
+  const aRelancer = arrete || lot.nb_echecs > 0
+  const tone = arrete || lot.nb_echecs > 0 || nbAVerifier > 0 ? 'warning' : 'success'
+  const faits = pluriel(lot.nb_faits, l.fait[0], l.fait[1])
+  const suite = [
+    lot.nb_echecs > 0 ? pluriel(lot.nb_echecs, 'échec') : null,
+    nbAVerifier > 0 ? pluriel(nbAVerifier, 'à vérifier', 'à vérifier') : null,
+  ].filter(Boolean).join(', ')
   const heading = arrete
-    ? `Génération ${lot.annee} arrêtée : ${pluriel(lot.nb_faits, 'reçu généré', 'reçus générés')} sur ${nf.format(lot.nb_total)}`
-    : `Génération ${lot.annee} terminée : ${pluriel(lot.nb_faits, 'reçu généré', 'reçus générés')}${lot.nb_echecs > 0 ? `, ${pluriel(lot.nb_echecs, 'échec')}` : ''}`
+    ? `${l.arrete.replace('{annee}', String(lot.annee))} : ${faits} sur ${nf.format(lot.nb_total)}`
+    : `${l.termine.replace('{annee}', String(lot.annee))} : ${faits}${suite ? `, ${suite}` : ''}`
 
   return (
     <StatusNotice tone={tone} heading={heading}>
-      {arretEnCours && <p>Arrêt en cours : le reçu en cours de génération se termine…</p>}
+      {arretEnCours && <p>{l.arretEnCours}</p>}
       {arrete && !arretEnCours && nonTraites > 0 && (
-        <p>{pluriel(nonTraites, 'reçu non traité', 'reçus non traités')}{lot.nb_echecs > 0 && `, ${pluriel(lot.nb_echecs, 'échec')}`}.</p>
+        <p>{pluriel(nonTraites, 'reçu non traité', 'reçus non traités')}{suite && `, ${suite}`}.</p>
+      )}
+      {envoi && nbDejaEnvoyes > 0 && (
+        <p>Dont {pluriel(nbDejaEnvoyes, 'reçu déjà envoyé', 'reçus déjà envoyés')} entre-temps (aucun nouvel email).</p>
+      )}
+      {nbAVerifier > 0 && (
+        <p className="mt-1">
+          Envoi incertain : l'email a pu partir. Vérifiez dans le journal des emails de Brevo, puis renvoyez-le si besoin
+          depuis le détail du reçu ; ces reçus ne sont pas renvoyés automatiquement.
+        </p>
       )}
       {echecs.length > 0 && (
         <ul className="mt-2 max-h-48 divide-y divide-warning-border overflow-y-auto rounded-sm border border-warning-border bg-white">
           {echecs.map((e) => (
             <li key={e.id} className="px-3 py-2">
-              <p className="font-medium text-ink">{nomDonateur(e)}</p>
+              <p className="flex flex-wrap items-baseline gap-x-2 font-medium text-ink">
+                {nomDonateur(e)}
+                {e.statut === 'a_verifier' && (
+                  <span className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-warning">À vérifier</span>
+                )}
+              </p>
               <p className="mt-0.5 text-xs text-warning">{e.erreur ?? 'Erreur inconnue'}</p>
             </li>
           ))}
         </ul>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        {(arrete || lot.nb_echecs > 0) && (
-          <Button size="sm" onClick={onRelancer} disabled={actionEnCours || arretEnCours || nbManquants === 0}>
-            {arrete ? 'Reprendre la génération' : 'Relancer les échecs'}
+        {aRelancer && (
+          <Button size="sm" onClick={onRelancer} disabled={actionEnCours || arretEnCours || nbRestants === 0}>
+            {arrete ? l.reprendre : 'Relancer les échecs'}
           </Button>
         )}
         <Button size="sm" variant="secondary" onClick={onFermer}>Fermer</Button>
-        {(arrete || lot.nb_echecs > 0) && !arretEnCours && nbManquants === 0 && (
-          <span className="text-xs">Aucun reçu manquant prêt à générer (fiches à compléter, ou reçus déjà générés).</span>
+        {aRelancer && !arretEnCours && nbRestants === 0 && (
+          <span className="text-xs">{l.rienARelancer}</span>
         )}
       </div>
     </StatusNotice>

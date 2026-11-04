@@ -29,8 +29,12 @@ import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { cn } from '../lib/utils'
 import { comparerOrdreAttribution, raisonExclusion, recusAGenerer, recusExclus } from '../lib/recusAGenerer'
 import { useRecusLot } from '../hooks/useRecusLot'
+import { messageErreurLot } from '../lib/recusLot'
 import RecusLotBandeau from '../components/RecusLotBandeau'
 import RecusLotRecapitulatifDialog from '../components/RecusLotRecapitulatifDialog'
+import EmailInvalideIndicateur from '../components/EmailInvalideIndicateur'
+import { brevoConfigure, chargerEtatConfigBrevo } from '../lib/brevoConfig'
+import type { RecapitulatifEnvoi } from '../types/recusLot'
 import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
 import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
@@ -135,6 +139,13 @@ export default function RecusFiscauxPage() {
   const [recapError, setRecapError] = useState<string | null>(null)
   const [bilansFermes, setBilansFermes] = useState<Record<string, boolean>>({})
 
+  // Lot d'envoi : récapitulatif serveur (recapitulatif_envoi_lot_recus), canal Brevo / Samakan
+  const [recapEnvoi, setRecapEnvoi] = useState<RecapitulatifEnvoi | null>(null)
+  const [recapEnvoiOpen, setRecapEnvoiOpen] = useState(false)
+  const [recapEnvoiError, setRecapEnvoiError] = useState<string | null>(null)
+  const [recapEnvoiLoading, setRecapEnvoiLoading] = useState(false)
+  const [brevoOk, setBrevoOk] = useState<boolean | null>(null)
+
   // Regénération (confirmation) et édition participant
   const [regenerateConfirm, setRegenerateConfirm] = useState<ParticipantRow | null>(null)
   const [editingProfil, setEditingProfil] = useState<ProfilParticipant | undefined>(undefined)
@@ -206,7 +217,7 @@ export default function RecusFiscauxPage() {
     const { data: profils, error: profilsErr } = await fetchAllRows<ProfilParticipant>((from, to) =>
       supabase
         .from('profils_participant')
-        .select('id, personne_id, organisation_id, notes, id_externe, created_at, personnes!inner(id, nom, prenom, email, telephone, civilite, nom2, prenom2, adresse, code_postal, ville, pays)')
+        .select('id, personne_id, organisation_id, notes, id_externe, created_at, email_invalide_at, email_invalide_evenement, email_invalide_raison, personnes!inner(id, nom, prenom, email, telephone, civilite, nom2, prenom2, adresse, code_postal, ville, pays)')
         .in('id', profilIds)
         .order('id', { ascending: true })
         .range(from, to) as unknown as PromiseLike<{ data: ProfilParticipant[] | null; error: { message: string } | null }>
@@ -407,7 +418,7 @@ export default function RecusFiscauxPage() {
     [rows, orgMissing]
   )
 
-  const recusLot = useRecusLot(organisationId, annee, fetchData)
+  const recusLot = useRecusLot(organisationId, annee, 'generation', fetchData)
   const lot = recusLot.lot
   const lotEnCours = lot?.statut === 'en_cours'
   const afficherLot = !!lot && (lotEnCours || !(bilansFermes[lot.id] ?? bilanDejaFerme(lot.id)))
@@ -435,15 +446,90 @@ export default function RecusFiscauxPage() {
     if (!res.ok) showToast(res.message)
   }
 
-  function fermerBilan() {
-    if (!lot) return
+  function fermerBilan(lotId: string) {
     try {
-      window.localStorage.setItem(cleBilanFerme(lot.id), '1')
+      window.localStorage.setItem(cleBilanFerme(lotId), '1')
     } catch {
       // Stockage indisponible (navigation privée) : fermé pour cette visite seulement.
     }
-    setBilansFermes((prev) => ({ ...prev, [lot.id]: true }))
+    setBilansFermes((prev) => ({ ...prev, [lotId]: true }))
   }
+
+  // ---------------------------------------------------------------------------
+  // Envoyer les reçus non envoyés : lot d'envoi côté serveur, étalé selon le rythme de l'organisation
+  // ---------------------------------------------------------------------------
+
+  const recusEnvoi = useRecusLot(organisationId, annee, 'envoi', fetchData)
+  const lotEnvoi = recusEnvoi.lot
+  const lotEnvoiEnCours = lotEnvoi?.statut === 'en_cours'
+  const afficherLotEnvoi = !!lotEnvoi && (lotEnvoiEnCours || !(bilansFermes[lotEnvoi.id] ?? bilanDejaFerme(lotEnvoi.id)))
+  const nbAEnvoyer = recapEnvoi?.a_envoyer ?? 0
+  const rythmeEnvoiOrg = recapEnvoi ? { parJour: recapEnvoi.par_jour, parMinute: recapEnvoi.par_minute } : undefined
+
+  const chargerRecapEnvoi = useCallback(async () => {
+    if (!organisationId) return
+    setRecapEnvoiLoading(true)
+    const { data, error: err } = await supabase.rpc('recapitulatif_envoi_lot_recus', {
+      p_organisation_id: organisationId,
+      p_annee: annee,
+    })
+    setRecapEnvoiLoading(false)
+    if (err) {
+      setRecapEnvoi(null)
+      setRecapEnvoiError(messageErreurLot(err.message))
+      return
+    }
+    setRecapEnvoi(data as RecapitulatifEnvoi)
+  }, [organisationId, annee])
+
+  // Relu avec la liste (génération, envoi unitaire, fin de lot) : nombre de reçus à envoyer du bouton.
+  useEffect(() => {
+    if (loading) return
+    void chargerRecapEnvoi()
+  }, [rows, loading, chargerRecapEnvoi])
+
+  useEffect(() => {
+    if (!organisationId) return
+    let cancelled = false
+    void chargerEtatConfigBrevo(organisationId).then((etat) => {
+      if (!cancelled) setBrevoOk(etat ? brevoConfigure(etat) : null)
+    })
+    return () => { cancelled = true }
+  }, [organisationId])
+
+  function ouvrirRecapEnvoi() {
+    setRecapEnvoiError(null)
+    setRecapEnvoiOpen(true)
+    void chargerRecapEnvoi()
+  }
+
+  async function lancerEnvoi() {
+    setRecapEnvoiError(null)
+    const n = nbAEnvoyer
+    const res = await recusEnvoi.lancer()
+    if (!res.ok) {
+      setRecapEnvoiError(res.message)
+      void chargerRecapEnvoi()
+      return
+    }
+    setRecapEnvoiOpen(false)
+    showToast(`Envoi de ${n} reçu${n > 1 ? 's' : ''} lancé`)
+    void chargerRecapEnvoi()
+  }
+
+  async function arreterEnvoi() {
+    const res = await recusEnvoi.arreter()
+    if (!res.ok) showToast(res.message)
+  }
+
+  const exclusEnvoi = useMemo(
+    () => (recapEnvoi?.exclus ?? []).map((e) => ({
+      id: e.profil_participant_id,
+      nom: [e.prenom, e.nom].filter(Boolean).join(' '),
+      raison: e.raison,
+    })),
+    [recapEnvoi]
+  )
 
   // ---------------------------------------------------------------------------
   // Édition participant
@@ -580,6 +666,31 @@ export default function RecusFiscauxPage() {
             </Select>
             {rows.length > 0 && (
               <Button
+                variant="secondary"
+                onClick={ouvrirRecapEnvoi}
+                disabled={recusEnvoi.actif || recusEnvoi.loading || recusLot.actif || !recapEnvoi || nbAEnvoyer === 0}
+                title={
+                  lotEnvoiEnCours
+                    ? `Un envoi des reçus ${annee} est déjà en cours`
+                    : recusLot.actif
+                      ? 'Une génération en lot est en cours : attendez sa fin pour envoyer les reçus'
+                      : recapEnvoi && nbAEnvoyer === 0
+                        ? 'Aucun reçu à envoyer (reçus déjà envoyés, ou donateurs sans email valide)'
+                        : undefined
+                }
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+                {lotEnvoiEnCours
+                  ? 'Envoi en cours…'
+                  : !recapEnvoi || nbAEnvoyer === 0
+                    ? 'Envoyer les reçus non envoyés'
+                    : `Envoyer ${nbAEnvoyer === 1 ? 'le reçu non envoyé' : `les ${nbAEnvoyer} reçus non envoyés`}`}
+              </Button>
+            )}
+            {rows.length > 0 && (
+              <Button
                 onClick={ouvrirRecapitulatif}
                 disabled={recusLot.actif || recusLot.loading || manquants.length === 0}
                 title={
@@ -637,14 +748,33 @@ export default function RecusFiscauxPage() {
         <RecusLotBandeau
           lot={lot}
           echecs={recusLot.echecs}
-          nbManquants={manquants.length}
+          nbRestants={manquants.length}
           arretEnCours={recusLot.actif && !lotEnCours}
           actionEnCours={recusLot.actionEnCours}
           onArreter={arreterLot}
           onRelancer={ouvrirRecapitulatif}
-          onFermer={fermerBilan}
+          onFermer={() => fermerBilan(lot.id)}
           maintenant={recusLot.luLe}
         />
+      )}
+      {/* Lot d'envoi : progression (rythme, quota), puis bilan */}
+      {afficherLotEnvoi && lotEnvoi && (
+        <RecusLotBandeau
+          lot={lotEnvoi}
+          echecs={recusEnvoi.echecs}
+          nbRestants={nbAEnvoyer}
+          arretEnCours={recusEnvoi.actif && !lotEnvoiEnCours}
+          actionEnCours={recusEnvoi.actionEnCours}
+          onArreter={arreterEnvoi}
+          onRelancer={ouvrirRecapEnvoi}
+          onFermer={() => fermerBilan(lotEnvoi.id)}
+          maintenant={recusEnvoi.luLe}
+          rythme={rythmeEnvoiOrg}
+          nbDejaEnvoyes={recusEnvoi.nbDejaEnvoyes}
+        />
+      )}
+      {recusEnvoi.error && (
+        <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{recusEnvoi.error}</div>
       )}
       {recusLot.error && (
         <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{recusLot.error}</div>
@@ -707,6 +837,9 @@ export default function RecusFiscauxPage() {
                       <TableCell className="whitespace-nowrap">
                         <span className="font-medium text-ink">{participantFullName(row.profil)}</span>
                         {row.profil.personnes.email && <div className={cn('text-xs text-ink-faint', selectedRow && 'hidden 2xl:block')}>{row.profil.personnes.email}</div>}
+                        {row.profil.email_invalide_at && (
+                          <div className="mt-1"><EmailInvalideIndicateur invalideLe={row.profil.email_invalide_at} /></div>
+                        )}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
                         {formatMontant(row.total_dons)}
@@ -803,6 +936,16 @@ export default function RecusFiscauxPage() {
               <DetailField label="Donateur">
                 <p className="font-semibold">{participantFullName(selectedRow.profil)}</p>
                 {selectedRow.profil.personnes.email && <p className="text-ink-muted">{selectedRow.profil.personnes.email}</p>}
+                {selectedRow.profil.email_invalide_at && (
+                  <div className="mt-1">
+                    <EmailInvalideIndicateur
+                      variante="detail"
+                      invalideLe={selectedRow.profil.email_invalide_at}
+                      evenement={selectedRow.profil.email_invalide_evenement}
+                      raison={selectedRow.profil.email_invalide_raison}
+                    />
+                  </div>
+                )}
               </DetailField>
               <div className="grid grid-cols-2 gap-4">
                 <DetailField label={`Total ${annee}`}>
@@ -898,6 +1041,22 @@ export default function RecusFiscauxPage() {
         exclus={exclus}
         lancement={recusLot.actionEnCours}
         error={recapError}
+      />
+
+      <RecusLotRecapitulatifDialog
+        type="envoi"
+        open={recapEnvoiOpen}
+        onClose={() => setRecapEnvoiOpen(false)}
+        onConfirm={lancerEnvoi}
+        annee={annee}
+        nbAGenerer={nbAEnvoyer}
+        exclus={exclusEnvoi}
+        lancement={recusEnvoi.actionEnCours}
+        error={recapEnvoiError}
+        rythme={rythmeEnvoiOrg}
+        envoyes24h={recapEnvoi?.envoyes_24h ?? 0}
+        brevoConfigure={brevoOk}
+        chargement={recapEnvoiLoading && !recapEnvoi}
       />
 
       {/* Regenerate confirmation */}

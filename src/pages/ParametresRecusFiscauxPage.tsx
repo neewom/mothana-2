@@ -14,8 +14,10 @@ import { usePeutModifierParametres } from '../hooks/usePeutModifierParametres'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 import { chargerEtatConfigBrevo, type EtatConfigBrevo } from '../lib/brevoConfig'
 import { DEFAULT_MODELE } from '../lib/modeleRecu'
+import { RYTHME_ENVOI_BORNES, rythmeEnvoi } from '../lib/recusLot'
 import { exempleNumeroRecu, formatNumeroRecu } from '../lib/numeroRecu'
 import { supabase } from '../lib/supabaseClient'
+import { cn } from '../lib/utils'
 import type { FormatNumeroRecu, ModeleRecu } from '../types'
 import {
   EMAIL_RECU_MESSAGE_DEFAUT,
@@ -36,6 +38,9 @@ interface RecusForm {
   tauxReduction: number
   emailObjet: string
   emailHtml: string
+  // Saisis en texte (validation live, pas de contrainte native bloquante)
+  envoiParJour: string
+  envoiParMinute: string
 }
 
 function toForm(modele: ModeleRecu): RecusForm {
@@ -46,7 +51,16 @@ function toForm(modele: ModeleRecu): RecusForm {
     tauxReduction: modele.taux_reduction,
     emailObjet: objetEffectif(modele.email_objet),
     emailHtml: messageEffectif(modele.email_html),
+    envoiParJour: String(rythmeEnvoi(modele).parJour),
+    envoiParMinute: String(rythmeEnvoi(modele).parMinute),
   }
+}
+
+/** Entier dans les bornes, sinon null (message d'erreur affiché, enregistrement bloqué). */
+function entierBorne(valeur: string, bornes: { min: number; max: number }): number | null {
+  if (!/^\d+$/.test(valeur.trim())) return null
+  const n = Number(valeur.trim())
+  return n >= bornes.min && n <= bornes.max ? n : null
 }
 
 // Modèle identique au défaut (ou vidé) : rien de stocké, l'Edge Function applique le défaut.
@@ -73,6 +87,8 @@ export default function ParametresRecusFiscauxPage() {
 
   const anneeExemple = new Date().getFullYear()
   const dirty = saved !== null && form !== null && JSON.stringify(saved) !== JSON.stringify(form)
+  const parJour = form ? entierBorne(form.envoiParJour, RYTHME_ENVOI_BORNES.parJour) : null
+  const parMinute = form ? entierBorne(form.envoiParMinute, RYTHME_ENVOI_BORNES.parMinute) : null
   const guardDialog = useUnsavedChangesGuard(dirty)
 
   useEffect(() => {
@@ -114,6 +130,10 @@ export default function ParametresRecusFiscauxPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!form || !dirty) return
+    if (parJour === null || parMinute === null) {
+      setError("Corrigez le rythme d'envoi en lot avant d'enregistrer.")
+      return
+    }
     setSaving(true)
     setError(null)
     setSuccess(false)
@@ -138,6 +158,8 @@ export default function ParametresRecusFiscauxPage() {
       taux_reduction: form.tauxReduction,
       email_objet: objetAStocker(form.emailObjet),
       email_html: messageAStocker(form.emailHtml),
+      envoi_lot_par_jour: parJour,
+      envoi_lot_par_minute: parMinute,
     }
 
     const { error: saveError } = await supabase
@@ -281,6 +303,53 @@ export default function ParametresRecusFiscauxPage() {
                 setForm((current) => (current ? { ...current, emailHtml: html } : current))
               }}
             />
+          </ParametresSection>
+
+          <ParametresSection
+            title="Envoi en lot"
+            description="Rythme de « Envoyer les reçus non envoyés » : l'envoi s'étale sur plusieurs jours si besoin, sans dépasser ce quota."
+          >
+            <div className="max-w-lg space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1">
+                  <Label htmlFor="envoi-lot-par-jour">Emails par jour au plus</Label>
+                  <Input
+                    id="envoi-lot-par-jour"
+                    inputMode="numeric"
+                    value={form.envoiParJour}
+                    onChange={(e) => update('envoiParJour', e.target.value.replace(/[^\d]/g, ''))}
+                    aria-invalid={parJour === null}
+                    className={cn('mt-1', parJour === null && 'border-stamp focus-visible:ring-stamp/70')}
+                  />
+                  {parJour === null && (
+                    <p className="mt-1 font-registre-mono text-[11px] text-stamp">
+                      Entre {RYTHME_ENVOI_BORNES.parJour.min} et {RYTHME_ENVOI_BORNES.parJour.max.toLocaleString('fr-FR')}.
+                    </p>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="envoi-lot-par-minute">Emails par minute au plus</Label>
+                  <Input
+                    id="envoi-lot-par-minute"
+                    inputMode="numeric"
+                    value={form.envoiParMinute}
+                    onChange={(e) => update('envoiParMinute', e.target.value.replace(/[^\d]/g, ''))}
+                    aria-invalid={parMinute === null}
+                    className={cn('mt-1', parMinute === null && 'border-stamp focus-visible:ring-stamp/70')}
+                  />
+                  {parMinute === null && (
+                    <p className="mt-1 font-registre-mono text-[11px] text-stamp">
+                      Entre {RYTHME_ENVOI_BORNES.parMinute.min} et {RYTHME_ENVOI_BORNES.parMinute.max}.
+                    </p>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-ink-faint">
+                Réglez-le sur le quota de votre offre Brevo (offre gratuite : 300 emails par jour, tous envois confondus) en gardant
+                une marge pour vos campagnes : le quota compte les reçus envoyés un par un et en lot, pas les campagnes. Par défaut :
+                250 par jour, 5 par minute.
+              </p>
+            </div>
           </ParametresSection>
 
           </fieldset>
