@@ -27,7 +27,10 @@ import { TablePagination } from '../components/ui/table-pagination'
 import { ListToolbar } from '../components/ui/list-toolbar'
 import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { cn } from '../lib/utils'
-import { comparerOrdreAttribution, recusAGenerer } from '../lib/recusAGenerer'
+import { comparerOrdreAttribution, raisonExclusion, recusAGenerer, recusExclus } from '../lib/recusAGenerer'
+import { useRecusLot } from '../hooks/useRecusLot'
+import RecusLotBandeau from '../components/RecusLotBandeau'
+import RecusLotRecapitulatifDialog from '../components/RecusLotRecapitulatifDialog'
 import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
 import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
@@ -79,6 +82,19 @@ function yearOptions() {
   return [cy, cy - 1, cy - 2, cy - 3]
 }
 
+// Bilan d'un lot fermé par l'admin (par lot, dans ce navigateur) : ne réapparaît pas à la réouverture.
+function cleBilanFerme(lotId: string) {
+  return `recus-lot-bilan-ferme:${lotId}`
+}
+
+function bilanDejaFerme(lotId: string): boolean {
+  try {
+    return window.localStorage.getItem(cleBilanFerme(lotId)) === '1'
+  } catch {
+    return false
+  }
+}
+
 const TYPE_CERFA_LABELS: Record<string, string> = {
   '11580': '11580 · Particuliers',
   '16216': '16216 · Entreprises',
@@ -114,7 +130,10 @@ export default function RecusFiscauxPage() {
   const [sendLoading, setSendLoading] = useState<Record<string, boolean>>({})
   const [sendError, setSendError] = useState<Record<string, string>>({})
 
-  const [generateAllLoading, setGenerateAllLoading] = useState(false)
+  // Lot de génération côté serveur : récapitulatif avant lancement, bilan fermé
+  const [recapOpen, setRecapOpen] = useState(false)
+  const [recapError, setRecapError] = useState<string | null>(null)
+  const [bilansFermes, setBilansFermes] = useState<Record<string, boolean>>({})
 
   // Regénération (confirmation) et édition participant
   const [regenerateConfirm, setRegenerateConfirm] = useState<ParticipantRow | null>(null)
@@ -267,9 +286,28 @@ export default function RecusFiscauxPage() {
       return
     }
 
+    await rafraichirLigne(profilId)
     setGenLoading((prev) => ({ ...prev, [profilId]: false }))
     showToast(`Reçu généré pour ${participantFullName(row.profil)}`)
-    fetchData()
+  }
+
+  // Relecture du seul reçu d'un donateur (après génération) : la réponse de generate-recu ne
+  // porte ni l'id ni le montant ni la date du reçu, et un rechargement complet de la liste après
+  // chaque reçu était lent sur une grosse organisation.
+  async function rafraichirLigne(profilId: string) {
+    const { data, error: err } = await supabase
+      .from('recus_fiscaux')
+      .select('*')
+      .eq('organisation_id', organisationId)
+      .eq('profil_participant_id', profilId)
+      .eq('annee', annee)
+      .maybeSingle()
+    if (err) {
+      fetchData()
+      return
+    }
+    const recu = (data as RecuFiscal | null) ?? null
+    setRows((prev) => prev.map((r) => (r.profil.id === profilId ? { ...r, recu } : r)))
   }
 
   function handleGenerateClick(row: ParticipantRow) {
@@ -360,12 +398,51 @@ export default function RecusFiscauxPage() {
 
   const manquants = useMemo(() => recusAGenerer(rows, orgMissing.length > 0), [rows, orgMissing])
 
-  async function generateAll() {
-    setGenerateAllLoading(true)
-    for (const row of manquants) {
-      await generateRecu(row)
+  const exclus = useMemo(
+    () => recusExclus(rows, orgMissing.length > 0).map((r) => ({
+      id: r.profil.id,
+      nom: participantFullName(r.profil),
+      raison: raisonExclusion(r.validation),
+    })),
+    [rows, orgMissing]
+  )
+
+  const recusLot = useRecusLot(organisationId, annee, fetchData)
+  const lot = recusLot.lot
+  const lotEnCours = lot?.statut === 'en_cours'
+  const afficherLot = !!lot && (lotEnCours || !(bilansFermes[lot.id] ?? bilanDejaFerme(lot.id)))
+
+  function ouvrirRecapitulatif() {
+    setRecapError(null)
+    setRecapOpen(true)
+  }
+
+  async function lancerLot() {
+    setRecapError(null)
+    const res = await recusLot.lancer()
+    if (!res.ok) {
+      setRecapError(res.message)
+      // Liste périmée (reçus générés entre-temps) : relue pour un récapitulatif exact.
+      fetchData()
+      return
     }
-    setGenerateAllLoading(false)
+    setRecapOpen(false)
+    showToast(`Génération de ${manquants.length} reçu${manquants.length > 1 ? 's' : ''} lancée`)
+  }
+
+  async function arreterLot() {
+    const res = await recusLot.arreter()
+    if (!res.ok) showToast(res.message)
+  }
+
+  function fermerBilan() {
+    if (!lot) return
+    try {
+      window.localStorage.setItem(cleBilanFerme(lot.id), '1')
+    } catch {
+      // Stockage indisponible (navigation privée) : fermé pour cette visite seulement.
+    }
+    setBilansFermes((prev) => ({ ...prev, [lot.id]: true }))
   }
 
   // ---------------------------------------------------------------------------
@@ -503,17 +580,19 @@ export default function RecusFiscauxPage() {
             </Select>
             {rows.length > 0 && (
               <Button
-                onClick={generateAll}
-                disabled={generateAllLoading || manquants.length === 0}
+                onClick={ouvrirRecapitulatif}
+                disabled={recusLot.actif || recusLot.loading || manquants.length === 0}
                 title={
-                  orgMissing.length > 0
-                    ? "Complétez les paramètres de l'organisation pour générer des reçus"
-                    : manquants.length === 0
-                      ? 'Aucun reçu manquant prêt à générer (un reçu existant se régénère depuis son détail)'
-                      : undefined
+                  lotEnCours
+                    ? `Une génération des reçus ${annee} est déjà en cours`
+                    : orgMissing.length > 0
+                      ? "Complétez les paramètres de l'organisation pour générer des reçus"
+                      : manquants.length === 0
+                        ? 'Aucun reçu manquant prêt à générer (un reçu existant se régénère depuis son détail)'
+                        : undefined
                 }
               >
-                {generateAllLoading ? (
+                {lotEnCours ? (
                   <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
@@ -523,7 +602,9 @@ export default function RecusFiscauxPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
                 )}
-                {orgMissing.length > 0
+                {lotEnCours
+                  ? 'Génération en cours…'
+                  : orgMissing.length > 0
                   ? 'Générer les reçus manquants'
                   : manquants.length === 0
                     ? 'Aucun reçu à générer'
@@ -549,6 +630,24 @@ export default function RecusFiscauxPage() {
             ))}
           </p>
         </div>
+      )}
+
+      {/* Lot de génération : progression, puis bilan */}
+      {afficherLot && lot && (
+        <RecusLotBandeau
+          lot={lot}
+          echecs={recusLot.echecs}
+          nbManquants={manquants.length}
+          arretEnCours={recusLot.actif && !lotEnCours}
+          actionEnCours={recusLot.actionEnCours}
+          onArreter={arreterLot}
+          onRelancer={ouvrirRecapitulatif}
+          onFermer={fermerBilan}
+          maintenant={recusLot.luLe}
+        />
+      )}
+      {recusLot.error && (
+        <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{recusLot.error}</div>
       )}
 
       {/* Error banner */}
@@ -658,8 +757,14 @@ export default function RecusFiscauxPage() {
           const isBlocked = orgMissing.length > 0 || selectedRow.validation.blocking || selectedRow.validation.missing.length > 0
           const blockedTitle = isBlocked ? (orgMissing.length > 0 ? "Complétez les paramètres de l'organisation" : selectedRow.validation.message ?? 'Fiche du donateur incomplète') : undefined
           if (!selectedRow.recu) {
+            // Pendant un lot, un nouveau reçu généré à la main prendrait un numéro hors de l'ordre du lot.
             return (
-              <Button className="w-full" onClick={() => generateRecu(selectedRow)} disabled={genLoading[id] || generateAllLoading || isBlocked} title={blockedTitle}>
+              <Button
+                className="w-full"
+                onClick={() => generateRecu(selectedRow)}
+                disabled={genLoading[id] || recusLot.actif || isBlocked}
+                title={recusLot.actif ? 'Une génération en lot est en cours : attendez sa fin pour générer ce reçu' : blockedTitle}
+              >
                 {genLoading[id] ? 'Génération…' : 'Générer le reçu'}
               </Button>
             )
@@ -679,7 +784,7 @@ export default function RecusFiscauxPage() {
                 variant="secondary"
                 className="w-full"
                 onClick={() => handleGenerateClick(selectedRow)}
-                disabled={genLoading[id] || generateAllLoading || isBlocked}
+                disabled={genLoading[id] || isBlocked}
                 title={blockedTitle}
               >
                 {genLoading[id] ? 'Génération…' : 'Regénérer'}
@@ -783,6 +888,17 @@ export default function RecusFiscauxPage() {
       </div>
 
       <DeclarationCerfaCard rows={recapitulatif.rows} loading={recapitulatif.loading} />
+
+      <RecusLotRecapitulatifDialog
+        open={recapOpen}
+        onClose={() => setRecapOpen(false)}
+        onConfirm={lancerLot}
+        annee={annee}
+        nbAGenerer={manquants.length}
+        exclus={exclus}
+        lancement={recusLot.actionEnCours}
+        error={recapError}
+      />
 
       {/* Regenerate confirmation */}
       <Dialog open={!!regenerateConfirm} onOpenChange={(next) => { if (!next) setRegenerateConfirm(null) }}>
