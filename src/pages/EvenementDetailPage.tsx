@@ -7,6 +7,8 @@ import PortefeuilleDetailPanel from '../components/PortefeuilleDetailPanel'
 import RenvoyerAccesPortefeuilleModal from '../components/RenvoyerAccesPortefeuilleModal'
 import ScrollShadowX from '../components/ScrollShadowX'
 import Toast from '../components/Toast'
+import SortableTableHead from '../components/SortableTableHead'
+import { TablePagination } from '../components/ui/table-pagination'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog'
@@ -38,6 +40,9 @@ import { SidePanelMobile } from '../components/ui/side-panel'
 import type { Activite } from '../types'
 import type { Evenement } from '../types/evenement'
 import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
+import { useTableSort } from '../hooks/useTableSort'
+import { useClientPagination } from '../hooks/useClientPagination'
+import { directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import type {
   CommandeEvenement,
   EvenementDashboardData,
@@ -49,6 +54,21 @@ import type {
 const PAGE_SIZE = 1000
 
 type Onglet = 'portefeuilles' | 'mouvements' | 'commandes'
+
+type WalletSortField = 'email' | 'code' | 'solde' | 'acces'
+type MouvementSortField = 'date' | 'portefeuille' | 'type' | 'montant' | 'solde'
+type CommandeSortField = 'date' | 'email' | 'moyen' | 'statut' | 'montant'
+
+const MOUVEMENT_SORT_TYPES: Record<MouvementSortField, 'text' | 'number' | 'date'> = {
+  date: 'date', portefeuille: 'text', type: 'text', montant: 'number', solde: 'number',
+}
+const COMMANDE_SORT_COLUMNS: SortColumns<CommandeEvenement, CommandeSortField> = {
+  date: { type: 'date', value: (c) => c.created_at },
+  email: { type: 'text', value: (c) => emailCommandeAffiche(c.email) },
+  moyen: { type: 'text', value: (c) => libelleMoyenPaiement(c.moyen_paiement) },
+  statut: { type: 'text', value: (c) => libelleStatutCommande(c.statut) },
+  montant: { type: 'number', value: (c) => c.montant_centimes },
+}
 
 interface PageResult<T> {
   data: T[] | null
@@ -267,6 +287,54 @@ export default function EvenementDetailPage() {
     () => filtrerCommandes(data?.commandes ?? [], walletById, commandeSearch),
     [data, walletById, commandeSearch],
   )
+  // Tri navigateur (listes chargées en entier) puis pagination, par onglet. Défauts : ceux du
+  // chargement (portefeuilles par email, mouvements et commandes du plus récent au plus ancien).
+  const walletSort = useTableSort<WalletSortField>({
+    initial: { field: 'email', direction: 'asc' },
+    initialDirection: (field) => directionInitiale(field === 'email' || field === 'code' ? 'text' : 'number'),
+    onSortChange: () => walletPagination.setCurrentPage(1),
+  })
+  const sortedWallets = useMemo(() => {
+    const columns: SortColumns<PortefeuilleEvenement, WalletSortField> = {
+      email: { type: 'text', value: (p) => emailAffiche(p) },
+      code: { type: 'text', value: (p) => p.code_public },
+      solde: { type: 'number', value: (p) => p.solde_centimes },
+      // Liens actifs, puis liens générés (révoqués compris).
+      acces: { type: 'number', value: (p) => [accesParPortefeuille.get(p.id)?.actifs ?? 0, accesParPortefeuille.get(p.id)?.total ?? 0] },
+    }
+    return sortRows(filteredWallets, columns, walletSort.sort)
+  }, [filteredWallets, walletSort.sort, accesParPortefeuille])
+  const walletPagination = useClientPagination(sortedWallets)
+
+  const mouvementSort = useTableSort<MouvementSortField>({
+    initial: { field: 'date', direction: 'desc' },
+    initialDirection: (field) => directionInitiale(MOUVEMENT_SORT_TYPES[field]),
+    onSortChange: () => mouvementPagination.setCurrentPage(1),
+  })
+  const sortedMouvements = useMemo(() => {
+    const columns: SortColumns<MouvementPortefeuilleAdmin, MouvementSortField> = {
+      date: { type: 'date', value: (m) => m.created_at },
+      portefeuille: { type: 'text', value: (m) => { const p = walletById.get(m.portefeuille_id); return p ? emailAffiche(p) : null } },
+      type: { type: 'text', value: (m) => libelleMouvementAdmin(m.type) },
+      // Montant signé, comme affiché : débits négatifs, crédits positifs.
+      montant: { type: 'number', value: (m) => (m.type === 'debit' ? -m.montant_centimes : m.montant_centimes) },
+      solde: { type: 'number', value: (m) => m.solde_apres_centimes },
+    }
+    return sortRows(filteredMouvements, columns, mouvementSort.sort, (a, b) => b.created_at.localeCompare(a.created_at))
+  }, [filteredMouvements, mouvementSort.sort, walletById])
+  const mouvementPagination = useClientPagination(sortedMouvements)
+
+  const commandeSort = useTableSort<CommandeSortField>({
+    initial: { field: 'date', direction: 'desc' },
+    initialDirection: (field) => directionInitiale(COMMANDE_SORT_COLUMNS[field].type),
+    onSortChange: () => commandePagination.setCurrentPage(1),
+  })
+  const sortedCommandes = useMemo(
+    () => sortRows(filteredCommandes, COMMANDE_SORT_COLUMNS, commandeSort.sort, (a, b) => b.created_at.localeCompare(a.created_at)),
+    [filteredCommandes, commandeSort.sort],
+  )
+  const commandePagination = useClientPagination(sortedCommandes)
+
   const remainingWallets = useMemo(
     () => (data?.portefeuilles ?? []).filter((portefeuille) => portefeuille.solde_centimes > 0),
     [data],
@@ -561,7 +629,7 @@ export default function EvenementDetailPage() {
           >
             <section className="min-w-0 flex-1 overflow-hidden rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
               <ListToolbar
-                search={{ value: walletSearch, onChange: setWalletSearch, placeholder: 'Rechercher par email ou code', label: 'Rechercher un portefeuille' }}
+                search={{ value: walletSearch, onChange: (v) => { setWalletSearch(v); walletPagination.setCurrentPage(1) }, placeholder: 'Rechercher par email ou code', label: 'Rechercher un portefeuille' }}
               />
               {portefeuilles.length === 0 ? (
                 <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun portefeuille créé pour cet événement.</p>
@@ -572,15 +640,15 @@ export default function EvenementDetailPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead className={panelOpen ? 'hidden' : 'hidden md:table-cell'}>Code public</TableHead>
-                        <TableHead className="text-right">Solde</TableHead>
-                        <TableHead className="hidden sm:table-cell">Accès</TableHead>
+                        <SortableTableHead field="email" label="Email" sortField={walletSort.sortField} sortDirection={walletSort.sortDirection} onSort={walletSort.toggleSort} />
+                        <SortableTableHead field="code" label="Code public" sortField={walletSort.sortField} sortDirection={walletSort.sortDirection} onSort={walletSort.toggleSort} className={panelOpen ? 'hidden' : 'hidden md:table-cell'} />
+                        <SortableTableHead field="solde" label="Solde" sortField={walletSort.sortField} sortDirection={walletSort.sortDirection} onSort={walletSort.toggleSort} align="right" />
+                        <SortableTableHead field="acces" label="Accès" sortField={walletSort.sortField} sortDirection={walletSort.sortDirection} onSort={walletSort.toggleSort} className="hidden sm:table-cell" />
                         <TableHead className="w-8" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredWallets.map((portefeuille) => {
+                      {walletPagination.pageRows.map((portefeuille) => {
                         const acces = accesParPortefeuille.get(portefeuille.id)
                         const actifs = acces?.actifs ?? 0
                         const selected = portefeuille.id === selectedWalletId
@@ -617,6 +685,7 @@ export default function EvenementDetailPage() {
                   </Table>
                 </ScrollShadowX>
               )}
+              {filteredWallets.length > 0 && <TablePagination {...walletPagination.paginationProps} />}
             </section>
 
             {panelOpen && (
@@ -640,7 +709,7 @@ export default function EvenementDetailPage() {
           >
             {mouvements.length > 0 && (
               <ListToolbar
-                search={{ value: mouvementSearch, onChange: setMouvementSearch, placeholder: 'Rechercher par email ou code', label: 'Rechercher un mouvement' }}
+                search={{ value: mouvementSearch, onChange: (v) => { setMouvementSearch(v); mouvementPagination.setCurrentPage(1) }, placeholder: 'Rechercher par email ou code', label: 'Rechercher un mouvement' }}
               />
             )}
             {mouvements.length === 0 ? (
@@ -652,15 +721,15 @@ export default function EvenementDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Portefeuille</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">Montant</TableHead>
-                      <TableHead className="text-right">Solde après</TableHead>
+                      <SortableTableHead field="date" label="Date" sortField={mouvementSort.sortField} sortDirection={mouvementSort.sortDirection} onSort={mouvementSort.toggleSort} />
+                      <SortableTableHead field="portefeuille" label="Portefeuille" sortField={mouvementSort.sortField} sortDirection={mouvementSort.sortDirection} onSort={mouvementSort.toggleSort} />
+                      <SortableTableHead field="type" label="Type" sortField={mouvementSort.sortField} sortDirection={mouvementSort.sortDirection} onSort={mouvementSort.toggleSort} />
+                      <SortableTableHead field="montant" label="Montant" sortField={mouvementSort.sortField} sortDirection={mouvementSort.sortDirection} onSort={mouvementSort.toggleSort} align="right" />
+                      <SortableTableHead field="solde" label="Solde après" sortField={mouvementSort.sortField} sortDirection={mouvementSort.sortDirection} onSort={mouvementSort.toggleSort} align="right" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredMouvements.map((mouvement) => {
+                    {mouvementPagination.pageRows.map((mouvement) => {
                       const portefeuille = walletById.get(mouvement.portefeuille_id)
                       const isDebit = mouvement.type === 'debit'
                       return (
@@ -681,6 +750,7 @@ export default function EvenementDetailPage() {
                 </Table>
               </ScrollShadowX>
             )}
+            {filteredMouvements.length > 0 && <TablePagination {...mouvementPagination.paginationProps} />}
           </section>
         )}
 
@@ -693,7 +763,7 @@ export default function EvenementDetailPage() {
           >
             {commandes.length > 0 && (
               <ListToolbar
-                search={{ value: commandeSearch, onChange: setCommandeSearch, placeholder: 'Rechercher par email ou code', label: 'Rechercher une commande' }}
+                search={{ value: commandeSearch, onChange: (v) => { setCommandeSearch(v); commandePagination.setCurrentPage(1) }, placeholder: 'Rechercher par email ou code', label: 'Rechercher une commande' }}
               />
             )}
             {commandes.length === 0 ? (
@@ -705,15 +775,15 @@ export default function EvenementDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Moyen</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead className="text-right">Montant</TableHead>
+                      <SortableTableHead field="date" label="Date" sortField={commandeSort.sortField} sortDirection={commandeSort.sortDirection} onSort={commandeSort.toggleSort} />
+                      <SortableTableHead field="email" label="Email" sortField={commandeSort.sortField} sortDirection={commandeSort.sortDirection} onSort={commandeSort.toggleSort} />
+                      <SortableTableHead field="moyen" label="Moyen" sortField={commandeSort.sortField} sortDirection={commandeSort.sortDirection} onSort={commandeSort.toggleSort} />
+                      <SortableTableHead field="statut" label="Statut" sortField={commandeSort.sortField} sortDirection={commandeSort.sortDirection} onSort={commandeSort.toggleSort} />
+                      <SortableTableHead field="montant" label="Montant" sortField={commandeSort.sortField} sortDirection={commandeSort.sortDirection} onSort={commandeSort.toggleSort} align="right" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredCommandes.map((commande) => (
+                    {commandePagination.pageRows.map((commande) => (
                       <TableRow key={commande.id}>
                         <TableCell className="whitespace-nowrap font-registre-mono text-xs text-ink-faint">{formatDateTime(commande.created_at)}</TableCell>
                         <TableCell className="whitespace-nowrap font-medium text-ink">{emailCommandeAffiche(commande.email)}</TableCell>
@@ -732,6 +802,7 @@ export default function EvenementDetailPage() {
                 </Table>
               </ScrollShadowX>
             )}
+            {filteredCommandes.length > 0 && <TablePagination {...commandePagination.paginationProps} />}
           </section>
         )}
       </div>

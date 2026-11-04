@@ -25,6 +25,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { TablePagination } from '../components/ui/table-pagination'
 import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
+import { useClientPagination } from '../hooks/useClientPagination'
 import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import { useNavCountersContext } from '../hooks/useNavCounters'
@@ -107,14 +108,7 @@ export default function DemandesAdhesionPage() {
     return sortRows(demandesFiltrees, columns, sort, (a, b) => compareText(a.nom, b.nom) || compareText(a.prenom, b.prenom))
   }, [demandesFiltrees, sort, tab])
 
-  const [pageSize, setPageSize] = useState(50)
-  const [currentPage, setCurrentPage] = useState(1)
-  const pageCount = Math.max(1, Math.ceil(demandesTriees.length / pageSize))
-  const safePage = Math.min(currentPage, pageCount)
-  const demandesPage = useMemo(
-    () => demandesTriees.slice((safePage - 1) * pageSize, safePage * pageSize),
-    [demandesTriees, safePage, pageSize]
-  )
+  const { pageRows: demandesPage, setCurrentPage, paginationProps } = useClientPagination(demandesTriees)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -440,14 +434,7 @@ export default function DemandesAdhesionPage() {
           )}
 
           {!loading && demandesFiltrees.length > 0 && (
-            <TablePagination
-              page={safePage}
-              pageCount={pageCount}
-              totalCount={demandesTriees.length}
-              pageSize={pageSize}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
-            />
+            <TablePagination {...paginationProps} />
           )}
         </div>
       </div>
