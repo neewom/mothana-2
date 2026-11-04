@@ -3,7 +3,6 @@ import imgDonModal from '../assets/decouvrir/10-don-modal.png'
 import imgDonsListe from '../assets/decouvrir/02-dons-liste.png'
 import imgRecusFiscaux from '../assets/decouvrir/04-recus-fiscaux.png'
 import imgComptabilite from '../assets/decouvrir/03-comptabilite.png'
-import imgFormulairePublic from '../assets/decouvrir/13-formulaire-adhesion-public.png'
 import imgDemandesAdhesion from '../assets/decouvrir/06-demandes-adhesion.png'
 import imgAdherentsListe from '../assets/decouvrir/05-adherents-liste.png'
 import imgCarteAdherent from '../assets/decouvrir/11-carte-adherent-preview.png'
@@ -190,30 +189,23 @@ export default function DecouvrirPage() {
           <section id="adherents" className="scroll-mt-20 border-b border-paper-border py-4">
             <SectionHeading
               eyebrow="Adhérents"
-              title="De la demande en ligne à la carte imprimée"
-              description="Les futurs adhérents font leur demande en ligne, le bureau ratifie en un geste, et les cartes adhérent personnalisées s'impriment à l'unité ou en masse, à l'image de l'association."
+              title="De la demande à la carte imprimée"
+              description="Le bureau ratifie les demandes en un geste, et les cartes adhérent personnalisées s'impriment à l'unité ou en masse, à l'image de l'association."
             />
             <Feature
-              title="Un formulaire d'adhésion en ligne"
-              description="Vos futurs adhérents remplissent une demande depuis une page publique à votre image, avec signature électronique et acceptation des statuts."
-              image={imgFormulairePublic}
-              imageAlt="Formulaire public de demande d'adhésion"
-            />
-            <Feature
-              reverse
               title="Ratifier les demandes en un geste"
               description="Le bureau retrouve toutes les demandes en attente, consulte le détail, et ratifie ou refuse (avec motif) sans ressaisir la moindre information."
               image={imgDemandesAdhesion}
               imageAlt="Liste des demandes d'adhésion en attente"
             />
             <Feature
+              reverse
               title="Toute la base adhérents, organisée"
               description="Recherche instantanée par nom, prénom ou email, statut d'adhésion à jour et actions courantes (renouveler, archiver, imprimer la carte) directement depuis la liste."
               image={imgAdherentsListe}
               imageAlt="Liste des adhérents"
             />
             <Feature
-              reverse
               title="Des cartes adhérent prêtes à imprimer"
               description="Un gabarit personnalisable par organisation, imprimable à l'unité ou en planche A4 pour plusieurs adhérents à la fois."
               image={imgCarteAdherent}
@@ -280,7 +272,7 @@ export default function DecouvrirPage() {
             <Feature
               reverse
               title="Un formulaire à vos couleurs"
-              description="En-tête et pied de page du formulaire d'adhésion personnalisables en HTML/CSS, avec aperçu en direct — le cœur du formulaire reste garanti conforme."
+              description="En-tête et pied de page de la page de renouvellement d'adhésion personnalisables en HTML/CSS, avec aperçu en direct — le cœur du formulaire reste garanti conforme."
               image={imgFormulaireEditor}
               imageAlt="Éditeur d'en-tête et pied de page du formulaire d'adhésion"
             />
