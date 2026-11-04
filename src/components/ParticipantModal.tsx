@@ -5,6 +5,7 @@ import { CIVILITE_OPTIONS } from '../lib/civilite'
 import { generateUUID } from '../lib/uuid'
 import { isValidEmail, sanitizePhone } from '../lib/textFormat'
 import { cn } from '../lib/utils'
+import EmailInvalideIndicateur from './EmailInvalideIndicateur'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
@@ -305,6 +306,15 @@ export default function ParticipantModal({
                 className={cn(emailInvalid && 'border-stamp focus-visible:ring-stamp/70')}
               />
               {emailInvalid && <p className="font-registre-mono text-[11px] text-stamp">Format d'email invalide.</p>}
+              {/* Rejet Brevo d'un email de reçu : seulement si l'adresse n'a pas été modifiée dans le formulaire. */}
+              {!emailInvalid && email === (participant?.personnes.email ?? '') && (
+                <EmailInvalideIndicateur
+                  variante="detail"
+                  invalideLe={participant?.email_invalide_at}
+                  evenement={participant?.email_invalide_evenement}
+                  raison={participant?.email_invalide_raison}
+                />
+              )}
             </div>
 
             <div className="space-y-1.5">

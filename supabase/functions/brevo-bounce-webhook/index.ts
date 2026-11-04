@@ -1,10 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { classerRejet } from '../_shared/brevoRejets.ts'
+import { cibleRejet } from '../_shared/brevo.ts'
+import { classerRejet, normaliserEmail } from '../_shared/brevoRejets.ts'
 import { secretsEgaux } from '../_shared/webhookSecret.ts'
 
 // Reçoit les événements webhook Brevo (hard_bounce, invalid_email, blocked, error) sur les
-// campagnes mailing envoyées via send-mailing-brevo (API transactionnelle
-// Brevo /v3/smtp/email). Volet 2 de la carte Trello "Détection d'emails
+// campagnes mailing envoyées via send-mailing-brevo et les reçus fiscaux envoyés via
+// send-recu-email (API transactionnelle Brevo /v3/smtp/email). Un email de reçu porte les tags
+// `recu-fiscal` et `profil:<profil_participant_id>` (_shared/brevo.ts) : son rejet marque le profil
+// du donateur dans l'organisation ; tout autre rejet marque l'adhérent par son courriel. Volet 2 de la carte Trello "Détection d'emails
 // adhérents invalides (bounce)". Enregistré automatiquement par
 // register-brevo-webhook dès qu'un admin configure sa clé API Brevo.
 //
@@ -30,6 +33,13 @@ interface BrevoEvent {
   event?: string
   email?: string
   reason?: string
+  tags?: unknown
+  tag?: unknown
+}
+
+interface Marquage {
+  evenement: string
+  raison: string | null
 }
 
 Deno.serve(async (req) => {
@@ -67,26 +77,69 @@ Deno.serve(async (req) => {
     const body = await req.json()
     const events: BrevoEvent[] = Array.isArray(body) ? body : [body]
 
-    // Une décision par adresse (la dernière reçue l'emporte).
-    const aMarquer = new Map<string, { evenement: string; raison: string | null }>()
+    // Une décision par adresse (la dernière reçue l'emporte), séparément pour les adhérents et les
+    // donateurs (profil connu par son tag, sinon retrouvé par l'adresse dans l'organisation).
+    const aMarquer = new Map<string, Marquage>()
+    const profilsAMarquer = new Map<string, Marquage>()
+    const donateursParEmail = new Map<string, Marquage>()
     for (const e of events) {
       if (!e.email) continue
       const decision = classerRejet(e.event, e.reason)
       if (decision.marquer) {
-        aMarquer.set(e.email, { evenement: decision.evenement, raison: decision.raison })
+        const marquage = { evenement: decision.evenement, raison: decision.raison }
+        const cible = cibleRejet(e)
+        if (cible.type === 'adherent') aMarquer.set(e.email, marquage)
+        else if (cible.profilParticipantId) profilsAMarquer.set(cible.profilParticipantId, marquage)
+        else donateursParEmail.set(normaliserEmail(e.email), marquage)
       } else if (decision.motif === 'cote_expediteur') {
         // Jamais imputé au destinataire : à corriger côté expéditeur / compte Brevo.
         console.warn('brevo-bounce-webhook: rejet côté expéditeur ignoré', e.event, e.reason)
       }
     }
 
-    if (aMarquer.size === 0) {
+    // Donateur sans tag de profil : profils de l'organisation dont la personne a cette adresse,
+    // comparée sans casse ni espaces de bord (RPC profils_donateur_par_emails, service_role seul).
+    if (donateursParEmail.size > 0) {
+      const { data: profils, error } = await adminClient.rpc('profils_donateur_par_emails', {
+        p_organisation_id: organisationId,
+        p_emails: [...donateursParEmail.keys()],
+      })
+      if (error) {
+        console.error('profils_donateur_par_emails error:', error.code, error.message)
+        return new Response(JSON.stringify({ error: 'Erreur serveur' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      for (const p of (profils ?? []) as { profil_id: string; email_normalise: string }[]) {
+        const marquage = donateursParEmail.get(p.email_normalise)
+        if (marquage) profilsAMarquer.set(p.profil_id, marquage)
+      }
+    }
+
+    const maintenant = new Date().toISOString()
+    for (const [profilId, { evenement, raison }] of profilsAMarquer) {
+      // Filtré par organisation : un tag d'une autre organisation ne marque rien.
+      const { error } = await adminClient
+        .from('profils_participant')
+        .update({ email_invalide_at: maintenant, email_invalide_evenement: evenement, email_invalide_raison: raison })
+        .eq('organisation_id', organisationId)
+        .eq('id', profilId)
+      if (error) {
+        console.error('profils_participant update error:', error.code, error.message)
+        return new Response(JSON.stringify({ error: 'Erreur serveur' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
+    if (aMarquer.size === 0 && profilsAMarquer.size === 0) {
       return new Response(JSON.stringify({ skipped: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const maintenant = new Date().toISOString()
     for (const [email, { evenement, raison }] of aMarquer) {
       const { error } = await adminClient
         .from('adherents')
@@ -103,7 +156,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, emails: aMarquer.size }), {
+    return new Response(JSON.stringify({ ok: true, emails: aMarquer.size, profils: profilsAMarquer.size }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {

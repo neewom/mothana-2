@@ -108,6 +108,11 @@ export interface ProfilParticipant {
   id_externe: string | null
   created_at: string
   personnes: Personne
+  // Rejet Brevo d'un email de reçu fiscal (brevo-bounce-webhook, migration recus_email_brevo.sql) :
+  // lus seulement par les écrans qui affichent l'indicateur « Email invalide ».
+  email_invalide_at?: string | null
+  email_invalide_evenement?: string | null
+  email_invalide_raison?: string | null
 }
 
 export interface Activite {
@@ -185,6 +190,12 @@ export interface ModeleRecu {
   taux_reduction: number
   president_nom: string
   president_titre: string
+  // Email d'envoi des reçus (send-recu-email, _shared/recuEmail.ts) : absent ou null = modèle par défaut.
+  email_objet?: string | null
+  email_html?: string | null
+  // Rythme des lots d'envoi (public.rythme_envoi_recus) : absent = 250 par jour, 5 par minute.
+  envoi_lot_par_jour?: number
+  envoi_lot_par_minute?: number
 }
 
 export interface Don {

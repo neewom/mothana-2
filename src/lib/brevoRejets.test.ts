@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classerRejet } from '../../supabase/functions/_shared/brevoRejets'
+import { classerRejet, normaliserEmail } from '../../supabase/functions/_shared/brevoRejets'
 
 // Raisons réelles relevées dans l'API statistiques Brevo (staging).
 const EXPEDITEUR_NON_VALIDE = 'Sending has been rejected because the sender you used contact@samakan.fr is not valid. Validate your sender or authenticate your domain'
@@ -52,5 +52,12 @@ describe('classerRejet', () => {
   it('tronque une raison très longue', () => {
     const r = classerRejet('error', 'x'.repeat(800))
     expect(r.marquer && r.raison?.length).toBe(500)
+  })
+})
+
+describe('normaliserEmail', () => {
+  it('ignore la casse et les espaces de bord (repli par adresse du webhook)', () => {
+    expect(normaliserEmail('  Lea.Martin@Example.ORG \n')).toBe('lea.martin@example.org')
+    expect(normaliserEmail('\tLEA.MARTIN@example.org')).toBe(normaliserEmail('lea.martin@EXAMPLE.org '))
   })
 })
