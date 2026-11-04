@@ -462,10 +462,22 @@ export async function genererRecu(adminClient: SupabaseClient, params: Parametre
 
   const { data: existingRecu } = await adminClient
     .from('recus_fiscaux')
-    .select('id, numero_ordre, fichier_url')
+    .select('id, numero_ordre, fichier_url, type_cerfa')
     .eq('profil_participant_id', profilParticipantId)
     .eq('annee', anneeNum)
     .maybeSingle()
+
+  // Lots : un reçu émis entre le contrôle de tête et ici (génération manuelle simultanée) n'est pas
+  // régénéré non plus — aucune version non demandée (§5).
+  if (params.seulementSiAbsent && existingRecu) {
+    return {
+      ok: true,
+      status: 200,
+      body: { fichier_url: existingRecu.fichier_url, numero_ordre: existingRecu.numero_ordre, type_cerfa: existingRecu.type_cerfa },
+      recuId: existingRecu.id as string,
+      dejaExistant: true,
+    }
+  }
 
   let numeroOrdre = existingRecu?.numero_ordre as string | null
   // Numéro attribué par cet appel (et non repris d'un reçu existant) : un conflit sur son fichier
@@ -697,7 +709,7 @@ export async function genererRecu(adminClient: SupabaseClient, params: Parametre
     if (!echecCertain) {
       const { data: reference, error: referenceError } = await adminClient
         .from('recus_fiscaux_versions')
-        .select('version')
+        .select('version, recu_id')
         .eq('fichier_url', storagePath)
         .limit(1)
         .maybeSingle()
@@ -705,7 +717,11 @@ export async function genererRecu(adminClient: SupabaseClient, params: Parametre
         console.error('Storage cleanup skipped (version lookup failed), file kept:', storagePath, referenceError)
       } else if (reference) {
         // L'enregistrement a bien eu lieu malgré l'erreur reçue : la version existe.
-        return resultat({ fichier_url: storagePath, numero_ordre: numeroOrdre, type_cerfa: typeCerfa, version }, 200, existingRecu?.id ?? null)
+        return resultat(
+          { fichier_url: storagePath, numero_ordre: numeroOrdre, type_cerfa: typeCerfa, version },
+          200,
+          (reference.recu_id as string | null) ?? existingRecu?.id ?? null,
+        )
       } else {
         retirer = true
       }

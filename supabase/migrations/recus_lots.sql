@@ -247,6 +247,9 @@ declare
   v_lot public.recus_lots%rowtype;
 begin
   select * into v_lot from public.recus_lots where id = p_lot_id for update;
+  if not found then
+    raise exception 'LOT_INTROUVABLE';
+  end if;
 
   if not coalesce(
     public.is_current_user_super_admin()
@@ -360,6 +363,9 @@ $$;
 
 -- Résultat d'une ligne : 'fait', 'echec' (définitif) ou 'reessayer' (erreur passagère : la ligne revient
 -- « a_faire » pour le passage suivant, ou passe en échec après la 3e tentative). Renvoie le statut final.
+-- p_recu_preexistant (reçu trouvé déjà émis) est corrigé à la reprise d'une ligne : si une tentative
+-- précédente de ce lot a créé le reçu sans pouvoir terminer la ligne, le reçu n'est pas « préexistant »
+-- (sa première version est de l'auteur du lot et postérieure au lancement).
 create or replace function public.terminer_ligne_lot_recus(
   p_ligne_id uuid,
   p_resultat text,
@@ -374,6 +380,7 @@ as $$
 declare
   v_ligne public.recus_lot_lignes%rowtype;
   v_statut text;
+  v_preexistant boolean;
 begin
   select * into v_ligne from public.recus_lot_lignes where id = p_ligne_id for update;
   if not found then
@@ -390,11 +397,29 @@ begin
     raise exception 'RESULTAT_INVALIDE: %', p_resultat;
   end if;
 
+  v_preexistant := v_statut = 'fait' and coalesce(p_recu_preexistant, false);
+  if v_preexistant and v_ligne.tentatives > 1 and p_recu_id is not null then
+    select not exists (
+      select 1
+        from public.recus_lots l
+        join lateral (
+          select v.genere_par, v.genere_le
+            from public.recus_fiscaux_versions v
+           where v.recu_id = p_recu_id
+           order by v.version
+           limit 1
+        ) premiere on true
+       where l.id = v_ligne.lot_id
+         and premiere.genere_par is not distinct from l.cree_par
+         and premiere.genere_le >= l.cree_le
+    ) into v_preexistant;
+  end if;
+
   update public.recus_lot_lignes
      set statut = v_statut,
          erreur = case when v_statut = 'fait' then null else p_erreur end,
          recu_id = coalesce(p_recu_id, recu_id),
-         recu_preexistant = (v_statut = 'fait' and p_recu_preexistant),
+         recu_preexistant = v_preexistant,
          modifie_le = now()
    where id = p_ligne_id;
 
@@ -493,4 +518,16 @@ select cron.schedule(
   'traiter-lots-recus',
   '* * * * *',
   $$select public.planifier_traitement_lots_recus()$$
+);
+
+-- Purge de l'historique pg_cron : la tâche ci-dessus ajoute une ligne par minute à cron.job_run_details
+-- (≈ 525 000 par an), jamais purgée par pg_cron lui-même. Toutes tâches confondues, on garde 7 jours
+-- (nettoyage préconisé par la documentation pg_cron de Supabase ; le rôle postgres, propriétaire des
+-- tâches, a le droit de supprimer dans cron.job_run_details — vérifié sur staging). Une fois par jour,
+-- à 3 h 47 UTC (purger-donnees-evenements tourne à 3 h 17).
+-- À appliquer aussi en prod à la promotion, avec la tâche ci-dessus (rejouable : même nom remplacé).
+select cron.schedule(
+  'purger-historique-cron',
+  '47 3 * * *',
+  $$delete from cron.job_run_details where end_time < now() - interval '7 days'$$
 );
