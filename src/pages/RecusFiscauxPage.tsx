@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
@@ -112,6 +112,7 @@ export default function RecusFiscauxPage() {
   const [versionsLoading, setVersionsLoading] = useState(false)
   const [versionsError, setVersionsError] = useState<string | null>(null)
   const [versionDlLoading, setVersionDlLoading] = useState<Record<string, boolean>>({})
+  const versionsRecuIdRef = useRef<string | null>(null)
 
   // ---------------------------------------------------------------------------
   // Organisation fiscale (indépendante de l'année)
@@ -382,11 +383,16 @@ export default function RecusFiscauxPage() {
   const selectedRecuStamp = selectedRow?.recu ? `${selectedRow.recu.date_generation}|${selectedRow.recu.email_envoye_at ?? ''}` : null
   useEffect(() => {
     if (!selectedRecuId) {
+      versionsRecuIdRef.current = null
       setVersions([])
       setVersionsError(null)
       return
     }
     let cancelled = false
+    // Autre reçu : l'historique du précédent n'est ni affiché ni téléchargeable pendant le chargement.
+    // Même reçu (rechargement après génération / envoi) : la liste reste affichée jusqu'à la réponse.
+    if (versionsRecuIdRef.current !== selectedRecuId) setVersions([])
+    versionsRecuIdRef.current = selectedRecuId
     setVersionsLoading(true)
     setVersionsError(null)
     supabase
