@@ -1,4 +1,5 @@
 import type { ResultatGeneration } from '../_shared/genererRecu.ts'
+import type { ResultatEnvoiRecuDonateur } from '../_shared/envoyerRecu.ts'
 
 export interface ResultatLigneLot {
   resultat: 'fait' | 'echec' | 'reessayer'
@@ -21,4 +22,34 @@ export function classerResultatLot(resultat: ResultatGeneration | null, exceptio
   const message = typeof resultat.body.error === 'string' ? resultat.body.error : `Erreur ${resultat.status}`
   const passagere = resultat.status >= 500 || resultat.status === 409
   return { resultat: passagere ? 'reessayer' : 'echec', erreur: message, recuId: null, recuPreexistant: false }
+}
+
+export interface ResultatLigneEnvoi {
+  resultat: 'fait' | 'echec' | 'reessayer' | 'a_verifier'
+  erreur: string | null
+  recuId: string | null
+  versionId: string | null
+  envoyeLe: string | null
+  canal: string | null
+  dejaEnvoye: boolean
+}
+
+// Classement d'un envoi dans un lot (carte « Reçus en lot 4/5 »). Jamais de nouvelle tentative
+// automatique quand l'email a pu partir : envoi Brevo ambigu (pas de statut, ≥ 500, délai dépassé) ou
+// exception pendant l'envoi → « a_verifier ». Passagère (nouvelle tentative au passage suivant) : erreur
+// serveur avant tout envoi (lecture du reçu, téléchargement du PDF) ou refus explicite de Resend.
+// Définitive : donateur sans email ou email invalide, reçu introuvable.
+export function classerEnvoiLot(resultat: ResultatEnvoiRecuDonateur | null, exception?: unknown): ResultatLigneEnvoi {
+  const vide = { recuId: null, versionId: null, envoyeLe: null, canal: null, dejaEnvoye: false }
+  if (!resultat) {
+    return { ...vide, resultat: 'a_verifier', erreur: `Erreur pendant l'envoi, l'email a pu partir : vérifiez dans Brevo (${String(exception)})` }
+  }
+  if (resultat.ok) {
+    return {
+      resultat: 'fait', erreur: null, recuId: resultat.recuId, versionId: resultat.versionId,
+      envoyeLe: resultat.envoyeLe, canal: resultat.canal, dejaEnvoye: resultat.dejaEnvoye,
+    }
+  }
+  if (resultat.incertain) return { ...vide, resultat: 'a_verifier', erreur: resultat.error }
+  return { ...vide, resultat: resultat.status >= 500 ? 'reessayer' : 'echec', erreur: resultat.error }
 }

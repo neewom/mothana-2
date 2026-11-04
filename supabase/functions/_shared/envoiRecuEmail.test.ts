@@ -1,6 +1,6 @@
-// deno test --no-lock supabase/functions/send-recu-email/envoi.test.ts
+// deno test --no-lock supabase/functions/_shared/envoiRecuEmail.test.ts
 // Chemin Brevo testé avec un fetch simulé (aucun appel réseau) ; Resend remplacé par un double.
-import { type ConfigBrevoOrganisation, type DependancesEnvoi, type EmailRecu, envoyerEmailRecu, MESSAGE_ENVOI_BREVO_INCERTAIN } from './envoi.ts'
+import { type ConfigBrevoOrganisation, type DependancesEnvoi, type EmailRecu, envoyerEmailRecu, MESSAGE_ENVOI_BREVO_INCERTAIN } from './envoiRecuEmail.ts'
 
 function vrai(condition: boolean, message: string) {
   if (!condition) throw new Error(message)

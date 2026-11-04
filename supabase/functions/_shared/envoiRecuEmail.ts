@@ -5,8 +5,8 @@
 // statut ≥ 500 : Brevo a peut-être envoyé quand même) ne retombe pas sur Resend, pour ne pas envoyer
 // le reçu deux fois par deux expéditeurs (décision TL, relecture PR #339) : erreur `incertain`, et
 // l'appelant ne marque pas l'envoi. Dépendances injectées pour les tests (envoi.test.ts).
-import { envoyerEmailBrevo, tagsEmailRecu, verifierExpediteurBrevo } from '../_shared/brevo.ts'
-import type { SendResult } from '../_shared/resend.ts'
+import { envoyerEmailBrevo, tagsEmailRecu, verifierExpediteurBrevo } from './brevo.ts'
+import type { SendResult } from './resend.ts'
 
 export type CanalEmail = 'brevo' | 'resend'
 
