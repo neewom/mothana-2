@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { slugifyIdentifiant, type OrganisationAsset } from '../../lib/organisationAssets'
+import { isLogoEligibleUrl, ORGANISATION_LOGO_CHANGE_EVENT, setOrganisationLogo } from '../../lib/organisationLogo'
 import { storageUploadErrorMessage, type StorageUploadResult } from '../../lib/storageUpload'
 import { supabase } from '../../lib/supabaseClient'
 import { cn } from '../../lib/utils'
+import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -35,6 +37,8 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
   const [assetActionLoading, setAssetActionLoading] = useState<Record<string, boolean>>({})
   const [assetError, setAssetError] = useState<Record<string, string | null>>({})
   const [newAssetLibelle, setNewAssetLibelle] = useState('')
+  // Visuel désigné comme logo de l'en-tête (organisations.logo_asset_id) ; un seul à la fois.
+  const [logoAssetId, setLogoAssetId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!organisationId) return
@@ -48,6 +52,12 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
         .order('created_at', { ascending: true })
 
       if (!error) setAssets((data ?? []) as OrganisationAsset[])
+      const { data: org } = await supabase
+        .from('organisations')
+        .select('logo_asset_id')
+        .eq('id', organisationId)
+        .maybeSingle()
+      setLogoAssetId((org as { logo_asset_id: string | null } | null)?.logo_asset_id ?? null)
       setAssetsLoading(false)
     }
 
@@ -130,6 +140,19 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
       setAssetError((prev) => ({ ...prev, [asset.id]: updateError.message }))
     } else {
       setAssets((prev) => prev.map((a) => (a.id === asset.id ? { ...a, url } : a)))
+      if (asset.id === logoAssetId) window.dispatchEvent(new Event(ORGANISATION_LOGO_CHANGE_EVENT))
+    }
+    setAssetActionLoading((prev) => ({ ...prev, [asset.id]: false }))
+  }
+
+  async function handleSetLogo(asset: OrganisationAsset, definir: boolean) {
+    setAssetError((prev) => ({ ...prev, [asset.id]: null }))
+    setAssetActionLoading((prev) => ({ ...prev, [asset.id]: true }))
+    try {
+      await setOrganisationLogo(organisationId, definir ? asset.id : null)
+      setLogoAssetId(definir ? asset.id : null)
+    } catch (e) {
+      setAssetError((prev) => ({ ...prev, [asset.id]: e instanceof Error ? e.message : 'Erreur inconnue' }))
     }
     setAssetActionLoading((prev) => ({ ...prev, [asset.id]: false }))
   }
@@ -147,6 +170,11 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
     }
 
     setAssets((prev) => prev.filter((a) => a.id !== asset.id))
+    // La clé étrangère retire le logo en base (on delete set null) : on prévient l'en-tête.
+    if (asset.id === logoAssetId) {
+      setLogoAssetId(null)
+      window.dispatchEvent(new Event(ORGANISATION_LOGO_CHANGE_EVENT))
+    }
     setAssetActionLoading((prev) => ({ ...prev, [asset.id]: false }))
   }
 
@@ -155,6 +183,7 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
       <p className="mb-3 text-xs text-ink-faint">
         Logo, tampon, signature ou tout autre visuel — chaque asset ajouté devient utilisable comme placeholder{' '}
         <code>{'{{asset_<identifiant>}}'}</code> dans vos templates. PNG ou JPEG, 2 Mo max. Enregistré immédiatement à l'upload.
+        Le visuel défini comme logo s'affiche dans l'en-tête de l'espace admin et de l'espace bénévole.
       </p>
       {assetsLoading ? (
         <p className="text-xs text-ink-faint">Chargement…</p>
@@ -162,12 +191,15 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {assets.map((asset) => (
             <div key={asset.id} className="rounded-sm border border-paper-border p-3">
-              <p className="mb-2 text-xs font-medium text-ink-muted">{asset.libelle}</p>
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <p className="min-w-0 break-words text-xs font-medium text-ink-muted">{asset.libelle}</p>
+                {asset.id === logoAssetId && <Badge variant="stamp" className="shrink-0">Logo</Badge>}
+              </div>
               <div className="mb-2 flex h-20 items-center justify-center overflow-hidden rounded-sm bg-paper-border/20">
                 <img src={asset.url} alt={asset.libelle} className="max-h-full max-w-full object-contain" />
               </div>
               <p className="mb-2 truncate font-registre-mono text-[11px] text-stamp">{`{{asset_${asset.identifiant}}}`}</p>
-              {!lectureSeule && <div className="flex flex-row items-center gap-2 sm:flex-col sm:items-start">
+              {!lectureSeule && <div className="flex flex-row flex-wrap items-center gap-2 sm:flex-col sm:items-start">
                 <label className="cursor-pointer rounded-sm border border-paper-border px-3 py-1.5 font-registre text-xs font-medium text-ink-muted hover:bg-paper">
                   {assetActionLoading[asset.id] ? 'Envoi…' : 'Remplacer'}
                   <input
@@ -190,6 +222,15 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
                 >
                   Supprimer
                 </Button>
+                {asset.id === logoAssetId ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => handleSetLogo(asset, false)} disabled={assetActionLoading[asset.id]}>
+                    Retirer comme logo
+                  </Button>
+                ) : isLogoEligibleUrl(asset.url) && (
+                  <Button type="button" variant="secondary" size="sm" onClick={() => handleSetLogo(asset, true)} disabled={assetActionLoading[asset.id]}>
+                    Définir comme logo
+                  </Button>
+                )}
               </div>}
               {assetError[asset.id] && <p className="mt-1.5 text-xs text-stamp">{assetError[asset.id]}</p>}
             </div>

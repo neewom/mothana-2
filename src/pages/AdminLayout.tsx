@@ -14,6 +14,8 @@ import Tooltip from '../components/Tooltip'
 import { NavCountersContext } from '../contexts/navCountersContext'
 import { buildNavItems, type NavEntry, type NavGroup, type NavIconName } from '../lib/adminNav'
 import { useLoadNavCounters } from '../hooks/useNavCounters'
+import { useOrganisationLogoUrl } from '../hooks/useOrganisationLogoUrl'
+import OrganisationLogo from '../components/OrganisationLogo'
 
 
 function HomeIcon() {
@@ -241,6 +243,7 @@ export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [organisationNom, setOrganisationNom] = useState<string | null>(null)
   const [nomAffiche, setNomAffiche] = useState<string | null>(null)
+  const logoUrl = useOrganisationLogoUrl(organisationId)
 
   const isSuperAdminViewing = auth.type === 'super_admin'
   const navCounters = useLoadNavCounters(organisationId, fonctionnalitesActivees)
@@ -344,7 +347,8 @@ export default function AdminLayout() {
           >
             <MenuIcon />
           </button>
-          <div className="flex min-w-0 flex-1 sm:max-w-[16rem] sm:flex-none">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-[16rem] sm:flex-none">
+            <OrganisationLogo url={logoUrl} className="h-8 max-w-[4rem] sm:max-w-[6rem]" />
             <Tooltip bare placement="bottom" className="min-w-0 max-w-full" content={organisationNom ?? organisationId ?? '—'} triggerClassName="block truncate font-registre text-sm font-semibold text-ink">
               {organisationNom ?? organisationId ?? '—'}
             </Tooltip>

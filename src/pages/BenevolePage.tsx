@@ -19,6 +19,8 @@ import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
+import OrganisationLogo from '../components/OrganisationLogo'
+import { useOrganisationLogoUrl } from '../hooks/useOrganisationLogoUrl'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -111,6 +113,7 @@ export default function BenevolePage() {
   const evenementsActifs = fonctionnalitesActivees?.evenements ?? false
 
   const [organisationNom, setOrganisationNom] = useState<string | null>(null)
+  const logoUrl = useOrganisationLogoUrl(organisationId)
   const [statutsUrl, setStatutsUrl] = useState<string | null>(null)
   // Réglage de l'organisation (Paramètres → Adhésions) ; la RPC le revérifie à chaque saisie.
   const [saisieAdhesionActive, setSaisieAdhesionActive] = useState(false)
@@ -427,8 +430,9 @@ export default function BenevolePage() {
             Quitter
           </Button>
         </div>
-        <div className="pb-2 text-xs font-medium text-ink-faint">
-          Espace bénévole — {organisationNom ?? '…'}
+        <div className="flex min-w-0 items-center gap-2 pb-2 text-xs font-medium text-ink-faint">
+          <OrganisationLogo url={logoUrl} className="h-6 max-w-[5rem]" />
+          <span className="min-w-0">Espace bénévole — {organisationNom ?? '…'}</span>
         </div>
       </header>
 
