@@ -47,6 +47,8 @@ Deno.test('envoi réussi ou déjà envoyé : ligne faite avec la version et le c
 
 Deno.test('envoi Brevo ambigu ou exception pendant l\'envoi : à vérifier, jamais de nouvelle tentative', () => {
   egal(classerEnvoiLot({ ok: false, status: 502, error: 'Envoi Brevo incertain', incertain: true }).resultat, 'a_verifier')
+  // Resend ≥ 500 ou exception réseau Resend (envoiRecuEmail.ts) : même classement.
+  egal(classerEnvoiLot({ ok: false, status: 502, error: 'Envoi incertain : vérifiez avant de renvoyer', incertain: true }).resultat, 'a_verifier')
   const r = classerEnvoiLot(null, new Error('délai'))
   egal(r.resultat, 'a_verifier')
   egal(r.erreur?.includes('Error: délai'), true)

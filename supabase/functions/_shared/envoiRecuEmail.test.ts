@@ -1,6 +1,6 @@
 // deno test --no-lock supabase/functions/_shared/envoiRecuEmail.test.ts
 // Chemin Brevo testé avec un fetch simulé (aucun appel réseau) ; Resend remplacé par un double.
-import { type ConfigBrevoOrganisation, type DependancesEnvoi, type EmailRecu, envoyerEmailRecu, MESSAGE_ENVOI_BREVO_INCERTAIN } from './envoiRecuEmail.ts'
+import { type ConfigBrevoOrganisation, type DependancesEnvoi, type EmailRecu, envoyerEmailRecu, MESSAGE_ENVOI_BREVO_INCERTAIN, MESSAGE_ENVOI_INCERTAIN } from './envoiRecuEmail.ts'
 
 function vrai(condition: boolean, message: string) {
   if (!condition) throw new Error(message)
@@ -96,6 +96,36 @@ Deno.test('échec Resend : erreur remontée', async () => {
   deps.envoyerResend = () => Promise.resolve({ ok: false, detail: 'quota' })
   const res = await envoyerEmailRecu(EMAIL, { apiKey: null, expediteurNom: null, expediteurEmail: null }, deps)
   vrai(!res.ok && res.detail === 'quota', JSON.stringify(res))
+})
+
+const SANS_BREVO: ConfigBrevoOrganisation = { apiKey: null, expediteurNom: null, expediteurEmail: null }
+
+Deno.test('refus Resend 4xx : erreur ordinaire (pas incertain)', async () => {
+  const { deps } = dependances({})
+  deps.envoyerResend = () => Promise.resolve({ ok: false, status: 422, detail: 'adresse refusée' })
+  const res = await envoyerEmailRecu(EMAIL, SANS_BREVO, deps)
+  vrai(!res.ok && !res.incertain && res.detail === 'adresse refusée', JSON.stringify(res))
+})
+
+Deno.test('Resend ≥ 500 : envoi incertain', async () => {
+  const { deps } = dependances({})
+  deps.envoyerResend = () => Promise.resolve({ ok: false, status: 503, detail: 'indisponible' })
+  const res = await envoyerEmailRecu(EMAIL, SANS_BREVO, deps)
+  vrai(!res.ok && res.incertain && res.detail === MESSAGE_ENVOI_INCERTAIN, JSON.stringify(res))
+})
+
+Deno.test('exception réseau Resend : envoi incertain', async () => {
+  const { deps } = dependances({})
+  deps.envoyerResend = () => Promise.reject(new TypeError('connection reset'))
+  const res = await envoyerEmailRecu(EMAIL, SANS_BREVO, deps)
+  vrai(!res.ok && res.incertain && res.detail === MESSAGE_ENVOI_INCERTAIN, JSON.stringify(res))
+})
+
+Deno.test('secours Resend après refus Brevo, puis Resend 500 : incertain', async () => {
+  const { deps } = dependances({ envoi: 400 })
+  deps.envoyerResend = () => Promise.resolve({ ok: false, status: 500, detail: 'erreur' })
+  const res = await envoyerEmailRecu(EMAIL, BREVO, deps)
+  vrai(!res.ok && res.incertain, JSON.stringify(res))
 })
 
 function envoiIncertain(res: Awaited<ReturnType<typeof envoyerEmailRecu>>, appels: Appels) {

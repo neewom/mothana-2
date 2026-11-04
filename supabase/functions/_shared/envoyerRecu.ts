@@ -38,7 +38,7 @@ export type ResultatEnvoiRecuDonateur =
       ok: false
       status: number
       error: string
-      /** Envoi Brevo ambigu : l'email a pu partir, ne pas renvoyer. */
+      /** Envoi ambigu (Brevo ou Resend) : l'email a pu partir, ne pas renvoyer. */
       incertain: boolean
     }
 
@@ -195,7 +195,7 @@ export async function envoyerRecuDonateur(
 
     if (!emailResult.ok) {
       console.error('envoyerRecuDonateur: envoi impossible', emailResult.detail)
-      // Envoi Brevo incertain : message explicite, et aucun marquage (email_envoye_at / _le).
+      // Envoi incertain (Brevo ou Resend) : message explicite, et aucun marquage (email_envoye_at / _le).
       if (emailResult.incertain) return echec(502, emailResult.detail, true)
       return echec(500, "Erreur lors de l'envoi de l'email")
     }

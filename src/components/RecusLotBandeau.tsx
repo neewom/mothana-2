@@ -155,7 +155,7 @@ export default function RecusLotBandeau({
       )}
       {nbAVerifier > 0 && (
         <p className="mt-1">
-          Envoi incertain : l'email a pu partir. Vérifiez dans le journal des emails de Brevo, puis renvoyez-le si besoin
+          Envoi incertain : l'email a pu partir. Vérifiez (journal des emails de Brevo, ou auprès du donateur), puis renvoyez-le si besoin
           depuis le détail du reçu ; ces reçus ne sont pas renvoyés automatiquement.
         </p>
       )}

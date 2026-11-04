@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
     )
 
     if (!resultat.ok) {
-      // Envoi Brevo incertain : message explicite, et aucun marquage (email_envoye_at / _le).
+      // Envoi incertain (Brevo ou Resend) : message explicite, et aucun marquage (email_envoye_at / _le).
       if (resultat.incertain) return jsonResponse({ error: resultat.error, incertain: true }, 502)
       return jsonResponse({ error: resultat.error }, resultat.status)
     }

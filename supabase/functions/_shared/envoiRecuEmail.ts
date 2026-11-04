@@ -4,7 +4,9 @@
 // Resend, pour que le donateur reçoive son reçu. Un échec ambigu (exception réseau, délai dépassé,
 // statut ≥ 500 : Brevo a peut-être envoyé quand même) ne retombe pas sur Resend, pour ne pas envoyer
 // le reçu deux fois par deux expéditeurs (décision TL, relecture PR #339) : erreur `incertain`, et
-// l'appelant ne marque pas l'envoi. Dépendances injectées pour les tests (envoi.test.ts).
+// l'appelant ne marque pas l'envoi. Même règle pour Resend (décision TL, relecture PR #343) : un
+// statut ≥ 500 ou une exception réseau rend l'envoi incertain (jamais retenté, jamais marqué) ; un
+// refus 4xx reste une erreur ordinaire. Dépendances injectées pour les tests (envoi.test.ts).
 import { envoyerEmailBrevo, tagsEmailRecu, verifierExpediteurBrevo } from './brevo.ts'
 import type { SendResult } from './resend.ts'
 
@@ -37,10 +39,16 @@ export interface DependancesEnvoi {
 }
 
 export const MESSAGE_ENVOI_BREVO_INCERTAIN = 'Envoi Brevo incertain : vérifiez dans Brevo avant de renvoyer'
+export const MESSAGE_ENVOI_INCERTAIN = 'Envoi incertain : vérifiez avant de renvoyer'
 
 export type ResultatEnvoiRecu =
   | { ok: true; canal: CanalEmail; motifSecours: string | null }
   | { ok: false; incertain: boolean; detail: string }
+
+/** Échec Resend après lequel l'email a pu partir quand même (exception réseau : status null). */
+export function echecResendAmbigu(status: number | null | undefined): boolean {
+  return status === null || (typeof status === 'number' && status >= 500)
+}
 
 /** Échec Brevo après lequel l'email a pu partir quand même : pas de secours Resend. */
 export function echecBrevoAmbigu(status: number | null): boolean {
@@ -94,9 +102,21 @@ export async function envoyerEmailRecu(
     }
   }
 
-  const resend = await deps.envoyerResend(email.destinataire.email, email.objet, email.html, {
-    attachments: [{ filename: email.pieceJointe.nom, content: email.pieceJointe.contenuBase64 }],
-  })
-  if (!resend.ok) return { ok: false, incertain: false, detail: resend.detail ?? 'Erreur Resend' }
+  let resend: SendResult
+  try {
+    resend = await deps.envoyerResend(email.destinataire.email, email.objet, email.html, {
+      attachments: [{ filename: email.pieceJointe.nom, content: email.pieceJointe.contenuBase64 }],
+    })
+  } catch (exception) {
+    console.error('send-recu-email: envoi Resend incertain (exception)', String(exception))
+    return { ok: false, incertain: true, detail: MESSAGE_ENVOI_INCERTAIN }
+  }
+  if (!resend.ok) {
+    if (echecResendAmbigu(resend.status)) {
+      console.error('send-recu-email: envoi Resend incertain', resend.status, resend.detail)
+      return { ok: false, incertain: true, detail: MESSAGE_ENVOI_INCERTAIN }
+    }
+    return { ok: false, incertain: false, detail: resend.detail ?? 'Erreur Resend' }
+  }
   return { ok: true, canal: 'resend', motifSecours }
 }
