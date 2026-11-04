@@ -21,6 +21,8 @@ interface RecusLotBandeauProps {
   maintenant: number
   /** Lot d'envoi : rythme de l'organisation (estimation de fin). */
   rythme?: RythmeEnvoi
+  /** Lot d'envoi : envois de reçus de l'organisation des dernières 24 h (entament le quota du jour). */
+  envoyes24h?: number
   /** Lot d'envoi : lignes faites sans email (dernière version déjà envoyée entre-temps). */
   nbDejaEnvoyes?: number
 }
@@ -71,7 +73,7 @@ const LIBELLES = {
  * (traités, échecs et envois à vérifier avec leur raison, relance).
  */
 export default function RecusLotBandeau({
-  lot, echecs, erreurEchecs, nbRestants, arretEnCours, actionEnCours, onArreter, onRelancer, onFermer, maintenant, rythme, nbDejaEnvoyes = 0,
+  lot, echecs, erreurEchecs, nbRestants, arretEnCours, actionEnCours, onArreter, onRelancer, onFermer, maintenant, rythme, envoyes24h = 0, nbDejaEnvoyes = 0,
 }: RecusLotBandeauProps) {
   const envoi = lot.type === 'envoi'
   const l = LIBELLES[lot.type]
@@ -87,7 +89,7 @@ export default function RecusLotBandeau({
     let avancement: string | null
     if (enAttente) avancement = `Quota d'envoi atteint : reprise ${formatReprise(enAttente)}`
     else if (traites === 0) avancement = l.demarrage
-    else if (envoi && rythme) avancement = `${formatDureeEnvoi(estimerDureeEnvoi(restants, rythme))} au rythme actuel`
+    else if (envoi && rythme) avancement = `${formatDureeEnvoi(estimerDureeEnvoi(restants, rythme, envoyes24h))} au rythme actuel`
     else {
       const restant = estimerTempsRestant(lot, maintenant)
       avancement = restant !== null ? formatTempsRestant(restant) : null

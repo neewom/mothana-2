@@ -31,7 +31,7 @@ import { cn } from '../lib/utils'
 import { comparerOrdreAttribution, raisonExclusion, recusAGenerer, recusExclus } from '../lib/recusAGenerer'
 import { useRecusLot } from '../hooks/useRecusLot'
 import { useCleCourante } from '../hooks/useCleCourante'
-import { messageErreurLot, messageLancementLot } from '../lib/recusLot'
+import { lotTraites, messageErreurLot, messageLancementLot } from '../lib/recusLot'
 import RecusLotBandeau from '../components/RecusLotBandeau'
 import RecusLotRecapitulatifDialog from '../components/RecusLotRecapitulatifDialog'
 import EmailInvalideIndicateur from '../components/EmailInvalideIndicateur'
@@ -496,6 +496,14 @@ export default function RecusFiscauxPage() {
     void chargerRecapEnvoi()
   }, [rows, loading, chargerRecapEnvoi])
 
+  // Pendant un envoi en lot : relu à chaque avancée, pour que l'estimation de fin retranche les envois
+  // des dernières 24 h (quota du jour déjà entamé).
+  const traitesEnvoi = lotEnvoi && lotEnvoiEnCours ? lotTraites(lotEnvoi) : null
+  useEffect(() => {
+    if (traitesEnvoi === null) return
+    void chargerRecapEnvoi()
+  }, [traitesEnvoi, chargerRecapEnvoi])
+
 
   function ouvrirRecapEnvoi() {
     setRecapEnvoiError(null)
@@ -783,6 +791,7 @@ export default function RecusFiscauxPage() {
           onFermer={() => fermerBilan(lotEnvoi.id)}
           maintenant={recusEnvoi.luLe}
           rythme={rythmeEnvoiOrg}
+          envoyes24h={recapEnvoi?.envoyes_24h ?? 0}
           nbDejaEnvoyes={recusEnvoi.nbDejaEnvoyes}
         />
       )}

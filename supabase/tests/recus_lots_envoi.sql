@@ -217,6 +217,34 @@ begin
   r := r || ' quota_atteint=' || v_n || case when v_n = 0 and v_t between now() + interval '23 hours' and now() + interval '25 hours' then ' ok' else ' KO(' || coalesce(v_t::text, 'null') || ')' end;
   select count(*) into v_n from public.prendre_lot_recus(60) l where l.lot_id = v_lot;
   r := r || ' en_attente_non_pris=' || case when v_n = 0 then 'ok' else 'KO' end;
+  -- Changement de quota pendant l'attente (test de charge § 4.3) : 3 envois comptés sur 24 h.
+  -- Seul le rythme par minute change : attente inchangée
+  update public.organisations set modele_recu_pdf = modele_recu_pdf || '{"envoi_lot_par_minute":30}' where id = v_org;
+  select en_attente_jusqu_a into v_t from public.recus_lots where id = v_lot;
+  r := r || ' | 7b.minute_seule=' || case when v_t > now() then 'attente ok' else 'KO' end;
+  -- Baisse (3 → 2) : reste en attente, non pris au passage suivant
+  update public.organisations set modele_recu_pdf = modele_recu_pdf || '{"envoi_lot_par_jour":2}' where id = v_org;
+  select en_attente_jusqu_a into v_t from public.recus_lots where id = v_lot;
+  update public.recus_lots set traitement_jusqu_a = null where id = v_lot;
+  select count(*) into v_n from public.prendre_lot_recus(60) l where l.lot_id = v_lot;
+  r := r || ' baisse=' || case when v_t > now() and v_n = 0 then 'attente ok' else 'KO' end;
+  -- Hausse insuffisante (2 → 3, quota toujours atteint) : reste en attente
+  update public.organisations set modele_recu_pdf = modele_recu_pdf || '{"envoi_lot_par_jour":3}' where id = v_org;
+  select en_attente_jusqu_a into v_t from public.recus_lots where id = v_lot;
+  r := r || ' hausse_insuffisante=' || case when v_t > now() then 'attente ok' else 'KO' end;
+  -- Hausse (3 → 5) enregistrée par un client (super-admin, role authenticated) : attente effacée, lot
+  -- pris au passage suivant, budget borné au nouveau quota (5 - 3 = 2)
+  perform set_config('request.jwt.claims', json_build_object('sub', v_super, 'role', 'authenticated',
+    'app_metadata', json_build_object('is_super_admin', true))::text, true);
+  execute 'set local role authenticated';
+  update public.organisations set modele_recu_pdf = modele_recu_pdf || '{"envoi_lot_par_jour":5}' where id = v_org;
+  execute 'reset role';
+  select en_attente_jusqu_a into v_t from public.recus_lots where id = v_lot;
+  select count(*) into v_n from public.prendre_lot_recus(60) l where l.lot_id = v_lot;
+  r := r || ' hausse=' || case when v_t is null and v_n = 1 then 'repart ok' else 'KO(' || coalesce(v_t::text, 'null') || ',' || v_n || ')' end;
+  v_n := public.budget_envoi_lot_recus(v_lot);
+  r := r || ' budget_nouveau_quota=' || v_n || case when v_n = 2 then ' ok' else ' KO' end;
+  update public.organisations set modele_recu_pdf = modele_recu_pdf || '{"envoi_lot_par_jour":3,"envoi_lot_par_minute":60}' where id = v_org;
   update public.recus_lots set en_attente_jusqu_a = null where id = v_lot;
   -- D2 : passager → a_faire ; reprise de la même ligne
   select s.ligne_id into v_ligne from public.ligne_suivante_lot_recus(v_lot, 60) s;

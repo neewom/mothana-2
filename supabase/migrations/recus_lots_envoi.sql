@@ -17,6 +17,7 @@
 --   - envoi en lot réservé aux organisations qui ont configuré Brevo (clé API et expéditeur) :
 --     lancer_lot_envoi_recus refuse sinon (BREVO_REQUIS), recapitulatif_envoi_lot_recus renvoie
 --     brevo_configure pour l'écran ; un lot n'utilise jamais le secours Resend (l'envoi unitaire, si).
+--   - un changement du quota du jour réévalue l'attente des lots d'envoi en cours (section 7).
 -- Lecture organisation + bypass super-admin (policies de recus_lots.sql) ; aucune écriture client.
 -- Ré-exécutable.
 
@@ -694,5 +695,53 @@ end;
 $$;
 
 revoke execute on function public.planifier_traitement_lots_recus() from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 7. Changement du quota du jour : un lot d'envoi en attente est réévalué aussitôt
+-- ---------------------------------------------------------------------------
+
+-- Test de charge (docs/recus-lot-test-charge.md § 4.3) : en_attente_jusqu_a n'était recalculé que pour
+-- un lot pris, et un lot en attente n'est jamais pris ; une hausse du quota ne le réveillait donc pas
+-- avant la fin de l'attente calculée avec l'ancien quota. Quand envoi_lot_par_jour change, l'attente
+-- des lots d'envoi en cours de l'organisation est effacée si le quota du jour, recalculé avec le
+-- nouveau rythme, n'est plus atteint : le passage suivant prend le lot, et budget_envoi_lot_recus
+-- (qui recompte toujours les envois des dernières 24 h) borne l'envoi au nouveau quota. Une baisse,
+-- ou une hausse qui ne suffit pas, laisse l'attente telle quelle. Le rythme par minute n'intervient pas
+-- dans l'attente. security definer : l'admin qui enregistre le rythme n'écrit pas dans recus_lots.
+create or replace function public.reevaluer_attente_lots_envoi_recus()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_rythme record;
+begin
+  if (new.modele_recu_pdf ->> 'envoi_lot_par_jour') is not distinct from (old.modele_recu_pdf ->> 'envoi_lot_par_jour') then
+    return null;
+  end if;
+  if not exists (
+    select 1 from public.recus_lots l
+     where l.organisation_id = new.id and l.type = 'envoi' and l.statut = 'en_cours' and l.en_attente_jusqu_a > now()
+  ) then
+    return null;
+  end if;
+
+  select * into v_rythme from public.rythme_envoi_recus(new.id);
+  if v_rythme.par_jour - public.envois_recus_depuis(new.id, now() - interval '24 hours') > 0 then
+    update public.recus_lots l
+       set en_attente_jusqu_a = null
+     where l.organisation_id = new.id and l.type = 'envoi' and l.statut = 'en_cours' and l.en_attente_jusqu_a is not null;
+  end if;
+  return null;
+end;
+$$;
+
+revoke execute on function public.reevaluer_attente_lots_envoi_recus() from public, anon, authenticated;
+
+drop trigger if exists trg_organisations_reevaluer_attente_lots_envoi on public.organisations;
+create trigger trg_organisations_reevaluer_attente_lots_envoi
+  after update of modele_recu_pdf on public.organisations
+  for each row execute function public.reevaluer_attente_lots_envoi_recus();
 
 commit;
