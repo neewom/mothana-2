@@ -57,11 +57,13 @@ export function cheminFichierRecu(organisationId: string, annee: number, numero:
   return `${organisationId}/${annee}/${numero}${suffixe}.pdf`
 }
 
-// Version créée par la prochaine génération. Un reçu existant sans version enregistrée (antérieur
-// aux versions) a implicitement une version 1 : enregistrer_version_recu la crée avant la 2.
-export function prochaineVersionRecu(recuExiste: boolean, derniereVersion: number | null | undefined): number {
-  if (!recuExiste) return 1
-  return Math.max(derniereVersion ?? 1, 1) + 1
+// Version créée par la prochaine génération, calculée comme enregistrer_version_recu : après la
+// dernière version enregistrée ; sans version enregistrée, un reçu dont le fichier actuel existe
+// (antérieur aux versions) a implicitement une version 1, que la fonction SQL crée avant la 2 ; sans
+// fichier ni version (nouveau reçu, ou fiche sans fichier_url), la génération crée la version 1.
+export function prochaineVersionRecu(fichierAnterieur: boolean, derniereVersion: number | null | undefined): number {
+  if (derniereVersion != null) return derniereVersion + 1
+  return fichierAnterieur ? 2 : 1
 }
 
 // Message renvoyé (409) quand une autre génération du même reçu a eu lieu en même temps.

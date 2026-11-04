@@ -462,7 +462,7 @@ Deno.serve(async (req) => {
 
     const { data: existingRecu } = await adminClient
       .from('recus_fiscaux')
-      .select('id, numero_ordre')
+      .select('id, numero_ordre, fichier_url')
       .eq('profil_participant_id', profil_participant_id)
       .eq('annee', anneeNum)
       .maybeSingle()
@@ -539,7 +539,7 @@ Deno.serve(async (req) => {
       }
       derniereVersion = (versionData?.version as number | undefined) ?? null
     }
-    const version = prochaineVersionRecu(!!existingRecu, derniereVersion)
+    const version = prochaineVersionRecu(!!existingRecu?.fichier_url, derniereVersion)
 
     // ---------------------------------------------------------------------
     // 6. Snapshots + placeholders
@@ -686,10 +686,34 @@ Deno.serve(async (req) => {
 
     if (enregistrementError) {
       console.error('enregistrer_version_recu error:', enregistrementError)
-      // Bloquant : sans sa ligne, la version n'existe pas. Le PDF déposé par cet appel (nouveau fichier,
-      // référencé nulle part) est retiré ; les fichiers des versions déjà émises ne sont jamais touchés.
-      const { error: removeError } = await adminClient.storage.from('recus-fiscaux').remove([storagePath])
-      if (removeError) console.error('Storage cleanup error:', storagePath, removeError)
+      // Bloquant : sans sa ligne, la version n'existe pas. Le PDF déposé par cet appel est retiré, mais
+      // seulement quand aucune version ne peut le référencer : une erreur Postgres (code SQLSTATE à
+      // 5 caractères) garantit l'annulation de la transaction ; toute autre erreur (réseau, délai,
+      // PostgREST) est ambiguë, on vérifie alors en base avant de retirer. Les fichiers des versions
+      // déjà émises ne sont jamais touchés.
+      const code = enregistrementError.code ?? ''
+      const echecCertain = /^[0-9A-Z]{5}$/.test(code)
+      let retirer = echecCertain
+      if (!echecCertain) {
+        const { data: reference, error: referenceError } = await adminClient
+          .from('recus_fiscaux_versions')
+          .select('version')
+          .eq('fichier_url', storagePath)
+          .limit(1)
+          .maybeSingle()
+        if (referenceError) {
+          console.error('Storage cleanup skipped (version lookup failed), file kept:', storagePath, referenceError)
+        } else if (reference) {
+          // L'enregistrement a bien eu lieu malgré l'erreur reçue : la version existe.
+          return jsonResponse({ fichier_url: storagePath, numero_ordre: numeroOrdre, type_cerfa: typeCerfa, version })
+        } else {
+          retirer = true
+        }
+      }
+      if (retirer) {
+        const { error: removeError } = await adminClient.storage.from('recus-fiscaux').remove([storagePath])
+        if (removeError) console.error('Storage cleanup error:', storagePath, removeError)
+      }
       if (enregistrementError.code === '23505') {
         return jsonResponse(
           { error: numeroNouveau ? messageNumeroDejaPris(format, numeroOrdre) : MESSAGE_GENERATION_SIMULTANEE },

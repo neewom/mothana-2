@@ -63,4 +63,6 @@ Deno.test('prochaine version : 1 pour un nouveau reçu, dernière + 1 sinon', ()
   // Reçu antérieur aux versions : sa version 1 implicite est conservée, la génération crée la 2.
   egal(prochaineVersionRecu(true, null), 2)
   egal(prochaineVersionRecu(true, undefined), 2)
+  // Fiche existante sans fichier_url ni version : comme la fonction SQL, la génération crée la 1.
+  egal(prochaineVersionRecu(false, undefined), 1)
 })
