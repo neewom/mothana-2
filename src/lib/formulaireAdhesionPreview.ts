@@ -3,11 +3,11 @@
 // inchangé, cf. CLAUDE.md § Adhérents) — ex-formulaire public de demande, retiré le 2026-11-04. Même mécanique de placeholders
 // {{asset_<identifiant>}} que les templates Cerfa/carte adhérent (cerfaPreview.ts).
 
-// Reproduit exactement l'en-tête codé en dur historique de l'ex-formulaire public
-// (titre + nom organisation) : c'est la valeur pré-remplie dans l'éditeur tant
-// que l'organisation n'a rien personnalisé, pour que l'admin parte de l'existant.
+// En-tête par défaut (titre + nom organisation) : valeur pré-remplie dans l'éditeur
+// tant que l'organisation n'a rien personnalisé. Titre « Renouvellement d'adhésion »
+// depuis le retrait du formulaire public (il ne sert plus qu'au renouvellement).
 export const DEFAULT_FORMULAIRE_ADHESION_HEADER_HTML = `<div class="demande-adhesion-header">
-  <h1>Demande d'adhésion</h1>
+  <h1>Renouvellement d'adhésion</h1>
   <p>{{organisation_nom}}</p>
 </div>`
 
