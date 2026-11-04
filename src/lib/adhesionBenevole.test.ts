@@ -35,12 +35,16 @@ describe('erreurSaisieAdhesionBenevole', () => {
     expect(erreurSaisieAdhesionBenevole({ ...valide, dateDebut: '' })).toMatch(/date d'adhésion/)
     expect(erreurSaisieAdhesionBenevole({ ...valide, montant: '-5' })).toMatch(/montant/)
     expect(erreurSaisieAdhesionBenevole({ ...valide, montant: '15.50' })).toBeNull()
+    expect(erreurSaisieAdhesionBenevole({ ...valide, montant: '100000.01' })).toMatch(/montant/)
+    expect(erreurSaisieAdhesionBenevole({ ...valide, montant: 'NaN' })).toMatch(/montant/)
   })
 })
 
 describe('messageErreurAdhesionBenevole', () => {
   it('explique un refus d’accès (réglage désactivé)', () => {
     expect(messageErreurAdhesionBenevole('ACCES_REFUSE')).toMatch(/pas activée/)
+    expect(messageErreurAdhesionBenevole('MONTANT_INVALIDE')).toMatch(/montant/)
+    expect(messageErreurAdhesionBenevole('DATE_ADHESION_INVALIDE')).toMatch(/date d'adhésion/)
     expect(messageErreurAdhesionBenevole(undefined)).toMatch(/n'a pas pu être enregistrée/)
   })
 })
