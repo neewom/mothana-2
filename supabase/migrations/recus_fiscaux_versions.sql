@@ -12,7 +12,9 @@
 -- Lecture : membres de l'organisation + bypass super-admin ; écriture : service_role seulement, via
 -- la fonction enregistrer_version_recu (appelée par l'Edge Function generate-recu).
 -- Storage : le bucket recus-fiscaux n'a qu'une policy de lecture (aucun insert / update / delete client) ;
--- elle reçoit ici le bypass super-admin en lecture.
+-- elle reçoit ici le bypass super-admin en lecture, et l'ancienne policy FOR ALL recus_storage_admin
+-- (docs/deploiement.md) est retirée si elle existe. Aucun rôle applicatif (service_role compris) ne
+-- détient DELETE ni TRUNCATE sur recus_fiscaux_versions (seconde barrière, en plus du trigger).
 -- Reprise de l'existant : une version 1 par reçu existant, pointant sur son fichier actuel (les versions
 -- déjà écrasées avant cette migration sont perdues) ; elle n'est marquée envoyée que si l'email est
 -- postérieur à la génération du fichier actuel. Ré-exécutable.
@@ -107,10 +109,14 @@ create policy recus_versions_select on public.recus_fiscaux_versions
     or ((select auth.jwt()) -> 'app_metadata' ->> 'is_super_admin')::boolean = true
   );
 
-revoke insert, update, delete, truncate on public.recus_fiscaux_versions from anon, authenticated;
+revoke insert, update, delete, truncate, references, trigger on public.recus_fiscaux_versions from anon, authenticated;
 revoke all on public.recus_fiscaux_versions from anon;
 grant select on public.recus_fiscaux_versions to authenticated;
 grant select, insert, update on public.recus_fiscaux_versions to service_role;
+-- Seconde barrière, en plus du trigger : aucun rôle applicatif ne détient DELETE ni TRUNCATE (le
+-- service_role les reçoit par défaut sur les tables créées dans public). Seul le propriétaire (postgres,
+-- migrations) les garde ; le trigger le bloque aussi.
+revoke delete, truncate, references, trigger on public.recus_fiscaux_versions from service_role;
 
 -- ---------------------------------------------------------------------------
 -- 4. Écriture d'une génération : fiche du reçu + nouvelle version, dans une même transaction
@@ -223,6 +229,11 @@ update public.recus_fiscaux_versions v
 -- ---------------------------------------------------------------------------
 -- 6. Storage : lecture des PDF de reçus avec bypass super-admin (aucune écriture client)
 -- ---------------------------------------------------------------------------
+
+-- Policy FOR ALL historique (docs/deploiement.md §1.3, ancienne procédure d'installation) : elle
+-- permettait à un membre de l'organisation de déposer, remplacer ou supprimer un PDF de reçu. Absente
+-- de staging, peut-être présente en prod : retirée si elle existe.
+drop policy if exists "recus_storage_admin" on storage.objects;
 
 drop policy if exists "admins read own org receipts" on storage.objects;
 create policy "admins read own org receipts" on storage.objects

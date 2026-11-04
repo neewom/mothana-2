@@ -1,17 +1,18 @@
 -- Tests des versions de reçus fiscaux (recus_fiscaux_versions.sql) — staging uniquement :
 --   npx supabase db query --linked -f supabase/tests/recus_fiscaux_versions.sql
 -- Bloc terminé par une exception : rien n'est conservé. Dépend de l'org « Association Démo Staging »
--- (au moins deux participants, un admin, le compte bénévole) et d'une seconde organisation avec un admin.
+-- (au moins trois participants, un admin, le compte bénévole) et d'une seconde organisation avec un admin.
 -- Année 1900 pour ne croiser aucun reçu réel. Chaque résultat attendu est indiqué ; « KO » signale un échec.
 do $$
 declare
   v_demo uuid; v_autre_org uuid; v_p1 uuid; v_p2 uuid; v_admin uuid; v_admin_autre uuid;
-  v_benevole uuid; v_super uuid; v_recu uuid; v_recu2 uuid; v_version_id uuid;
+  v_benevole uuid; v_super uuid; v_recu uuid; v_recu2 uuid; v_recu3 uuid; v_version_id uuid; v_p3 uuid;
   v_num text; v_fichier text; n int; r text := '';
 begin
   select id into v_demo from public.organisations where nom = 'Association Démo Staging';
   select id into v_p1 from public.profils_participant where organisation_id = v_demo order by id limit 1;
   select id into v_p2 from public.profils_participant where organisation_id = v_demo and id <> v_p1 order by id limit 1;
+  select id into v_p3 from public.profils_participant where organisation_id = v_demo and id not in (v_p1, v_p2) order by id limit 1;
   select po.utilisateur_id into v_admin from public.profils_organisation po
     where po.organisation_id = v_demo and po.role = 'admin' order by po.created_at desc limit 1;
   select po.organisation_id, po.utilisateur_id into v_autre_org, v_admin_autre from public.profils_organisation po
@@ -64,12 +65,20 @@ begin
   exception when check_violation then r := r || ' | 5b.update_montant=refuse';
   end;
 
-  -- 6. Suppression d'une version : refusée
+  -- 6. Suppression d'une version : refusée au service_role par les droits (seconde barrière)…
   begin
     delete from public.recus_fiscaux_versions where id = v_version_id;
     r := r || ' | 6.delete_version=ACCEPTE(KO)';
-  exception when check_violation then r := r || ' | 6.delete_version=refuse';
+  exception when insufficient_privilege then r := r || ' | 6.delete_version=refuse_droits';
   end;
+  -- 6b. … et par le trigger pour le propriétaire de la table (postgres)
+  execute 'reset role';
+  begin
+    delete from public.recus_fiscaux_versions where id = v_version_id;
+    r := r || ' 6b.delete_proprietaire=ACCEPTE(KO)';
+  exception when check_violation then r := r || ' 6b.delete_proprietaire=refuse_trigger';
+  end;
+  execute 'set local role service_role';
 
   -- 7. Suppression du reçu (cascade vers les versions) : refusée
   begin
@@ -78,12 +87,19 @@ begin
   exception when check_violation then r := r || ' | 7.delete_recu_cascade=refuse';
   end;
 
-  -- 8. TRUNCATE : refusé
+  -- 8. TRUNCATE : refusé au service_role par les droits, au propriétaire par le trigger
   begin
     truncate public.recus_fiscaux_versions cascade;
     r := r || ' | 8.truncate=ACCEPTE(KO)';
-  exception when check_violation then r := r || ' | 8.truncate=refuse';
+  exception when insufficient_privilege then r := r || ' | 8.truncate=refuse_droits';
   end;
+  execute 'reset role';
+  begin
+    truncate public.recus_fiscaux_versions cascade;
+    r := r || ' 8b.truncate_proprietaire=ACCEPTE(KO)';
+  exception when check_violation then r := r || ' 8b.truncate_proprietaire=refuse_trigger';
+  end;
+  execute 'set local role service_role';
 
   -- 9. Reçu antérieur aux versions (sans ligne de version) : la régénération crée v1 (fichier actuel) + v2.
   -- Email envoyé avant la génération du fichier actuel : la v1 reprise n'est pas marquée envoyée.
@@ -99,6 +115,24 @@ begin
     = '1:test/1900/1900-002.pdf,2:test/1900/1900-002-v2.pdf')
     || ' v1_non_envoyee=' || exists (select 1 from public.recus_fiscaux_versions where recu_id = v_recu2 and version = 1
       and email_envoye_le is null);
+
+  -- 9b. Fiche existante sans fichier_url ni version : la génération crée la version 1 (comme le calcule
+  -- generate-recu), la version 2 est refusée
+  insert into public.recus_fiscaux (profil_participant_id, organisation_id, annee, montant_total, numero_ordre, type_cerfa)
+    values (v_p3, v_demo, 1900, 30, '1900-003', '11580')
+    returning id into v_recu3;
+  begin
+    perform public.enregistrer_version_recu(v_p3, v_demo, 1900, 2, 30,
+      'test/1900/1900-003-v2.pdf', '1900-003', '11580', null, null, null, v_admin);
+    r := r || ' | 9b.sans_fichier_v2=ACCEPTE(KO)';
+  exception when unique_violation then r := r || ' | 9b.sans_fichier_v2=refuse';
+  end;
+  perform public.enregistrer_version_recu(v_p3, v_demo, 1900, 1, 30,
+    'test/1900/1900-003.pdf', '1900-003', '11580', null, null, null, v_admin);
+  r := r || ' sans_fichier_v1=' || (
+    (select string_agg(version || ':' || fichier_url, ',' order by version) from public.recus_fiscaux_versions where recu_id = v_recu3)
+    = '1:test/1900/1900-003.pdf')
+    || ' fiche_pointe_v1=' || exists (select 1 from public.recus_fiscaux where id = v_recu3 and fichier_url = 'test/1900/1900-003.pdf');
 
   -- 10. Session bénévole : rien visible, aucune écriture
   perform set_config('request.jwt.claims', json_build_object('sub', v_benevole, 'role', 'authenticated',
