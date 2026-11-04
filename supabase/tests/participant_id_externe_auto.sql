@@ -14,6 +14,9 @@ declare
   pr1 uuid := gen_random_uuid(); pr2 uuid := gen_random_uuid(); pr3 uuid := gen_random_uuid();
   pr4 uuid := gen_random_uuid(); pr5 uuid := gen_random_uuid(); pr6 uuid := gen_random_uuid();
   n1 text; n2 text; n3 text; n4 text; n5 text; n6 text;
+  pa1 uuid := gen_random_uuid(); pa2 uuid := gen_random_uuid();
+  pra1 uuid := gen_random_uuid(); pra2 uuid := gen_random_uuid();
+  v_prochain text; v_res jsonb; na1 text; na2 text;
   r text := '';
 begin
   select id into v_demo from public.organisations where nom = 'Association Démo Staging';
@@ -83,6 +86,29 @@ begin
     'app_metadata', json_build_object())::text, true);
   n6 := public.next_participant_id_externe(v_demo);
   r := r || ' | 8.rpc_suite=' || (n6::bigint > n4::bigint);
+
+  -- A. Import (session admin) : ligne sans numéro AVANT une ligne portant le
+  -- prochain numéro, dans le même appel → les deux créées, numéros distincts
+  -- (avant correctif : duplicate key sur profils_participant_organisation_id_externe_unique)
+  v_prochain := (n6::bigint + 1)::text;
+  execute 'set local role authenticated';
+  v_res := public.import_upsert_participants(jsonb_build_array(
+    jsonb_build_object('personne_id', pa1, 'profil_id', pra1, 'id_externe', null, 'nom', 'Test import', 'prenom', 'Sans numéro'),
+    jsonb_build_object('personne_id', pa2, 'profil_id', pra2, 'id_externe', v_prochain, 'nom', 'Test import', 'prenom', 'Numéroté')
+  ), v_demo);
+  execute 'reset role';
+  select id_externe into na1 from public.profils_participant where id = pra1;
+  select id_externe into na2 from public.profils_participant where id = pra2;
+  r := r || ' | A.import=' || (v_res->>'created') || ' crees, ' || coalesce(na1, 'NULL') || '/' || coalesce(na2, 'NULL')
+    || ' ' || (na2 = v_prochain and na1 is not null and na1 <> na2);
+
+  -- B. Verrou consultatif pris par l'attribution (le même que la RPC, cf. 8) :
+  -- tenu jusqu'à la fin de la transaction
+  r := r || ' | B.verrou=' || exists (
+    select 1 from pg_locks
+    where locktype = 'advisory' and pid = pg_backend_pid() and granted
+      and ((classid::bigint << 32) | objid::bigint) = hashtext(replace(v_seq, 'public.', ''))::bigint
+  );
 
   raise exception 'RESULTATS: %', r;
 end;
