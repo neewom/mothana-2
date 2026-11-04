@@ -59,12 +59,20 @@ type WalletSortField = 'email' | 'code' | 'solde' | 'acces'
 type MouvementSortField = 'date' | 'portefeuille' | 'type' | 'montant' | 'solde'
 type CommandeSortField = 'date' | 'email' | 'moyen' | 'statut' | 'montant'
 
+// Email trié : l'adresse réelle ; un acheteur anonymisé n'en a plus et passe en dernier.
+function emailTri(email: string | null | undefined): string | null {
+  return email && emailCommandeAffiche(email) === email ? email : null
+}
+function emailPortefeuilleTri(p: PortefeuilleEvenement | undefined): string | null {
+  return p && !p.anonymise_le ? emailTri(p.email) : null
+}
+
 const MOUVEMENT_SORT_TYPES: Record<MouvementSortField, 'text' | 'number' | 'date'> = {
   date: 'date', portefeuille: 'text', type: 'text', montant: 'number', solde: 'number',
 }
 const COMMANDE_SORT_COLUMNS: SortColumns<CommandeEvenement, CommandeSortField> = {
   date: { type: 'date', value: (c) => c.created_at },
-  email: { type: 'text', value: (c) => emailCommandeAffiche(c.email) },
+  email: { type: 'text', value: (c) => emailTri(c.email) },
   moyen: { type: 'text', value: (c) => libelleMoyenPaiement(c.moyen_paiement) },
   statut: { type: 'text', value: (c) => libelleStatutCommande(c.statut) },
   montant: { type: 'number', value: (c) => c.montant_centimes },
@@ -296,7 +304,7 @@ export default function EvenementDetailPage() {
   })
   const sortedWallets = useMemo(() => {
     const columns: SortColumns<PortefeuilleEvenement, WalletSortField> = {
-      email: { type: 'text', value: (p) => emailAffiche(p) },
+      email: { type: 'text', value: (p) => emailPortefeuilleTri(p) },
       code: { type: 'text', value: (p) => p.code_public },
       solde: { type: 'number', value: (p) => p.solde_centimes },
       // Liens actifs, puis liens générés (révoqués compris).
@@ -314,7 +322,7 @@ export default function EvenementDetailPage() {
   const sortedMouvements = useMemo(() => {
     const columns: SortColumns<MouvementPortefeuilleAdmin, MouvementSortField> = {
       date: { type: 'date', value: (m) => m.created_at },
-      portefeuille: { type: 'text', value: (m) => { const p = walletById.get(m.portefeuille_id); return p ? emailAffiche(p) : null } },
+      portefeuille: { type: 'text', value: (m) => emailPortefeuilleTri(walletById.get(m.portefeuille_id)) },
       type: { type: 'text', value: (m) => libelleMouvementAdmin(m.type) },
       // Montant signé, comme affiché : débits négatifs, crédits positifs.
       montant: { type: 'number', value: (m) => (m.type === 'debit' ? -m.montant_centimes : m.montant_centimes) },
