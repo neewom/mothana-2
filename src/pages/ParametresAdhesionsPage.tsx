@@ -46,6 +46,7 @@ interface OrgSettings {
   formulaire_adhesion_css: string | null
   formulaire_adhesion_message_succes: string | null
   notif_demandes_adhesion: boolean
+  saisie_adhesion_benevole: boolean
   adhesion_regle_fin: RegleFinAdhesion
   adhesion_mois_bascule: number
 }
@@ -79,6 +80,7 @@ export default function ParametresAdhesionsPage() {
   const [messageSucces, setMessageSucces] = useState('')
   const [messageSuccesInitial, setMessageSuccesInitial] = useState('')
   const [notifDemandes, setNotifDemandes] = useState(true)
+  const [saisieBenevole, setSaisieBenevole] = useState(false)
   const [regleFin, setRegleFin] = useState<RegleFinAdhesion>('glissante')
   const [moisBascule, setMoisBascule] = useState(12)
   // Après un changement de règle : proposer de recalculer les adhésions existantes.
@@ -90,7 +92,7 @@ export default function ParametresAdhesionsPage() {
   // (envoi de fichier) et l'éditeur d'en-tête restent des actions immédiates.
   const regleModifiee = settings !== null
     && (regleFin !== settings.adhesion_regle_fin || (regleFin === 'annee_civile' && moisBascule !== settings.adhesion_mois_bascule))
-  const dirty = settings !== null && (slug !== settings.slug || messageSucces.trim() !== messageSuccesInitial || regleModifiee || notifDemandes !== settings.notif_demandes_adhesion)
+  const dirty = settings !== null && (slug !== settings.slug || messageSucces.trim() !== messageSuccesInitial || regleModifiee || notifDemandes !== settings.notif_demandes_adhesion || saisieBenevole !== settings.saisie_adhesion_benevole)
   const guardDialog = useUnsavedChangesGuard(dirty)
 
   useEffect(() => {
@@ -103,7 +105,7 @@ export default function ParametresAdhesionsPage() {
       const { data, error } = await supabase
         .from('organisations')
         .select(
-          'slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css, formulaire_adhesion_message_succes, notif_demandes_adhesion, adhesion_regle_fin, adhesion_mois_bascule',
+          'slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css, formulaire_adhesion_message_succes, notif_demandes_adhesion, saisie_adhesion_benevole, adhesion_regle_fin, adhesion_mois_bascule',
         )
         .eq('id', organisationId)
         .single()
@@ -125,6 +127,7 @@ export default function ParametresAdhesionsPage() {
       setMessageSucces(raw.formulaire_adhesion_message_succes ?? '')
       setMessageSuccesInitial(raw.formulaire_adhesion_message_succes ?? '')
       setNotifDemandes(raw.notif_demandes_adhesion)
+      setSaisieBenevole(raw.saisie_adhesion_benevole)
       setRegleFin(raw.adhesion_regle_fin)
       setMoisBascule(raw.adhesion_mois_bascule)
       setLoading(false)
@@ -153,6 +156,7 @@ export default function ParametresAdhesionsPage() {
         slug: normalized,
         formulaire_adhesion_message_succes: trimmed || null,
         notif_demandes_adhesion: notifDemandes,
+        saisie_adhesion_benevole: saisieBenevole,
         adhesion_regle_fin: regleFin,
         adhesion_mois_bascule: moisBascule,
       })
@@ -163,7 +167,7 @@ export default function ParametresAdhesionsPage() {
     } else {
       setSlug(normalized)
       setSettings((current) => (current
-        ? { ...current, slug: normalized, notif_demandes_adhesion: notifDemandes, adhesion_regle_fin: regleFin, adhesion_mois_bascule: moisBascule }
+        ? { ...current, slug: normalized, notif_demandes_adhesion: notifDemandes, saisie_adhesion_benevole: saisieBenevole, adhesion_regle_fin: regleFin, adhesion_mois_bascule: moisBascule }
         : current))
       setMessageSucces(trimmed)
       setMessageSuccesInitial(trimmed)
@@ -254,7 +258,7 @@ export default function ParametresAdhesionsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-ink md:text-3xl">Adhésions</h1>
-        <p className="mt-1 text-sm text-ink-muted">Durée des adhésions, carte adhérent et formulaire public de demande d'adhésion.</p>
+        <p className="mt-1 text-sm text-ink-muted">Durée des adhésions, carte adhérent, saisie par les bénévoles et formulaire public de demande d'adhésion.</p>
       </div>
 
       {!peutModifier && <LectureSeuleNotice />}
@@ -304,6 +308,26 @@ export default function ParametresAdhesionsPage() {
             </div>
           )}
           {recalageMessage && <StatusNotice tone={recalageMessage.tone}>{recalageMessage.text}</StatusNotice>}
+        </fieldset>
+      </ParametresSection>
+
+      <ParametresSection
+        title="Saisie par les bénévoles"
+        description="Autorise l'espace bénévole à créer un adhérent et sa première adhésion, sans ratification. Le code PIN bénévole étant partagé, le réglage vaut pour tous les bénévoles."
+      >
+        <fieldset disabled={!peutModifier} className="max-w-lg">
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={saisieBenevole}
+              onChange={(e) => { setSaisieBenevole(e.target.checked); setSaveSuccess(false) }}
+              className="mt-0.5 h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+            />
+            Les bénévoles peuvent saisir de nouvelles adhésions (onglet « Nouvel adhérent »)
+          </label>
+          <p className="mt-1 text-xs text-ink-faint">
+            L'adhérent signe à l'écran ou sur un bulletin papier. Chaque saisie est inscrite au journal ; les bénévoles ne voient pas la liste des adhérents.
+          </p>
         </fieldset>
       </ParametresSection>
 
@@ -428,6 +452,7 @@ export default function ParametresAdhesionsPage() {
           setMessageSucces(messageSuccesInitial)
           if (settings) {
             setNotifDemandes(settings.notif_demandes_adhesion)
+            setSaisieBenevole(settings.saisie_adhesion_benevole)
             setRegleFin(settings.adhesion_regle_fin)
             setMoisBascule(settings.adhesion_mois_bascule)
           }

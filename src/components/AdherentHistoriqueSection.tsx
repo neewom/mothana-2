@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { JournalModification } from '../types'
-import { fetchJournalModificationsForLigne } from '../lib/journalModifications'
+import { fetchJournalModificationsForLigne, libelleAuteurJournal } from '../lib/journalModifications'
 import { getErrorMessage } from '../lib/errors'
 import JournalActionLabel from './JournalActionLabel'
 
@@ -57,7 +57,7 @@ export default function AdherentHistoriqueSection({ organisationId, adherentId }
                   <JournalActionLabel entry={entry} showTable={false} showName={false} />
                   <span className="shrink-0 font-registre-mono text-xs text-ink-faint">{formatDateTime(entry.created_at)}</span>
                 </div>
-                <p className="mt-0.5 text-xs text-ink-faint">Par {entry.auteur_nom ?? '—'}</p>
+                <p className="mt-0.5 text-xs text-ink-faint">Par {libelleAuteurJournal(entry)}</p>
               </li>
             ))}
           </ul>

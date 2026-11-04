@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { JournalModification } from '../types'
-import { fetchJournalModifications, JOURNAL_RECHERCHE_MIN } from '../lib/journalModifications'
+import { fetchJournalModifications, JOURNAL_RECHERCHE_MIN, libelleAuteurJournal } from '../lib/journalModifications'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { ListToolbar } from './ui/list-toolbar'
 import { getErrorMessage } from '../lib/errors'
@@ -104,7 +104,7 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
                   {entry.action === 'refus' && typeof entry.details?.motif_refus === 'string' && entry.details.motif_refus && (
                     <p className="mt-1 text-xs text-ink-faint">Motif : {entry.details.motif_refus}</p>
                   )}
-                  <p className="mt-0.5 text-xs text-ink-faint">Par {entry.auteur_nom ?? '—'}</p>
+                  <p className="mt-0.5 text-xs text-ink-faint">Par {libelleAuteurJournal(entry)}</p>
                 </li>
               ))}
             </ul>

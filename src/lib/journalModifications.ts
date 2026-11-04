@@ -62,7 +62,19 @@ export function describeJournalEntry(entry: JournalModification): string {
   }
   const nom = entry.details?.nom
   const prenom = entry.details?.prenom
-  return [prenom, nom].filter(Boolean).join(' ') || '—'
+  const libelle = [prenom, nom].filter(Boolean).join(' ') || '—'
+  // Écrit par la RPC creer_adhesion_benevole.
+  if (entry.details?.origine === 'benevole') {
+    const signature = entry.details?.signature === 'papier' ? 'signée sur papier' : 'signée à l’écran'
+    return `${libelle} (saisie bénévole, ${signature})`
+  }
+  return libelle
+}
+
+/** Auteur affiché : le compte bénévole partagé n'a pas de nom (pas de profil d'organisation). */
+export function libelleAuteurJournal(entry: Pick<JournalModification, 'auteur_nom' | 'details'>): string {
+  if (entry.auteur_nom) return entry.auteur_nom
+  return entry.details?.origine === 'benevole' ? 'Espace bénévole' : '—'
 }
 
 export const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
