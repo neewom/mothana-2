@@ -155,19 +155,60 @@ as $$
            when c.email_invalide_at is not null then
              'Email invalide : un envoi précédent n''a pas pu être délivré (le '
              || to_char(c.email_invalide_at at time zone 'Europe/Paris', 'DD/MM/YYYY') || ')'
+           -- Ligne « a_verifier », ou restée « en_cours » (exécution interrompue pendant l'envoi, lot
+           -- arrêté avant le classement) dans un lot d'envoi précédent : l'email a pu partir.
            when exists (
              select 1 from public.recus_lot_lignes g
+               join public.recus_lots l on l.id = g.lot_id and l.type = 'envoi'
               where g.organisation_id = p_organisation_id
                 and g.recu_id = c.recu_id
-                and g.statut = 'a_verifier'
+                and g.statut in ('a_verifier', 'en_cours')
                 and g.version_id is not distinct from c.version_id
-           ) then 'Envoi incertain lors d''un lot précédent : vérifiez dans Brevo, puis envoyez-le depuis son détail si besoin'
+           ) then 'Envoi incertain lors d''un lot précédent : vérifiez (journal des emails de Brevo, ou auprès du donateur), puis envoyez-le depuis son détail si besoin'
          end
     from candidats c
 $$;
 
 revoke execute on function public.recus_envoi_lot(uuid, integer) from public, anon, authenticated;
 grant execute on function public.recus_envoi_lot(uuid, integer) to service_role;
+
+-- Classement d'une ligne d'envoi restée « en_cours » (exécution interrompue pendant l'envoi) : jamais
+-- renvoyée ; faite si sa version a été marquée envoyée depuis la prise de la ligne, sinon « a_verifier ».
+-- Utilisé par ligne_suivante_lot_recus (lot en cours) et lancer_lot_envoi_recus (lots arrêtés).
+create or replace function public.classer_ligne_envoi_interrompue(p_ligne_id uuid)
+returns void
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_ligne public.recus_lot_lignes%rowtype;
+  v_envoi record;
+begin
+  select * into v_ligne from public.recus_lot_lignes g where g.id = p_ligne_id and g.statut = 'en_cours' for update;
+  if not found then
+    return;
+  end if;
+
+  select v.id, v.email_envoye_le into v_envoi
+    from public.recus_fiscaux_versions v
+   where v.recu_id = v_ligne.recu_id and v.email_envoye_le >= v_ligne.modifie_le
+   order by v.version desc
+   limit 1;
+  if found then
+    update public.recus_lot_lignes
+       set statut = 'fait', erreur = null, version_id = v_envoi.id, envoye_le = v_envoi.email_envoye_le, modifie_le = now()
+     where id = v_ligne.id;
+  else
+    update public.recus_lot_lignes
+       set statut = 'a_verifier', modifie_le = now(),
+           erreur = 'Traitement interrompu pendant l''envoi : vérifiez dans Brevo si l''email est parti'
+     where id = v_ligne.id;
+  end if;
+end;
+$$;
+
+revoke execute on function public.classer_ligne_envoi_interrompue(uuid) from public, anon, authenticated;
+grant execute on function public.classer_ligne_envoi_interrompue(uuid) to service_role;
 
 -- ---------------------------------------------------------------------------
 -- 4. Récapitulatif et lancement (admin ou contributeur de l'organisation, ou super-admin)
@@ -225,6 +266,7 @@ as $$
 declare
   v_lot_id uuid;
   v_total integer;
+  v_ligne record;
 begin
   if not coalesce(
     public.is_current_user_super_admin()
@@ -246,6 +288,30 @@ begin
   ) then
     raise exception 'LOT_DEJA_EN_COURS';
   end if;
+
+  -- Lot d'envoi arrêté dont une exécution tient encore le bail : l'email en cours d'envoi n'est pas
+  -- encore marqué, la relance attend sa fin.
+  if exists (
+    select 1 from public.recus_lots l
+     where l.organisation_id = p_organisation_id and l.annee = p_annee
+       and l.type = 'envoi' and l.statut <> 'en_cours'
+       and l.traitement_jusqu_a is not null and l.traitement_jusqu_a > now()
+  ) then
+    raise exception 'ENVOI_EN_COURS';
+  end if;
+
+  -- Lignes restées « en_cours » dans un lot d'envoi arrêté (exécution interrompue pendant l'envoi) :
+  -- classées comme ligne_suivante_lot_recus le fait pour un lot en cours, avant de choisir les reçus.
+  for v_ligne in
+    select g.id, g.lot_id
+      from public.recus_lot_lignes g
+      join public.recus_lots l on l.id = g.lot_id
+     where l.organisation_id = p_organisation_id and l.annee = p_annee
+       and l.type = 'envoi' and l.statut <> 'en_cours' and g.statut = 'en_cours'
+  loop
+    perform public.classer_ligne_envoi_interrompue(v_ligne.id);
+    perform public.recompter_lot_recus(v_ligne.lot_id);
+  end loop;
 
   -- Génération en lot de la même année en cours (ou arrêtée avec un reçu encore en génération) :
   -- l'envoi attend sa fin.
@@ -301,7 +367,7 @@ as $$
 $$;
 
 -- Nombre d'emails que cette exécution peut envoyer pour un lot d'envoi : min(rythme par minute moins
--- les envois de la dernière minute, rythme par jour moins les envois des dernières 24 h). Quota du
+-- les envois des 45 dernières secondes, rythme par jour moins les envois des dernières 24 h). Quota du
 -- jour atteint : le lot est mis en attente jusqu'à ce que le plus ancien envoi compté sorte de la
 -- fenêtre de 24 h, et 0 est renvoyé.
 create or replace function public.budget_envoi_lot_recus(p_lot_id uuid)
@@ -324,7 +390,11 @@ begin
 
   select * into v_rythme from public.rythme_envoi_recus(v_org);
   v_jour := v_rythme.par_jour - public.envois_recus_depuis(v_org, now() - interval '24 hours');
-  v_minute := v_rythme.par_minute - public.envois_recus_depuis(v_org, now() - interval '1 minute');
+  -- Fenêtre de 45 s, plus courte que l'intervalle de la tâche planifiée (1 min) : les envois du passage
+  -- précédent (faits dans ses premières secondes) n'en font plus partie, sinon le passage suivant, à
+  -- quelques fractions de seconde près, les comptait et le débit réel alternait (1 puis 5 par minute).
+  -- Une exécution supplémentaire rapprochée (lancement) reste bornée.
+  v_minute := v_rythme.par_minute - public.envois_recus_depuis(v_org, now() - interval '45 seconds');
   v_budget := greatest(0, least(v_jour, v_minute));
 
   if v_jour <= 0 then
@@ -389,7 +459,6 @@ as $$
 declare
   v_lot public.recus_lots%rowtype;
   v_ligne public.recus_lot_lignes%rowtype;
-  v_envoi record;
 begin
   select * into v_lot from public.recus_lots l where l.id = p_lot_id for update;
   if v_lot.statut is distinct from 'en_cours' then
@@ -413,21 +482,7 @@ begin
     end if;
 
     if v_lot.type = 'envoi' and v_ligne.statut = 'en_cours' then
-      select v.id, v.email_envoye_le into v_envoi
-        from public.recus_fiscaux_versions v
-       where v.recu_id = v_ligne.recu_id and v.email_envoye_le >= v_ligne.modifie_le
-       order by v.version desc
-       limit 1;
-      if found then
-        update public.recus_lot_lignes
-           set statut = 'fait', erreur = null, version_id = v_envoi.id, envoye_le = v_envoi.email_envoye_le, modifie_le = now()
-         where id = v_ligne.id;
-      else
-        update public.recus_lot_lignes
-           set statut = 'a_verifier', modifie_le = now(),
-               erreur = 'Traitement interrompu pendant l''envoi : vérifiez dans Brevo si l''email est parti'
-         where id = v_ligne.id;
-      end if;
+      perform public.classer_ligne_envoi_interrompue(v_ligne.id);
       perform public.recompter_lot_recus(p_lot_id);
       continue;
     end if;

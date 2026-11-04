@@ -262,6 +262,45 @@ begin
   select statut || ',' || coalesce(en_attente_jusqu_a::text, 'null') || ',' || nb_echecs into v_txt from public.recus_lots where id = v_lot;
   r := r || ' | 9.termine=' || v_txt || case when v_n = 0 and v_txt = 'termine,null,1' then ' ok' else ' KO' end;
 
+  -- 10. Arrêt avec une ligne « en_cours » puis relance (relecture PR #343) : l'exécution meurt après
+  -- l'envoi mais avant le marquage ; le reçu n'est pas reproposé et la ligne est classée.
+  update public.organisations set modele_recu_pdf = modele_recu_pdf || '{"envoi_lot_par_jour":250,"envoi_lot_par_minute":5}' where id = v_org;
+  for i in 11..12 loop
+    insert into public.personnes (nom, prenom, civilite, email) values ('D' || i, 'P', 1, 'd' || i || '@example.invalid') returning id into v_pe;
+    insert into public.profils_participant (personne_id, organisation_id) values (v_pe, v_org) returning id into v_pp;
+    insert into public.recus_fiscaux (profil_participant_id, organisation_id, annee, montant_total, fichier_url)
+      values (v_pp, v_org, 2026, 10, 'test/' || i || '.pdf') returning id into v_recu;
+    insert into public.recus_fiscaux_versions (recu_id, organisation_id, version, fichier_url, montant_total)
+      values (v_recu, v_org, 1, 'test/' || i || '.pdf', 10);
+  end loop;
+  execute 'set local role authenticated';
+  v_lot := public.lancer_lot_envoi_recus(v_org, 2026);
+  execute 'reset role';
+  -- D11 pris (en_cours, bail posé), puis le lot est arrêté pendant l'envoi
+  select s.ligne_id into v_ligne from public.ligne_suivante_lot_recus(v_lot, 60) s;
+  execute 'set local role authenticated';
+  perform public.arreter_lot_recus(v_lot);
+  begin
+    perform public.lancer_lot_envoi_recus(v_org, 2026);
+    r := r || ' | 10.relance_bail=ACCEPTE(KO)';
+  exception when others then r := r || ' | 10.relance_bail=' || sqlerrm || case when sqlerrm = 'ENVOI_EN_COURS' then ' ok' else ' KO' end;
+  end;
+  execute 'reset role';
+  -- L'exécution meurt : bail expiré, la ligne reste « en_cours » dans le lot arrêté
+  update public.recus_lots set traitement_jusqu_a = now() - interval '1 second' where id = v_lot;
+  select string_agg(e.nom || ':' || coalesce(split_part(e.raison, ' ', 1), '-'), '|' order by e.rang) into v_txt
+    from public.recus_envoi_lot(v_org, 2026) e;
+  r := r || ' exclu_en_cours=' || v_txt || case when v_txt = 'D11:Envoi|D12:-' then ' ok' else ' KO' end;
+  execute 'set local role authenticated';
+  v_lot2 := public.lancer_lot_envoi_recus(v_org, 2026);
+  execute 'reset role';
+  select string_agg(pe.nom, '|' order by g.rang) into v_txt
+    from public.recus_lot_lignes g join public.profils_participant pp on pp.id = g.profil_participant_id
+    join public.personnes pe on pe.id = pp.personne_id where g.lot_id = v_lot2;
+  r := r || ' relance=' || v_txt || case when v_txt = 'D12' then ' ok' else ' KO' end;
+  select g.statut || ',' || l.nb_a_verifier into v_txt from public.recus_lot_lignes g join public.recus_lots l on l.id = g.lot_id where g.id = v_ligne;
+  r := r || ' classee=' || v_txt || case when v_txt = 'a_verifier,1' then ' ok' else ' KO' end;
+
   raise exception 'RESULTATS: %', r;
 end;
 $$;
