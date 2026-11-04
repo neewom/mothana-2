@@ -1,0 +1,735 @@
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { convertirHtmlEnPdf, escapeHtml, renderTemplate } from './html.ts'
+import {
+  cheminFichierRecu,
+  estConflitStorage,
+  formatNumeroRecu,
+  MESSAGE_GENERATION_SIMULTANEE,
+  messageNumeroDejaPris,
+  numeroDonateurAffiche,
+  numeroRecuDonateur,
+  prochaineVersionRecu,
+} from './numeroRecu.ts'
+
+// Cœur de la génération d'un reçu fiscal, partagé par l'Edge Function generate-recu (un reçu, à la
+// demande d'un admin) et par traiter-lots-recus (lots côté serveur, carte « Reçus en lot 1/5 »).
+// Règles : docs/regles-recus-fiscaux.md. L'appelant a déjà vérifié le droit d'agir sur
+// l'organisation (admin connecté, ou lot lancé par un admin) : aucune autorisation n'est refaite ici.
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface Personne {
+  nom: string
+  prenom: string | null
+  email: string | null
+  civilite: number | null
+  nom2: string | null
+  prenom2: string | null
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
+  pays: string | null
+}
+
+export interface ModeleRecu {
+  rna?: string
+  siren?: string
+  objet_social?: string
+  mention_legale?: string
+  numero_recu_depart?: number
+  format_numero_recu?: string
+  taux_reduction?: number
+  president_nom?: string
+  president_titre?: string
+}
+
+interface OrganisationAsset {
+  identifiant: string
+  url: string
+}
+
+export interface Organisation {
+  nom: string
+  adresse: string | null
+  code_postal: string | null
+  ville: string | null
+  pays: string | null
+  modele_recu_pdf: ModeleRecu | null
+}
+
+export interface DonDetail {
+  montant: number
+  date: string
+  mode_paiement: number
+  don_regulier_id: string | null
+  activites: { nom: string } | null
+}
+
+// ---------------------------------------------------------------------------
+// Helpers de formatage
+// ---------------------------------------------------------------------------
+
+function formatDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-')
+  return `${day}/${month}/${year}`
+}
+
+export function formatMontant(n: number): string {
+  return n.toFixed(2).replace('.', ',') + ' €'
+}
+
+// French number-to-words (integers up to 999 999, then cents)
+export function numberToWords(amount: number): string {
+  const units = [
+    '', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf',
+    'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize',
+    'dix-sept', 'dix-huit', 'dix-neuf',
+  ]
+
+  function belowHundred(n: number): string {
+    if (n < 20) return units[n]
+    const t = Math.floor(n / 10)
+    const u = n % 10
+    if (t === 7) return 'soixante-' + units[10 + u]
+    if (t === 8) return u === 0 ? 'quatre-vingts' : 'quatre-vingt-' + units[u]
+    if (t === 9) return 'quatre-vingt-' + units[10 + u]
+    const sep = u === 1 ? '-et-' : u > 0 ? '-' : ''
+    return ['', 'dix', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante'][t] + sep + (u > 0 ? units[u] : '')
+  }
+
+  function belowThousand(n: number): string {
+    if (n < 100) return belowHundred(n)
+    const h = Math.floor(n / 100)
+    const r = n % 100
+    const hundreds = h === 1 ? 'cent' : units[h] + ' cent'
+    if (r === 0) return h === 1 ? 'cent' : units[h] + ' cents'
+    return hundreds + ' ' + belowHundred(r)
+  }
+
+  const euros = Math.floor(amount)
+  const cents = Math.round((amount - euros) * 100)
+
+  let words: string
+  if (euros === 0) {
+    words = 'zéro'
+  } else if (euros < 1000) {
+    words = belowThousand(euros)
+  } else {
+    const thousands = Math.floor(euros / 1000)
+    const remainder = euros % 1000
+    words = (thousands === 1 ? 'mille' : belowThousand(thousands) + ' mille')
+    if (remainder > 0) words += ' ' + belowThousand(remainder)
+  }
+
+  if (cents > 0) {
+    words += ' euro' + (euros > 1 ? 's' : '') + ' et ' + belowHundred(cents) + ' centime' + (cents > 1 ? 's' : '')
+  } else {
+    words += ' euro' + (euros > 1 ? 's' : '')
+  }
+
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+// Dupliqué de src/lib/modePaiement.ts — pas de partage de code direct avec le
+// frontend, cette Edge Function est un déployable Deno isolé.
+const MODE_PAIEMENT_LABELS: Record<number, string> = {
+  1: 'Espèces',
+  2: 'Chèque',
+  3: 'Prélèvement - virement',
+  4: 'Autres',
+}
+
+// Une ligne groupée ("Nb Mois : N") n'est produite que pour un ensemble de 2
+// dons ou plus partageant le même don_regulier_id — signal non ambigu. Le
+// reste (mode 3 sans don_regulier_id, quel que soit le nombre de dons dans
+// l'année) reste affiché individuellement : impossible de distinguer de façon
+// fiable, sur les seules données historiques, un virement ponctuel d'un
+// engagement mensuel saisi en une fois pour toute l'année (cf. carte Trello).
+export function buildDonsDetailHtml(dons: DonDetail[]): string {
+  const groupes = new Map<string, DonDetail[]>()
+  const individuels: DonDetail[] = []
+
+  for (const don of dons) {
+    if (!don.don_regulier_id) {
+      individuels.push(don)
+      continue
+    }
+    if (!groupes.has(don.don_regulier_id)) groupes.set(don.don_regulier_id, [])
+    groupes.get(don.don_regulier_id)!.push(don)
+  }
+
+  interface Ligne {
+    evenement: string
+    montant: number
+    dateOuNbMois: string
+    mode: string
+    dateTri: string
+  }
+
+  const lignes: Ligne[] = individuels.map((don) => ({
+    evenement: don.activites?.nom ?? '',
+    montant: Number(don.montant),
+    dateOuNbMois: formatDate(don.date),
+    mode: MODE_PAIEMENT_LABELS[don.mode_paiement] ?? '',
+    dateTri: don.date,
+  }))
+
+  for (const groupe of groupes.values()) {
+    if (groupe.length < 2) {
+      for (const don of groupe) {
+        lignes.push({
+          evenement: don.activites?.nom ?? '',
+          montant: Number(don.montant),
+          dateOuNbMois: formatDate(don.date),
+          mode: MODE_PAIEMENT_LABELS[don.mode_paiement] ?? '',
+          dateTri: don.date,
+        })
+      }
+      continue
+    }
+    lignes.push({
+      evenement: groupe[0].activites?.nom ?? '',
+      montant: groupe.reduce((sum, d) => sum + Number(d.montant), 0),
+      dateOuNbMois: `Nb Mois : ${groupe.length}`,
+      mode: MODE_PAIEMENT_LABELS[groupe[0].mode_paiement] ?? '',
+      dateTri: groupe[0].date,
+    })
+  }
+
+  lignes.sort((a, b) => a.dateTri.localeCompare(b.dateTri))
+
+  const rows = lignes
+    .map(
+      (l) => `<tr><td>${escapeHtml(l.evenement)}</td><td>${formatMontant(l.montant)}</td><td>${escapeHtml(l.dateOuNbMois)}</td><td>${escapeHtml(l.mode)}</td></tr>`
+    )
+    .join('')
+
+  const total = dons.reduce((sum, d) => sum + Number(d.montant), 0)
+
+  return (
+    '<table class="dons-detail"><thead><tr><th>Événement</th><th>Montant</th><th>Date</th><th>Mode</th></tr></thead>' +
+    `<tbody>${rows}<tr class="dons-detail-total"><td>Total</td><td>${formatMontant(total)}</td><td colspan="2"></td></tr></tbody></table>`
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Règles métier — regles-recus-fiscaux.md
+// ---------------------------------------------------------------------------
+
+export function validateOrganisation(org: Organisation): string[] {
+  const modele = org.modele_recu_pdf ?? {}
+  const missing: string[] = []
+  if (!org.nom) missing.push("nom de l'organisation")
+  if (!org.adresse) missing.push('adresse')
+  if (!org.code_postal) missing.push('code postal')
+  if (!org.ville) missing.push('ville')
+  if (!modele.rna && !modele.siren) missing.push('RNA ou SIREN')
+  if (!modele.objet_social) missing.push('objet social')
+  if (!modele.mention_legale) missing.push('mention légale')
+  return missing
+}
+
+export interface ParticipantValidation {
+  blocking: boolean
+  missing: string[]
+  message?: string
+}
+
+export function validateParticipant(p: Personne): ParticipantValidation {
+  if (p.civilite === 7) {
+    return {
+      blocking: true,
+      missing: [],
+      message:
+        "Les dons enregistrés au nom d'une famille ne permettent pas de générer un reçu fiscal. " +
+        'Identifiez le foyer fiscal (Mr & Mme) ou le donateur individuel.',
+    }
+  }
+
+  if (!p.civilite) {
+    return {
+      blocking: true,
+      missing: [],
+      message: 'Civilité du donateur manquante — impossible de déterminer le type de reçu à générer.',
+    }
+  }
+
+  const missing: string[] = []
+  if (!p.nom) missing.push('nom')
+  if (!p.adresse) missing.push('adresse')
+  if (!p.code_postal) missing.push('code postal')
+  if (!p.ville) missing.push('ville')
+  if ((p.civilite === 1 || p.civilite === 2 || p.civilite === 3 || p.civilite === 4) && !p.prenom) {
+    missing.push('prénom')
+  }
+
+  return { blocking: missing.length > 0, missing }
+}
+
+export function determineTypeCerfa(civilite: number): '11580' | '16216' {
+  return civilite === 5 || civilite === 6 ? '16216' : '11580'
+}
+
+// Règles de formatage du nom du donateur — brief-cerfa.md §4
+export function buildDonorName(p: Personne): string {
+  const nomMaj = p.nom.toUpperCase()
+
+  if (p.civilite === 4) {
+    if (p.nom2 || p.prenom2) {
+      const coSignataire = [p.prenom2, p.nom2?.toUpperCase()].filter(Boolean).join(' ')
+      return `M. ${p.prenom} ${nomMaj} et Mme ${coSignataire}`
+    }
+    return `M. et Mme ${p.prenom} ${nomMaj}`
+  }
+
+  if (p.civilite === 5 || p.civilite === 6) {
+    return p.nom
+  }
+
+  const titles: Record<number, string> = { 1: 'M.', 2: 'Mme', 3: 'Mlle' }
+  const title = p.civilite ? titles[p.civilite] : ''
+  return [title, p.prenom, nomMaj].filter(Boolean).join(' ')
+}
+
+export function buildDonorCivilite(civilite: number): string {
+  const labels: Record<number, string> = {
+    1: 'Monsieur',
+    2: 'Madame',
+    3: 'Mademoiselle',
+    4: 'Monsieur et Madame',
+    5: '',
+    6: '',
+  }
+  return labels[civilite] ?? ''
+}
+
+
+// ---------------------------------------------------------------------------
+// Génération d'un reçu
+// ---------------------------------------------------------------------------
+
+export interface ParametresGeneration {
+  organisationId: string
+  profilParticipantId: string
+  annee: number
+  // auth.users.id de l'auteur (admin connecté, ou créateur du lot)
+  generePar: string | null
+  gotenbergUrl: string
+  // Lots : un reçu déjà émis pour ce donateur et cette année n'est jamais régénéré (aucune nouvelle
+  // version, §5) ; il est renvoyé tel quel avec dejaExistant = true.
+  seulementSiAbsent?: boolean
+}
+
+// `status` et `body` sont exactement la réponse HTTP de generate-recu.
+export interface ResultatGeneration {
+  ok: boolean
+  status: number
+  body: Record<string, unknown>
+  recuId: string | null
+  dejaExistant: boolean
+}
+
+function resultat(body: Record<string, unknown>, status = 200, recuId: string | null = null): ResultatGeneration {
+  return { ok: status === 200, status, body, recuId, dejaExistant: false }
+}
+
+export async function genererRecu(adminClient: SupabaseClient, params: ParametresGeneration): Promise<ResultatGeneration> {
+  const { organisationId, profilParticipantId, generePar, gotenbergUrl } = params
+  const anneeNum = params.annee
+
+  if (params.seulementSiAbsent) {
+    const { data: dejaEmis, error: dejaEmisError } = await adminClient
+      .from('recus_fiscaux')
+      .select('id, numero_ordre, fichier_url, type_cerfa')
+      .eq('organisation_id', organisationId)
+      .eq('profil_participant_id', profilParticipantId)
+      .eq('annee', anneeNum)
+      .maybeSingle()
+    if (dejaEmisError) {
+      console.error('recus_fiscaux read error:', dejaEmisError)
+      return resultat({ error: 'Erreur lors de la lecture du reçu existant' }, 500)
+    }
+    if (dejaEmis) {
+      return {
+        ok: true,
+        status: 200,
+        body: { fichier_url: dejaEmis.fichier_url, numero_ordre: dejaEmis.numero_ordre, type_cerfa: dejaEmis.type_cerfa },
+        recuId: dejaEmis.id as string,
+        dejaExistant: true,
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // 1. Valider l'organisation
+  // ---------------------------------------------------------------------
+
+  const { data: org } = await adminClient
+    .from('organisations')
+    .select('nom, adresse, code_postal, ville, pays, modele_recu_pdf')
+    .eq('id', organisationId)
+    .single()
+
+  if (!org) {
+    return resultat({ error: 'Organisation introuvable' }, 404)
+  }
+
+  const organisation = org as unknown as Organisation
+  const orgMissing = validateOrganisation(organisation)
+  if (orgMissing.length > 0) {
+    return resultat(
+      {
+        error: `Paramètres de l'organisation incomplets : ${orgMissing.join(', ')}. Complétez-les dans Paramètres.`,
+        missing_fields: orgMissing,
+      },
+      422,
+    )
+  }
+
+  // ---------------------------------------------------------------------
+  // 2. Valider le participant
+  // ---------------------------------------------------------------------
+
+  const { data: participant } = await adminClient
+    .from('profils_participant')
+    .select('id, organisation_id, id_externe, personnes(nom, prenom, email, civilite, nom2, prenom2, adresse, code_postal, ville, pays)')
+    .eq('id', profilParticipantId)
+    .eq('organisation_id', organisationId)
+    .single()
+
+  if (!participant) {
+    return resultat({ error: 'Participant non trouvé' }, 404)
+  }
+
+  const personne = participant.personnes as unknown as Personne
+  const participantValidation = validateParticipant(personne)
+  if (participantValidation.blocking) {
+    return resultat(
+      {
+        error: participantValidation.message ?? `Champs manquants pour le donateur : ${participantValidation.missing.join(', ')}`,
+        missing_fields: participantValidation.missing,
+      },
+      422,
+    )
+  }
+
+  // ---------------------------------------------------------------------
+  // 3. Dons de l'année
+  // ---------------------------------------------------------------------
+
+  const { data: dons } = await adminClient
+    .from('dons')
+    .select('montant, date, mode_paiement, don_regulier_id, activites(nom)')
+    .eq('profil_participant_id', profilParticipantId)
+    .gte('date', `${anneeNum}-01-01`)
+    .lte('date', `${anneeNum}-12-31`)
+    .order('date', { ascending: true })
+
+  if (!dons || dons.length === 0) {
+    return resultat({ error: 'Aucun don pour cette année' }, 404)
+  }
+
+  const donsDetail = dons as unknown as DonDetail[]
+  const totalMontant = donsDetail.reduce((sum, d) => sum + Number(d.montant), 0)
+
+  // ---------------------------------------------------------------------
+  // 4. Type de Cerfa + template actif
+  // ---------------------------------------------------------------------
+
+  const typeCerfa = determineTypeCerfa(personne.civilite!)
+
+  const { data: template } = await adminClient
+    .from('templates_recu')
+    .select('id, html_template, css')
+    .eq('organisation_id', organisationId)
+    .eq('type_cerfa', typeCerfa)
+    .eq('is_active', true)
+    .eq('is_archived', false)
+    .maybeSingle()
+
+  if (!template) {
+    return resultat(
+      { error: `Aucun modèle de reçu actif configuré pour le type ${typeCerfa}. Contactez le support.` },
+      422,
+    )
+  }
+
+  // ---------------------------------------------------------------------
+  // 5. Numéro d'ordre — conservé si régénération
+  // ---------------------------------------------------------------------
+
+  const { data: existingRecu } = await adminClient
+    .from('recus_fiscaux')
+    .select('id, numero_ordre, fichier_url')
+    .eq('profil_participant_id', profilParticipantId)
+    .eq('annee', anneeNum)
+    .maybeSingle()
+
+  let numeroOrdre = existingRecu?.numero_ordre as string | null
+  // Numéro attribué par cet appel (et non repris d'un reçu existant) : un conflit sur son fichier
+  // ou en base signifie que le numéro est déjà porté par un autre reçu.
+  const numeroNouveau = !numeroOrdre
+  const format = formatNumeroRecu(organisation.modele_recu_pdf?.format_numero_recu)
+
+  // Un numéro déjà attribué est définitif (§4), même si le format a changé depuis.
+  if (!numeroOrdre) {
+    if (format === 'donateur') {
+      // Année + numéro de donateur : aucune séquence consommée.
+      numeroOrdre = numeroRecuDonateur(anneeNum, participant.id_externe as string | null)
+      if (!numeroOrdre) {
+        return resultat(
+          {
+            error: participant.id_externe
+              ? 'Le numéro de donateur de ce donateur contient des caractères non autorisés (chiffres, lettres, tiret et tiret bas seulement) : le numéro du reçu ne peut pas en être tiré.'
+              : "Ce donateur n'a pas de numéro de donateur : le reçu ne peut pas être numéroté au format « année + numéro de donateur ».",
+          },
+          422,
+        )
+      }
+    } else {
+      const { data: numeroData, error: numeroError } = await adminClient.rpc('next_numero_recu', {
+        org_id: organisationId,
+        annee: anneeNum,
+      })
+      if (numeroError || !numeroData) {
+        console.error('next_numero_recu error:', numeroError)
+        return resultat({ error: "Erreur lors de l'attribution du numéro de reçu" }, 500)
+      }
+      numeroOrdre = numeroData as string
+    }
+
+    // Garde anti-collision (refus précoce, avant Gotenberg) : deux formats mélangés dans une
+    // même année (ou un numéro de donateur réattribué) pourraient produire un numéro déjà
+    // porté par un autre reçu de l'organisation. Non atomique : l'upload sans upsert (§8) et
+    // l'index unique (organisation_id, numero_ordre) font foi en cas de course.
+    const { data: doublon, error: doublonError } = await adminClient
+      .from('recus_fiscaux')
+      .select('id')
+      .eq('organisation_id', organisationId)
+      .eq('numero_ordre', numeroOrdre)
+      .neq('profil_participant_id', profilParticipantId)
+      .limit(1)
+    if (doublonError) {
+      console.error('numero_ordre collision check error:', doublonError)
+      return resultat({ error: "Erreur lors de l'attribution du numéro de reçu" }, 500)
+    }
+    if (doublon && doublon.length > 0) {
+      return resultat({ error: messageNumeroDejaPris(format, numeroOrdre) }, 409)
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // 5 bis. Version créée par cette génération (§5) : chaque génération est conservée
+  // ---------------------------------------------------------------------
+
+  let derniereVersion: number | null = null
+  if (existingRecu) {
+    const { data: versionData, error: versionError } = await adminClient
+      .from('recus_fiscaux_versions')
+      .select('version')
+      .eq('recu_id', existingRecu.id)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (versionError) {
+      console.error('recus_fiscaux_versions read error:', versionError)
+      return resultat({ error: 'Erreur lors de la lecture des versions du reçu' }, 500)
+    }
+    derniereVersion = (versionData?.version as number | undefined) ?? null
+  }
+  const version = prochaineVersionRecu(!!existingRecu?.fichier_url, derniereVersion)
+
+  // ---------------------------------------------------------------------
+  // 6. Snapshots + placeholders
+  // ---------------------------------------------------------------------
+
+  const { data: assetsData } = await adminClient
+    .from('organisation_assets')
+    .select('identifiant, url')
+    .eq('organisation_id', organisationId)
+
+  const assets = (assetsData ?? []) as OrganisationAsset[]
+  const assetPlaceholders: Record<string, string> = {}
+  const assetsSnapshot: Record<string, string> = {}
+  for (const asset of assets) {
+    assetPlaceholders[`asset_${asset.identifiant}`] = asset.url
+    assetsSnapshot[asset.identifiant] = asset.url
+  }
+
+  const modele = organisation.modele_recu_pdf ?? {}
+  const tauxReduction = typeCerfa === '16216' ? 60 : modele.taux_reduction ?? 66
+
+  const snapshotDonateur = {
+    nom: personne.nom,
+    prenom: personne.prenom,
+    civilite: personne.civilite,
+    nom2: personne.nom2,
+    prenom2: personne.prenom2,
+    adresse: personne.adresse,
+    code_postal: personne.code_postal,
+    ville: personne.ville,
+    pays: personne.pays,
+    email: personne.email,
+  }
+
+  const snapshotOrganisation = {
+    nom: organisation.nom,
+    adresse: organisation.adresse,
+    code_postal: organisation.code_postal,
+    ville: organisation.ville,
+    pays: organisation.pays,
+    rna: modele.rna ?? null,
+    siren: modele.siren ?? null,
+    objet_social: modele.objet_social ?? null,
+    mention_legale: modele.mention_legale ?? null,
+    taux_reduction: tauxReduction,
+    president_nom: modele.president_nom ?? null,
+    president_titre: modele.president_titre ?? null,
+    assets: assetsSnapshot,
+  }
+
+  const placeholders: Record<string, string> = {
+    organisation_nom: organisation.nom ?? '',
+    organisation_adresse: organisation.adresse ?? '',
+    organisation_code_postal: organisation.code_postal ?? '',
+    organisation_ville: organisation.ville ?? '',
+    organisation_rna: modele.rna ?? '',
+    organisation_siren: modele.siren ?? '',
+    organisation_objet_social: modele.objet_social ?? '',
+    organisation_mention_legale: modele.mention_legale ?? '',
+    donateur_civilite: buildDonorCivilite(personne.civilite!),
+    donateur_nom_complet: buildDonorName(personne),
+    donateur_adresse: personne.adresse ?? '',
+    donateur_code_postal: personne.code_postal ?? '',
+    donateur_ville: personne.ville ?? '',
+    numero_donateur: numeroDonateurAffiche(participant.id_externe as string | null),
+    don_montant_chiffres: formatMontant(totalMontant),
+    don_montant_lettres: numberToWords(totalMontant),
+    dons_detail: buildDonsDetailHtml(donsDetail),
+    don_annee: String(anneeNum),
+    recu_numero_ordre: numeroOrdre,
+    recu_date_generation: formatDate(new Date().toISOString().split('T')[0]),
+    type_reduction: `${tauxReduction}%`,
+    president_nom: modele.president_nom ?? '',
+    president_titre: modele.president_titre ?? '',
+    ...assetPlaceholders,
+  }
+
+  const bodyHtml = renderTemplate(template.html_template, placeholders, new Set(['dons_detail']))
+  const fullHtml = `<!doctype html><html><head><meta charset="utf-8"><style>${template.css ?? ''}</style></head><body>${bodyHtml}</body></html>`
+
+  // ---------------------------------------------------------------------
+  // 7. Conversion HTML -> PDF via Gotenberg
+  // ---------------------------------------------------------------------
+
+  const gotenbergForm = new FormData()
+  gotenbergForm.append('files', new Blob([fullHtml], { type: 'text/html' }), 'index.html')
+
+  const gotenbergRes = await convertirHtmlEnPdf(gotenbergUrl, gotenbergForm)
+
+  if (!gotenbergRes.ok) {
+    const detail = await gotenbergRes.text()
+    console.error('Gotenberg error:', gotenbergRes.status, detail)
+    return resultat({ error: 'Erreur lors de la génération du PDF' }, 500)
+  }
+
+  const pdfBuffer = new Uint8Array(await gotenbergRes.arrayBuffer())
+
+  // ---------------------------------------------------------------------
+  // 8. Upload Storage
+  // ---------------------------------------------------------------------
+
+  const storagePath = cheminFichierRecu(organisationId, anneeNum, numeroOrdre, version)
+
+  // Jamais d'écrasement (upsert: false) : chaque version a son propre fichier, et le Storage refuse
+  // atomiquement un objet déjà existant (PDF d'un autre reçu pour un numéro nouveau, ou même
+  // version produite par une génération simultanée) au lieu de l'écraser.
+  const { error: uploadError } = await adminClient.storage
+    .from('recus-fiscaux')
+    .upload(storagePath, pdfBuffer, {
+      contentType: 'application/pdf',
+      upsert: false,
+    })
+
+  if (uploadError) {
+    if (estConflitStorage(uploadError)) {
+      console.error('Storage upload conflict:', storagePath, uploadError)
+      return resultat(
+        { error: numeroNouveau ? messageNumeroDejaPris(format, numeroOrdre) : MESSAGE_GENERATION_SIMULTANEE },
+        409,
+      )
+    }
+    console.error('Storage upload error:', uploadError)
+    return resultat({ error: 'Erreur upload PDF', detail: uploadError.message }, 500)
+  }
+
+  // ---------------------------------------------------------------------
+  // 9. Fiche du reçu + nouvelle version, dans une même transaction (enregistrer_version_recu)
+  // ---------------------------------------------------------------------
+
+  const { data: enregistrement, error: enregistrementError } = await adminClient.rpc('enregistrer_version_recu', {
+    p_profil_participant_id: profilParticipantId,
+    p_organisation_id: organisationId,
+    p_annee: anneeNum,
+    p_version: version,
+    p_montant_total: totalMontant,
+    p_fichier_url: storagePath,
+    p_numero_ordre: numeroOrdre,
+    p_type_cerfa: typeCerfa,
+    p_template_id: template.id,
+    p_snapshot_donateur: snapshotDonateur,
+    p_snapshot_organisation: snapshotOrganisation,
+    p_genere_par: generePar,
+  })
+
+  if (enregistrementError) {
+    console.error('enregistrer_version_recu error:', enregistrementError)
+    // Bloquant : sans sa ligne, la version n'existe pas. Le PDF déposé par cet appel est retiré, mais
+    // seulement quand aucune version ne peut le référencer : une erreur Postgres (code SQLSTATE à
+    // 5 caractères) garantit l'annulation de la transaction ; toute autre erreur (réseau, délai,
+    // PostgREST) est ambiguë, on vérifie alors en base avant de retirer. Les fichiers des versions
+    // déjà émises ne sont jamais touchés.
+    const code = enregistrementError.code ?? ''
+    const echecCertain = /^[0-9A-Z]{5}$/.test(code)
+    let retirer = echecCertain
+    if (!echecCertain) {
+      const { data: reference, error: referenceError } = await adminClient
+        .from('recus_fiscaux_versions')
+        .select('version')
+        .eq('fichier_url', storagePath)
+        .limit(1)
+        .maybeSingle()
+      if (referenceError) {
+        console.error('Storage cleanup skipped (version lookup failed), file kept:', storagePath, referenceError)
+      } else if (reference) {
+        // L'enregistrement a bien eu lieu malgré l'erreur reçue : la version existe.
+        return resultat({ fichier_url: storagePath, numero_ordre: numeroOrdre, type_cerfa: typeCerfa, version }, 200, existingRecu?.id ?? null)
+      } else {
+        retirer = true
+      }
+    }
+    if (retirer) {
+      const { error: removeError } = await adminClient.storage.from('recus-fiscaux').remove([storagePath])
+      if (removeError) console.error('Storage cleanup error:', storagePath, removeError)
+    }
+    if (enregistrementError.code === '23505') {
+      return resultat(
+        { error: numeroNouveau ? messageNumeroDejaPris(format, numeroOrdre) : MESSAGE_GENERATION_SIMULTANEE },
+        409,
+      )
+    }
+    return resultat(
+      {
+        error: numeroNouveau
+          ? "Erreur lors de l'enregistrement du reçu : aucun reçu n'a été créé. Réessayez ou contactez le support."
+          : "Erreur lors de l'enregistrement du reçu régénéré : aucune nouvelle version n'a été créée, la précédente reste valable. Réessayez ou contactez le support.",
+      },
+      500,
+    )
+  }
+
+  const ligne = (Array.isArray(enregistrement) ? enregistrement[0] : enregistrement) as { recu_id?: string } | null
+  return resultat({ fichier_url: storagePath, numero_ordre: numeroOrdre, type_cerfa: typeCerfa, version }, 200, ligne?.recu_id ?? null)
+}
