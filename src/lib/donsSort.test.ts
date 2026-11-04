@@ -70,3 +70,13 @@ describe('trierDons', () => {
     expect(directionInitialeDon('donateur')).toBe('asc')
   })
 })
+
+describe('trierDons — colonne Mode', () => {
+  it('trie par libellé du mode de paiement, Mode ouvert en croissant', () => {
+    // 1 = Espèces, 2 = Chèque, 4 = Autres
+    const dons = [don('especes', { mode_paiement: 1 }), don('cheque', { mode_paiement: 2 }), don('autres', { mode_paiement: 4 })]
+    expect(ids(trierDons(dons, 'mode', 'asc'))).toEqual(['autres', 'cheque', 'especes'])
+    expect(ids(trierDons(dons, 'mode', 'desc'))).toEqual(['especes', 'cheque', 'autres'])
+    expect(directionInitialeDon('mode')).toBe('asc')
+  })
+})

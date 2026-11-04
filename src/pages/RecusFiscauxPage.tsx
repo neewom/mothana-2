@@ -27,6 +27,9 @@ import { TablePagination } from '../components/ui/table-pagination'
 import { ListToolbar } from '../components/ui/list-toolbar'
 import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { cn } from '../lib/utils'
+import SortableTableHead from '../components/SortableTableHead'
+import { useTableSort } from '../hooks/useTableSort'
+import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,6 +40,16 @@ interface ParticipantRow {
   total_dons: number
   recu: RecuFiscal | null
   validation: ParticipantValidation
+}
+
+type RecuSortField = 'donateur' | 'total' | 'numero'
+
+// Donateur : ordre d'annuaire (nom puis prénom, l'affichage reste « Prénom Nom ») ;
+// N° reçu : comparaison numérique des chiffres, lignes sans reçu en dernier.
+const RECU_SORT_COLUMNS: SortColumns<ParticipantRow, RecuSortField> = {
+  donateur: { type: 'text', value: (r) => [r.profil.personnes.nom, r.profil.personnes.prenom] },
+  total: { type: 'number', value: (r) => r.total_dons },
+  numero: { type: 'text', value: (r) => r.recu?.numero_ordre },
 }
 
 // ---------------------------------------------------------------------------
@@ -195,7 +208,8 @@ export default function RecusFiscauxPage() {
       validation: validateParticipantCerfa(p.personnes),
     }))
 
-    // Sort by nom then prenom
+    // Sort by nom then prenom — garde l'ordre de « Tout générer » (attribution des numéros),
+    // indépendant du tri affiché.
     built.sort((a, b) =>
       a.profil.personnes.nom.localeCompare(b.profil.personnes.nom) ||
       (a.profil.personnes.prenom ?? '').localeCompare(b.profil.personnes.prenom ?? '')
@@ -371,6 +385,25 @@ export default function RecusFiscauxPage() {
   )
 
   // ---------------------------------------------------------------------------
+  // Tri (navigateur, sur toute la liste filtrée, avant pagination)
+  // ---------------------------------------------------------------------------
+
+  const { sortField, sortDirection, sort, toggleSort } = useTableSort<RecuSortField>({
+    initial: { field: 'donateur', direction: 'asc' },
+    initialDirection: (field) => directionInitiale(RECU_SORT_COLUMNS[field].type),
+    onSortChange: () => setCurrentPage(1),
+  })
+
+  const sortedRows = useMemo(
+    () => sortRows(filteredRows, RECU_SORT_COLUMNS, sort, (a, b) =>
+      compareText(a.profil.personnes.nom, b.profil.personnes.nom) ||
+      compareText(a.profil.personnes.prenom, b.profil.personnes.prenom) ||
+      a.profil.id.localeCompare(b.profil.id)
+    ),
+    [filteredRows, sort]
+  )
+
+  // ---------------------------------------------------------------------------
   // Pagination
   // ---------------------------------------------------------------------------
 
@@ -382,8 +415,8 @@ export default function RecusFiscauxPage() {
 
   const paginatedRows = useMemo(() => {
     const start = (safePage - 1) * pageSize
-    return filteredRows.slice(start, start + pageSize)
-  }, [filteredRows, safePage, pageSize])
+    return sortedRows.slice(start, start + pageSize)
+  }, [sortedRows, safePage, pageSize])
 
   // ---------------------------------------------------------------------------
   // Render
@@ -484,9 +517,9 @@ export default function RecusFiscauxPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Donateur</TableHead>
-                  <TableHead className="text-right">Total dons</TableHead>
-                  <TableHead className={secondaryCol}>N° reçu</TableHead>
+                  <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                  <SortableTableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
+                  <SortableTableHead field="numero" label="N° reçu" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={secondaryCol} />
                   <TableHead>Statut</TableHead>
                   <TableHead className="hidden md:table-cell" />
                 </TableRow>

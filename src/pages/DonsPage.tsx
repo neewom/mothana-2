@@ -29,7 +29,8 @@ import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import SortableTableHead from '../components/SortableTableHead'
-import { DON_SORT_DEFAUT, directionInitialeDon, nomDonateur, trierDons, type DonSortField, type SortDirection } from '../lib/donsSort'
+import { DON_SORT_DEFAUT, directionInitialeDon, nomDonateur, trierDons, type DonSortField } from '../lib/donsSort'
+import { useTableSort } from '../hooks/useTableSort'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -287,18 +288,11 @@ export default function DonsPage() {
   const activiteCol = selectedDon ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
 
   // Tri appliqué après les filtres et avant la pagination (le chargement suit l'ordre des id).
-  const [sortField, setSortField] = useState<DonSortField>(DON_SORT_DEFAUT.field)
-  const [sortDirection, setSortDirection] = useState<SortDirection>(DON_SORT_DEFAUT.direction)
-
-  function toggleSort(field: DonSortField) {
-    if (field === sortField) {
-      setSortDirection((direction) => (direction === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortField(field)
-      setSortDirection(directionInitialeDon(field))
-    }
-    setCurrentPage(1)
-  }
+  const { sortField, sortDirection, toggleSort } = useTableSort<DonSortField>({
+    initial: DON_SORT_DEFAUT,
+    initialDirection: directionInitialeDon,
+    onSortChange: () => setCurrentPage(1),
+  })
 
   const sortedDons = useMemo(
     () => trierDons(filteredDons, sortField, sortDirection),
@@ -452,7 +446,7 @@ export default function DonsPage() {
                       <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                       <TableHead className={activiteCol}>Activité</TableHead>
                       <SortableTableHead field="montant" label="Montant" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
-                      <TableHead className="hidden 2xl:table-cell">Mode</TableHead>
+                      <SortableTableHead field="mode" label="Mode" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden 2xl:table-cell" />
                       <TableHead className="hidden md:table-cell" />
                     </TableRow>
                   </TableHeader>

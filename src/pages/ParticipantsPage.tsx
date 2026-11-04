@@ -25,6 +25,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import ScrollShadowX from '../components/ScrollShadowX'
 import SortableTableHead from '../components/SortableTableHead'
+import { useTableSort } from '../hooks/useTableSort'
+import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
 
 // ---------------------------------------------------------------------------
@@ -307,19 +309,12 @@ export default function ParticipantsPage() {
   // Search
   const [search, setSearch] = useState('')
 
-  // Sort
-  const [sortField, setSortField] = useState<SortField>('nom')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-
-  function toggleSort(field: SortField) {
-    if (field === sortField) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortField(field)
-      setSortDirection('asc')
-    }
-    setCurrentPage(1)
-  }
+  // Sort (tri navigateur sur toute la liste filtrée, avant pagination)
+  const { sortField, sortDirection, sort, toggleSort } = useTableSort<SortField>({
+    initial: { field: 'nom', direction: 'asc' },
+    initialDirection: (field) => directionInitiale(field === 'total' ? 'number' : 'text'),
+    onSortChange: () => setCurrentPage(1),
+  })
 
   // Selected participant for detail panel
   const [selectedParticipant, setSelectedParticipant] = useState<ProfilParticipant | null>(null)
@@ -416,21 +411,17 @@ export default function ParticipantsPage() {
 
   // Sorted participants
   const sortedParticipants = useMemo(() => {
-    const dir = sortDirection === 'asc' ? 1 : -1
-    return [...filteredParticipants].sort((a, b) => {
-      switch (sortField) {
-        case 'civilite':
-          return dir * ((a.personnes.civilite ?? 0) - (b.personnes.civilite ?? 0))
-        case 'prenom':
-          return dir * (a.personnes.prenom ?? '').localeCompare(b.personnes.prenom ?? '')
-        case 'total':
-          return dir * ((totalDonsByParticipant.get(a.id) ?? 0) - (totalDonsByParticipant.get(b.id) ?? 0))
-        case 'nom':
-        default:
-          return dir * a.personnes.nom.localeCompare(b.personnes.nom)
-      }
-    })
-  }, [filteredParticipants, sortField, sortDirection, totalDonsByParticipant])
+    const columns: SortColumns<ProfilParticipant, SortField> = {
+      civilite: { type: 'text', value: (p) => (p.personnes.civilite ? CIVILITE_LABELS[p.personnes.civilite] : null) },
+      nom: { type: 'text', value: (p) => [p.personnes.nom, p.personnes.prenom] },
+      prenom: { type: 'text', value: (p) => [p.personnes.prenom, p.personnes.nom] },
+      total: { type: 'number', value: (p) => totalDonsByParticipant.get(p.id) ?? 0 },
+    }
+    // À valeur égale : ordre d'annuaire (nom, prénom), indépendant du sens choisi.
+    return sortRows(filteredParticipants, columns, sort, (a, b) =>
+      compareText(a.personnes.nom, b.personnes.nom) || compareText(a.personnes.prenom, b.personnes.prenom) || a.id.localeCompare(b.id)
+    )
+  }, [filteredParticipants, sort, totalDonsByParticipant])
 
   // Export : tous les donateurs affichés (recherche appliquée, toutes les pages), dans l'ordre du tableau.
   function handleExport() {
