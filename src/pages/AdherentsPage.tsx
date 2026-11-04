@@ -30,6 +30,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import { Label } from '../components/ui/label'
 import { PageHeader } from '../components/ui/page-header'
+import { TablePagination } from '../components/ui/table-pagination'
 import { ListToolbar, FilterChips, type FilterChip } from '../components/ui/list-toolbar'
 import { FilterSheet } from '../components/ui/filter-sheet'
 import { ActionMenu } from '../components/ui/action-menu'
@@ -684,36 +685,14 @@ export default function AdherentsPage() {
           )}
 
           {!loading && adherents.length > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-paper-border px-4 py-3 md:px-6">
-              <div className="flex items-center gap-2 font-registre-mono text-xs text-ink-faint">
-                <span>Lignes par page</span>
-                <Select
-                  aria-label="Lignes par page"
-                  value={pageSize}
-                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
-                  className="py-1 pl-2 pr-7 text-xs"
-                >
-                  {[25, 50, 100, 250].map((size) => (
-                    <option key={size} value={size}>{size}</option>
-                  ))}
-                </Select>
-                <span>
-                  {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalCount)} sur {totalCount}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>«</Button>
-                <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>
-                  ‹ Précédent
-                </Button>
-                <span className="font-registre-mono text-xs text-ink-faint">Page {currentPage} / {pageCount}</span>
-                <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))} disabled={currentPage === pageCount}>
-                  Suivant ›
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => setCurrentPage(pageCount)} disabled={currentPage === pageCount}>»</Button>
-              </div>
-            </div>
+            <TablePagination
+              page={Math.min(currentPage, pageCount)}
+              pageCount={pageCount}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+            />
           )}
         </div>
       </div>
