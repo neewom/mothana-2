@@ -16,7 +16,7 @@ interface ChampsAdhesionProps {
   avecDateNaissance?: boolean
 }
 
-/** Identité, adresse et contact du formulaire public d'adhésion (adhésion et renouvellement). */
+/** Identité, adresse et contact du formulaire d'adhésion (renouvellement en ligne, espace bénévole). */
 export default function ChampsAdhesion({ valeurs, onChange, avecDateNaissance = true }: ChampsAdhesionProps) {
   const { civilite, nom, prenom, dateNaissance, adresse, codePostal, ville, pays, telephone, courriel } = valeurs
   const courrielInvalid = courriel.length > 0 && !isValidEmail(courriel)

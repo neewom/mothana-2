@@ -1,5 +1,6 @@
-// Champs du formulaire public d'adhésion, partagés par la demande d'adhésion (/adhesion/<slug>)
-// et le renouvellement par lien personnel (/adhesion/<slug>/renouveler).
+// Champs du formulaire d'adhésion, partagés par le renouvellement par lien personnel
+// (/adhesion/<slug>/renouveler) et l'espace bénévole (l'ex-formulaire public /adhesion/<slug>
+// est retiré depuis le 2026-11-04).
 import type { CiviliteAdherent } from '../types'
 
 export interface ChampsAdhesionValeurs {

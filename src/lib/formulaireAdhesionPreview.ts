@@ -1,9 +1,9 @@
 // Données par défaut + rendu HTML pour l'en-tête/pied de page personnalisables
-// du formulaire public de demande d'adhésion (le formulaire central reste
-// inchangé, cf. CLAUDE.md § Adhérents). Même mécanique de placeholders
+// de la page publique de renouvellement d'adhésion (le formulaire central reste
+// inchangé, cf. CLAUDE.md § Adhérents) — ex-formulaire public de demande, retiré le 2026-11-04. Même mécanique de placeholders
 // {{asset_<identifiant>}} que les templates Cerfa/carte adhérent (cerfaPreview.ts).
 
-// Reproduit exactement l'en-tête codé en dur historique de DemandeAdhesionPage
+// Reproduit exactement l'en-tête codé en dur historique de l'ex-formulaire public
 // (titre + nom organisation) : c'est la valeur pré-remplie dans l'éditeur tant
 // que l'organisation n'a rien personnalisé, pour que l'admin parte de l'existant.
 export const DEFAULT_FORMULAIRE_ADHESION_HEADER_HTML = `<div class="demande-adhesion-header">
