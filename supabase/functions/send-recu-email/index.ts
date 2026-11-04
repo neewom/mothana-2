@@ -1,5 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
+import { rendreEmailRecu, rendreObjetEmailRecu, valeursEmailRecu } from '../_shared/recuEmail.ts'
+import { sendViaResend } from '../_shared/resend.ts'
+import { envoyerEmailRecu } from './envoi.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,43 +20,6 @@ function bytesToBase64(bytes: Uint8Array): string {
   let binary = ''
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
   return btoa(binary)
-}
-
-function recuEmailHtml(donateurNom: string, organisationNom: string, annee: number): string {
-  return `<!doctype html><html><body style="font-family: ui-sans-serif, system-ui, sans-serif; background: #f8fafc; padding: 32px;">
-  <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e2e8f0;">
-    <h1 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">Votre reçu fiscal ${annee}</h1>
-    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Bonjour ${donateurNom},</p>
-    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Veuillez trouver ci-joint votre reçu fiscal ${annee} pour vos dons à ${organisationNom}, à conserver pour votre déclaration de revenus.</p>
-    <p style="color: #94a3b8; font-size: 12px;">Cet email vous a été envoyé par ${organisationNom} via Samakan.</p>
-  </div>
-</body></html>`
-}
-
-async function sendViaResend(
-  to: string,
-  subject: string,
-  html: string,
-  attachment: { filename: string; content: string },
-): Promise<{ ok: boolean; detail?: string }> {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: 'Samakan <noreply@samakan.fr>',
-      to: [to],
-      subject,
-      html,
-      attachments: [attachment],
-    }),
-  })
-  if (!res.ok) {
-    return { ok: false, detail: await res.text() }
-  }
-  return { ok: true }
 }
 
 Deno.serve(async (req) => {
@@ -100,11 +66,15 @@ Deno.serve(async (req) => {
 
     const organisationId = resolved.organisationId
 
-    const { data: org } = await adminClient
-      .from('organisations')
-      .select('nom')
-      .eq('id', organisationId)
-      .single()
+    // Expéditeur et modèle d'email dans organisations, clé API Brevo dans organisation_secrets.
+    const [{ data: org }, { data: secret }] = await Promise.all([
+      adminClient
+        .from('organisations')
+        .select('nom, brevo_expediteur_nom, brevo_expediteur_email, modele_recu_pdf')
+        .eq('id', organisationId)
+        .single(),
+      adminClient.from('organisation_secrets').select('brevo_api_key').eq('organisation_id', organisationId).maybeSingle(),
+    ])
 
     if (!org) {
       return jsonResponse({ error: 'Organisation introuvable' }, 404)
@@ -128,7 +98,7 @@ Deno.serve(async (req) => {
 
     const { data: recu } = await adminClient
       .from('recus_fiscaux')
-      .select('id, fichier_url')
+      .select('id, fichier_url, montant_total')
       .eq('profil_participant_id', profil_participant_id)
       .eq('organisation_id', organisationId)
       .eq('annee', anneeNum)
@@ -143,7 +113,7 @@ Deno.serve(async (req) => {
     // fichier actuel.
     const { data: derniereVersion, error: versionError } = await adminClient
       .from('recus_fiscaux_versions')
-      .select('id, fichier_url')
+      .select('id, fichier_url, montant_total')
       .eq('recu_id', recu.id)
       .order('version', { ascending: false })
       .limit(1)
@@ -168,17 +138,39 @@ Deno.serve(async (req) => {
     const pdfBytes = new Uint8Array(await pdfFile.arrayBuffer())
     const donateurNom = personne.prenom ? `${personne.prenom} ${personne.nom}` : personne.nom
 
-    const emailResult = await sendViaResend(
-      personne.email,
-      `Votre reçu fiscal ${anneeNum} — ${org.nom}`,
-      recuEmailHtml(donateurNom, org.nom, anneeNum),
-      { filename: `recu-fiscal-${anneeNum}.pdf`, content: bytesToBase64(pdfBytes) },
+    // Modèle personnalisé (Paramètres › Reçus fiscaux), sinon le texte par défaut ; valeurs échappées.
+    const modele = (org.modele_recu_pdf ?? {}) as { email_objet?: string | null; email_html?: string | null }
+    const montant = Number(derniereVersion?.montant_total ?? recu.montant_total)
+    const valeurs = valeursEmailRecu({
+      prenom: personne.prenom,
+      nom: personne.nom,
+      annee: anneeNum,
+      organisation: org.nom,
+      montant: Number.isFinite(montant) ? montant : null,
+    })
+
+    const emailResult = await envoyerEmailRecu(
+      {
+        destinataire: { email: personne.email.trim(), nom: donateurNom },
+        objet: rendreObjetEmailRecu(modele.email_objet, valeurs),
+        html: rendreEmailRecu(modele.email_html, valeurs),
+        pieceJointe: { nom: `recu-fiscal-${anneeNum}.pdf`, contenuBase64: bytesToBase64(pdfBytes) },
+        profilParticipantId: profil_participant_id,
+      },
+      {
+        apiKey: (secret?.brevo_api_key as string | null | undefined) ?? null,
+        expediteurNom: org.brevo_expediteur_nom,
+        expediteurEmail: org.brevo_expediteur_email,
+      },
+      { fetchFn: fetch, envoyerResend: sendViaResend },
     )
 
     if (!emailResult.ok) {
-      console.error('Resend error:', emailResult.detail)
+      console.error('send-recu-email: envoi impossible', emailResult.detail)
       return jsonResponse({ error: "Erreur lors de l'envoi de l'email" }, 500)
     }
+    // Trace du canal : journal de la fonction + recus_fiscaux.email_canal.
+    console.log('send-recu-email: envoyé', emailResult.canal, emailResult.motifSecours ?? '')
 
     const envoyeLe = new Date().toISOString()
 
@@ -195,7 +187,7 @@ Deno.serve(async (req) => {
 
     const { error: updateError } = await adminClient
       .from('recus_fiscaux')
-      .update({ email_envoye_at: envoyeLe })
+      .update({ email_envoye_at: envoyeLe, email_canal: emailResult.canal })
       .eq('profil_participant_id', profil_participant_id)
       .eq('organisation_id', organisationId)
       .eq('annee', anneeNum)
@@ -205,7 +197,7 @@ Deno.serve(async (req) => {
       // Non-blocking: email was sent, return success anyway
     }
 
-    return jsonResponse({ ok: true })
+    return jsonResponse({ ok: true, canal: emailResult.canal })
   } catch (err) {
     console.error('send-recu-email error:', err)
     return jsonResponse({ error: 'Erreur inconnue' }, 500)
