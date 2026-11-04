@@ -18,6 +18,7 @@ import { downloadCsv } from '../lib/csvExport'
 import { cn } from '../lib/utils'
 import { DONS_FILTRES_VIDES, PERIODES_DONS, bornesPeriode, filtrerDons, nombreFiltresDons, type DonsFiltres, type PeriodeDons } from '../lib/donsFilters'
 import { PageHeader } from '../components/ui/page-header'
+import { TablePagination } from '../components/ui/table-pagination'
 import { ListToolbar, FilterChips, type FilterChip } from '../components/ui/list-toolbar'
 import { FilterSheet } from '../components/ui/filter-sheet'
 import { SidePanel, DetailField } from '../components/ui/side-panel'
@@ -28,7 +29,8 @@ import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import SortableTableHead from '../components/SortableTableHead'
-import { DON_SORT_DEFAUT, directionInitialeDon, nomDonateur, trierDons, type DonSortField, type SortDirection } from '../lib/donsSort'
+import { DON_SORT_DEFAUT, directionInitialeDon, nomDonateur, trierDons, type DonSortField } from '../lib/donsSort'
+import { useTableSort } from '../hooks/useTableSort'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -286,18 +288,11 @@ export default function DonsPage() {
   const activiteCol = selectedDon ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
 
   // Tri appliqué après les filtres et avant la pagination (le chargement suit l'ordre des id).
-  const [sortField, setSortField] = useState<DonSortField>(DON_SORT_DEFAUT.field)
-  const [sortDirection, setSortDirection] = useState<SortDirection>(DON_SORT_DEFAUT.direction)
-
-  function toggleSort(field: DonSortField) {
-    if (field === sortField) {
-      setSortDirection((direction) => (direction === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortField(field)
-      setSortDirection(directionInitialeDon(field))
-    }
-    setCurrentPage(1)
-  }
+  const { sortField, sortDirection, toggleSort } = useTableSort<DonSortField>({
+    initial: DON_SORT_DEFAUT,
+    initialDirection: directionInitialeDon,
+    onSortChange: () => setCurrentPage(1),
+  })
 
   const sortedDons = useMemo(
     () => trierDons(filteredDons, sortField, sortDirection),
@@ -451,7 +446,7 @@ export default function DonsPage() {
                       <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                       <TableHead className={activiteCol}>Activité</TableHead>
                       <SortableTableHead field="montant" label="Montant" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
-                      <TableHead className="hidden 2xl:table-cell">Mode</TableHead>
+                      <SortableTableHead field="mode" label="Mode" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden 2xl:table-cell" />
                       <TableHead className="hidden md:table-cell" />
                     </TableRow>
                   </TableHeader>
@@ -495,36 +490,14 @@ export default function DonsPage() {
 
             {/* Pagination */}
             {!loading && filteredDons.length > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-paper-border px-4 py-3 md:px-6">
-                <div className="flex items-center gap-2 font-registre-mono text-xs text-ink-faint">
-                  <span>Lignes par page</span>
-                  <Select
-                    aria-label="Lignes par page"
-                    value={pageSize}
-                    onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
-                    className="py-1 pl-2 pr-7 text-xs"
-                  >
-                    {[25, 50, 100, 250].map((size) => (
-                      <option key={size} value={size}>{size}</option>
-                    ))}
-                  </Select>
-                  <span>
-                    {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filteredDons.length)} sur {filteredDons.length}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage(1)} disabled={safePage === 1}>«</Button>
-                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
-                    ‹ Précédent
-                  </Button>
-                  <span className="font-registre-mono text-xs text-ink-faint">Page {safePage} / {pageCount}</span>
-                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))} disabled={safePage === pageCount}>
-                    Suivant ›
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage(pageCount)} disabled={safePage === pageCount}>»</Button>
-                </div>
-              </div>
+              <TablePagination
+                page={safePage}
+                pageCount={pageCount}
+                totalCount={filteredDons.length}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+              />
             )}
           </div>
 

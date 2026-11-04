@@ -5,11 +5,9 @@ import ParametresSection from '../components/ParametresSection'
 import CarteAdherentSection from '../components/CarteAdherentSection'
 import FormulaireAdhesionEditorModal from '../components/FormulaireAdhesionEditorModal'
 import { slugifyUrl } from '../lib/organisationAssets'
-import { copyTextToClipboard } from '../lib/clipboard'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Textarea } from '../components/ui/textarea'
 import SaveBar from '../components/parametres/SaveBar'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 import { Select } from '../components/ui/select'
@@ -44,8 +42,8 @@ interface OrgSettings {
   formulaire_adhesion_header_html: string | null
   formulaire_adhesion_footer_html: string | null
   formulaire_adhesion_css: string | null
-  formulaire_adhesion_message_succes: string | null
   notif_demandes_adhesion: boolean
+  saisie_adhesion_benevole: boolean
   adhesion_regle_fin: RegleFinAdhesion
   adhesion_mois_bascule: number
 }
@@ -63,12 +61,11 @@ export default function ParametresAdhesionsPage() {
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
-  // Adhésion en ligne (slug public + statuts PDF)
+  // Renouvellement en ligne (slug public + statuts PDF)
   const [slug, setSlug] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [slugCopied, setSlugCopied] = useState(false)
   const [statutsUrl, setStatutsUrl] = useState<string | null>(null)
   const [statutsUploading, setStatutsUploading] = useState(false)
   const [statutsError, setStatutsError] = useState<string | null>(null)
@@ -76,9 +73,8 @@ export default function ParametresAdhesionsPage() {
   const [formulaireFooterHtml, setFormulaireFooterHtml] = useState<string | null>(null)
   const [formulaireCss, setFormulaireCss] = useState<string | null>(null)
   const [formulaireEditorOpen, setFormulaireEditorOpen] = useState(false)
-  const [messageSucces, setMessageSucces] = useState('')
-  const [messageSuccesInitial, setMessageSuccesInitial] = useState('')
   const [notifDemandes, setNotifDemandes] = useState(true)
+  const [saisieBenevole, setSaisieBenevole] = useState(false)
   const [regleFin, setRegleFin] = useState<RegleFinAdhesion>('glissante')
   const [moisBascule, setMoisBascule] = useState(12)
   // Après un changement de règle : proposer de recalculer les adhésions existantes.
@@ -86,11 +82,11 @@ export default function ParametresAdhesionsPage() {
   const [recalageEnCours, setRecalageEnCours] = useState(false)
   const [recalageMessage, setRecalageMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null)
 
-  // Un seul enregistrement pour l'adresse du formulaire et le message de succès ; les statuts
+  // Un seul enregistrement pour les réglages du formulaire ; les statuts
   // (envoi de fichier) et l'éditeur d'en-tête restent des actions immédiates.
   const regleModifiee = settings !== null
     && (regleFin !== settings.adhesion_regle_fin || (regleFin === 'annee_civile' && moisBascule !== settings.adhesion_mois_bascule))
-  const dirty = settings !== null && (slug !== settings.slug || messageSucces.trim() !== messageSuccesInitial || regleModifiee || notifDemandes !== settings.notif_demandes_adhesion)
+  const dirty = settings !== null && (slug !== settings.slug || regleModifiee || notifDemandes !== settings.notif_demandes_adhesion || saisieBenevole !== settings.saisie_adhesion_benevole)
   const guardDialog = useUnsavedChangesGuard(dirty)
 
   useEffect(() => {
@@ -103,7 +99,7 @@ export default function ParametresAdhesionsPage() {
       const { data, error } = await supabase
         .from('organisations')
         .select(
-          'slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css, formulaire_adhesion_message_succes, notif_demandes_adhesion, adhesion_regle_fin, adhesion_mois_bascule',
+          'slug, statuts_url, formulaire_adhesion_header_html, formulaire_adhesion_footer_html, formulaire_adhesion_css, notif_demandes_adhesion, saisie_adhesion_benevole, adhesion_regle_fin, adhesion_mois_bascule',
         )
         .eq('id', organisationId)
         .single()
@@ -122,9 +118,8 @@ export default function ParametresAdhesionsPage() {
       setFormulaireHeaderHtml(raw.formulaire_adhesion_header_html)
       setFormulaireFooterHtml(raw.formulaire_adhesion_footer_html)
       setFormulaireCss(raw.formulaire_adhesion_css)
-      setMessageSucces(raw.formulaire_adhesion_message_succes ?? '')
-      setMessageSuccesInitial(raw.formulaire_adhesion_message_succes ?? '')
       setNotifDemandes(raw.notif_demandes_adhesion)
+      setSaisieBenevole(raw.saisie_adhesion_benevole)
       setRegleFin(raw.adhesion_regle_fin)
       setMoisBascule(raw.adhesion_mois_bascule)
       setLoading(false)
@@ -138,7 +133,7 @@ export default function ParametresAdhesionsPage() {
     if (!dirty) return
     const normalized = slugifyUrl(slug)
     if (!normalized) {
-      setSaveError('Adresse du formulaire invalide')
+      setSaveError('Identifiant public invalide')
       return
     }
 
@@ -146,27 +141,24 @@ export default function ParametresAdhesionsPage() {
     setSaveError(null)
     setSaveSuccess(false)
 
-    const trimmed = messageSucces.trim()
     const { error } = await supabase
       .from('organisations')
       .update({
         slug: normalized,
-        formulaire_adhesion_message_succes: trimmed || null,
         notif_demandes_adhesion: notifDemandes,
+        saisie_adhesion_benevole: saisieBenevole,
         adhesion_regle_fin: regleFin,
         adhesion_mois_bascule: moisBascule,
       })
       .eq('id', organisationId)
 
     if (error) {
-      setSaveError(error.code === '23505' ? 'Cette adresse est déjà utilisée par une autre organisation' : error.message)
+      setSaveError(error.code === '23505' ? 'Cet identifiant est déjà utilisé par une autre organisation' : error.message)
     } else {
       setSlug(normalized)
       setSettings((current) => (current
-        ? { ...current, slug: normalized, notif_demandes_adhesion: notifDemandes, adhesion_regle_fin: regleFin, adhesion_mois_bascule: moisBascule }
+        ? { ...current, slug: normalized, notif_demandes_adhesion: notifDemandes, saisie_adhesion_benevole: saisieBenevole, adhesion_regle_fin: regleFin, adhesion_mois_bascule: moisBascule }
         : current))
-      setMessageSucces(trimmed)
-      setMessageSuccesInitial(trimmed)
       setSaveSuccess(true)
       setRecalageMessage(null)
       // La nouvelle règle vaut pour les adhésions à venir ; les existantes ne changent que si
@@ -191,12 +183,6 @@ export default function ParametresAdhesionsPage() {
     }
     const n = Number(data ?? 0)
     setRecalageMessage({ tone: 'success', text: `${n} date${n > 1 ? 's' : ''} de fin recalculée${n > 1 ? 's' : ''}.` })
-  }
-
-  function handleCopySlugUrl() {
-    copyTextToClipboard(`${window.location.origin}/adhesion/${slug}`)
-    setSlugCopied(true)
-    setTimeout(() => setSlugCopied(false), 2000)
   }
 
   async function handleUploadStatuts(file: File | null) {
@@ -254,7 +240,7 @@ export default function ParametresAdhesionsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-ink md:text-3xl">Adhésions</h1>
-        <p className="mt-1 text-sm text-ink-muted">Durée des adhésions, carte adhérent et formulaire public de demande d'adhésion.</p>
+        <p className="mt-1 text-sm text-ink-muted">Durée des adhésions, carte adhérent, saisie par les bénévoles et renouvellement en ligne.</p>
       </div>
 
       {!peutModifier && <LectureSeuleNotice />}
@@ -308,39 +294,51 @@ export default function ParametresAdhesionsPage() {
       </ParametresSection>
 
       <ParametresSection
-        title="Adhésion en ligne"
-        description="Formulaire public permettant de soumettre une demande d'adhésion, à ratifier ensuite depuis l'espace Adhérents."
+        title="Saisie par les bénévoles"
+        description="Autorise l'espace bénévole à créer un adhérent et sa première adhésion, sans ratification. Le code PIN bénévole étant partagé, le réglage vaut pour tous les bénévoles."
+      >
+        <fieldset disabled={!peutModifier} className="max-w-lg">
+          <label className="flex items-start gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={saisieBenevole}
+              onChange={(e) => { setSaisieBenevole(e.target.checked); setSaveSuccess(false) }}
+              className="mt-0.5 h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
+            />
+            Les bénévoles peuvent saisir de nouvelles adhésions (onglet « Nouvel adhérent »)
+          </label>
+          <p className="mt-1 text-xs text-ink-faint">
+            L'adhérent signe à l'écran ou sur un bulletin papier. Chaque saisie est inscrite au journal ; les bénévoles ne voient pas la liste des adhérents.
+          </p>
+        </fieldset>
+      </ParametresSection>
+
+      <ParametresSection
+        title="Renouvellement en ligne"
+        description="Page publique où un adhérent renouvelle son adhésion depuis le lien personnel reçu par email ; la demande est ensuite à valider dans Demandes d'adhésion."
       >
         <div className="max-w-lg space-y-4">
           <div>
-            <Label>Adresse du formulaire</Label>
-            <div className="mt-1 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-              <span className="break-all text-sm text-ink-faint">{window.location.origin}/adhesion/</span>
-              <Input
-                type="text"
-                value={slug}
-                onChange={(e) => { setSlug(e.target.value); setSaveSuccess(false) }}
-                placeholder="ex : mon-association"
-                className="sm:flex-1"
-                disabled={!peutModifier}
-              />
-            </div>
+            <Label htmlFor="adhesion-slug">Identifiant public (liens de renouvellement)</Label>
+            <Input
+              id="adhesion-slug"
+              type="text"
+              value={slug}
+              onChange={(e) => { setSlug(e.target.value); setSaveSuccess(false) }}
+              placeholder="ex : mon-association"
+              className="mt-1"
+              disabled={!peutModifier}
+            />
             <p className="mt-1 text-xs text-ink-faint">
-              Lettres minuscules, chiffres et tirets uniquement. Modifier ce slug change l'adresse du formulaire public.
+              Lettres minuscules, chiffres et tirets uniquement. Il figure dans l'adresse des liens de renouvellement : le modifier rend inutilisables les liens déjà envoyés.
             </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" variant="secondary" onClick={handleCopySlugUrl}>
-              {slugCopied ? 'Copié !' : "Copier l'adresse"}
-            </Button>
           </div>
         </div>
 
         <div className="mt-6 max-w-lg">
           <p className="mb-2 text-sm font-medium text-ink-muted">Statuts de l'association</p>
           <p className="mb-3 text-xs text-ink-faint">
-            PDF affiché et téléchargeable sur le formulaire public, pour que le demandeur puisse en prendre connaissance avant de signer.
+            PDF proposé à la lecture sur la page de renouvellement et dans l'espace bénévole, pour que l'adhérent puisse en prendre connaissance avant de signer.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             {statutsUrl && (
@@ -373,7 +371,7 @@ export default function ParametresAdhesionsPage() {
         <div className="mt-6 max-w-lg">
           <p className="mb-2 text-sm font-medium text-ink-muted">En-tête et pied de page</p>
           <p className="mb-3 text-xs text-ink-faint">
-            Le formulaire central reste inchangé. Personnalisez l'en-tête et le pied de page avec vos assets (logo, bannière…) via l'éditeur.
+            Affichés sur la page de renouvellement, dont le formulaire central reste inchangé. Personnalisez-les avec vos assets (logo, bannière…) via l'éditeur.
           </p>
           <div className="flex items-center gap-3">
             {peutModifier && (
@@ -396,26 +394,13 @@ export default function ParametresAdhesionsPage() {
               onChange={(e) => { setNotifDemandes(e.target.checked); setSaveSuccess(false) }}
               className="mt-0.5 h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
             />
-            Prévenir l'équipe par email à chaque nouvelle demande d'adhésion
+            Prévenir l'équipe par email à chaque nouvelle demande de renouvellement
           </label>
           <p className="mt-1 text-xs text-ink-faint">
             Chaque compte peut aussi couper cet email pour lui-même (Mon compte), ou un administrateur pour un compte (Équipe).
           </p>
         </div>
 
-        <div className="mt-6 max-w-lg">
-          <p className="mb-2 text-sm font-medium text-ink-muted">Message de succès</p>
-          <p className="mb-3 text-xs text-ink-faint">
-            Affiché au demandeur une fois le formulaire envoyé. Laissez vide pour garder le message par défaut.
-          </p>
-          <Textarea
-            value={messageSucces}
-            onChange={(e) => { setMessageSucces(e.target.value); setSaveSuccess(false) }}
-            placeholder="Votre demande d'adhésion a bien été enregistrée. Elle sera examinée par le conseil d'administration."
-            rows={3}
-            disabled={!peutModifier}
-          />
-        </div>
       </ParametresSection>
 
       {peutModifier && <SaveBar
@@ -425,9 +410,9 @@ export default function ParametresAdhesionsPage() {
         error={saveError}
         onReset={() => {
           if (settings) setSlug(settings.slug)
-          setMessageSucces(messageSuccesInitial)
           if (settings) {
             setNotifDemandes(settings.notif_demandes_adhesion)
+            setSaisieBenevole(settings.saisie_adhesion_benevole)
             setRegleFin(settings.adhesion_regle_fin)
             setMoisBascule(settings.adhesion_mois_bascule)
           }

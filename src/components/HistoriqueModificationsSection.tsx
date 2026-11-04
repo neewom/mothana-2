@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { JournalModification } from '../types'
-import { fetchJournalModifications, JOURNAL_RECHERCHE_MIN } from '../lib/journalModifications'
+import { fetchJournalModifications, JOURNAL_RECHERCHE_MIN, libelleAuteurJournal } from '../lib/journalModifications'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { ListToolbar } from './ui/list-toolbar'
 import { getErrorMessage } from '../lib/errors'
@@ -68,7 +68,7 @@ export default function HistoriqueModificationsSection({ organisationId }: Histo
             <li key={entry.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
               <div>
                 <JournalActionLabel entry={entry} />
-                <span className="text-ink-faint"> · par {entry.auteur_nom ?? '—'}</span>
+                <span className="text-ink-faint"> · par {libelleAuteurJournal(entry)}</span>
               </div>
               <span className="shrink-0 text-xs text-ink-faint">{formatDateTime(entry.created_at)}</span>
             </li>

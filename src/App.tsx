@@ -7,7 +7,6 @@ import HomePage from './pages/HomePage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import BenevoleLoginPage from './pages/BenevoleLoginPage'
 import VendeurLoginPage from './pages/VendeurLoginPage'
-import DemandeAdhesionPage from './pages/DemandeAdhesionPage'
 import RenouvellementAdhesionPage from './pages/RenouvellementAdhesionPage'
 import DesinscriptionMailingPage from './pages/DesinscriptionMailingPage'
 import DecouvrirPage from './pages/DecouvrirPage'
@@ -42,6 +41,7 @@ import ParametresCompteAdminPage from './pages/ParametresCompteAdminPage'
 import SuperAdminLayout from './pages/SuperAdminLayout'
 import SuperAdminPage from './pages/SuperAdminPage'
 import LegacyRedirect from './components/LegacyRedirect'
+import NotFoundPage from './pages/NotFoundPage'
 
 
 function App() {
@@ -53,7 +53,7 @@ function App() {
         <Route path="/mot-de-passe/nouveau" element={<ResetPasswordPage />} />
         <Route path="/login/benevole" element={<BenevoleLoginPage />} />
         <Route path="/login/vendeur" element={<VendeurLoginPage />} />
-        <Route path="/adhesion/:slug" element={<DemandeAdhesionPage />} />
+        {/* /adhesion/<slug> seul (ancien formulaire public, retiré) : aucune route, traité par la page introuvable. */}
         <Route path="/adhesion/:slug/renouveler" element={<RenouvellementAdhesionPage />} />
         <Route path="/desinscription" element={<DesinscriptionMailingPage />} />
         <Route path="/decouvrir" element={<DecouvrirPage />} />
@@ -122,6 +122,9 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={['vendeur']} />}>
           <Route path="/vendeur" element={<VendeurPage />} />
         </Route>
+
+        {/* Toute adresse inconnue (publique, hors zones protégées) : page introuvable. */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </AuthProvider>
   )

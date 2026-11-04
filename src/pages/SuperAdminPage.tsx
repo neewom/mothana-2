@@ -20,7 +20,12 @@ import { useToast } from '../hooks/useToast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Table, TableBody, TableRow, TableCell } from '../components/ui/table'
+import { Table, TableBody, TableRow, TableCell, TableHeader, TableHead } from '../components/ui/table'
+import { TablePagination } from '../components/ui/table-pagination'
+import SortableTableHead from '../components/SortableTableHead'
+import { useTableSort } from '../hooks/useTableSort'
+import { useClientPagination } from '../hooks/useClientPagination'
+import { compareText, sortRows, type SortColumns } from '../lib/tableSort'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import BrevoWebhooksGlobalDialog from '../components/BrevoWebhooksGlobalDialog'
 
@@ -30,6 +35,14 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+// `creation` : ordre d'ouverture (organisation la plus récente d'abord), sans colonne affichée.
+type OrgSortField = 'creation' | 'nom'
+
+const ORG_SORT_COLUMNS: SortColumns<OrgRow, OrgSortField> = {
+  creation: { type: 'date', value: (o) => o.created_at },
+  nom: { type: 'text', value: (o) => o.nom },
+}
 
 interface OrgRow {
   id: string
@@ -377,6 +390,15 @@ export default function SuperAdminPage() {
   const archivedOrgs = orgsTrouvees.filter((o) => o.archived_at)
   const rechercheActive = recherche.trim().length > 0
 
+  // Tri navigateur (toutes les organisations sont chargées) et pagination de l'onglet affiché.
+  const orgSort = useTableSort<OrgSortField>({
+    initial: { field: 'creation', direction: 'desc' },
+    onSortChange: () => orgPagination.setCurrentPage(1),
+  })
+  const orgsAffichees = tab === 'actives' ? activeOrgs : archivedOrgs
+  const orgsTriees = sortRows(orgsAffichees, ORG_SORT_COLUMNS, orgSort.sort, (a, b) => compareText(a.nom, b.nom))
+  const orgPagination = useClientPagination(orgsTriees)
+
   function handleConsulter(org: OrgRow) {
     setViewingOrg(org.id)
     navigate('/admin')
@@ -629,7 +651,7 @@ export default function SuperAdminPage() {
           <div className="flex gap-2 rounded-sm bg-paper-border/40 p-1">
             <button
               type="button"
-              onClick={() => setTab('actives')}
+              onClick={() => { setTab('actives'); orgPagination.setCurrentPage(1) }}
               className={cn(
                 'flex-1 rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors sm:flex-initial',
                 tab === 'actives' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
@@ -639,7 +661,7 @@ export default function SuperAdminPage() {
             </button>
             <button
               type="button"
-              onClick={() => setTab('archivees')}
+              onClick={() => { setTab('archivees'); orgPagination.setCurrentPage(1) }}
               className={cn(
                 'flex-1 rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors sm:flex-initial',
                 tab === 'archivees' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
@@ -651,7 +673,7 @@ export default function SuperAdminPage() {
         </div>
         {orgs.length > 0 && (
           <ListToolbar
-            search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom…', label: 'Rechercher une organisation' }}
+            search={{ value: recherche, onChange: (v) => { setRecherche(v); orgPagination.setCurrentPage(1) }, placeholder: 'Nom…', label: 'Rechercher une organisation' }}
           />
         )}
 
@@ -669,8 +691,13 @@ export default function SuperAdminPage() {
             </div>
           ) : (
             <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortableTableHead field="nom" label="Nom" sortField={orgSort.sortField} sortDirection={orgSort.sortDirection} onSort={orgSort.toggleSort} />
+                </TableRow>
+              </TableHeader>
               <TableBody>
-                {activeOrgs.map((org) => (
+                {orgPagination.pageRows.map((org) => (
                   <TableRow
                     key={org.id}
                     onClick={() => { setEditing(org); setModalOpen(true) }}
@@ -693,8 +720,14 @@ export default function SuperAdminPage() {
         ) : (
           <ScrollShadowX>
             <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortableTableHead field="nom" label="Nom" sortField={orgSort.sortField} sortDirection={orgSort.sortDirection} onSort={orgSort.toggleSort} />
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
               <TableBody>
-                {archivedOrgs.map((org) => (
+                {orgPagination.pageRows.map((org) => (
                   <TableRow key={org.id}>
                     <TableCell>
                       <div className="font-medium text-ink">{org.nom}</div>
@@ -726,6 +759,7 @@ export default function SuperAdminPage() {
             </Table>
           </ScrollShadowX>
         )}
+        {!loading && orgsAffichees.length > 0 && <TablePagination {...orgPagination.paginationProps} />}
       </div>
 
       {/* Actions globales (toutes organisations) */}

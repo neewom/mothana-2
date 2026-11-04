@@ -23,9 +23,13 @@ import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import { PageHeader } from '../components/ui/page-header'
+import { TablePagination } from '../components/ui/table-pagination'
 import { ListToolbar } from '../components/ui/list-toolbar'
 import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { cn } from '../lib/utils'
+import SortableTableHead from '../components/SortableTableHead'
+import { useTableSort } from '../hooks/useTableSort'
+import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,6 +40,16 @@ interface ParticipantRow {
   total_dons: number
   recu: RecuFiscal | null
   validation: ParticipantValidation
+}
+
+type RecuSortField = 'donateur' | 'total' | 'numero'
+
+// Donateur : ordre d'annuaire (nom puis prénom, l'affichage reste « Prénom Nom ») ;
+// N° reçu : comparaison numérique des chiffres, lignes sans reçu en dernier.
+const RECU_SORT_COLUMNS: SortColumns<ParticipantRow, RecuSortField> = {
+  donateur: { type: 'text', value: (r) => [r.profil.personnes.nom, r.profil.personnes.prenom] },
+  total: { type: 'number', value: (r) => r.total_dons },
+  numero: { type: 'text', value: (r) => r.recu?.numero_ordre },
 }
 
 // ---------------------------------------------------------------------------
@@ -206,7 +220,8 @@ export default function RecusFiscauxPage() {
       validation: validateParticipantCerfa(p.personnes),
     }))
 
-    // Sort by nom then prenom
+    // Sort by nom then prenom — garde l'ordre de « Tout générer » (attribution des numéros),
+    // indépendant du tri affiché.
     built.sort((a, b) =>
       a.profil.personnes.nom.localeCompare(b.profil.personnes.nom) ||
       (a.profil.personnes.prenom ?? '').localeCompare(b.profil.personnes.prenom ?? '')
@@ -428,6 +443,25 @@ export default function RecusFiscauxPage() {
   )
 
   // ---------------------------------------------------------------------------
+  // Tri (navigateur, sur toute la liste filtrée, avant pagination)
+  // ---------------------------------------------------------------------------
+
+  const { sortField, sortDirection, sort, toggleSort } = useTableSort<RecuSortField>({
+    initial: { field: 'donateur', direction: 'asc' },
+    initialDirection: (field) => directionInitiale(RECU_SORT_COLUMNS[field].type),
+    onSortChange: () => setCurrentPage(1),
+  })
+
+  const sortedRows = useMemo(
+    () => sortRows(filteredRows, RECU_SORT_COLUMNS, sort, (a, b) =>
+      compareText(a.profil.personnes.nom, b.profil.personnes.nom) ||
+      compareText(a.profil.personnes.prenom, b.profil.personnes.prenom) ||
+      a.profil.id.localeCompare(b.profil.id)
+    ),
+    [filteredRows, sort]
+  )
+
+  // ---------------------------------------------------------------------------
   // Pagination
   // ---------------------------------------------------------------------------
 
@@ -439,8 +473,8 @@ export default function RecusFiscauxPage() {
 
   const paginatedRows = useMemo(() => {
     const start = (safePage - 1) * pageSize
-    return filteredRows.slice(start, start + pageSize)
-  }, [filteredRows, safePage, pageSize])
+    return sortedRows.slice(start, start + pageSize)
+  }, [sortedRows, safePage, pageSize])
 
   // ---------------------------------------------------------------------------
   // Render
@@ -541,9 +575,9 @@ export default function RecusFiscauxPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Donateur</TableHead>
-                  <TableHead className="text-right">Total dons</TableHead>
-                  <TableHead className={secondaryCol}>N° reçu</TableHead>
+                  <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                  <SortableTableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
+                  <SortableTableHead field="numero" label="N° reçu" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={secondaryCol} />
                   <TableHead>Statut</TableHead>
                   <TableHead className="hidden md:table-cell" />
                 </TableRow>
@@ -594,36 +628,14 @@ export default function RecusFiscauxPage() {
 
         {/* Pagination */}
         {!loading && filteredRows.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-paper-border px-6 py-3">
-            <div className="flex items-center gap-2 font-registre-mono text-xs text-ink-faint">
-              <span>Lignes par page</span>
-              <Select
-                aria-label="Lignes par page"
-                value={pageSize}
-                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
-                className="py-1 pl-2 pr-7 text-xs"
-              >
-                {[25, 50, 100, 250].map((size) => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </Select>
-              <span>
-                {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filteredRows.length)} sur {filteredRows.length}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setCurrentPage(1)} disabled={safePage === 1}>«</Button>
-              <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
-                ‹ Précédent
-              </Button>
-              <span className="font-registre-mono text-xs text-ink-faint">Page {safePage} / {pageCount}</span>
-              <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))} disabled={safePage === pageCount}>
-                Suivant ›
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setCurrentPage(pageCount)} disabled={safePage === pageCount}>»</Button>
-            </div>
-          </div>
+          <TablePagination
+            page={safePage}
+            pageCount={pageCount}
+            totalCount={filteredRows.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+          />
         )}
       </div>
 

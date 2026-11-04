@@ -10,6 +10,7 @@ import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { PageHeader } from '../components/ui/page-header'
 import { ListToolbar } from '../components/ui/list-toolbar'
+import { TablePagination } from '../components/ui/table-pagination'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
@@ -299,7 +300,7 @@ export default function ActivitesPage() {
   const [deleting, setDeleting] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [pageSize] = useState(50)
+  const [pageSize, setPageSize] = useState(50)
   const [currentPage, setCurrentPage] = useState(1)
 
   const fetchActivites = useCallback(async () => {
@@ -588,34 +589,18 @@ export default function ActivitesPage() {
               )}
             </div>
 
-            {pageCount > 1 && (
-              <div className="flex items-center justify-between rounded-sm border border-paper-border bg-white px-4 py-3 md:px-6">
-                <span className="font-registre-mono text-xs text-ink-faint">
-                  {filteredActivites.length} activité{filteredActivites.length !== 1 ? 's' : ''}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={safePage === 1}
-                  >
-                    ‹ Précédent
-                  </Button>
-                  <span className="font-registre-mono text-xs text-ink-faint">Page {safePage} / {pageCount}</span>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
-                    disabled={safePage === pageCount}
-                  >
-                    Suivant ›
-                  </Button>
-                </div>
-              </div>
-            )}
+            {/* Pagination commune, en carte autonome sous les trois registres. */}
+            <div className="rounded-sm border border-paper-border bg-white">
+              <TablePagination
+                className="border-t-0"
+                page={safePage}
+                pageCount={pageCount}
+                totalCount={filteredActivites.length}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+              />
+            </div>
           </>
         )}
       </div>

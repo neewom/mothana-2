@@ -31,7 +31,7 @@ export default function SortableTableHead<F extends string>({
         type="button"
         onClick={() => onSort(field)}
         className={cn(
-          'inline-flex select-none items-center gap-1 rounded-sm uppercase hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70',
+          'inline-flex select-none items-center gap-1 whitespace-nowrap rounded-sm uppercase hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70',
           active && 'text-ink'
         )}
       >
