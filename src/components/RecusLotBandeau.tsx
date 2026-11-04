@@ -120,7 +120,7 @@ export default function RecusLotBandeau({
             </div>
             <p className="mt-2 text-xs text-ink-faint">
               {l.continue}
-              {envoi && rythme && ` Rythme : ${pluriel(rythme.parMinute, 'email')} par minute, ${nf.format(rythme.parJour)} par jour au plus.`}
+              {envoi && rythme && ` Rythme moyen : ${pluriel(rythme.parMinute, 'email')} par minute ; plafond : ${nf.format(rythme.parJour)} par jour.`}
             </p>
           </div>
           <Button variant="danger" size="sm" className="shrink-0 self-start sm:self-end" onClick={onArreter} disabled={actionEnCours}>

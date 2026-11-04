@@ -201,7 +201,7 @@ begin
   else
     update public.recus_lot_lignes
        set statut = 'a_verifier', modifie_le = now(),
-           erreur = 'Traitement interrompu pendant l''envoi : vérifiez dans Brevo si l''email est parti'
+           erreur = 'Traitement interrompu pendant l''envoi : vérifiez (journal des emails de Brevo, ou auprès du donateur) si l''email est parti'
      where id = v_ligne.id;
   end if;
 end;

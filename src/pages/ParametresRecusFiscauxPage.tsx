@@ -328,7 +328,7 @@ export default function ParametresRecusFiscauxPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <Label htmlFor="envoi-lot-par-minute">Emails par minute au plus</Label>
+                  <Label htmlFor="envoi-lot-par-minute">Rythme moyen par minute</Label>
                   <Input
                     id="envoi-lot-par-minute"
                     inputMode="numeric"
@@ -346,8 +346,8 @@ export default function ParametresRecusFiscauxPage() {
               </div>
               <p className="text-xs text-ink-faint">
                 Réglez-le sur le quota de votre offre Brevo (offre gratuite : 300 emails par jour, tous envois confondus) en gardant
-                une marge pour vos campagnes : le quota compte les reçus envoyés un par un et en lot, pas les campagnes. Par défaut :
-                250 par jour, 5 par minute.
+                une marge pour vos campagnes : le quota compte les reçus envoyés un par un et en lot, pas les campagnes. Le plafond strict
+                est le quota par jour ; le rythme par minute est une moyenne. Par défaut : 250 par jour, 5 par minute en moyenne.
               </p>
             </div>
           </ParametresSection>

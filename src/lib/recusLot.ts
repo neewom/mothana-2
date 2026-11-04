@@ -65,7 +65,7 @@ export function messageErreurLot(message: string | undefined | null): string {
   if (m.includes('ACCES_REFUSE')) return "Vous n'avez pas les droits pour gérer les lots de reçus de cette organisation."
   if (m.includes('ANNEE_INVALIDE')) return 'Année invalide.'
   if (m.includes('AUCUN_RECU_A_ENVOYER')) return 'Aucun reçu à envoyer pour cette année.'
-  if (m.includes('ENVOI_EN_COURS')) return "L'envoi arrêté termine l'email en cours : réessayez dans une minute."
+  if (m.includes('ENVOI_EN_COURS')) return "L'envoi arrêté termine l'email en cours : réessayez dans quelques minutes."
   if (m.includes('GENERATION_EN_COURS')) return 'Une génération des reçus de cette année est en cours : attendez sa fin pour lancer l’envoi.'
   if (m.includes('LOT_INTROUVABLE')) return 'Ce lot est introuvable : rechargez la page.'
   // Code inconnu : jamais affiché brut.

@@ -40,7 +40,7 @@ describe('lotTraites / messageErreurLot', () => {
   it('traduit les codes des RPC', () => {
     expect(messageErreurLot('LOT_DEJA_EN_COURS')).toBe('Un lot est déjà en cours pour cette année.')
     expect(messageErreurLot('AUCUN_RECU_MANQUANT')).toContain('Aucun reçu manquant')
-    expect(messageErreurLot('ENVOI_EN_COURS')).toContain('réessayez dans une minute')
+    expect(messageErreurLot('ENVOI_EN_COURS')).toContain('réessayez dans quelques minutes')
     expect(messageErreurLot('GENERATION_EN_COURS')).toContain('génération')
     expect(messageErreurLot('LOT_INTROUVABLE')).toBe('Ce lot est introuvable : rechargez la page.')
     // Code inconnu ou absent : message générique, jamais le code brut.

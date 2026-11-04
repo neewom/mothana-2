@@ -62,8 +62,8 @@ export default function RecusLotRecapitulatifDialog({
                 </p>
                 {rythme && (
                   <p>
-                    Envoi étalé au rythme de votre organisation ({rythme.parMinute} par minute, {rythme.parJour} par jour
-                    au plus{envoyes24h > 0 ? `, dont ${envoyes24h} déjà envoyé${envoyes24h > 1 ? 's' : ''} ces dernières 24 h` : ''}) :
+                    Envoi étalé selon le réglage de votre organisation (rythme moyen de {rythme.parMinute} par minute, plafond strict
+                    de {rythme.parJour} par jour{envoyes24h > 0 ? `, dont ${envoyes24h} déjà envoyé${envoyes24h > 1 ? 's' : ''} ces dernières 24 h` : ''}) :
                     {' '}<span className="font-medium text-ink">{formatDureeEnvoi(estimerDureeEnvoi(nbAGenerer, rythme, envoyes24h))}</span> au rythme actuel.
                     L'envoi se fait sur le serveur : vous pouvez fermer cette page et revenir suivre l'avancement.
                   </p>
