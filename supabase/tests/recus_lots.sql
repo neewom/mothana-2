@@ -6,7 +6,7 @@
 do $$
 declare
   v_demo uuid; v_benevole uuid; v_admin uuid; v_super uuid;
-  v_org uuid; v_pe uuid; v_pp uuid; v_lot uuid; v_lot2 uuid; v_ligne uuid; v_txt text; v_n int;
+  v_org uuid; v_pe uuid; v_pp uuid; v_lot uuid; v_lot2 uuid; v_ligne uuid; v_recu uuid; v_txt text; v_n int;
   r text := '';
   i int;
   -- Même liste et même ordre attendu que src/lib/recusAGenerer.test.ts (FIXTURE_ORDRE / ORDRE_ATTENDU)
@@ -191,6 +191,28 @@ begin
   r := r || ' reessais=' || v_txt || case when v_txt = 'a_faire,meme,a_faire,echec' then ' ok' else ' KO' end;
   select nb_faits || '/' || nb_echecs into v_txt from public.recus_lots where id = v_lot;
   r := r || ' compteurs=' || v_txt || case when v_txt = '1/1' then ' ok' else ' KO' end;
+  -- Reprise après un échec de terminer_ligne_lot_recus : le reçu créé par ce lot (1re version de
+  -- l'auteur du lot, après son lancement) n'est pas « préexistant » ; un reçu antérieur au lot l'est.
+  select s.ligne_id into v_ligne from public.ligne_suivante_lot_recus(v_lot, 60) s;
+  insert into public.recus_fiscaux (profil_participant_id, organisation_id, annee, montant_total)
+    select g.profil_participant_id, v_org, 2025, 10 from public.recus_lot_lignes g where g.id = v_ligne
+    returning id into v_recu;
+  insert into public.recus_fiscaux_versions (recu_id, organisation_id, version, fichier_url, montant_total, genere_par)
+    values (v_recu, v_org, 1, 'test/lot.pdf', 10, v_super);
+  select s.ligne_id into v_lot2 from public.ligne_suivante_lot_recus(v_lot, 60) s; -- reprise, 2e tentative
+  v_txt := case when v_lot2 = v_ligne then 'meme' else 'AUTRE' end || ',' || public.terminer_ligne_lot_recus(v_ligne, 'fait', null, v_recu, true);
+  select v_txt || ',' || recu_preexistant::text into v_txt from public.recus_lot_lignes where id = v_ligne;
+  r := r || ' reprise_cree_par_lot=' || v_txt || case when v_txt = 'meme,fait,false' then ' ok' else ' KO' end;
+  select s.ligne_id into v_ligne from public.ligne_suivante_lot_recus(v_lot, 60) s;
+  insert into public.recus_fiscaux (profil_participant_id, organisation_id, annee, montant_total)
+    select g.profil_participant_id, v_org, 2025, 10 from public.recus_lot_lignes g where g.id = v_ligne
+    returning id into v_recu;
+  insert into public.recus_fiscaux_versions (recu_id, organisation_id, version, fichier_url, montant_total, genere_par, genere_le)
+    values (v_recu, v_org, 1, 'test/manuel.pdf', 10, v_super, now() - interval '1 day');
+  perform public.ligne_suivante_lot_recus(v_lot, 60); -- reprise, 2e tentative
+  perform public.terminer_ligne_lot_recus(v_ligne, 'fait', null, v_recu, true);
+  select recu_preexistant::text into v_txt from public.recus_lot_lignes where id = v_ligne;
+  r := r || ' reprise_preexistant=' || v_txt || case when v_txt = 'true' then ' ok' else ' KO' end;
 
   -- 7. Arrêt (super-admin) : plus aucune ligne servie ; relance : reprend les manquants
   perform public.liberer_lot_recus(v_lot);
@@ -209,14 +231,30 @@ begin
   select pe.nom || '/' || pe.prenom into v_txt from public.recus_lot_lignes g
     join public.profils_participant pp on pp.id = g.profil_participant_id join public.personnes pe on pe.id = pp.personne_id
    where g.lot_id = v_lot2 and g.rang = 1;
-  -- 21 manquants : la 1re ligne a son reçu ; la ligne en échec est reproposée
-  r := r || ' relance=' || v_n || ',' || v_txt || case when v_n = 21 and v_txt = 'Delatour/Marie' then ' ok' else ' KO' end;
+  -- 19 manquants : les lignes 1, 3 et 4 ont leur reçu ; la ligne en échec est reproposée
+  r := r || ' relance=' || v_n || ',' || v_txt || case when v_n = 19 and v_txt = 'Delatour/Marie' then ' ok' else ' KO' end;
+  -- Arrêt d'un lot inexistant : erreur explicite
+  perform set_config('request.jwt.claims', json_build_object('sub', v_super, 'role', 'authenticated',
+    'app_metadata', json_build_object('is_super_admin', true))::text, true);
+  execute 'set local role authenticated';
+  begin
+    perform public.arreter_lot_recus(gen_random_uuid());
+    r := r || ' arret_inexistant=ACCEPTE(KO)';
+  exception when others then r := r || ' arret_inexistant=' || sqlerrm || case when sqlerrm = 'LOT_INTROUVABLE' then ' ok' else ' KO' end;
+  end;
+  execute 'reset role';
 
   -- 8. Fin de lot : toutes les lignes traitées → « termine » ; la tâche planifiée ne voit plus rien
   update public.recus_lot_lignes set statut = 'fait' where lot_id = v_lot2;
   select count(*) into v_n from public.ligne_suivante_lot_recus(v_lot2, 60);
   select statut into v_txt from public.recus_lots where id = v_lot2;
   r := r || ' | 8.termine=' || v_txt || case when v_n = 0 and v_txt = 'termine' then ' ok' else ' KO' end;
+
+  -- 9. Tâches planifiées : traitement chaque minute, purge quotidienne de l'historique pg_cron
+  select string_agg(j.jobname || '@' || j.schedule, ',' order by j.jobname) into v_txt
+    from cron.job j where j.jobname in ('traiter-lots-recus', 'purger-historique-cron')
+      and (j.jobname <> 'purger-historique-cron' or j.command like '%delete from cron.job_run_details%7 days%');
+  r := r || ' | 9.cron=' || v_txt || case when v_txt = 'purger-historique-cron@47 3 * * *,traiter-lots-recus@* * * * *' then ' ok' else ' KO' end;
 
   raise exception 'RESULTATS: %', r;
 end;
