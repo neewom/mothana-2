@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
-import type { RecuFiscal, ProfilParticipant } from '../types'
+import type { RecuFiscal, RecuFiscalVersion, ProfilParticipant } from '../types'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { participantFullName, matchesParticipantSearch } from '../lib/participantSearch'
 import {
@@ -27,6 +27,7 @@ import { TablePagination } from '../components/ui/table-pagination'
 import { ListToolbar } from '../components/ui/list-toolbar'
 import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { cn } from '../lib/utils'
+import { recusAGenerer } from '../lib/recusAGenerer'
 import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
 import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
@@ -66,6 +67,11 @@ function currentYear() {
 
 function formatDateHeure(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+// Date et heure : plusieurs versions d'un même reçu peuvent être générées le même jour.
+function formatDateEtHeure(iso: string): string {
+  return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 function yearOptions() {
@@ -115,6 +121,13 @@ export default function RecusFiscauxPage() {
   const [editingProfil, setEditingProfil] = useState<ProfilParticipant | undefined>(undefined)
   const [participantModalOpen, setParticipantModalOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  // Historique des versions du reçu affiché dans le panneau de détail
+  const [versions, setVersions] = useState<RecuFiscalVersion[]>([])
+  const [versionsLoading, setVersionsLoading] = useState(false)
+  const [versionsError, setVersionsError] = useState<string | null>(null)
+  const [versionDlLoading, setVersionDlLoading] = useState<Record<string, boolean>>({})
+  const versionsRecuIdRef = useRef<string | null>(null)
 
   // ---------------------------------------------------------------------------
   // Organisation fiscale (indépendante de l'année)
@@ -274,24 +287,34 @@ export default function RecusFiscauxPage() {
   // Download a recu (signed URL)
   // ---------------------------------------------------------------------------
 
+  async function openSignedRecu(path: string): Promise<boolean> {
+    const { data, error: urlErr } = await supabase.storage
+      .from('recus-fiscaux')
+      .createSignedUrl(path, 3600)
+    if (urlErr || !data?.signedUrl) return false
+    window.open(data.signedUrl, '_blank')
+    return true
+  }
+
   async function downloadRecu(row: ParticipantRow) {
     if (!row.recu?.fichier_url) return
     const id = row.profil.id
     setDlLoading((prev) => ({ ...prev, [id]: true }))
     setDlError((prev) => ({ ...prev, [id]: '' }))
 
-    const { data, error: urlErr } = await supabase.storage
-      .from('recus-fiscaux')
-      .createSignedUrl(row.recu.fichier_url, 3600)
-
-    if (urlErr || !data?.signedUrl) {
-      setDlError((prev) => ({ ...prev, [id]: 'Impossible de générer le lien' }))
-      setDlLoading((prev) => ({ ...prev, [id]: false }))
-      return
-    }
-
-    window.open(data.signedUrl, '_blank')
+    const ok = await openSignedRecu(row.recu.fichier_url)
+    if (!ok) setDlError((prev) => ({ ...prev, [id]: 'Impossible de générer le lien' }))
     setDlLoading((prev) => ({ ...prev, [id]: false }))
+  }
+
+  async function downloadVersion(row: ParticipantRow, version: RecuFiscalVersion) {
+    const id = row.profil.id
+    setVersionDlLoading((prev) => ({ ...prev, [version.id]: true }))
+    setDlError((prev) => ({ ...prev, [id]: '' }))
+
+    const ok = await openSignedRecu(version.fichier_url)
+    if (!ok) setDlError((prev) => ({ ...prev, [id]: `Impossible de générer le lien de la version ${version.version}` }))
+    setVersionDlLoading((prev) => ({ ...prev, [version.id]: false }))
   }
 
   // ---------------------------------------------------------------------------
@@ -334,13 +357,15 @@ export default function RecusFiscauxPage() {
   }
 
   // ---------------------------------------------------------------------------
-  // Generate all (skips les lignes bloquées)
+  // Générer les reçus manquants : seulement les reçus pas encore générés (une
+  // régénération crée une nouvelle version conservée, elle passe par « Regénérer »)
   // ---------------------------------------------------------------------------
+
+  const manquants = useMemo(() => recusAGenerer(rows, orgMissing.length > 0), [rows, orgMissing])
 
   async function generateAll() {
     setGenerateAllLoading(true)
-    const eligible = rows.filter((r) => orgMissing.length === 0 && !r.validation.blocking && r.validation.missing.length === 0)
-    for (const row of eligible) {
+    for (const row of manquants) {
       await generateRecu(row)
     }
     setGenerateAllLoading(false)
@@ -369,6 +394,42 @@ export default function RecusFiscauxPage() {
   // Récapitulatif 222 bis (toutes années) : rechargé quand la liste de l'année change.
   const recapitulatif = useRecapitulatif222Bis(organisationId, rows)
   const selectedRow = rows.find((r) => r.profil.id === selectedId) ?? null
+
+  // Versions rechargées à l'ouverture du panneau et après chaque génération / envoi (la fiche du
+  // reçu change alors de date de génération ou d'envoi).
+  const selectedRecuId = selectedRow?.recu?.id ?? null
+  const selectedRecuStamp = selectedRow?.recu ? `${selectedRow.recu.date_generation}|${selectedRow.recu.email_envoye_at ?? ''}` : null
+  useEffect(() => {
+    if (!selectedRecuId) {
+      versionsRecuIdRef.current = null
+      setVersions([])
+      setVersionsError(null)
+      return
+    }
+    let cancelled = false
+    // Autre reçu : l'historique du précédent n'est ni affiché ni téléchargeable pendant le chargement.
+    // Même reçu (rechargement après génération / envoi) : la liste reste affichée jusqu'à la réponse.
+    if (versionsRecuIdRef.current !== selectedRecuId) setVersions([])
+    versionsRecuIdRef.current = selectedRecuId
+    setVersionsLoading(true)
+    setVersionsError(null)
+    supabase
+      .from('recus_fiscaux_versions')
+      .select('id, recu_id, version, fichier_url, montant_total, genere_le, email_envoye_le')
+      .eq('recu_id', selectedRecuId)
+      .order('version', { ascending: false })
+      .then(({ data, error: err }) => {
+        if (cancelled) return
+        if (err) {
+          setVersionsError("Impossible de charger l'historique des versions")
+          setVersions([])
+        } else {
+          setVersions((data ?? []) as RecuFiscalVersion[])
+        }
+        setVersionsLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [selectedRecuId, selectedRecuStamp])
   // N° de reçu laissé au panneau quand celui-ci réduit le tableau (rien hors écran à 1 400 px).
   const secondaryCol = selectedRow ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
 
@@ -446,8 +507,14 @@ export default function RecusFiscauxPage() {
             {rows.length > 0 && (
               <Button
                 onClick={generateAll}
-                disabled={generateAllLoading || orgMissing.length > 0}
-                title={orgMissing.length > 0 ? "Complétez les paramètres de l'organisation pour générer des reçus" : undefined}
+                disabled={generateAllLoading || manquants.length === 0}
+                title={
+                  orgMissing.length > 0
+                    ? "Complétez les paramètres de l'organisation pour générer des reçus"
+                    : manquants.length === 0
+                      ? 'Aucun reçu manquant prêt à générer (un reçu existant se régénère depuis son détail)'
+                      : undefined
+                }
               >
                 {generateAllLoading ? (
                   <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -459,7 +526,11 @@ export default function RecusFiscauxPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
                 )}
-                Générer tous
+                {orgMissing.length > 0
+                  ? 'Générer les reçus manquants'
+                  : manquants.length === 0
+                    ? 'Aucun reçu à générer'
+                    : `Générer ${manquants.length === 1 ? 'le reçu manquant' : `les ${manquants.length} reçus manquants`}`}
               </Button>
             )}
           </>
@@ -598,16 +669,15 @@ export default function RecusFiscauxPage() {
           }
           return (
             <>
-              <div className="flex gap-2">
-                <Button className="flex-1" onClick={() => downloadRecu(selectedRow)} disabled={dlLoading[id]}>
-                  {dlLoading[id] ? 'Ouverture…' : 'Télécharger le PDF'}
+              {/* Boutons empilés pleine largeur : côte à côte, ils débordaient du panneau (w-80). */}
+              <Button className="w-full" onClick={() => downloadRecu(selectedRow)} disabled={dlLoading[id]}>
+                {dlLoading[id] ? 'Ouverture…' : 'Télécharger le PDF'}
+              </Button>
+              {selectedRow.profil.personnes.email && (
+                <Button variant="secondary" className="w-full" onClick={() => sendRecuEmail(selectedRow)} disabled={sendLoading[id]}>
+                  {sendLoading[id] ? 'Envoi…' : 'Envoyer par email'}
                 </Button>
-                {selectedRow.profil.personnes.email && (
-                  <Button variant="secondary" className="flex-1" onClick={() => sendRecuEmail(selectedRow)} disabled={sendLoading[id]}>
-                    {sendLoading[id] ? 'Envoi…' : 'Envoyer par email'}
-                  </Button>
-                )}
-              </div>
+              )}
               <Button
                 variant="secondary"
                 className="w-full"
@@ -653,6 +723,47 @@ export default function RecusFiscauxPage() {
                   {selectedRow.recu.email_envoye_at ? `Envoyé le ${formatDateHeure(selectedRow.recu.email_envoye_at)}` : 'Pas encore envoyé'}
                 </DetailField>
               )}
+              {selectedRow.recu && (
+                <DetailField label="Historique des versions">
+                  {versionsLoading && versions.length === 0 ? (
+                    <p className="text-ink-muted">Chargement…</p>
+                  ) : versionsError ? (
+                    <p className="text-stamp">{versionsError}</p>
+                  ) : versions.length === 0 ? (
+                    <p className="text-ink-muted">Aucune version enregistrée.</p>
+                  ) : (
+                    <ul className="divide-y divide-paper-border rounded-sm border border-paper-border">
+                      {versions.map((v, index) => (
+                        <li key={v.id} className={cn('flex items-start justify-between gap-3 px-3 py-2.5', index === 0 && 'bg-paper')}>
+                          <div className="min-w-0">
+                            <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="font-semibold">Version {v.version}</span>
+                              {index === 0 && <Badge variant="success">Actuelle</Badge>}
+                            </p>
+                            <p className="mt-0.5 flex flex-wrap gap-x-3 font-registre-mono text-xs text-ink-muted">
+                              <span className="whitespace-nowrap">{formatDateEtHeure(v.genere_le)}</span>
+                              <span className="whitespace-nowrap">{formatMontant(Number(v.montant_total))}</span>
+                            </p>
+                            <p className="mt-0.5 text-xs text-ink-muted">
+                              {v.email_envoye_le ? `Envoyée le ${formatDateEtHeure(v.email_envoye_le)}` : 'Non envoyée'}
+                            </p>
+                          </div>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="shrink-0"
+                            onClick={() => downloadVersion(selectedRow, v)}
+                            disabled={versionDlLoading[v.id]}
+                            aria-label={`Télécharger la version ${v.version}`}
+                          >
+                            {versionDlLoading[v.id] ? 'Ouverture…' : 'Télécharger'}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </DetailField>
+              )}
               {validationMessage && (
                 <div className="rounded-sm border border-warning-border bg-warning-tint px-3 py-2.5 text-sm text-warning">
                   <p>{validationMessage}</p>
@@ -686,7 +797,8 @@ export default function RecusFiscauxPage() {
                 Un reçu a déjà été généré pour{' '}
                 <span className="font-medium text-ink">« {participantFullName(regenerateConfirm.profil)} »</span> en {annee}
                 {regenerateConfirm.recu?.numero_ordre && <> (n° {regenerateConfirm.recu.numero_ordre})</>}.
-                Le fichier PDF sera remplacé, mais le numéro d'ordre est conservé.
+                Une nouvelle version du PDF sera créée avec le même numéro d'ordre ; la version précédente est conservée
+                dans l'historique du reçu.
               </p>
               <div className="mt-5 flex justify-end gap-3">
                 <Button type="button" variant="secondary" onClick={() => setRegenerateConfirm(null)}>

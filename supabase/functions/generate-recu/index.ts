@@ -1,11 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { convertirHtmlEnPdf, escapeHtml, renderTemplate } from '../_shared/html.ts'
 import {
+  cheminFichierRecu,
   estConflitStorage,
   formatNumeroRecu,
+  MESSAGE_GENERATION_SIMULTANEE,
   messageNumeroDejaPris,
   numeroDonateurAffiche,
   numeroRecuDonateur,
+  prochaineVersionRecu,
 } from '../_shared/numeroRecu.ts'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 
@@ -459,14 +462,14 @@ Deno.serve(async (req) => {
 
     const { data: existingRecu } = await adminClient
       .from('recus_fiscaux')
-      .select('numero_ordre')
+      .select('id, numero_ordre, fichier_url')
       .eq('profil_participant_id', profil_participant_id)
       .eq('annee', anneeNum)
       .maybeSingle()
 
     let numeroOrdre = existingRecu?.numero_ordre as string | null
-    // Numéro attribué par cet appel (et non repris d'un reçu existant) : son PDF ne doit jamais
-    // écraser un objet Storage existant, et il est supprimé si la ligne du reçu ne s'écrit pas.
+    // Numéro attribué par cet appel (et non repris d'un reçu existant) : un conflit sur son fichier
+    // ou en base signifie que le numéro est déjà porté par un autre reçu.
     const numeroNouveau = !numeroOrdre
     const format = formatNumeroRecu(organisation.modele_recu_pdf?.format_numero_recu)
 
@@ -516,6 +519,27 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: messageNumeroDejaPris(format, numeroOrdre) }, 409)
       }
     }
+
+    // ---------------------------------------------------------------------
+    // 5 bis. Version créée par cette génération (§5) : chaque génération est conservée
+    // ---------------------------------------------------------------------
+
+    let derniereVersion: number | null = null
+    if (existingRecu) {
+      const { data: versionData, error: versionError } = await adminClient
+        .from('recus_fiscaux_versions')
+        .select('version')
+        .eq('recu_id', existingRecu.id)
+        .order('version', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (versionError) {
+        console.error('recus_fiscaux_versions read error:', versionError)
+        return jsonResponse({ error: 'Erreur lors de la lecture des versions du reçu' }, 500)
+      }
+      derniereVersion = (versionData?.version as number | undefined) ?? null
+    }
+    const version = prochaineVersionRecu(!!existingRecu?.fichier_url, derniereVersion)
 
     // ---------------------------------------------------------------------
     // 6. Snapshots + placeholders
@@ -617,72 +641,96 @@ Deno.serve(async (req) => {
     // 8. Upload Storage
     // ---------------------------------------------------------------------
 
-    const storagePath = `${organisationId}/${anneeNum}/${numeroOrdre}.pdf`
+    const storagePath = cheminFichierRecu(organisationId, anneeNum, numeroOrdre, version)
 
-    // Numéro nouveau : upsert: false, le Storage refuse atomiquement un objet déjà existant (PDF
-    // d'un autre reçu) au lieu de l'écraser. Régénération au même numéro par le même reçu :
-    // upsert: true, le PDF de ce reçu est remplacé.
+    // Jamais d'écrasement (upsert: false) : chaque version a son propre fichier, et le Storage refuse
+    // atomiquement un objet déjà existant (PDF d'un autre reçu pour un numéro nouveau, ou même
+    // version produite par une génération simultanée) au lieu de l'écraser.
     const { error: uploadError } = await adminClient.storage
       .from('recus-fiscaux')
       .upload(storagePath, pdfBuffer, {
         contentType: 'application/pdf',
-        upsert: !numeroNouveau,
+        upsert: false,
       })
 
     if (uploadError) {
-      if (numeroNouveau && estConflitStorage(uploadError)) {
-        console.error('Storage upload conflict (numero_ordre already used):', storagePath, uploadError)
-        return jsonResponse({ error: messageNumeroDejaPris(format, numeroOrdre) }, 409)
+      if (estConflitStorage(uploadError)) {
+        console.error('Storage upload conflict:', storagePath, uploadError)
+        return jsonResponse(
+          { error: numeroNouveau ? messageNumeroDejaPris(format, numeroOrdre) : MESSAGE_GENERATION_SIMULTANEE },
+          409,
+        )
       }
       console.error('Storage upload error:', uploadError)
       return jsonResponse({ error: 'Erreur upload PDF', detail: uploadError.message }, 500)
     }
 
     // ---------------------------------------------------------------------
-    // 9. Upsert recus_fiscaux
+    // 9. Fiche du reçu + nouvelle version, dans une même transaction (enregistrer_version_recu)
     // ---------------------------------------------------------------------
 
-    const { error: upsertError } = await adminClient
-      .from('recus_fiscaux')
-      .upsert(
-        {
-          profil_participant_id,
-          organisation_id: organisationId,
-          annee: anneeNum,
-          montant_total: totalMontant,
-          fichier_url: storagePath,
-          date_generation: new Date().toISOString(),
-          numero_ordre: numeroOrdre,
-          type_cerfa: typeCerfa,
-          template_id: template.id,
-          snapshot_donateur: snapshotDonateur,
-          snapshot_organisation: snapshotOrganisation,
-        },
-        { onConflict: 'profil_participant_id,annee' },
-      )
+    const { error: enregistrementError } = await adminClient.rpc('enregistrer_version_recu', {
+      p_profil_participant_id: profil_participant_id,
+      p_organisation_id: organisationId,
+      p_annee: anneeNum,
+      p_version: version,
+      p_montant_total: totalMontant,
+      p_fichier_url: storagePath,
+      p_numero_ordre: numeroOrdre,
+      p_type_cerfa: typeCerfa,
+      p_template_id: template.id,
+      p_snapshot_donateur: snapshotDonateur,
+      p_snapshot_organisation: snapshotOrganisation,
+      p_genere_par: user.id,
+    })
 
-    if (upsertError) {
-      console.error('Upsert error:', upsertError)
-      // Bloquant : sans sa ligne, le reçu n'existe pas. Le PDF d'un numéro nouveau, déposé par cet
-      // appel, est retiré ; celui d'un reçu existant (régénération) n'est jamais supprimé.
-      if (numeroNouveau) {
+    if (enregistrementError) {
+      console.error('enregistrer_version_recu error:', enregistrementError)
+      // Bloquant : sans sa ligne, la version n'existe pas. Le PDF déposé par cet appel est retiré, mais
+      // seulement quand aucune version ne peut le référencer : une erreur Postgres (code SQLSTATE à
+      // 5 caractères) garantit l'annulation de la transaction ; toute autre erreur (réseau, délai,
+      // PostgREST) est ambiguë, on vérifie alors en base avant de retirer. Les fichiers des versions
+      // déjà émises ne sont jamais touchés.
+      const code = enregistrementError.code ?? ''
+      const echecCertain = /^[0-9A-Z]{5}$/.test(code)
+      let retirer = echecCertain
+      if (!echecCertain) {
+        const { data: reference, error: referenceError } = await adminClient
+          .from('recus_fiscaux_versions')
+          .select('version')
+          .eq('fichier_url', storagePath)
+          .limit(1)
+          .maybeSingle()
+        if (referenceError) {
+          console.error('Storage cleanup skipped (version lookup failed), file kept:', storagePath, referenceError)
+        } else if (reference) {
+          // L'enregistrement a bien eu lieu malgré l'erreur reçue : la version existe.
+          return jsonResponse({ fichier_url: storagePath, numero_ordre: numeroOrdre, type_cerfa: typeCerfa, version })
+        } else {
+          retirer = true
+        }
+      }
+      if (retirer) {
         const { error: removeError } = await adminClient.storage.from('recus-fiscaux').remove([storagePath])
         if (removeError) console.error('Storage cleanup error:', storagePath, removeError)
       }
-      if (upsertError.code === '23505') {
-        return jsonResponse({ error: messageNumeroDejaPris(format, numeroOrdre) }, 409)
+      if (enregistrementError.code === '23505') {
+        return jsonResponse(
+          { error: numeroNouveau ? messageNumeroDejaPris(format, numeroOrdre) : MESSAGE_GENERATION_SIMULTANEE },
+          409,
+        )
       }
       return jsonResponse(
         {
           error: numeroNouveau
             ? "Erreur lors de l'enregistrement du reçu : aucun reçu n'a été créé. Réessayez ou contactez le support."
-            : "Erreur lors de l'enregistrement du reçu régénéré. Réessayez ou contactez le support.",
+            : "Erreur lors de l'enregistrement du reçu régénéré : aucune nouvelle version n'a été créée, la précédente reste valable. Réessayez ou contactez le support.",
         },
         500,
       )
     }
 
-    return jsonResponse({ fichier_url: storagePath, numero_ordre: numeroOrdre, type_cerfa: typeCerfa })
+    return jsonResponse({ fichier_url: storagePath, numero_ordre: numeroOrdre, type_cerfa: typeCerfa, version })
   } catch (err) {
     console.error('generate-recu error:', err)
     return jsonResponse({ error: 'Erreur serveur', detail: String(err) }, 500)

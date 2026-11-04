@@ -74,8 +74,8 @@ Chaque participant est validé individuellement avant génération. Si des champ
   - **Séquence annuelle** (`sequence`, défaut quand la clé est absente) : `{ANNÉE}-{N°}` (ex: `2026-001`), RPC `next_numero_recu`. Le numéro de départ est configurable dans les Paramètres (pour continuité avec une numérotation existante)
   - **Année + numéro de donateur** (`donateur`) : `{ANNÉE}-{numéro de donateur}` (ex: `2026-2803`), numéro de donateur = `profils_participant.id_externe` repris tel quel (pas de zéros ajoutés), sans consommer la séquence. Un donateur sans numéro de donateur (ou dont le numéro contient autre chose que chiffres, lettres, tiret et tiret bas) ne peut pas recevoir de reçu dans ce format : erreur explicite, aucun reçu créé. Unicité : `id_externe` est unique par organisation et il n'y a qu'un reçu par donateur et par année
 - La règle vit côté serveur (Edge Function `generate-recu`, `supabase/functions/_shared/numeroRecu.ts`) ; le front n'affiche qu'un exemple
-- Unicité : un numéro est unique dans une organisation (index unique partiel `(organisation_id, numero_ordre)`, migration `recus_fiscaux_numero_unique.sql`). Dans `generate-recu`, un nouveau numéro déjà porté par un autre reçu de l'organisation (formats mélangés dans une même année, numéro de donateur réattribué) est refusé (409, aucun reçu créé) : contrôle préalable, puis upload du PDF sans écrasement (`upsert: false`) et index en base, qui font foi en cas d'appels simultanés. Seule une régénération au même numéro par le même reçu remplace son PDF
-- L'écriture de la ligne `recus_fiscaux` est bloquante : si elle échoue, aucun succès n'est renvoyé et le PDF d'un numéro nouveau est retiré du Storage (un numéro de séquence ainsi consommé n'est pas réutilisé)
+- Unicité : un numéro est unique dans une organisation (index unique partiel `(organisation_id, numero_ordre)`, migration `recus_fiscaux_numero_unique.sql`). Dans `generate-recu`, un nouveau numéro déjà porté par un autre reçu de l'organisation (formats mélangés dans une même année, numéro de donateur réattribué) est refusé (409, aucun reçu créé) : contrôle préalable, puis upload du PDF sans écrasement (`upsert: false`) et index en base, qui font foi en cas d'appels simultanés. Aucun PDF n'est jamais remplacé, y compris en régénération (§5)
+- L'écriture de la fiche et de la version (`enregistrer_version_recu`) est bloquante : si elle échoue, aucun succès n'est renvoyé et le PDF déposé par cet appel (nouveau fichier, référencé nulle part) est retiré du Storage ; les fichiers des versions déjà émises ne sont jamais touchés (un numéro de séquence ainsi consommé n'est pas réutilisé)
 - Changer de format ne renumérote rien : les reçus déjà émis gardent leur numéro, le nouveau format ne s'applique qu'aux reçus créés ensuite
 - Un numéro attribué est **définitif** — même en cas de regénération du reçu, le même numéro est conservé
 - La séquence repart à partir du numéro de départ configuré chaque 1er janvier
@@ -83,11 +83,19 @@ Chaque participant est validé individuellement avant génération. Si des champ
 
 ---
 
-## 5. Règles de regénération
+## 5. Règles de regénération et versions
 
-- Si un reçu existe déjà pour un participant sur une année donnée → message de confirmation : "Un reçu a déjà été généré pour ce participant pour l'année {ANNÉE}. Voulez-vous le regénérer ?"
-- En cas de regénération : le fichier PDF est remplacé (nouveau fichier en Storage), mais le **numéro d'ordre est conservé** (pas de nouveau numéro)
-- La ligne `recus_fiscaux` est mise à jour (upsert sur `profil_participant_id` + `annee`)
+- Si un reçu existe déjà pour un participant sur une année donnée → message de confirmation : la régénération crée une nouvelle version du PDF avec le même numéro, la précédente est conservée
+- **Chaque génération crée une version conservée** (depuis le 2026-11-04, migration `recus_fiscaux_versions.sql`) : nouveau fichier PDF, le **numéro d'ordre est conservé** (pas de nouveau numéro). Version 1 : `<organisation>/<année>/<numéro>.pdf` ; versions suivantes : `<numéro>-v<N>.pdf`. Upload toujours sans écrasement (`upsert: false`)
+- `recus_fiscaux` reste la fiche du reçu (un par donateur et par année, upsert sur `profil_participant_id` + `annee`) et pointe sur la dernière version (`fichier_url`, montant, snapshots) ; `recus_fiscaux_versions` garde chaque version (n°, fichier, montant, snapshots donateur/organisation, `genere_le`, `genere_par`, `email_envoye_le`). Les deux s'écrivent dans une même transaction, par la fonction `enregistrer_version_recu` (service_role seulement), appelée par `generate-recu`
+- Génération en lot (« Générer les N reçus manquants ») : ne traite que les reçus **pas encore générés** de l'année (fiches complètes), dans le même ordre d'attribution des numéros qu'auparavant ; aucun reçu existant n'y reçoit de nouvelle version (décision utilisateur du 2026-11-04) — la régénération d'un reçu passe par son bouton « Regénérer »
+- Suppression : un donateur ou une organisation ayant au moins un reçu émis ne peut pas être supprimé (versions conservées 6 ans) ; l'organisation peut être archivée
+- Envoi par email (`send-recu-email`) : envoie la dernière version et renseigne son `email_envoye_le` (en plus de `recus_fiscaux.email_envoye_at`)
+- **Immutabilité tenue en base, pour tous les rôles (service_role et super-admin compris)** : trigger `recus_fiscaux_versions_immuables`, aucune mise à jour d'une version sauf `email_envoye_le`, aucune suppression (ni directe, ni par cascade : supprimer un donateur ou une organisation qui a des reçus émis échoue désormais), ni TRUNCATE. Une migration de correction devra désactiver explicitement ce trigger
+- Lecture : membres de l'organisation + bypass super-admin ; aucune écriture client. Storage (bucket privé `recus-fiscaux`) : une seule policy, de lecture (organisation + bypass super-admin) ; aucun client ne peut déposer, remplacer ni supprimer un PDF. Seul le service_role (Edge Functions) écrit, et `generate-recu` ne supprime que le fichier qu'il vient de déposer quand l'enregistrement échoue
+- Historique consultable et téléchargeable dans le détail d'un reçu (page Reçus fiscaux), dernière version mise en avant
+- Reprise de l'existant : une version 1 par reçu existant au moment de la migration, pointant sur son fichier actuel ; les versions écrasées auparavant sont perdues. Elle n'est marquée envoyée que si l'email est postérieur à la génération du fichier actuel (sinon le PDF envoyé avait été écrasé depuis)
+- Hors périmètre : reçu rectificatif / nouveau numéro, purge après 6 ans
 
 ---
 

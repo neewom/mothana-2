@@ -5,7 +5,36 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-Deno.serve(async (req) => {
+export const MESSAGE_ORGANISATION_AVEC_RECUS =
+  'Cette organisation a émis des reçus fiscaux : ils doivent être conservés 6 ans. Archivez-la plutôt que de la supprimer.'
+
+type Comptage = { count: number | null; error: { message: string } | null }
+
+/**
+ * Les versions des reçus fiscaux émis sont immuables (conservation 6 ans) : la suppression de
+ * l'organisation échouerait après coup. On refuse donc AVANT de supprimer le moindre compte
+ * admin, pour ne jamais laisser une organisation sans admins. Fermé par défaut : une erreur
+ * de comptage refuse aussi. Renvoie null quand la suppression peut continuer.
+ */
+export async function refusSiRecusEmis(compterRecus: () => PromiseLike<Comptage>): Promise<Response | null> {
+  const { count, error } = await compterRecus()
+
+  if (error) {
+    return new Response(
+      JSON.stringify({ error: "Impossible de vérifier les reçus fiscaux de l'organisation : rien n'a été supprimé" }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
+  }
+  if ((count ?? 0) > 0) {
+    return new Response(
+      JSON.stringify({ error: MESSAGE_ORGANISATION_AVEC_RECUS, code: 'RECUS_EMIS' }),
+      { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
+  }
+  return null
+}
+
+export async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -56,6 +85,14 @@ Deno.serve(async (req) => {
       )
     }
 
+    const refus = await refusSiRecusEmis(() =>
+      adminClient
+        .from('recus_fiscaux')
+        .select('id', { count: 'exact', head: true })
+        .eq('organisation_id', organisation_id),
+    )
+    if (refus) return refus
+
     // Comptes admin liés à cette organisation — profils_organisation sera de
     // toute façon cascadé par la suppression de l'organisation, mais ça ne
     // supprime pas les comptes auth.users eux-mêmes (cascade FK uniquement
@@ -100,4 +137,6 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   }
-})
+}
+
+if (import.meta.main) Deno.serve(handler)
