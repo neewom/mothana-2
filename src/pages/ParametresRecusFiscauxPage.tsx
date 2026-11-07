@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import EmailRecuSection from '../components/EmailRecuSection'
 import ParametresSection from '../components/ParametresSection'
 import LectureSeuleNotice from '../components/parametres/LectureSeuleNotice'
 import SaveBar from '../components/parametres/SaveBar'
@@ -11,13 +12,21 @@ import { Textarea } from '../components/ui/textarea'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { usePeutModifierParametres } from '../hooks/usePeutModifierParametres'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
+import { chargerEtatConfigBrevo, type EtatConfigBrevo } from '../lib/brevoConfig'
 import { DEFAULT_MODELE } from '../lib/modeleRecu'
 import { exempleNumeroRecu, formatNumeroRecu } from '../lib/numeroRecu'
 import { supabase } from '../lib/supabaseClient'
 import type { FormatNumeroRecu, ModeleRecu } from '../types'
+import {
+  EMAIL_RECU_MESSAGE_DEFAUT,
+  EMAIL_RECU_OBJET_DEFAUT,
+  messageEffectif,
+  messageEstVide,
+  objetEffectif,
+} from '../../supabase/functions/_shared/recuEmail.ts'
 
 // Paramètres › Reçus fiscaux : ce qui reste purement fiscal de l'ancienne page Fiscalité
-// (mention légale, taux, numérotation) et les modèles de reçus. L'identité de l'association
+// (mention légale, taux, numérotation), l'email d'envoi des reçus et les modèles de reçus. L'identité de l'association
 // (adresse, RNA, SIREN, objet social) est dans Paramètres › Organisation.
 
 interface RecusForm {
@@ -25,6 +34,8 @@ interface RecusForm {
   formatNumeroRecu: FormatNumeroRecu
   numeroRecuDepart: number
   tauxReduction: number
+  emailObjet: string
+  emailHtml: string
 }
 
 function toForm(modele: ModeleRecu): RecusForm {
@@ -33,7 +44,19 @@ function toForm(modele: ModeleRecu): RecusForm {
     formatNumeroRecu: formatNumeroRecu(modele.format_numero_recu),
     numeroRecuDepart: modele.numero_recu_depart,
     tauxReduction: modele.taux_reduction,
+    emailObjet: objetEffectif(modele.email_objet),
+    emailHtml: messageEffectif(modele.email_html),
   }
+}
+
+// Modèle identique au défaut (ou vidé) : rien de stocké, l'Edge Function applique le défaut.
+function objetAStocker(objet: string): string | null {
+  const t = objet.trim()
+  return t === '' || t === EMAIL_RECU_OBJET_DEFAUT ? null : t
+}
+
+function messageAStocker(html: string): string | null {
+  return messageEstVide(html) || html === EMAIL_RECU_MESSAGE_DEFAUT ? null : html
 }
 
 export default function ParametresRecusFiscauxPage() {
@@ -45,6 +68,8 @@ export default function ParametresRecusFiscauxPage() {
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [organisationNom, setOrganisationNom] = useState('')
+  const [etatBrevo, setEtatBrevo] = useState<EtatConfigBrevo | null>(null)
 
   const anneeExemple = new Date().getFullYear()
   const dirty = saved !== null && form !== null && JSON.stringify(saved) !== JSON.stringify(form)
@@ -57,7 +82,7 @@ export default function ParametresRecusFiscauxPage() {
     async function load() {
       const { data, error: loadError } = await supabase
         .from('organisations')
-        .select('modele_recu_pdf')
+        .select('nom, modele_recu_pdf')
         .eq('id', organisationId)
         .single()
       if (cancelled) return
@@ -65,10 +90,17 @@ export default function ParametresRecusFiscauxPage() {
         setFetchError(loadError?.message ?? 'Erreur de chargement')
         return
       }
-      const modele = { ...DEFAULT_MODELE, ...((data as { modele_recu_pdf: Partial<ModeleRecu> | null }).modele_recu_pdf ?? {}) }
+      const row = data as { nom: string; modele_recu_pdf: Partial<ModeleRecu> | null }
+      const modele = { ...DEFAULT_MODELE, ...(row.modele_recu_pdf ?? {}) }
+      setOrganisationNom(row.nom)
       setSaved(toForm(modele))
       setForm(toForm(modele))
     }
+
+    // Canal d'envoi des reçus (avertissement « les reçus partent depuis Samakan ») : non bloquant.
+    void chargerEtatConfigBrevo(organisationId).then((etat) => {
+      if (!cancelled) setEtatBrevo(etat)
+    })
 
     void load()
     return () => { cancelled = true }
@@ -104,6 +136,8 @@ export default function ParametresRecusFiscauxPage() {
       format_numero_recu: form.formatNumeroRecu,
       numero_recu_depart: form.numeroRecuDepart,
       taux_reduction: form.tauxReduction,
+      email_objet: objetAStocker(form.emailObjet),
+      email_html: messageAStocker(form.emailHtml),
     }
 
     const { error: saveError } = await supabase
@@ -134,7 +168,7 @@ export default function ParametresRecusFiscauxPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-ink md:text-3xl">Reçus fiscaux</h1>
-          <p className="mt-1 text-sm text-ink-muted">Mention légale, taux, numérotation et modèles des reçus remis à vos donateurs.</p>
+          <p className="mt-1 text-sm text-ink-muted">Mention légale, taux, numérotation, email d'envoi et modèles des reçus remis à vos donateurs.</p>
         </div>
 
         {!peutModifier && <LectureSeuleNotice />}
@@ -228,6 +262,25 @@ export default function ParametresRecusFiscauxPage() {
                 </div>
               </div>
             </div>
+          </ParametresSection>
+
+          <ParametresSection
+            title="Email d'envoi des reçus"
+            description="Objet et message de l'email qui accompagne chaque reçu envoyé à un donateur."
+          >
+            <EmailRecuSection
+              objet={form.emailObjet}
+              html={form.emailHtml}
+              organisationNom={organisationNom}
+              etatBrevo={etatBrevo}
+              lectureSeule={!peutModifier}
+              onObjetChange={(objet) => update('emailObjet', objet)}
+              onHtmlChange={(html) => update('emailHtml', html)}
+              onHtmlNormalise={(html) => {
+                setSaved((current) => (current ? { ...current, emailHtml: html } : current))
+                setForm((current) => (current ? { ...current, emailHtml: html } : current))
+              }}
+            />
           </ParametresSection>
 
           </fieldset>
