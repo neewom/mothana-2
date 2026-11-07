@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { estimerDureeLot, estimerTempsRestant, formatDureeApprox, formatTempsRestant, lotActif, lotTraites, messageErreurLot, messageLancementLot } from './recusLot'
+import {
+  estimerDureeEnvoi, estimerDureeLot, estimerTempsRestant, formatDureeApprox, formatDureeEnvoi, formatTempsRestant, lotActif,
+  lotTraites, messageErreurLot, messageLancementLot, rythmeEnvoi,
+} from './recusLot'
 
 const lancement = '2026-11-04T10:00:00.000Z'
 const t0 = new Date(lancement).getTime()
@@ -37,6 +40,9 @@ describe('lotTraites / messageErreurLot', () => {
   it('traduit les codes des RPC', () => {
     expect(messageErreurLot('LOT_DEJA_EN_COURS')).toBe('Un lot est déjà en cours pour cette année.')
     expect(messageErreurLot('AUCUN_RECU_MANQUANT')).toContain('Aucun reçu manquant')
+    expect(messageErreurLot('ENVOI_EN_COURS')).toContain('réessayez dans quelques minutes')
+    expect(messageErreurLot('GENERATION_EN_COURS')).toContain('génération')
+    expect(messageErreurLot('BREVO_REQUIS')).toBe('Configurez Brevo dans Paramètres › Intégrations pour envoyer les reçus en lot.')
     expect(messageErreurLot('LOT_INTROUVABLE')).toBe('Ce lot est introuvable : rechargez la page.')
     // Code inconnu ou absent : message générique, jamais le code brut.
     expect(messageErreurLot('boom')).toBe('Une erreur est survenue. Réessayez ou rechargez la page.')
@@ -46,11 +52,13 @@ describe('lotTraites / messageErreurLot', () => {
 
 describe('messageLancementLot', () => {
   it('utilise le nombre de reçus retenu par le serveur', () => {
-    expect(messageLancementLot(1)).toBe('Génération de 1 reçu lancée')
-    expect(messageLancementLot(1234)).toBe('Génération de 1\u202f234 reçus lancée')
+    expect(messageLancementLot('generation', 1)).toBe('Génération de 1 reçu lancée')
+    expect(messageLancementLot('generation', 1234)).toBe('Génération de 1\u202f234 reçus lancée')
+    expect(messageLancementLot('envoi', 3)).toBe('Envoi de 3 reçus lancé')
   })
   it('sans nombre connu, message sans compte', () => {
-    expect(messageLancementLot(null)).toBe('Génération des reçus lancée')
+    expect(messageLancementLot('generation', null)).toBe('Génération des reçus lancée')
+    expect(messageLancementLot('envoi', null)).toBe('Envoi des reçus lancé')
   })
 })
 
@@ -77,5 +85,40 @@ describe('lotActif', () => {
     expect(lotActif({ statut: 'arrete', traitement_jusqu_a: '2026-11-04T09:59:00Z' }, now)).toBe(false)
     expect(lotActif({ statut: 'arrete', traitement_jusqu_a: null }, now)).toBe(false)
     expect(lotActif({ statut: 'termine', traitement_jusqu_a: null }, now)).toBe(false)
+  })
+})
+
+describe('lots d’envoi', () => {
+  it('rythmeEnvoi : valeurs stockées valides, sinon défauts', () => {
+    expect(rythmeEnvoi(null)).toEqual({ parJour: 250, parMinute: 5 })
+    expect(rythmeEnvoi({ envoi_lot_par_jour: 300, envoi_lot_par_minute: 10 })).toEqual({ parJour: 300, parMinute: 10 })
+    expect(rythmeEnvoi({ envoi_lot_par_jour: 0, envoi_lot_par_minute: 61 })).toEqual({ parJour: 250, parMinute: 5 })
+    expect(rythmeEnvoi({ envoi_lot_par_jour: '300', envoi_lot_par_minute: 2.5 })).toEqual({ parJour: 250, parMinute: 5 })
+  })
+
+  it('estimerDureeEnvoi : dans le quota du jour, à la minute ; au-delà, par tranches de 24 h', () => {
+    const rythme = { parJour: 250, parMinute: 5 }
+    expect(estimerDureeEnvoi(0, rythme)).toBe(0)
+    // 12 emails à 5 par minute : 3 passages + le premier dans la minute
+    expect(estimerDureeEnvoi(12, rythme)).toBe(4 * 60_000)
+    // 1 000 emails à 250 par jour : 3 jours d'attente puis 50 min
+    expect(estimerDureeEnvoi(1000, rythme)).toBe((3 * 24 * 60 + 50 + 1) * 60_000)
+    expect(formatDureeEnvoi(estimerDureeEnvoi(1000, rythme))).toBe('environ 4 jours')
+    // Quota déjà entamé : 240 envoyés ces dernières 24 h, 20 à envoyer → 10 aujourd'hui, 10 demain
+    expect(estimerDureeEnvoi(20, rythme, 240)).toBe((24 * 60 + 2 + 1) * 60_000)
+  })
+
+  it('formatDureeEnvoi : minutes, heures puis jours', () => {
+    expect(formatDureeEnvoi(12 * 60_000)).toBe('environ 12 min')
+    expect(formatDureeEnvoi(25 * 3_600_000)).toBe('environ 2 jours')
+  })
+
+  it('lotTraites compte les envois à vérifier', () => {
+    expect(lotTraites({ nb_faits: 3, nb_echecs: 1, nb_a_verifier: 2 })).toBe(6)
+  })
+
+  it('messageErreurLot : codes de l’envoi', () => {
+    expect(messageErreurLot('AUCUN_RECU_A_ENVOYER')).toBe('Aucun reçu à envoyer pour cette année.')
+    expect(messageErreurLot('GENERATION_EN_COURS')).toContain('génération')
   })
 })

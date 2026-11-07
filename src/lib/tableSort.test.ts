@@ -82,6 +82,17 @@ describe('sortRows', () => {
     expect(ids(sortRows(lignes, colonnes, { field: 'numero', direction: 'desc' }))).toEqual(['1', '3', '2'])
   })
 
+  it('classe un numéro de reçu à 4 chiffres après 999 (2026-1000 après 2026-999)', () => {
+    const recus: Ligne[] = [
+      { id: 'a', nom: 'A', numero: '2026-1000', total: 1 },
+      { id: 'b', nom: 'B', numero: '2026-999', total: 1 },
+      { id: 'c', nom: 'C', numero: '2026-001', total: 1 },
+      { id: 'd', nom: 'D', numero: '2026-1001', total: 1 },
+    ]
+    expect(ids(sortRows(recus, colonnes, { field: 'numero', direction: 'asc' }))).toEqual(['c', 'b', 'a', 'd'])
+    expect(ids(sortRows(recus, colonnes, { field: 'numero', direction: 'desc' }))).toEqual(['d', 'a', 'b', 'c'])
+  })
+
   it('départage par la fonction fournie, indépendante du sens, puis garde l’ordre d’origine', () => {
     const parNom = (a: Ligne, b: Ligne) => compareText(a.nom, b.nom)
     expect(ids(sortRows(lignes, colonnes, { field: 'total', direction: 'desc' }, parNom))).toEqual(['3', '1', '2'])

@@ -7,6 +7,8 @@ export interface SendResult {
   ok: boolean
   detail?: string
   id?: string
+  /** Statut HTTP de Resend en cas d'échec (≥ 500 : l'email a pu partir quand même). */
+  status?: number
 }
 
 export interface ResendAttachment {
@@ -42,7 +44,7 @@ export async function sendViaResend(
   })
 
   if (!res.ok) {
-    return { ok: false, detail: await res.text() }
+    return { ok: false, status: res.status, detail: await res.text() }
   }
 
   const data = await res.json().catch(() => ({} as { id?: string }))
