@@ -32,30 +32,16 @@ Dans **SQL Editor**, exécuter dans l'ordre :
 
 Dans **Storage**, créer un bucket `recus-fiscaux` :
 - Public : **non**
-- Policy : accès lecture/écriture aux utilisateurs authentifiés de l'organisation
+- Policy : **lecture seule** pour les membres de l'organisation (+ bypass super-admin) ; aucun client ne dépose, remplace ni supprime un PDF (seules les Edge Functions écrivent, en service_role)
 
 SQL à exécuter dans **SQL Editor** :
 
 ```sql
 insert into storage.buckets (id, name, public)
 values ('recus-fiscaux', 'recus-fiscaux', false);
-
-create policy "recus_storage_admin"
-  on storage.objects for all
-  using (
-    bucket_id = 'recus-fiscaux'
-    and (auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean = true
-    or (
-      bucket_id = 'recus-fiscaux'
-      and (storage.foldername(name))[1] = (
-        select organisation_id::text
-        from profils_organisation
-        where utilisateur_id = auth.uid()
-        limit 1
-      )
-    )
-  );
 ```
+
+La policy de lecture est créée par `supabase/migrations/recus_fiscaux_versions.sql` (§6), qui retire aussi l'ancienne policy `recus_storage_admin` (FOR ALL, lecture **et écriture** par les membres de l'organisation) qu'indiquait une version antérieure de ce document : ne pas la recréer.
 
 ### 1.3bis Créer le bucket Storage des assets d'organisation
 

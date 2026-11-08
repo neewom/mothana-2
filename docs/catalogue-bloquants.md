@@ -46,3 +46,8 @@ Lu par le sous-agent relecteur (`docs/relecteur.md`, boucle de relecture du work
 - Redirections d'authentification Supabase vers une IP littérale : échec silencieux.
 - `type="number"` sur un téléphone : zéros de tête perdus ; sélecteurs de date mobiles bloqués par `max`/`min`.
 - Question : comment se comporte la fonction sur un **téléphone**, en HTTP non sécurisé, à 375 px, sur de vraies données d'association (accents, mojibake, 300 destinataires) ? L'erreur va-t-elle dans le sens sûr ?
+
+## 9. Un écrivain ou un lecteur de la donnée oublié au cadrage
+- Numéro de donateur (`id_externe`) attribué seulement par « Ajouter un donateur » et l'import : les donateurs créés depuis l'écran bénévole, par transposition d'un adhérent ou par la démo n'en avaient pas → reçu impossible au format « année + numéro de donateur » (#320, trouvé au test utilisateur, 2 tours de correction en plus).
+- Constat de ticket faux (« tri codé à la main » alors qu'un composant existait déjà, #323).
+- Question : pour chaque donnée que la carte crée, modifie ou rend obligatoire, **tous** les chemins qui l'écrivent (écrans, RPC, Edge Functions, import, démo, triggers) et qui la lisent ont-ils été listés et vérifiés dans le code ? Une nouvelle règle vaut-elle aussi pour les lignes déjà en base (rattrapage) ?

@@ -1,14 +1,12 @@
 import type { Don } from '../types'
+import { MODE_PAIEMENT_LABELS } from './modePaiement'
+import { directionInitiale, sortRows, type SortColumns, type SortDirection, type SortState } from './tableSort'
 
-export type DonSortField = 'date' | 'donateur' | 'montant'
-export type SortDirection = 'asc' | 'desc'
+export type { SortDirection } from './tableSort'
 
-export const DON_SORT_DEFAUT: { field: DonSortField; direction: SortDirection } = { field: 'date', direction: 'desc' }
+export type DonSortField = 'date' | 'donateur' | 'montant' | 'mode'
 
-/** Sens du premier clic sur une colonne : le plus récent / le plus gros d'abord, les noms de A à Z. */
-export function directionInitialeDon(field: DonSortField): SortDirection {
-  return field === 'donateur' ? 'asc' : 'desc'
-}
+export const DON_SORT_DEFAUT: SortState<DonSortField> = { field: 'date', direction: 'desc' }
 
 export function nomDonateur(don: Don): string {
   const p = don.profils_participant?.personnes
@@ -16,36 +14,33 @@ export function nomDonateur(don: Don): string {
   return p.prenom ? `${p.prenom} ${p.nom}` : p.nom
 }
 
-const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true })
-
-function cleDonateur(don: Don): string {
-  const p = don.profils_participant?.personnes
-  return p ? `${p.nom} ${p.prenom ?? ''}` : ''
+export const DON_SORT_COLUMNS: SortColumns<Don, DonSortField> = {
+  // À date égale, la date de création départage dans le même sens.
+  date: { type: 'date', value: (d) => [d.date, d.created_at] },
+  // Ordre d'annuaire : nom puis prénom (l'affichage reste « Prénom Nom »).
+  donateur: {
+    type: 'text',
+    value: (d) => {
+      const p = d.profils_participant?.personnes
+      return p ? [p.nom, p.prenom] : null
+    },
+  },
+  montant: { type: 'number', value: (d) => d.montant },
+  mode: { type: 'text', value: (d) => MODE_PAIEMENT_LABELS[d.mode_paiement] },
 }
+
+/** Sens du premier clic sur une colonne : le plus récent / le plus gros d'abord, les textes de A à Z. */
+export function directionInitialeDon(field: DonSortField): SortDirection {
+  return directionInitiale(DON_SORT_COLUMNS[field].type)
+}
+
+const plusRecentDabord = (a: Don, b: Don) =>
+  b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at) || a.id.localeCompare(b.id)
 
 /**
  * Trie une copie de la liste. À valeur égale, départage toujours par date puis date de
  * création décroissantes, pour un ordre stable quel que soit l'ordre de chargement.
  */
 export function trierDons(dons: Don[], field: DonSortField, direction: SortDirection): Don[] {
-  const sens = direction === 'asc' ? 1 : -1
-  const plusRecentDabord = (a: Don, b: Don) =>
-    b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at) || a.id.localeCompare(b.id)
-
-  return [...dons].sort((a, b) => {
-    let comparaison = 0
-    switch (field) {
-      case 'date':
-        comparaison = a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at)
-        break
-      case 'donateur':
-        // Ordre d'annuaire : nom puis prénom (l'affichage reste « Prénom Nom »).
-        comparaison = collator.compare(cleDonateur(a), cleDonateur(b))
-        break
-      case 'montant':
-        comparaison = a.montant - b.montant
-        break
-    }
-    return comparaison * sens || plusRecentDabord(a, b)
-  })
+  return sortRows(dons, DON_SORT_COLUMNS, { field, direction }, plusRecentDabord)
 }

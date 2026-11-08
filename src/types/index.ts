@@ -62,6 +62,10 @@ export interface DemandeAdhesion {
   accepte_statuts: boolean
   consent_rgpd: boolean
   statut: 'en_attente' | 'ratifiee' | 'refusee'
+  /** 'renouvellement' : demande envoyée depuis un lien de renouvellement (adherent_vise_id). */
+  type: 'adhesion' | 'renouvellement'
+  /** Adhérent visé par un renouvellement (null pour une adhésion, ou s'il a été supprimé). */
+  adherent_vise_id: string | null
   decided_at: string | null
   decided_by: string | null
   adherent_id: string | null
@@ -104,6 +108,11 @@ export interface ProfilParticipant {
   id_externe: string | null
   created_at: string
   personnes: Personne
+  // Rejet Brevo d'un email de reçu fiscal (brevo-bounce-webhook, migration recus_email_brevo.sql) :
+  // lus seulement par les écrans qui affichent l'indicateur « Email invalide ».
+  email_invalide_at?: string | null
+  email_invalide_evenement?: string | null
+  email_invalide_raison?: string | null
 }
 
 export interface Activite {
@@ -126,6 +135,17 @@ export interface RecuFiscal {
   numero_ordre: string | null
   type_cerfa: '11580' | '16216' | null
   email_envoye_at: string | null
+}
+
+// Version d'un reçu fiscal (une par génération, immuable, jamais supprimée) — recus_fiscaux_versions.
+export interface RecuFiscalVersion {
+  id: string
+  recu_id: string
+  version: number
+  fichier_url: string
+  montant_total: number
+  genere_le: string
+  email_envoye_le: string | null
 }
 
 export interface TemplateRecu {
@@ -157,15 +177,25 @@ export interface TemplateCarteAdherent {
 // Organisation (rna, siren, objet_social, president_nom/titre) et pour partie sur Paramètres >
 // Reçus fiscaux (mention_legale, numérotation, taux) : chaque page relit l'objet juste avant
 // d'écrire et ne remplace que ses propres champs.
+export type FormatNumeroRecu = 'sequence' | 'donateur'
+
 export interface ModeleRecu {
   rna: string
   siren: string
   objet_social: string
   mention_legale: string
   numero_recu_depart: number
+  // Format du numéro de reçu (regles-recus-fiscaux.md §4) : clé absente = 'sequence'.
+  format_numero_recu: FormatNumeroRecu
   taux_reduction: number
   president_nom: string
   president_titre: string
+  // Email d'envoi des reçus (send-recu-email, _shared/recuEmail.ts) : absent ou null = modèle par défaut.
+  email_objet?: string | null
+  email_html?: string | null
+  // Rythme des lots d'envoi (public.rythme_envoi_recus) : absent = 250 par jour, 5 par minute.
+  envoi_lot_par_jour?: number
+  envoi_lot_par_minute?: number
 }
 
 export interface Don {

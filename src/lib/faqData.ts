@@ -79,8 +79,8 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
           "La date de fin d'une adhésion est calculée automatiquement selon la règle choisie dans Paramètres → Adhésions → Durée des adhésions : un an après la date d'adhésion (par défaut), ou au 31 décembre — avec un mois à partir duquel l'adhésion vaut aussi l'année suivante (ex. une adhésion prise en décembre court jusqu'au 31 décembre de l'année suivante). Elle ne se saisit jamais à la main ; « Renouveler l'adhésion » crée un nouveau cycle avec sa propre date de fin. Après un changement de règle, l'application propose de recalculer les adhésions existantes.",
       },
       {
-        question: 'Comment traiter une demande d’adhésion reçue via le formulaire public ?',
-        answer: "Chaque organisation dispose d'un formulaire public personnalisable à partager :",
+        question: 'Comment traiter une demande d’adhésion ou de renouvellement ?',
+        answer: "Les nouvelles adhésions se saisissent dans Adhérents ou dans l'espace bénévole (onglet « Nouvel adhérent », à autoriser dans Paramètres → Adhésions) ; un adhérent renouvelle en ligne depuis son lien personnel. Les demandes à examiner :",
         steps: [
           "La demande arrive dans Adhérents > Demandes d'adhésion.",
           'Ouvrez-la pour vérifier les informations (un doublon potentiel est signalé automatiquement).',
@@ -150,7 +150,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         answer: 'Depuis Reçus fiscaux :',
         steps: [
           "Sélectionnez l'année concernée.",
-          'Générez le reçu d’un donateur, ou tous les reçus en une fois.',
+          'Générez le reçu d’un donateur, ou tous les reçus manquants en une fois (un reçu existant se régénère depuis son détail).',
           'Le bon modèle Cerfa (11580 particulier, 16216 personne morale) est choisi automatiquement selon la civilité du donateur.',
         ],
       },
@@ -162,7 +162,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'Puis-je régénérer un reçu déjà émis ?',
         answer:
-          "Oui, mais le numéro attribué à l'origine est définitif — une régénération ne change jamais le numéro, même si le contenu ou le montant a changé depuis.",
+          "Oui, mais le numéro attribué à l'origine est définitif — une régénération ne change jamais le numéro, même si le contenu ou le montant a changé depuis. Chaque régénération crée une nouvelle version du PDF : les versions précédentes restent conservées et téléchargeables dans l'historique du reçu.",
       },
     ],
   },

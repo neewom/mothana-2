@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { JournalModification } from '../types'
-import { fetchJournalModifications, JOURNAL_RECHERCHE_MIN } from '../lib/journalModifications'
+import { fetchJournalModifications, JOURNAL_RECHERCHE_MIN, libelleAuteurJournal } from '../lib/journalModifications'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { ListToolbar } from './ui/list-toolbar'
 import { getErrorMessage } from '../lib/errors'
 import JournalActionLabel from './JournalActionLabel'
-import { Button } from './ui/button'
+import { TablePagination } from './ui/table-pagination'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 
 interface HistoriqueModificationsModalProps {
@@ -16,7 +16,7 @@ interface HistoriqueModificationsModalProps {
   rechercheInitiale?: string
 }
 
-const PAGE_SIZE = 25
+const DEFAULT_PAGE_SIZE = 25
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -28,10 +28,11 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [recherche, setRecherche] = useState(rechercheInitiale)
   const rechercheServeur = useDebouncedValue(recherche.trim().length >= JOURNAL_RECHERCHE_MIN ? recherche : '', 300)
 
-  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -39,8 +40,8 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
     try {
       const { entries: fetched, totalCount: count } = await fetchJournalModifications(
         organisationId,
-        PAGE_SIZE,
-        (currentPage - 1) * PAGE_SIZE,
+        pageSize,
+        (currentPage - 1) * pageSize,
         rechercheServeur,
       )
       setEntries(fetched)
@@ -50,7 +51,7 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
     } finally {
       setLoading(false)
     }
-  }, [organisationId, currentPage, rechercheServeur])
+  }, [organisationId, currentPage, pageSize, rechercheServeur])
 
   useEffect(() => {
     if (open) load()
@@ -104,40 +105,25 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
                   {entry.action === 'refus' && typeof entry.details?.motif_refus === 'string' && entry.details.motif_refus && (
                     <p className="mt-1 text-xs text-ink-faint">Motif : {entry.details.motif_refus}</p>
                   )}
-                  <p className="mt-0.5 text-xs text-ink-faint">Par {entry.auteur_nom ?? '—'}</p>
+                  <p className="mt-0.5 text-xs text-ink-faint">Par {libelleAuteurJournal(entry)}</p>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
-        {totalCount > PAGE_SIZE && (
-          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-paper-border bg-white px-6 py-3 font-registre">
-            <span className="text-sm text-ink-faint">
-              {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, totalCount)} sur {totalCount}
-            </span>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                ‹ Précédent
-              </Button>
-              <span className="text-sm text-ink-faint">Page {currentPage} / {pageCount}</span>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
-                disabled={currentPage === pageCount}
-              >
-                Suivant ›
-              </Button>
-            </div>
-          </div>
+        {/* Pagination serveur : la page demandée (`range`) et le total viennent de la requête. */}
+        {totalCount > 0 && (
+          <TablePagination
+            className="shrink-0 bg-white"
+            page={Math.min(currentPage, pageCount)}
+            pageCount={pageCount}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={[25, 50, 100]}
+          />
         )}
       </DialogContent>
     </Dialog>

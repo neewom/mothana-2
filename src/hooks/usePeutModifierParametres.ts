@@ -1,7 +1,7 @@
 import { useAuth } from './useAuth'
 
 /**
- * Les paramètres de l'organisation (identité, reçus, adhésions, formulaire public, visuels,
+ * Les paramètres de l'organisation (identité, reçus, adhésions, renouvellement en ligne, visuels,
  * porte-monnaie) ne sont modifiables que par un admin ou par le super-admin qui consulte
  * l'organisation ; un contributeur les voit en lecture seule (décision du 2026-10-24, audit
  * sécurité). La base l'impose aussi (policies RLS « admin »), l'UI ne fait que le refléter.

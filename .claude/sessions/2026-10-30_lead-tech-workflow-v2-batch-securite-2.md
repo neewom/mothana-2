@@ -11,18 +11,21 @@
 - Backlog ajouté : https://trello.com/c/oQFyp7f7 (erreur d'upsert avalée par `generate-recu`), https://trello.com/c/hRlB2FiJ (reçu rectificatif).
 - `AGENTS.md` (PR #311) : champs `test_apres_prod` / `prod_le` du tableau de bord, proposition de `/save` aux états stables.
 
+- **Promotion `dev` → `main` du batch Sécurité 2 (30/10 après-midi, PR #313)** : dump prod `public` (données comprises), 3 migrations appliquées et vérifiées, 6 Edge Functions déployées depuis `39a9a23`, merge avec `dev` conservée, nouveau front live. Journal : PR #314 et #315.
+  - #304 : clic Brevo fait en prod par l'utilisateur, WAT « Mis à jour », secret webhook vérifié en base.
+  - #306 : `GOTENBERG_USERNAME`/`GOTENBERG_PASSWORD` posés sur staging + prod (identifiant `samakan`, mot de passe gardé par l'utilisateur) ; Railway : 2 variables + `API_ENABLE_BASIC_AUTH=true`. 401 sans identifiant, PDF OK sur staging (vérifié) et en prod (cartes générées par l'utilisateur).
+  - #304 et #306 retirées du tableau de bord : plus aucune revue Mothana dessus.
+
 ## Reste à faire / attend l'utilisateur
 - **Batch Renouvellement** (3 cartes [M] en Todo : RAoRTGfH, 2NM7Hhlc, qmIyvbfb) : **go utilisateur attendu** + choix de fin (cascade = un seul merge, ou reciblage pour livrer la carte 1 plus tôt). Prévu **empilé**. Avant de lancer : créer la liste « Batch — Renouvellement (empilé) » (avant Todo) et ajouter aux cartes 3 précisions vérifiées dans le code : carte 2 → empreinte du secret côté navigateur avec `@noble/hashes` (pas `crypto.subtle`, absent en HTTP sur l'IP) ; carte 2 → la contrainte CHECK `acces_portefeuille_rate_limits_scope_check` doit garder les scopes `simulation_achat_*` ajoutés par #305 ; carte 1 → clé Brevo lue via `organisation_secrets`, envoi de test à la liste « Nicolas » seulement. Tickets écrits sur `43ea93b`, toujours conformes au code (vérifié le 30/10).
-- **Promotion `dev` → `main`** (sur go utilisateur) : migrations `simuler_achat_evenement_rate_limit.sql`, `recus_fiscaux_immutabilite.sql`, `organisation_assets_limites.sql` ; déploiement prod de `register-brevo-webhook`, `simuler-achat-evenement`, `generate-recu`, `generate-cartes-adherents`, `generate-campagne-courrier`, `generate-portefeuille-qr-pdf` ; puis :
-  - clic Brevo dans le `/super-admin` de prod (une seule fois) → dashboard #304 `prod_le` ;
-  - Gotenberg (#306) : générer un mot de passe, `GOTENBERG_USERNAME`/`GOTENBERG_PASSWORD` sur staging **et** prod, puis l'utilisateur pose variables + drapeau Railway dans le **même** redéploiement (après vérif que les 5 fonctions prod sont déployées depuis un commit contenant #306) ; contrôles + `curl` sans identifiant → 401 → dashboard #306 `prod_le`.
-- Tableau de bord : #304 et #306 restent en « À tester après mise en prod ».
-- Toujours en suspens : action admin `RESEND_WEBHOOK_SECRET` prod ; test prod sur samakan.fr ; clés Brevo des orgs de test staging (« Une nouvelle asso test » a une clé refusée par Brevo, 401).
+- Toujours en suspens : action admin `RESEND_WEBHOOK_SECRET` prod (https://trello.com/c/6LUg8hnR) ; clés Brevo des orgs de test staging (« Une nouvelle asso test » a une clé refusée par Brevo, 401).
 
 ## Blockers
 - Aucun.
 
 ## Décisions
+- Écriture de secrets (`supabase secrets set`) refusée par le classifieur du mode auto : passer la session en manuel pour cette étape. Les connexions prod `psql`/`pg_dump` sont passées en mode auto cette fois.
+- Commande à faire lancer à l'utilisateur : jamais de `!` en tête dans un bloc à coller dans un terminal (le shell l'interprète comme une négation et la chaîne `&&` s'arrête).
 - Workflow v2 puis v2.1 adoptés (utilisateur, 28 et 29/10).
 - Sous-agent dev autorisé à appliquer migrations et déployer des fonctions **sur staging** ; jamais en prod.
 - Reçus : régénération au même numéro avec un nouveau montant reste légitime ; rectificatif à cadrer plus tard.
@@ -30,4 +33,4 @@
 - Seuils simulation d'achat : 5 par IP par heure, 3 par adresse par jour.
 
 ## Env
-- Worktrees `../mothana-2-review` et `../mothana-2-claude-dev` en HEAD détaché sur `origin/dev`, propres. Serveurs 5174 et 5175 arrêtés. CLI Supabase du checkout principal liée à staging.
+- Worktrees `../mothana-2-review` et `../mothana-2-claude-dev` en HEAD détaché sur `origin/dev`, propres. Serveurs 5174 et 5175 arrêtés. Aucune PR ouverte (vérifié 30/10 fin de journée). `main` = promotion #313 ; `dev` en avance uniquement des PR doc #314, #315 et de ce fichier. CLI Supabase du checkout principal liée à staging.

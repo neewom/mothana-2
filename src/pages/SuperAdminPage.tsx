@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../hooks/useAuth'
@@ -11,6 +11,7 @@ import { isRecette, isStagingSupabaseProject } from '../lib/environment'
 import { seedDemoOrganisationData } from '../lib/demoOrgSeed'
 import { downloadCsv } from '../lib/csvExport'
 import { cn } from '../lib/utils'
+import { MESSAGE_ORGANISATION_AVEC_RECUS, estRefusConservationRecus } from '../lib/recusConservation'
 import ScrollShadowX from '../components/ScrollShadowX'
 import AdminAccountsManager from '../components/AdminAccountsManager'
 import { ListToolbar } from '../components/ui/list-toolbar'
@@ -20,7 +21,12 @@ import { useToast } from '../hooks/useToast'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Table, TableBody, TableRow, TableCell } from '../components/ui/table'
+import { Table, TableBody, TableRow, TableCell, TableHeader, TableHead } from '../components/ui/table'
+import { TablePagination } from '../components/ui/table-pagination'
+import SortableTableHead from '../components/SortableTableHead'
+import { useTableSort } from '../hooks/useTableSort'
+import { useClientPagination } from '../hooks/useClientPagination'
+import { compareText, sortRows, type SortColumns } from '../lib/tableSort'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import BrevoWebhooksGlobalDialog from '../components/BrevoWebhooksGlobalDialog'
 
@@ -30,6 +36,14 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+// `creation` : ordre d'ouverture (organisation la plus récente d'abord), sans colonne affichée.
+type OrgSortField = 'creation' | 'nom'
+
+const ORG_SORT_COLUMNS: SortColumns<OrgRow, OrgSortField> = {
+  creation: { type: 'date', value: (o) => o.created_at },
+  nom: { type: 'text', value: (o) => o.nom },
+}
 
 interface OrgRow {
   id: string
@@ -366,6 +380,10 @@ export default function SuperAdminPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  // Reçus fiscaux émis : vérifiés à l'ouverture de la confirmation (et par delete-org-admins
+  // côté serveur), avant toute suppression — versions conservées 6 ans
+  const [deleteCheck, setDeleteCheck] = useState<'checking' | 'blocked' | 'ok'>('checking')
+  const deleteCheckIdRef = useRef<string | null>(null)
 
   const [tab, setTab] = useState<'actives' | 'archivees'>('actives')
   const [extractingId, setExtractingId] = useState<string | null>(null)
@@ -376,6 +394,15 @@ export default function SuperAdminPage() {
   const activeOrgs = orgsTrouvees.filter((o) => !o.archived_at)
   const archivedOrgs = orgsTrouvees.filter((o) => o.archived_at)
   const rechercheActive = recherche.trim().length > 0
+
+  // Tri navigateur (toutes les organisations sont chargées) et pagination de l'onglet affiché.
+  const orgSort = useTableSort<OrgSortField>({
+    initial: { field: 'creation', direction: 'desc' },
+    onSortChange: () => orgPagination.setCurrentPage(1),
+  })
+  const orgsAffichees = tab === 'actives' ? activeOrgs : archivedOrgs
+  const orgsTriees = sortRows(orgsAffichees, ORG_SORT_COLUMNS, orgSort.sort, (a, b) => compareText(a.nom, b.nom))
+  const orgPagination = useClientPagination(orgsTriees)
 
   function handleConsulter(org: OrgRow) {
     setViewingOrg(org.id)
@@ -497,8 +524,32 @@ export default function SuperAdminPage() {
   // Delete
   // ---------------------------------------------------------------------------
 
+  async function openDelete(org: OrgRow) {
+    setDeleteConfirm(org)
+    setDeleteError(null)
+    setDeleteConfirmText('')
+    setDeleteCheck('checking')
+    deleteCheckIdRef.current = org.id
+    const { count, error: err } = await supabase
+      .from('recus_fiscaux')
+      .select('id', { count: 'exact', head: true })
+      .eq('organisation_id', org.id)
+    if (deleteCheckIdRef.current !== org.id) return // autre organisation ouverte entre-temps
+    if (err) {
+      setDeleteCheck('blocked')
+      setDeleteError("Impossible de vérifier les reçus fiscaux de l'organisation. Réessayez.")
+      return
+    }
+    if ((count ?? 0) > 0) {
+      setDeleteCheck('blocked')
+      setDeleteError(MESSAGE_ORGANISATION_AVEC_RECUS)
+      return
+    }
+    setDeleteCheck('ok')
+  }
+
   async function handleDelete() {
-    if (!deleteConfirm) return
+    if (!deleteConfirm || deleteCheck !== 'ok') return
     setDeleting(true)
     setDeleteError(null)
 
@@ -521,6 +572,8 @@ export default function SuperAdminPage() {
     })
     if (!adminsRes.ok) {
       const json = await adminsRes.json().catch(() => ({}))
+      // 409 : reçus émis détectés par le serveur, rien n'a été supprimé
+      if (adminsRes.status === 409) setDeleteCheck('blocked')
       setDeleteError(json.error ?? 'Erreur lors de la suppression des comptes admin')
       setDeleting(false)
       return
@@ -532,7 +585,12 @@ export default function SuperAdminPage() {
       .eq('id', deleteConfirm.id)
 
     if (err) {
-      setDeleteError(err.message)
+      if (estRefusConservationRecus(err)) {
+        setDeleteCheck('blocked')
+        setDeleteError(MESSAGE_ORGANISATION_AVEC_RECUS)
+      } else {
+        setDeleteError(err.message)
+      }
       setDeleting(false)
       return
     }
@@ -629,7 +687,7 @@ export default function SuperAdminPage() {
           <div className="flex gap-2 rounded-sm bg-paper-border/40 p-1">
             <button
               type="button"
-              onClick={() => setTab('actives')}
+              onClick={() => { setTab('actives'); orgPagination.setCurrentPage(1) }}
               className={cn(
                 'flex-1 rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors sm:flex-initial',
                 tab === 'actives' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
@@ -639,7 +697,7 @@ export default function SuperAdminPage() {
             </button>
             <button
               type="button"
-              onClick={() => setTab('archivees')}
+              onClick={() => { setTab('archivees'); orgPagination.setCurrentPage(1) }}
               className={cn(
                 'flex-1 rounded-sm px-3 py-1.5 font-registre text-sm font-medium transition-colors sm:flex-initial',
                 tab === 'archivees' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
@@ -651,7 +709,7 @@ export default function SuperAdminPage() {
         </div>
         {orgs.length > 0 && (
           <ListToolbar
-            search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom…', label: 'Rechercher une organisation' }}
+            search={{ value: recherche, onChange: (v) => { setRecherche(v); orgPagination.setCurrentPage(1) }, placeholder: 'Nom…', label: 'Rechercher une organisation' }}
           />
         )}
 
@@ -669,8 +727,13 @@ export default function SuperAdminPage() {
             </div>
           ) : (
             <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortableTableHead field="nom" label="Nom" sortField={orgSort.sortField} sortDirection={orgSort.sortDirection} onSort={orgSort.toggleSort} />
+                </TableRow>
+              </TableHeader>
               <TableBody>
-                {activeOrgs.map((org) => (
+                {orgPagination.pageRows.map((org) => (
                   <TableRow
                     key={org.id}
                     onClick={() => { setEditing(org); setModalOpen(true) }}
@@ -693,8 +756,14 @@ export default function SuperAdminPage() {
         ) : (
           <ScrollShadowX>
             <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortableTableHead field="nom" label="Nom" sortField={orgSort.sortField} sortDirection={orgSort.sortDirection} onSort={orgSort.toggleSort} />
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
               <TableBody>
-                {archivedOrgs.map((org) => (
+                {orgPagination.pageRows.map((org) => (
                   <TableRow key={org.id}>
                     <TableCell>
                       <div className="font-medium text-ink">{org.nom}</div>
@@ -714,7 +783,7 @@ export default function SuperAdminPage() {
                           type="button"
                           variant="danger"
                           size="sm"
-                          onClick={() => { setDeleteConfirm(org); setDeleteError(null); setDeleteConfirmText('') }}
+                          onClick={() => openDelete(org)}
                         >
                           Supprimer
                         </Button>
@@ -726,6 +795,7 @@ export default function SuperAdminPage() {
             </Table>
           </ScrollShadowX>
         )}
+        {!loading && orgsAffichees.length > 0 && <TablePagination {...orgPagination.paginationProps} />}
       </div>
 
       {/* Actions globales (toutes organisations) */}
@@ -775,16 +845,20 @@ export default function SuperAdminPage() {
                 <li>{deleteConfirm.nb_dons} don{deleteConfirm.nb_dons !== 1 ? 's' : ''}</li>
                 <li>{deleteConfirm.nb_admins} compte{deleteConfirm.nb_admins !== 1 ? 's' : ''} admin{deleteConfirm.nb_admins !== 1 ? 's' : ''}</li>
               </ul>
-              <Label htmlFor="delete-org-confirm" className="mt-4 block">
-                Pour confirmer, saisissez le nom de l'organisation : <span className="font-medium text-ink">{deleteConfirm.nom}</span>
-              </Label>
-              <Input
-                id="delete-org-confirm"
-                type="text"
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                className="mt-2"
-              />
+              {deleteCheck !== 'blocked' && (
+                <>
+                  <Label htmlFor="delete-org-confirm" className="mt-4 block">
+                    Pour confirmer, saisissez le nom de l'organisation : <span className="font-medium text-ink">{deleteConfirm.nom}</span>
+                  </Label>
+                  <Input
+                    id="delete-org-confirm"
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    className="mt-2"
+                  />
+                </>
+              )}
               {deleteError && (
                 <div className="mt-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">{deleteError}</div>
               )}
@@ -796,9 +870,9 @@ export default function SuperAdminPage() {
                   type="button"
                   variant="destructive"
                   onClick={handleDelete}
-                  disabled={deleting || deleteConfirmText !== deleteConfirm.nom}
+                  disabled={deleting || deleteCheck !== 'ok' || deleteConfirmText !== deleteConfirm.nom}
                 >
-                  {deleting ? 'Suppression…' : 'Supprimer'}
+                  {deleting ? 'Suppression…' : deleteCheck === 'checking' ? 'Vérification…' : 'Supprimer'}
                 </Button>
               </div>
             </div>

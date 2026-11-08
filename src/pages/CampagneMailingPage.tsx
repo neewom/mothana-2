@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -11,12 +11,16 @@ import { brevoConfigure, chargerEtatConfigBrevo } from '../lib/brevoConfig'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import ScrollShadowX from '../components/ScrollShadowX'
+import EditorToolbarButton from '../components/EditorToolbarButton'
 import AdherentModal from '../components/AdherentModal'
 import type { Adherent } from '../types'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import SortableTableHead from '../components/SortableTableHead'
+import { useTableSort } from '../hooks/useTableSort'
+import { directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../components/ui/dialog'
 import { Link } from 'react-router-dom'
 import { StatusNotice } from '../components/ui/status-notice'
@@ -41,6 +45,16 @@ interface Campagne {
   nombre_destinataires: number
   nombre_exclus: number
   created_at: string
+}
+
+type HistoriqueSortField = 'date' | 'sujet' | 'destinataires' | 'exclus'
+
+// Historique : les 20 dernières campagnes (limite de la requête), triées dans le navigateur.
+const HISTORIQUE_SORT_COLUMNS: SortColumns<Campagne, HistoriqueSortField> = {
+  date: { type: 'date', value: (c) => c.created_at },
+  sujet: { type: 'text', value: (c) => c.sujet },
+  destinataires: { type: 'number', value: (c) => c.nombre_destinataires },
+  exclus: { type: 'number', value: (c) => c.nombre_exclus },
 }
 
 interface PieceJointeState {
@@ -106,26 +120,15 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
+// Lien personnel de renouvellement : généré par send-mailing-brevo pour chaque destinataire
+// (lienRenouvellement.ts), rendu en bouton « Renouveler mon adhésion » dans l'email.
+const PLACEHOLDER_LIEN_RENOUVELLEMENT = '{{params.lien_renouvellement}}'
+const LIEN_RENOUVELLEMENT_REGEX = /\{\{\s*params\.lien_renouvellement\s*\}\}/
+
 const PLACEHOLDERS = [
   { key: 'prenom', label: 'Prénom' },
   { key: 'nom', label: 'Nom' },
 ]
-
-function EditorToolbarButton({ active, onClick, children, label }: { active: boolean; onClick: () => void; children: React.ReactNode; label: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      aria-pressed={active}
-      className={`rounded-sm px-2.5 py-1.5 font-registre text-sm font-medium transition-colors ${
-        active ? 'bg-stamp text-white' : 'text-ink-muted hover:bg-paper-border/40'
-      }`}
-    >
-      {children}
-    </button>
-  )
-}
 
 // Carte titre + description + contenu, propre à cette page (pas la ParametresSection
 // partagée : les 4 autres sous-pages de Paramètres ne sont pas encore migrées vers les
@@ -201,6 +204,14 @@ export default function CampagneMailingPage() {
   // Historique
   const [historique, setHistorique] = useState<Campagne[]>([])
   const [historiqueLoading, setHistoriqueLoading] = useState(true)
+  const historiqueSort = useTableSort<HistoriqueSortField>({
+    initial: { field: 'date', direction: 'desc' },
+    initialDirection: (field) => directionInitiale(HISTORIQUE_SORT_COLUMNS[field].type),
+  })
+  const historiqueTrie = useMemo(
+    () => sortRows(historique, HISTORIQUE_SORT_COLUMNS, historiqueSort.sort, (a, b) => b.created_at.localeCompare(a.created_at)),
+    [historique, historiqueSort.sort]
+  )
 
   // Modèles réutilisables
   const [templates, setTemplates] = useState<MailingTemplate[]>([])
@@ -548,6 +559,8 @@ export default function CampagneMailingPage() {
     fetchHistorique()
   }
 
+  const avecLienRenouvellement = LIEN_RENOUVELLEMENT_REGEX.test(corpsHtml)
+
   const canSend = sujet.trim() !== '' && !corpsVide && configured && (destinatairesCount?.avecEmail ?? 0) > 0
 
   if (configLoading) {
@@ -599,7 +612,7 @@ export default function CampagneMailingPage() {
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-ink-muted">Message</label>
             <div className="rounded-sm border border-paper-border bg-white">
-              <div className="flex items-center gap-1 border-b border-paper-border px-2 py-1.5">
+              <div className="flex flex-wrap items-center gap-1 border-b border-paper-border px-2 py-1.5">
                 <EditorToolbarButton
                   label="Gras"
                   active={editor?.isActive('bold') ?? false}
@@ -648,10 +661,32 @@ export default function CampagneMailingPage() {
                     </div>
                   )}
                 </div>
+                <EditorToolbarButton
+                  label="Insérer le lien de renouvellement"
+                  active={false}
+                  onClick={() => {
+                    editor
+                      ?.chain()
+                      .focus()
+                      .insertContent({ type: 'text', text: PLACEHOLDER_LIEN_RENOUVELLEMENT })
+                      .insertContent({ type: 'text', text: ' ' })
+                      .run()
+                  }}
+                >
+                  Lien de renouvellement
+                </EditorToolbarButton>
               </div>
               <EditorContent editor={editor} className="prose prose-sm max-w-none px-3 py-2 font-registre text-ink [&_.ProseMirror]:min-h-[150px] [&_.ProseMirror]:outline-none" />
             </div>
           </div>
+
+          {avecLienRenouvellement && (
+            <StatusNotice heading="Lien de renouvellement personnel">
+              Chaque destinataire recevra son propre lien vers le formulaire de renouvellement, sous la forme d'un bouton
+              « Renouveler mon adhésion ». Il est valable 90 jours et utilisable une seule fois ; un lien envoyé
+              précédemment au même adhérent est annulé.
+            </StatusNotice>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-ink-muted">Pièces jointes (facultatif, {MAX_ATTACHMENTS} max)</label>
@@ -820,14 +855,14 @@ export default function CampagneMailingPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Sujet</TableHead>
-                  <TableHead>Destinataires</TableHead>
-                  <TableHead>Exclus</TableHead>
+                  <SortableTableHead field="date" label="Date" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
+                  <SortableTableHead field="sujet" label="Sujet" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
+                  <SortableTableHead field="destinataires" label="Destinataires" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
+                  <SortableTableHead field="exclus" label="Exclus" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {historique.map((c) => (
+                {historiqueTrie.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="whitespace-nowrap text-ink-muted">{formatDateTime(c.created_at)}</TableCell>
                     <TableCell className="max-w-[45vw] truncate font-medium text-ink sm:max-w-none" title={c.sujet}>{c.sujet}</TableCell>
@@ -965,6 +1000,11 @@ export default function CampagneMailingPage() {
               <span className="font-medium text-ink">{destinatairesCount?.avecEmail ?? 0} destinataire{(destinatairesCount?.avecEmail ?? 0) > 1 ? 's' : ''}</span>.
               Cette action est irréversible.
             </p>
+            {avecLienRenouvellement && (
+              <p className="mt-2 font-registre text-sm text-ink-muted">
+                Chacun recevra un lien de renouvellement personnel, valable 90 jours ; les liens envoyés précédemment seront annulés.
+              </p>
+            )}
             {sendError && (
               <div className="mt-3 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
                 {sendError}

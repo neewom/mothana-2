@@ -11,6 +11,14 @@ export const TABLE_CIBLE_LABELS: Record<TableCibleJournal, string> = {
   organisations: 'Organisation',
 }
 
+/** Libellé de la table d'une entrée : une demande de renouvellement (details.type) se distingue. */
+export function libelleTableCible(entry: Pick<JournalModification, 'table_cible' | 'details'>): string {
+  if (entry.table_cible === 'demandes_adhesion' && entry.details?.type === 'renouvellement') {
+    return 'Demande de renouvellement'
+  }
+  return TABLE_CIBLE_LABELS[entry.table_cible as TableCibleJournal] ?? entry.table_cible
+}
+
 export const ACTION_LABELS: Record<ActionJournal, string> = {
   creation: 'Création',
   modification: 'Modification',
@@ -54,7 +62,19 @@ export function describeJournalEntry(entry: JournalModification): string {
   }
   const nom = entry.details?.nom
   const prenom = entry.details?.prenom
-  return [prenom, nom].filter(Boolean).join(' ') || '—'
+  const libelle = [prenom, nom].filter(Boolean).join(' ') || '—'
+  // Écrit par la RPC creer_adhesion_benevole.
+  if (entry.details?.origine === 'benevole') {
+    const signature = entry.details?.signature === 'papier' ? 'signée sur papier' : 'signée à l’écran'
+    return `${libelle} (saisie bénévole, ${signature})`
+  }
+  return libelle
+}
+
+/** Auteur affiché : le compte bénévole partagé n'a pas de nom (pas de profil d'organisation). */
+export function libelleAuteurJournal(entry: Pick<JournalModification, 'auteur_nom' | 'details'>): string {
+  if (entry.auteur_nom) return entry.auteur_nom
+  return entry.details?.origine === 'benevole' ? 'Espace bénévole' : '—'
 }
 
 export const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']

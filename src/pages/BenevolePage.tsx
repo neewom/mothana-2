@@ -10,6 +10,7 @@ import AdherentFallbackSuggestions from '../components/AdherentFallbackSuggestio
 import type { ParticipantEnAttente } from '../lib/adherentTranspose'
 import BenevoleVerificationAdherent from '../components/BenevoleVerificationAdherent'
 import BenevoleEvenement from '../components/BenevoleEvenement'
+import BenevoleAdhesion from '../components/BenevoleAdhesion'
 import RecetteBanner from '../components/RecetteBanner'
 import { useFonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
@@ -18,6 +19,8 @@ import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
+import OrganisationLogo from '../components/OrganisationLogo'
+import { useOrganisationLogoUrl } from '../hooks/useOrganisationLogoUrl'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -110,9 +113,14 @@ export default function BenevolePage() {
   const evenementsActifs = fonctionnalitesActivees?.evenements ?? false
 
   const [organisationNom, setOrganisationNom] = useState<string | null>(null)
+  const logoUrl = useOrganisationLogoUrl(organisationId)
+  const [statutsUrl, setStatutsUrl] = useState<string | null>(null)
+  // Réglage de l'organisation (Paramètres → Adhésions) ; la RPC le revérifie à chaque saisie.
+  const [saisieAdhesionActive, setSaisieAdhesionActive] = useState(false)
+  const adhesionActive = adherentsActifs && saisieAdhesionActive
 
   // Onglets
-  const [activeTab, setActiveTab] = useState<'don' | 'verification' | 'evenement'>('don')
+  const [activeTab, setActiveTab] = useState<'don' | 'verification' | 'adhesion' | 'evenement'>('don')
 
   // Bascule automatiquement sur l'onglet encore actif si l'onglet courant
   // devient indisponible (switch désactivé pendant la session).
@@ -120,15 +128,16 @@ export default function BenevolePage() {
     const activeTabIsAvailable =
       (activeTab === 'don' && donsActifs)
       || (activeTab === 'verification' && adherentsActifs)
+      || (activeTab === 'adhesion' && adhesionActive)
       || (activeTab === 'evenement' && evenementsActifs)
     if (activeTabIsAvailable) return
 
     if (donsActifs) setActiveTab('don')
     else if (adherentsActifs) setActiveTab('verification')
     else if (evenementsActifs) setActiveTab('evenement')
-  }, [donsActifs, adherentsActifs, evenementsActifs, activeTab])
+  }, [donsActifs, adherentsActifs, adhesionActive, evenementsActifs, activeTab])
 
-  const activeFeatureCount = Number(donsActifs) + Number(adherentsActifs) + Number(evenementsActifs)
+  const activeFeatureCount = Number(donsActifs) + Number(adherentsActifs) + Number(adhesionActive) + Number(evenementsActifs)
 
   // Data
   const [participants, setParticipants] = useState<ProfilParticipant[]>([])
@@ -233,11 +242,15 @@ export default function BenevolePage() {
     if (!organisationId) return
     void supabase
       .from('organisations')
-      .select('nom')
+      .select('nom, statuts_url, saisie_adhesion_benevole')
       .eq('id', organisationId)
       .single()
       .then(({ data }) => {
-        if (data) setOrganisationNom((data as { nom: string }).nom)
+        if (!data) return
+        const org = data as { nom: string; statuts_url: string | null; saisie_adhesion_benevole: boolean }
+        setOrganisationNom(org.nom)
+        setStatutsUrl(org.statuts_url)
+        setSaisieAdhesionActive(org.saisie_adhesion_benevole)
       })
   }, [organisationId])
 
@@ -417,8 +430,9 @@ export default function BenevolePage() {
             Quitter
           </Button>
         </div>
-        <div className="pb-2 text-xs font-medium text-ink-faint">
-          Espace bénévole — {organisationNom ?? '…'}
+        <div className="flex min-w-0 items-center gap-2 pb-2 text-xs font-medium text-ink-faint">
+          <OrganisationLogo url={logoUrl} className="h-6 max-w-[5rem]" />
+          <span className="min-w-0">Espace bénévole — {organisationNom ?? '…'}</span>
         </div>
       </header>
 
@@ -451,8 +465,22 @@ export default function BenevolePage() {
                     activeTab === 'verification' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
                   )}
                 >
-                  <span className="sm:hidden">Adhérent</span>
+                  <span className="sm:hidden">Vérifier</span>
                   <span className="hidden sm:inline">Vérifier un adhérent</span>
+                </button>
+              )}
+              {adhesionActive && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('adhesion')}
+                  aria-pressed={activeTab === 'adhesion'}
+                  className={cn(
+                    'min-h-10 flex-1 rounded-sm px-2 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70 sm:px-3 sm:text-sm',
+                    activeTab === 'adhesion' ? 'bg-white text-ink shadow-sm' : 'text-ink-faint hover:text-ink-muted'
+                  )}
+                >
+                  <span className="sm:hidden">Adhésion</span>
+                  <span className="hidden sm:inline">Nouvel adhérent</span>
                 </button>
               )}
               {evenementsActifs && (
@@ -478,6 +506,8 @@ export default function BenevolePage() {
             <BenevoleEvenement organisationId={organisationId} />
           ) : activeTab === 'verification' ? (
             <BenevoleVerificationAdherent organisationId={organisationId} />
+          ) : activeTab === 'adhesion' ? (
+            <BenevoleAdhesion organisationId={organisationId} statutsUrl={statutsUrl} />
           ) : (
             <>
           <div className="mb-6">

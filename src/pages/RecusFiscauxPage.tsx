@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { StatusNotice } from '../components/ui/status-notice'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
-import type { RecuFiscal, ProfilParticipant } from '../types'
+import type { RecuFiscal, RecuFiscalVersion, ProfilParticipant } from '../types'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { participantFullName, matchesParticipantSearch } from '../lib/participantSearch'
 import {
@@ -23,9 +24,21 @@ import { Badge } from '../components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import { PageHeader } from '../components/ui/page-header'
+import { TablePagination } from '../components/ui/table-pagination'
 import { ListToolbar } from '../components/ui/list-toolbar'
 import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { cn } from '../lib/utils'
+import { comparerOrdreAttribution, raisonExclusion, recusAGenerer, recusExclus } from '../lib/recusAGenerer'
+import { useRecusLot } from '../hooks/useRecusLot'
+import { useCleCourante } from '../hooks/useCleCourante'
+import { lotTraites, messageErreurLot, messageLancementLot } from '../lib/recusLot'
+import RecusLotBandeau from '../components/RecusLotBandeau'
+import RecusLotRecapitulatifDialog from '../components/RecusLotRecapitulatifDialog'
+import EmailInvalideIndicateur from '../components/EmailInvalideIndicateur'
+import type { RecapitulatifEnvoi } from '../types/recusLot'
+import SortableTableHead from '../components/SortableTableHead'
+import { useTableSort } from '../hooks/useTableSort'
+import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,6 +49,16 @@ interface ParticipantRow {
   total_dons: number
   recu: RecuFiscal | null
   validation: ParticipantValidation
+}
+
+type RecuSortField = 'donateur' | 'total' | 'numero'
+
+// Donateur : ordre d'annuaire (nom puis prénom, l'affichage reste « Prénom Nom ») ;
+// N° reçu : comparaison numérique des chiffres, lignes sans reçu en dernier.
+const RECU_SORT_COLUMNS: SortColumns<ParticipantRow, RecuSortField> = {
+  donateur: { type: 'text', value: (r) => [r.profil.personnes.nom, r.profil.personnes.prenom] },
+  total: { type: 'number', value: (r) => r.total_dons },
+  numero: { type: 'text', value: (r) => r.recu?.numero_ordre },
 }
 
 // ---------------------------------------------------------------------------
@@ -54,9 +77,27 @@ function formatDateHeure(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+// Date et heure : plusieurs versions d'un même reçu peuvent être générées le même jour.
+function formatDateEtHeure(iso: string): string {
+  return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
 function yearOptions() {
   const cy = currentYear()
   return [cy, cy - 1, cy - 2, cy - 3]
+}
+
+// Bilan d'un lot fermé par l'admin (par lot, dans ce navigateur) : ne réapparaît pas à la réouverture.
+function cleBilanFerme(lotId: string) {
+  return `recus-lot-bilan-ferme:${lotId}`
+}
+
+function bilanDejaFerme(lotId: string): boolean {
+  try {
+    return window.localStorage.getItem(cleBilanFerme(lotId)) === '1'
+  } catch {
+    return false
+  }
 }
 
 const TYPE_CERFA_LABELS: Record<string, string> = {
@@ -79,6 +120,8 @@ export default function RecusFiscauxPage() {
     return yearOptions().includes(demandee) ? demandee : currentYear()
   })
   const [rows, setRows] = useState<ParticipantRow[]>([])
+  // Organisation et année affichées : une réponse arrivée après leur changement est ignorée.
+  const estCleCourante = useCleCourante(`${organisationId}|${annee}`)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -94,13 +137,29 @@ export default function RecusFiscauxPage() {
   const [sendLoading, setSendLoading] = useState<Record<string, boolean>>({})
   const [sendError, setSendError] = useState<Record<string, string>>({})
 
-  const [generateAllLoading, setGenerateAllLoading] = useState(false)
+  // Lot de génération côté serveur : récapitulatif avant lancement, bilan fermé
+  const [recapOpen, setRecapOpen] = useState(false)
+  const [recapError, setRecapError] = useState<string | null>(null)
+  const [bilansFermes, setBilansFermes] = useState<Record<string, boolean>>({})
+
+  // Lot d'envoi : récapitulatif serveur (recapitulatif_envoi_lot_recus), canal Brevo / Samakan
+  const [recapEnvoi, setRecapEnvoi] = useState<RecapitulatifEnvoi | null>(null)
+  const [recapEnvoiOpen, setRecapEnvoiOpen] = useState(false)
+  const [recapEnvoiError, setRecapEnvoiError] = useState<string | null>(null)
+  const [recapEnvoiLoading, setRecapEnvoiLoading] = useState(false)
 
   // Regénération (confirmation) et édition participant
   const [regenerateConfirm, setRegenerateConfirm] = useState<ParticipantRow | null>(null)
   const [editingProfil, setEditingProfil] = useState<ProfilParticipant | undefined>(undefined)
   const [participantModalOpen, setParticipantModalOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  // Historique des versions du reçu affiché dans le panneau de détail
+  const [versions, setVersions] = useState<RecuFiscalVersion[]>([])
+  const [versionsLoading, setVersionsLoading] = useState(false)
+  const [versionsError, setVersionsError] = useState<string | null>(null)
+  const [versionDlLoading, setVersionDlLoading] = useState<Record<string, boolean>>({})
+  const versionsRecuIdRef = useRef<string | null>(null)
 
   // ---------------------------------------------------------------------------
   // Organisation fiscale (indépendante de l'année)
@@ -160,7 +219,7 @@ export default function RecusFiscauxPage() {
     const { data: profils, error: profilsErr } = await fetchAllRows<ProfilParticipant>((from, to) =>
       supabase
         .from('profils_participant')
-        .select('id, personne_id, organisation_id, notes, id_externe, created_at, personnes!inner(id, nom, prenom, email, telephone, civilite, nom2, prenom2, adresse, code_postal, ville, pays)')
+        .select('id, personne_id, organisation_id, notes, id_externe, created_at, email_invalide_at, email_invalide_evenement, email_invalide_raison, personnes!inner(id, nom, prenom, email, telephone, civilite, nom2, prenom2, adresse, code_postal, ville, pays)')
         .in('id', profilIds)
         .order('id', { ascending: true })
         .range(from, to) as unknown as PromiseLike<{ data: ProfilParticipant[] | null; error: { message: string } | null }>
@@ -194,11 +253,9 @@ export default function RecusFiscauxPage() {
       validation: validateParticipantCerfa(p.personnes),
     }))
 
-    // Sort by nom then prenom
-    built.sort((a, b) =>
-      a.profil.personnes.nom.localeCompare(b.profil.personnes.nom) ||
-      (a.profil.personnes.prenom ?? '').localeCompare(b.profil.personnes.prenom ?? '')
-    )
+    // Sort by nom then prenom — garde l'ordre de « Tout générer » (attribution des numéros),
+    // indépendant du tri affiché.
+    built.sort(comparerOrdreAttribution)
 
     setRows(built)
     setLoading(false)
@@ -242,10 +299,33 @@ export default function RecusFiscauxPage() {
       return
     }
 
+    await rafraichirLigne(profilId)
     setGenLoading((prev) => ({ ...prev, [profilId]: false }))
     showToast(`Reçu généré pour ${participantFullName(row.profil)}`)
-    fetchData()
   }
+
+  // Relecture du seul reçu d'un donateur (après génération) : la réponse de generate-recu ne
+  // porte ni l'id ni le montant ni la date du reçu, et un rechargement complet de la liste après
+  // chaque reçu était lent sur une grosse organisation.
+  // Une réponse arrivée après un changement d'année ou d'organisation est ignorée.
+  const rafraichirLigne = useCallback(async (profilId: string) => {
+    const cle = `${organisationId}|${annee}`
+    const { data, error: err } = await supabase
+      .from('recus_fiscaux')
+      .select('*')
+      .eq('organisation_id', organisationId)
+      .eq('profil_participant_id', profilId)
+      .eq('annee', annee)
+      .maybeSingle()
+    if (!estCleCourante(cle)) return
+    if (err) {
+      fetchData()
+      return
+    }
+    const recu = (data as RecuFiscal | null) ?? null
+    setRows((prev) => prev.map((r) => (r.profil.id === profilId ? { ...r, recu } : r)))
+  }, [organisationId, annee, fetchData, estCleCourante])
+
 
   function handleGenerateClick(row: ParticipantRow) {
     if (row.recu) {
@@ -259,24 +339,34 @@ export default function RecusFiscauxPage() {
   // Download a recu (signed URL)
   // ---------------------------------------------------------------------------
 
+  async function openSignedRecu(path: string): Promise<boolean> {
+    const { data, error: urlErr } = await supabase.storage
+      .from('recus-fiscaux')
+      .createSignedUrl(path, 3600)
+    if (urlErr || !data?.signedUrl) return false
+    window.open(data.signedUrl, '_blank')
+    return true
+  }
+
   async function downloadRecu(row: ParticipantRow) {
     if (!row.recu?.fichier_url) return
     const id = row.profil.id
     setDlLoading((prev) => ({ ...prev, [id]: true }))
     setDlError((prev) => ({ ...prev, [id]: '' }))
 
-    const { data, error: urlErr } = await supabase.storage
-      .from('recus-fiscaux')
-      .createSignedUrl(row.recu.fichier_url, 3600)
-
-    if (urlErr || !data?.signedUrl) {
-      setDlError((prev) => ({ ...prev, [id]: 'Impossible de générer le lien' }))
-      setDlLoading((prev) => ({ ...prev, [id]: false }))
-      return
-    }
-
-    window.open(data.signedUrl, '_blank')
+    const ok = await openSignedRecu(row.recu.fichier_url)
+    if (!ok) setDlError((prev) => ({ ...prev, [id]: 'Impossible de générer le lien' }))
     setDlLoading((prev) => ({ ...prev, [id]: false }))
+  }
+
+  async function downloadVersion(row: ParticipantRow, version: RecuFiscalVersion) {
+    const id = row.profil.id
+    setVersionDlLoading((prev) => ({ ...prev, [version.id]: true }))
+    setDlError((prev) => ({ ...prev, [id]: '' }))
+
+    const ok = await openSignedRecu(version.fichier_url)
+    if (!ok) setDlError((prev) => ({ ...prev, [id]: `Impossible de générer le lien de la version ${version.version}` }))
+    setVersionDlLoading((prev) => ({ ...prev, [version.id]: false }))
   }
 
   // ---------------------------------------------------------------------------
@@ -319,17 +409,134 @@ export default function RecusFiscauxPage() {
   }
 
   // ---------------------------------------------------------------------------
-  // Generate all (skips les lignes bloquées)
+  // Générer les reçus manquants : seulement les reçus pas encore générés (une
+  // régénération crée une nouvelle version conservée, elle passe par « Regénérer »)
   // ---------------------------------------------------------------------------
 
-  async function generateAll() {
-    setGenerateAllLoading(true)
-    const eligible = rows.filter((r) => orgMissing.length === 0 && !r.validation.blocking && r.validation.missing.length === 0)
-    for (const row of eligible) {
-      await generateRecu(row)
-    }
-    setGenerateAllLoading(false)
+  const manquants = useMemo(() => recusAGenerer(rows, orgMissing.length > 0), [rows, orgMissing])
+
+  const exclus = useMemo(
+    () => recusExclus(rows, orgMissing.length > 0).map((r) => ({
+      id: r.profil.id,
+      nom: participantFullName(r.profil),
+      raison: raisonExclusion(r.validation),
+    })),
+    [rows, orgMissing]
+  )
+
+  const recusLot = useRecusLot(organisationId, annee, 'generation', fetchData)
+  const lot = recusLot.lot
+  const lotEnCours = lot?.statut === 'en_cours'
+  const afficherLot = !!lot && (lotEnCours || !(bilansFermes[lot.id] ?? bilanDejaFerme(lot.id)))
+
+  function ouvrirRecapitulatif() {
+    setRecapError(null)
+    setRecapOpen(true)
   }
+
+  async function lancerLot() {
+    setRecapError(null)
+    const res = await recusLot.lancer()
+    if (!res.ok) {
+      setRecapError(res.message)
+      // Liste périmée (reçus générés entre-temps) : relue pour un récapitulatif exact.
+      fetchData()
+      return
+    }
+    setRecapOpen(false)
+    showToast(messageLancementLot('generation', res.nbTotal))
+  }
+
+  async function arreterLot() {
+    const res = await recusLot.arreter()
+    if (!res.ok) showToast(res.message)
+  }
+
+  function fermerBilan(lotId: string) {
+    try {
+      window.localStorage.setItem(cleBilanFerme(lotId), '1')
+    } catch {
+      // Stockage indisponible (navigation privée) : fermé pour cette visite seulement.
+    }
+    setBilansFermes((prev) => ({ ...prev, [lotId]: true }))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Envoyer les reçus non envoyés : lot d'envoi côté serveur, étalé selon le rythme de l'organisation
+  // ---------------------------------------------------------------------------
+
+  const recusEnvoi = useRecusLot(organisationId, annee, 'envoi', fetchData)
+  const lotEnvoi = recusEnvoi.lot
+  const lotEnvoiEnCours = lotEnvoi?.statut === 'en_cours'
+  const afficherLotEnvoi = !!lotEnvoi && (lotEnvoiEnCours || !(bilansFermes[lotEnvoi.id] ?? bilanDejaFerme(lotEnvoi.id)))
+  const nbAEnvoyer = recapEnvoi?.a_envoyer ?? 0
+  const rythmeEnvoiOrg = recapEnvoi ? { parJour: recapEnvoi.par_jour, parMinute: recapEnvoi.par_minute } : undefined
+  // Envoi en lot réservé à Brevo (décision utilisateur 2026-11-04) ; l'envoi unitaire reste possible.
+  const brevoLot = recapEnvoi ? recapEnvoi.brevo_configure : null
+
+  const chargerRecapEnvoi = useCallback(async () => {
+    if (!organisationId) return
+    setRecapEnvoiLoading(true)
+    const { data, error: err } = await supabase.rpc('recapitulatif_envoi_lot_recus', {
+      p_organisation_id: organisationId,
+      p_annee: annee,
+    })
+    setRecapEnvoiLoading(false)
+    if (err) {
+      setRecapEnvoi(null)
+      setRecapEnvoiError(messageErreurLot(err.message))
+      return
+    }
+    setRecapEnvoi(data as RecapitulatifEnvoi)
+  }, [organisationId, annee])
+
+  // Relu avec la liste (génération, envoi unitaire, fin de lot) : nombre de reçus à envoyer du bouton.
+  useEffect(() => {
+    if (loading) return
+    void chargerRecapEnvoi()
+  }, [rows, loading, chargerRecapEnvoi])
+
+  // Pendant un envoi en lot : relu à chaque avancée, pour que l'estimation de fin retranche les envois
+  // des dernières 24 h (quota du jour déjà entamé).
+  const traitesEnvoi = lotEnvoi && lotEnvoiEnCours ? lotTraites(lotEnvoi) : null
+  useEffect(() => {
+    if (traitesEnvoi === null) return
+    void chargerRecapEnvoi()
+  }, [traitesEnvoi, chargerRecapEnvoi])
+
+
+  function ouvrirRecapEnvoi() {
+    setRecapEnvoiError(null)
+    setRecapEnvoiOpen(true)
+    void chargerRecapEnvoi()
+  }
+
+  async function lancerEnvoi() {
+    setRecapEnvoiError(null)
+    const res = await recusEnvoi.lancer()
+    if (!res.ok) {
+      setRecapEnvoiError(res.message)
+      void chargerRecapEnvoi()
+      return
+    }
+    setRecapEnvoiOpen(false)
+    showToast(messageLancementLot('envoi', res.nbTotal))
+    void chargerRecapEnvoi()
+  }
+
+  async function arreterEnvoi() {
+    const res = await recusEnvoi.arreter()
+    if (!res.ok) showToast(res.message)
+  }
+
+  const exclusEnvoi = useMemo(
+    () => (recapEnvoi?.exclus ?? []).map((e) => ({
+      id: e.profil_participant_id,
+      nom: [e.prenom, e.nom].filter(Boolean).join(' '),
+      raison: e.raison,
+    })),
+    [recapEnvoi]
+  )
 
   // ---------------------------------------------------------------------------
   // Édition participant
@@ -354,6 +561,42 @@ export default function RecusFiscauxPage() {
   // Récapitulatif 222 bis (toutes années) : rechargé quand la liste de l'année change.
   const recapitulatif = useRecapitulatif222Bis(organisationId, rows)
   const selectedRow = rows.find((r) => r.profil.id === selectedId) ?? null
+
+  // Versions rechargées à l'ouverture du panneau et après chaque génération / envoi (la fiche du
+  // reçu change alors de date de génération ou d'envoi).
+  const selectedRecuId = selectedRow?.recu?.id ?? null
+  const selectedRecuStamp = selectedRow?.recu ? `${selectedRow.recu.date_generation}|${selectedRow.recu.email_envoye_at ?? ''}` : null
+  useEffect(() => {
+    if (!selectedRecuId) {
+      versionsRecuIdRef.current = null
+      setVersions([])
+      setVersionsError(null)
+      return
+    }
+    let cancelled = false
+    // Autre reçu : l'historique du précédent n'est ni affiché ni téléchargeable pendant le chargement.
+    // Même reçu (rechargement après génération / envoi) : la liste reste affichée jusqu'à la réponse.
+    if (versionsRecuIdRef.current !== selectedRecuId) setVersions([])
+    versionsRecuIdRef.current = selectedRecuId
+    setVersionsLoading(true)
+    setVersionsError(null)
+    supabase
+      .from('recus_fiscaux_versions')
+      .select('id, recu_id, version, fichier_url, montant_total, genere_le, email_envoye_le')
+      .eq('recu_id', selectedRecuId)
+      .order('version', { ascending: false })
+      .then(({ data, error: err }) => {
+        if (cancelled) return
+        if (err) {
+          setVersionsError("Impossible de charger l'historique des versions")
+          setVersions([])
+        } else {
+          setVersions((data ?? []) as RecuFiscalVersion[])
+        }
+        setVersionsLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [selectedRecuId, selectedRecuStamp])
   // N° de reçu laissé au panneau quand celui-ci réduit le tableau (rien hors écran à 1 400 px).
   const secondaryCol = selectedRow ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
 
@@ -370,6 +613,25 @@ export default function RecusFiscauxPage() {
   )
 
   // ---------------------------------------------------------------------------
+  // Tri (navigateur, sur toute la liste filtrée, avant pagination)
+  // ---------------------------------------------------------------------------
+
+  const { sortField, sortDirection, sort, toggleSort } = useTableSort<RecuSortField>({
+    initial: { field: 'donateur', direction: 'asc' },
+    initialDirection: (field) => directionInitiale(RECU_SORT_COLUMNS[field].type),
+    onSortChange: () => setCurrentPage(1),
+  })
+
+  const sortedRows = useMemo(
+    () => sortRows(filteredRows, RECU_SORT_COLUMNS, sort, (a, b) =>
+      compareText(a.profil.personnes.nom, b.profil.personnes.nom) ||
+      compareText(a.profil.personnes.prenom, b.profil.personnes.prenom) ||
+      a.profil.id.localeCompare(b.profil.id)
+    ),
+    [filteredRows, sort]
+  )
+
+  // ---------------------------------------------------------------------------
   // Pagination
   // ---------------------------------------------------------------------------
 
@@ -381,8 +643,8 @@ export default function RecusFiscauxPage() {
 
   const paginatedRows = useMemo(() => {
     const start = (safePage - 1) * pageSize
-    return filteredRows.slice(start, start + pageSize)
-  }, [filteredRows, safePage, pageSize])
+    return sortedRows.slice(start, start + pageSize)
+  }, [sortedRows, safePage, pageSize])
 
   // ---------------------------------------------------------------------------
   // Render
@@ -411,11 +673,46 @@ export default function RecusFiscauxPage() {
             </Select>
             {rows.length > 0 && (
               <Button
-                onClick={generateAll}
-                disabled={generateAllLoading || orgMissing.length > 0}
-                title={orgMissing.length > 0 ? "Complétez les paramètres de l'organisation pour générer des reçus" : undefined}
+                variant="secondary"
+                onClick={ouvrirRecapEnvoi}
+                disabled={recusEnvoi.actif || recusEnvoi.loading || recusLot.actif || !recapEnvoi || nbAEnvoyer === 0 || brevoLot === false}
+                title={
+                  lotEnvoiEnCours
+                    ? `Un envoi des reçus ${annee} est déjà en cours`
+                    : brevoLot === false
+                      ? 'Configurez Brevo dans Paramètres › Intégrations pour envoyer les reçus en lot'
+                      : recusLot.actif
+                      ? 'Une génération en lot est en cours : attendez sa fin pour envoyer les reçus'
+                      : recapEnvoi && nbAEnvoyer === 0
+                        ? 'Aucun reçu à envoyer (reçus déjà envoyés, ou donateurs sans email valide)'
+                        : undefined
+                }
               >
-                {generateAllLoading ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+                {lotEnvoiEnCours
+                  ? 'Envoi en cours…'
+                  : !recapEnvoi || nbAEnvoyer === 0
+                    ? 'Envoyer les reçus non envoyés'
+                    : `Envoyer ${nbAEnvoyer === 1 ? 'le reçu non envoyé' : `les ${nbAEnvoyer} reçus non envoyés`}`}
+              </Button>
+            )}
+            {rows.length > 0 && (
+              <Button
+                onClick={ouvrirRecapitulatif}
+                disabled={recusLot.actif || recusLot.loading || manquants.length === 0}
+                title={
+                  lotEnCours
+                    ? `Une génération des reçus ${annee} est déjà en cours`
+                    : orgMissing.length > 0
+                      ? "Complétez les paramètres de l'organisation pour générer des reçus"
+                      : manquants.length === 0
+                        ? 'Aucun reçu manquant prêt à générer (un reçu existant se régénère depuis son détail)'
+                        : undefined
+                }
+              >
+                {lotEnCours ? (
                   <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
@@ -425,7 +722,13 @@ export default function RecusFiscauxPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
                 )}
-                Générer tous
+                {lotEnCours
+                  ? 'Génération en cours…'
+                  : orgMissing.length > 0
+                  ? 'Générer les reçus manquants'
+                  : manquants.length === 0
+                    ? 'Aucun reçu à générer'
+                    : `Générer ${manquants.length === 1 ? 'le reçu manquant' : `les ${manquants.length} reçus manquants`}`}
               </Button>
             )}
           </>
@@ -447,6 +750,56 @@ export default function RecusFiscauxPage() {
             ))}
           </p>
         </div>
+      )}
+
+      {/* Envoi en lot réservé à Brevo : bouton désactivé, raison visible (le title ne s'affiche pas au toucher) */}
+      {rows.length > 0 && brevoLot === false && !lotEnvoiEnCours && (
+        <StatusNotice tone="warning">
+          <Link to="/admin/parametres/integrations" className="font-medium underline underline-offset-2 hover:no-underline">
+            Configurez Brevo dans Paramètres › Intégrations
+          </Link>{' '}
+          pour envoyer les reçus en lot. Sans Brevo, chaque reçu s'envoie depuis son détail.
+        </StatusNotice>
+      )}
+
+      {/* Lot de génération : progression, puis bilan */}
+      {afficherLot && lot && (
+        <RecusLotBandeau
+          lot={lot}
+          echecs={recusLot.echecs}
+          erreurEchecs={recusLot.erreurEchecs}
+          nbRestants={manquants.length}
+          arretEnCours={recusLot.actif && !lotEnCours}
+          actionEnCours={recusLot.actionEnCours}
+          onArreter={arreterLot}
+          onRelancer={ouvrirRecapitulatif}
+          onFermer={() => fermerBilan(lot.id)}
+          maintenant={recusLot.luLe}
+        />
+      )}
+      {/* Lot d'envoi : progression (rythme, quota), puis bilan */}
+      {afficherLotEnvoi && lotEnvoi && (
+        <RecusLotBandeau
+          lot={lotEnvoi}
+          echecs={recusEnvoi.echecs}
+          erreurEchecs={recusEnvoi.erreurEchecs}
+          nbRestants={nbAEnvoyer}
+          arretEnCours={recusEnvoi.actif && !lotEnvoiEnCours}
+          actionEnCours={recusEnvoi.actionEnCours}
+          onArreter={arreterEnvoi}
+          onRelancer={ouvrirRecapEnvoi}
+          onFermer={() => fermerBilan(lotEnvoi.id)}
+          maintenant={recusEnvoi.luLe}
+          rythme={rythmeEnvoiOrg}
+          envoyes24h={recapEnvoi?.envoyes_24h ?? 0}
+          nbDejaEnvoyes={recusEnvoi.nbDejaEnvoyes}
+        />
+      )}
+      {recusEnvoi.error && (
+        <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{recusEnvoi.error}</div>
+      )}
+      {recusLot.error && (
+        <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{recusLot.error}</div>
       )}
 
       {/* Error banner */}
@@ -483,9 +836,9 @@ export default function RecusFiscauxPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Donateur</TableHead>
-                  <TableHead className="text-right">Total dons</TableHead>
-                  <TableHead className={secondaryCol}>N° reçu</TableHead>
+                  <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                  <SortableTableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
+                  <SortableTableHead field="numero" label="N° reçu" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={secondaryCol} />
                   <TableHead>Statut</TableHead>
                   <TableHead className="hidden md:table-cell" />
                 </TableRow>
@@ -506,6 +859,9 @@ export default function RecusFiscauxPage() {
                       <TableCell className="whitespace-nowrap">
                         <span className="font-medium text-ink">{participantFullName(row.profil)}</span>
                         {row.profil.personnes.email && <div className={cn('text-xs text-ink-faint', selectedRow && 'hidden 2xl:block')}>{row.profil.personnes.email}</div>}
+                        {row.profil.email_invalide_at && (
+                          <div className="mt-1"><EmailInvalideIndicateur invalideLe={row.profil.email_invalide_at} /></div>
+                        )}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
                         {formatMontant(row.total_dons)}
@@ -536,36 +892,14 @@ export default function RecusFiscauxPage() {
 
         {/* Pagination */}
         {!loading && filteredRows.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-paper-border px-6 py-3">
-            <div className="flex items-center gap-2 font-registre-mono text-xs text-ink-faint">
-              <span>Lignes par page</span>
-              <Select
-                aria-label="Lignes par page"
-                value={pageSize}
-                onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
-                className="py-1 pl-2 pr-7 text-xs"
-              >
-                {[25, 50, 100, 250].map((size) => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </Select>
-              <span>
-                {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, filteredRows.length)} sur {filteredRows.length}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setCurrentPage(1)} disabled={safePage === 1}>«</Button>
-              <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
-                ‹ Précédent
-              </Button>
-              <span className="font-registre-mono text-xs text-ink-faint">Page {safePage} / {pageCount}</span>
-              <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))} disabled={safePage === pageCount}>
-                Suivant ›
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setCurrentPage(pageCount)} disabled={safePage === pageCount}>»</Button>
-            </div>
-          </div>
+          <TablePagination
+            page={safePage}
+            pageCount={pageCount}
+            totalCount={filteredRows.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+          />
         )}
       </div>
 
@@ -578,29 +912,34 @@ export default function RecusFiscauxPage() {
           const isBlocked = orgMissing.length > 0 || selectedRow.validation.blocking || selectedRow.validation.missing.length > 0
           const blockedTitle = isBlocked ? (orgMissing.length > 0 ? "Complétez les paramètres de l'organisation" : selectedRow.validation.message ?? 'Fiche du donateur incomplète') : undefined
           if (!selectedRow.recu) {
+            // Pendant un lot, un nouveau reçu généré à la main prendrait un numéro hors de l'ordre du lot.
             return (
-              <Button className="w-full" onClick={() => generateRecu(selectedRow)} disabled={genLoading[id] || generateAllLoading || isBlocked} title={blockedTitle}>
+              <Button
+                className="w-full"
+                onClick={() => generateRecu(selectedRow)}
+                disabled={genLoading[id] || recusLot.actif || isBlocked}
+                title={recusLot.actif ? 'Une génération en lot est en cours : attendez sa fin pour générer ce reçu' : blockedTitle}
+              >
                 {genLoading[id] ? 'Génération…' : 'Générer le reçu'}
               </Button>
             )
           }
           return (
             <>
-              <div className="flex gap-2">
-                <Button className="flex-1" onClick={() => downloadRecu(selectedRow)} disabled={dlLoading[id]}>
-                  {dlLoading[id] ? 'Ouverture…' : 'Télécharger le PDF'}
+              {/* Boutons empilés pleine largeur : côte à côte, ils débordaient du panneau (w-80). */}
+              <Button className="w-full" onClick={() => downloadRecu(selectedRow)} disabled={dlLoading[id]}>
+                {dlLoading[id] ? 'Ouverture…' : 'Télécharger le PDF'}
+              </Button>
+              {selectedRow.profil.personnes.email && (
+                <Button variant="secondary" className="w-full" onClick={() => sendRecuEmail(selectedRow)} disabled={sendLoading[id]}>
+                  {sendLoading[id] ? 'Envoi…' : 'Envoyer par email'}
                 </Button>
-                {selectedRow.profil.personnes.email && (
-                  <Button variant="secondary" className="flex-1" onClick={() => sendRecuEmail(selectedRow)} disabled={sendLoading[id]}>
-                    {sendLoading[id] ? 'Envoi…' : 'Envoyer par email'}
-                  </Button>
-                )}
-              </div>
+              )}
               <Button
                 variant="secondary"
                 className="w-full"
                 onClick={() => handleGenerateClick(selectedRow)}
-                disabled={genLoading[id] || generateAllLoading || isBlocked}
+                disabled={genLoading[id] || isBlocked}
                 title={blockedTitle}
               >
                 {genLoading[id] ? 'Génération…' : 'Regénérer'}
@@ -619,6 +958,16 @@ export default function RecusFiscauxPage() {
               <DetailField label="Donateur">
                 <p className="font-semibold">{participantFullName(selectedRow.profil)}</p>
                 {selectedRow.profil.personnes.email && <p className="text-ink-muted">{selectedRow.profil.personnes.email}</p>}
+                {selectedRow.profil.email_invalide_at && (
+                  <div className="mt-1">
+                    <EmailInvalideIndicateur
+                      variante="detail"
+                      invalideLe={selectedRow.profil.email_invalide_at}
+                      evenement={selectedRow.profil.email_invalide_evenement}
+                      raison={selectedRow.profil.email_invalide_raison}
+                    />
+                  </div>
+                )}
               </DetailField>
               <div className="grid grid-cols-2 gap-4">
                 <DetailField label={`Total ${annee}`}>
@@ -639,6 +988,47 @@ export default function RecusFiscauxPage() {
               {selectedRow.recu && (
                 <DetailField label="Envoi par email">
                   {selectedRow.recu.email_envoye_at ? `Envoyé le ${formatDateHeure(selectedRow.recu.email_envoye_at)}` : 'Pas encore envoyé'}
+                </DetailField>
+              )}
+              {selectedRow.recu && (
+                <DetailField label="Historique des versions">
+                  {versionsLoading && versions.length === 0 ? (
+                    <p className="text-ink-muted">Chargement…</p>
+                  ) : versionsError ? (
+                    <p className="text-stamp">{versionsError}</p>
+                  ) : versions.length === 0 ? (
+                    <p className="text-ink-muted">Aucune version enregistrée.</p>
+                  ) : (
+                    <ul className="divide-y divide-paper-border rounded-sm border border-paper-border">
+                      {versions.map((v, index) => (
+                        <li key={v.id} className={cn('flex items-start justify-between gap-3 px-3 py-2.5', index === 0 && 'bg-paper')}>
+                          <div className="min-w-0">
+                            <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="font-semibold">Version {v.version}</span>
+                              {index === 0 && <Badge variant="success">Actuelle</Badge>}
+                            </p>
+                            <p className="mt-0.5 flex flex-wrap gap-x-3 font-registre-mono text-xs text-ink-muted">
+                              <span className="whitespace-nowrap">{formatDateEtHeure(v.genere_le)}</span>
+                              <span className="whitespace-nowrap">{formatMontant(Number(v.montant_total))}</span>
+                            </p>
+                            <p className="mt-0.5 text-xs text-ink-muted">
+                              {v.email_envoye_le ? `Envoyée le ${formatDateEtHeure(v.email_envoye_le)}` : 'Non envoyée'}
+                            </p>
+                          </div>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="shrink-0"
+                            onClick={() => downloadVersion(selectedRow, v)}
+                            disabled={versionDlLoading[v.id]}
+                            aria-label={`Télécharger la version ${v.version}`}
+                          >
+                            {versionDlLoading[v.id] ? 'Ouverture…' : 'Télécharger'}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </DetailField>
               )}
               {validationMessage && (
@@ -664,6 +1054,33 @@ export default function RecusFiscauxPage() {
 
       <DeclarationCerfaCard rows={recapitulatif.rows} loading={recapitulatif.loading} />
 
+      <RecusLotRecapitulatifDialog
+        open={recapOpen}
+        onClose={() => setRecapOpen(false)}
+        onConfirm={lancerLot}
+        annee={annee}
+        nbAGenerer={manquants.length}
+        exclus={exclus}
+        lancement={recusLot.actionEnCours}
+        error={recapError}
+      />
+
+      <RecusLotRecapitulatifDialog
+        type="envoi"
+        open={recapEnvoiOpen}
+        onClose={() => setRecapEnvoiOpen(false)}
+        onConfirm={lancerEnvoi}
+        annee={annee}
+        nbAGenerer={nbAEnvoyer}
+        exclus={exclusEnvoi}
+        lancement={recusEnvoi.actionEnCours}
+        error={recapEnvoiError}
+        rythme={rythmeEnvoiOrg}
+        envoyes24h={recapEnvoi?.envoyes_24h ?? 0}
+        brevoConfigure={brevoLot}
+        chargement={recapEnvoiLoading && !recapEnvoi}
+      />
+
       {/* Regenerate confirmation */}
       <Dialog open={!!regenerateConfirm} onOpenChange={(next) => { if (!next) setRegenerateConfirm(null) }}>
         <DialogContent className="max-w-sm" aria-describedby={undefined}>
@@ -674,7 +1091,8 @@ export default function RecusFiscauxPage() {
                 Un reçu a déjà été généré pour{' '}
                 <span className="font-medium text-ink">« {participantFullName(regenerateConfirm.profil)} »</span> en {annee}
                 {regenerateConfirm.recu?.numero_ordre && <> (n° {regenerateConfirm.recu.numero_ordre})</>}.
-                Le fichier PDF sera remplacé, mais le numéro d'ordre est conservé.
+                Une nouvelle version du PDF sera créée avec le même numéro d'ordre ; la version précédente est conservée
+                dans l'historique du reçu.
               </p>
               <div className="mt-5 flex justify-end gap-3">
                 <Button type="button" variant="secondary" onClick={() => setRegenerateConfirm(null)}>

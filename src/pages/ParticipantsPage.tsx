@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { ProfilParticipant, Don, Activite } from '../types'
 import ParticipantModal from '../components/ParticipantModal'
+import EmailInvalideIndicateur from '../components/EmailInvalideIndicateur'
 import DonModal from '../components/DonModal'
 import { CIVILITE_LABELS } from '../lib/civilite'
 import { fetchAllRows } from '../lib/fetchAllRows'
@@ -17,15 +18,18 @@ import { MODE_PAIEMENT_LABELS } from '../lib/modePaiement'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { PageHeader } from '../components/ui/page-header'
+import { TablePagination } from '../components/ui/table-pagination'
 import { ListToolbar } from '../components/ui/list-toolbar'
-import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { SidePanelMobile } from '../components/ui/side-panel'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import ScrollShadowX from '../components/ScrollShadowX'
 import SortableTableHead from '../components/SortableTableHead'
+import { useTableSort } from '../hooks/useTableSort'
+import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
+import { MESSAGE_DONATEUR_AVEC_RECUS, estRefusConservationRecus } from '../lib/recusConservation'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -99,7 +103,7 @@ function useParticipants(organisationId: string): ParticipantsData {
         fetchAllRows<ProfilParticipant>((from, to) =>
           supabase
             .from('profils_participant')
-            .select(`id, personne_id, organisation_id, notes, id_externe, created_at, personnes!inner(id, nom, prenom, email, telephone, civilite, nom2, prenom2, adresse, code_postal, ville, pays)`)
+            .select(`id, personne_id, organisation_id, notes, id_externe, created_at, email_invalide_at, email_invalide_evenement, email_invalide_raison, personnes!inner(id, nom, prenom, email, telephone, civilite, nom2, prenom2, adresse, code_postal, ville, pays)`)
             .eq('organisation_id', organisationId)
             .order('id', { ascending: true })
             .range(from, to) as unknown as PromiseLike<{ data: ProfilParticipant[] | null; error: { message: string } | null }>
@@ -211,6 +215,16 @@ function DetailPanel({
           )}
           <p className="mt-1 font-semibold text-ink">{participantFullName(participant)}</p>
           {p.email && <p className="text-sm text-ink-muted">{p.email}</p>}
+          {participant.email_invalide_at && (
+            <div className="mt-1">
+              <EmailInvalideIndicateur
+                variante="detail"
+                invalideLe={participant.email_invalide_at}
+                evenement={participant.email_invalide_evenement}
+                raison={participant.email_invalide_raison}
+              />
+            </div>
+          )}
           {p.telephone && <p className="font-registre-mono text-sm text-ink-muted">{p.telephone}</p>}
         </div>
 
@@ -307,19 +321,12 @@ export default function ParticipantsPage() {
   // Search
   const [search, setSearch] = useState('')
 
-  // Sort
-  const [sortField, setSortField] = useState<SortField>('nom')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-
-  function toggleSort(field: SortField) {
-    if (field === sortField) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortField(field)
-      setSortDirection('asc')
-    }
-    setCurrentPage(1)
-  }
+  // Sort (tri navigateur sur toute la liste filtrée, avant pagination)
+  const { sortField, sortDirection, sort, toggleSort } = useTableSort<SortField>({
+    initial: { field: 'nom', direction: 'asc' },
+    initialDirection: (field) => directionInitiale(field === 'total' ? 'number' : 'text'),
+    onSortChange: () => setCurrentPage(1),
+  })
 
   // Selected participant for detail panel
   const [selectedParticipant, setSelectedParticipant] = useState<ProfilParticipant | null>(null)
@@ -338,6 +345,10 @@ export default function ParticipantsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<ProfilParticipant | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  // Reçus fiscaux émis : vérifiés à l'ouverture de la confirmation, avant toute écriture
+  // (versions conservées 6 ans → suppression impossible)
+  const [deleteCheck, setDeleteCheck] = useState<'checking' | 'blocked' | 'ok'>('checking')
+  const deleteCheckIdRef = useRef<string | null>(null)
   const [importOpen, setImportOpen] = useState(false)
 
   // Participant detail dons — fetch when a participant is selected
@@ -416,21 +427,17 @@ export default function ParticipantsPage() {
 
   // Sorted participants
   const sortedParticipants = useMemo(() => {
-    const dir = sortDirection === 'asc' ? 1 : -1
-    return [...filteredParticipants].sort((a, b) => {
-      switch (sortField) {
-        case 'civilite':
-          return dir * ((a.personnes.civilite ?? 0) - (b.personnes.civilite ?? 0))
-        case 'prenom':
-          return dir * (a.personnes.prenom ?? '').localeCompare(b.personnes.prenom ?? '')
-        case 'total':
-          return dir * ((totalDonsByParticipant.get(a.id) ?? 0) - (totalDonsByParticipant.get(b.id) ?? 0))
-        case 'nom':
-        default:
-          return dir * a.personnes.nom.localeCompare(b.personnes.nom)
-      }
-    })
-  }, [filteredParticipants, sortField, sortDirection, totalDonsByParticipant])
+    const columns: SortColumns<ProfilParticipant, SortField> = {
+      civilite: { type: 'text', value: (p) => (p.personnes.civilite ? CIVILITE_LABELS[p.personnes.civilite] : null) },
+      nom: { type: 'text', value: (p) => [p.personnes.nom, p.personnes.prenom] },
+      prenom: { type: 'text', value: (p) => [p.personnes.prenom, p.personnes.nom] },
+      total: { type: 'number', value: (p) => totalDonsByParticipant.get(p.id) ?? 0 },
+    }
+    // À valeur égale : ordre d'annuaire (nom, prénom), indépendant du sens choisi.
+    return sortRows(filteredParticipants, columns, sort, (a, b) =>
+      compareText(a.personnes.nom, b.personnes.nom) || compareText(a.personnes.prenom, b.personnes.prenom) || a.id.localeCompare(b.id)
+    )
+  }, [filteredParticipants, sort, totalDonsByParticipant])
 
   // Export : tous les donateurs affichés (recherche appliquée, toutes les pages), dans l'ordre du tableau.
   function handleExport() {
@@ -467,13 +474,33 @@ export default function ParticipantsPage() {
     setDonModalOpen(true)
   }
 
-  function openDelete(p: ProfilParticipant) {
+  async function aDesRecusEmis(profilId: string): Promise<boolean | null> {
+    const { count, error: err } = await supabase
+      .from('recus_fiscaux')
+      .select('id', { count: 'exact', head: true })
+      .eq('profil_participant_id', profilId)
+    if (err) return null
+    return (count ?? 0) > 0
+  }
+
+  async function openDelete(p: ProfilParticipant) {
     setDeleteConfirm(p)
     setDeleteError(null)
+    setDeleteCheck('checking')
+    deleteCheckIdRef.current = p.id
+    const aDesRecus = await aDesRecusEmis(p.id)
+    if (deleteCheckIdRef.current !== p.id) return // autre donateur ouvert entre-temps
+    if (aDesRecus === null) {
+      setDeleteCheck('blocked')
+      setDeleteError('Impossible de vérifier les reçus fiscaux de ce donateur. Réessayez.')
+      return
+    }
+    setDeleteCheck(aDesRecus ? 'blocked' : 'ok')
+    if (aDesRecus) setDeleteError(MESSAGE_DONATEUR_AVEC_RECUS)
   }
 
   async function handleDelete() {
-    if (!deleteConfirm) return
+    if (!deleteConfirm || deleteCheck !== 'ok') return
 
     const linkedDons = dons.filter((d) => d.profil_participant_id === deleteConfirm.id).length
     if (linkedDons > 0) {
@@ -488,7 +515,13 @@ export default function ParticipantsPage() {
     setDeleting(false)
 
     if (err) {
-      setDeleteError(err.message)
+      // Reçu émis entre la vérification et la suppression : message clair, jamais l'erreur brute
+      if (estRefusConservationRecus(err)) {
+        setDeleteCheck('blocked')
+        setDeleteError(MESSAGE_DONATEUR_AVEC_RECUS)
+      } else {
+        setDeleteError(err.message)
+      }
       return
     }
 
@@ -637,36 +670,14 @@ export default function ParticipantsPage() {
 
             {/* Pagination */}
             {!loading && filteredParticipants.length > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-paper-border px-4 py-3 md:px-6">
-                <div className="flex items-center gap-2 font-registre-mono text-xs text-ink-faint">
-                  <span>Lignes par page</span>
-                  <Select
-                    aria-label="Lignes par page"
-                    value={pageSize}
-                    onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
-                    className="py-1 pl-2 pr-7 text-xs"
-                  >
-                    {[25, 50, 100, 250].map((size) => (
-                      <option key={size} value={size}>{size}</option>
-                    ))}
-                  </Select>
-                  <span>
-                    {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, sortedParticipants.length)} sur {sortedParticipants.length}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage(1)} disabled={safePage === 1}>«</Button>
-                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
-                    ‹ Précédent
-                  </Button>
-                  <span className="font-registre-mono text-xs text-ink-faint">Page {safePage} / {pageCount}</span>
-                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))} disabled={safePage === pageCount}>
-                    Suivant ›
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => setCurrentPage(pageCount)} disabled={safePage === pageCount}>»</Button>
-                </div>
-              </div>
+              <TablePagination
+                page={safePage}
+                pageCount={pageCount}
+                totalCount={sortedParticipants.length}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+              />
             )}
           </div>
 
@@ -766,8 +777,8 @@ export default function ParticipantsPage() {
               )}
               <div className="mt-5 flex justify-end gap-3">
                 <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
-                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-                  {deleting ? 'Suppression…' : 'Supprimer'}
+                <Button variant="destructive" onClick={handleDelete} disabled={deleting || deleteCheck !== 'ok'}>
+                  {deleting ? 'Suppression…' : deleteCheck === 'checking' ? 'Vérification…' : 'Supprimer'}
                 </Button>
               </div>
             </div>
