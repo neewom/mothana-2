@@ -556,15 +556,6 @@ export default function AdherentsPage() {
             onOpenFilters={openFiltres}
             end={
               <>
-                {/* Sur mobile, la colonne des cases à cocher n'apparaît qu'en mode sélection. */}
-                <Button
-                  variant={selectionMode ? 'default' : 'secondary'}
-                  onClick={toggleSelectionMode}
-                  className="sm:hidden"
-                  aria-pressed={selectionMode}
-                >
-                  Sélectionner
-                </Button>
                 <Button variant="secondary" onClick={() => setColonnesModalOpen(true)} className="hidden sm:inline-flex">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6zM9.75 4.5v15m4.5-15v15" />
@@ -580,11 +571,13 @@ export default function AdherentsPage() {
                     ]}
                   />
                 </div>
-                {/* Mobile : Colonnes et Listes regroupés dans un seul menu. */}
+                {/* Mobile : sélection, Colonnes et Listes regroupés dans un seul menu (barre d'outils sur
+                    deux lignes). La colonne des cases à cocher n'apparaît qu'en mode sélection. */}
                 <div className="sm:hidden">
                   <ActionMenu
                     label="Options"
                     items={[
+                      { label: selectionMode ? 'Terminer la sélection' : 'Sélectionner', onSelect: toggleSelectionMode },
                       { label: 'Colonnes', onSelect: () => setColonnesModalOpen(true) },
                       { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
                       { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
