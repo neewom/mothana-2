@@ -51,6 +51,14 @@ describe('lignesExportAdherents', () => {
     expect(lignesExportAdherents([adherent], new Map(), ['adhesion'], today)[0]['Adhésion']).toBe('Aucune adhésion')
   })
 
+  it('exporte l’état de la fiche dans une colonne « Fiche » (Active / Archivée)', () => {
+    const [active] = lignesExportAdherents([adherent], new Map(), ['statut'], today)
+    expect(Object.keys(active)).toEqual(['Nom', 'Prénom', 'Fiche'])
+    expect(active.Fiche).toBe('Active')
+    const [archivee] = lignesExportAdherents([{ ...adherent, statut: 'archive' as const }], new Map(), ['statut'], today)
+    expect(archivee.Fiche).toBe('Archivée')
+  })
+
   it('exporte la date d’adhésion de la dernière adhésion, juste après la colonne Adhésion', () => {
     const adhesions = new Map([['a1', { date_debut: '2026-03-15', date_fin: '2026-12-31' }]])
     const [ligne] = lignesExportAdherents([adherent], adhesions, ['date_adhesion', 'email', 'adhesion'], today)

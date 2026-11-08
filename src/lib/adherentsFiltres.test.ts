@@ -23,7 +23,8 @@ describe('EMAIL_FILTRE_LABELS', () => {
 describe('libelleAdhesion', () => {
   const today = '2026-10-10'
   it('distingue à jour, à renouveler, expirée et absente', () => {
-    expect(libelleAdhesion(undefined, today)).toEqual({ label: 'Aucune adhésion', variant: 'neutral' })
+    // Ambre : une fiche sans adhésion est classée dans « Expirés » (relecture PR #371).
+    expect(libelleAdhesion(undefined, today)).toEqual({ label: 'Aucune adhésion', variant: 'warning' })
     expect(libelleAdhesion({ date_fin: null }, today)).toEqual({ label: 'À jour', variant: 'success' })
     expect(libelleAdhesion({ date_fin: '2027-08-25' }, today)).toEqual({ label: "À jour · jusqu'au 25/08/2027", variant: 'success' })
     // Fin aujourd'hui : encore valide, mais dans les 30 jours → à renouveler (ambre).
@@ -51,6 +52,14 @@ describe('etatDateFin', () => {
     expect(etatDateFin(null, '2026-10-17')).toBe('expire')
     expect(etatDateFin('2026-10-20', '2026-10-17')).toBe('a_renouveler')
     expect(etatDateFin('2027-10-20', '2026-10-17')).toBe('a_jour')
+  })
+
+  it('distingue « aucune adhésion » (expirée) de « adhésion sans date de fin » (à jour), comme search_adherents', () => {
+    expect(etatDateFin(null, '2026-10-17', false)).toBe('expire')
+    expect(etatDateFin(null, '2026-10-17', true)).toBe('a_jour')
+    expect(etatDateFin(undefined, '2026-10-17', true)).toBe('a_jour')
+    expect(etatDateFin('2026-10-01', '2026-10-17', true)).toBe('expire')
+    expect(etatDateFin('2026-10-20', '2026-10-17', true)).toBe('a_renouveler')
   })
 })
 

@@ -25,6 +25,7 @@ interface AdherentMatchBenevole {
   prenom: string | null
   statut: string
   date_fin: string | null
+  a_adhesion?: boolean
 }
 
 type AdherentMatch = AdherentMatchAdmin | AdherentMatchBenevole
@@ -152,7 +153,7 @@ export default function AdherentFallbackSuggestions({
             </div>
           ) : (
             <div className="space-y-0.5 text-xs text-ink-muted">
-              <p>{verifying.statut === 'actif' ? ETAT_ADHESION_LIBELLES[etatDateFin(verifying.date_fin, new Date().toISOString().split('T')[0])] : 'Archivé'}</p>
+              <p>{verifying.statut === 'actif' ? ETAT_ADHESION_LIBELLES[etatDateFin(verifying.date_fin, new Date().toISOString().split('T')[0], verifying.a_adhesion)] : 'Archivé'}</p>
               {verifying.date_fin && <p>Fin d'adhésion : {verifying.date_fin}</p>}
             </div>
           )}

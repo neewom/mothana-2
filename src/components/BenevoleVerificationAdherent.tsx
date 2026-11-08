@@ -10,6 +10,7 @@ interface ResultatVerification {
   id_externe: string | null
   statut: 'actif' | 'archive'
   date_fin: string | null
+  a_adhesion?: boolean
 }
 
 function formatDate(iso: string): string {
@@ -103,7 +104,7 @@ export default function BenevoleVerificationAdherent({ organisationId }: Benevol
                     <p className="mt-0.5 text-xs text-ink-faint">jusqu'au {formatDate(r.date_fin)}</p>
                   )}
                 </div>
-                <StatutBadge statut={r.statut} dateFin={r.date_fin} />
+                <StatutBadge statut={r.statut} dateFin={r.date_fin} aAdhesion={r.a_adhesion} />
               </div>
             ))
           )}
@@ -113,9 +114,9 @@ export default function BenevoleVerificationAdherent({ organisationId }: Benevol
   )
 }
 
-function StatutBadge({ statut, dateFin }: { statut: ResultatVerification['statut']; dateFin: string | null }) {
+function StatutBadge({ statut, dateFin, aAdhesion }: { statut: ResultatVerification['statut']; dateFin: string | null; aAdhesion?: boolean }) {
   if (statut !== 'actif') return <Badge variant="neutral" className="shrink-0">Archivé</Badge>
   const today = new Date().toISOString().split('T')[0]
-  const etat = etatDateFin(dateFin, today)
+  const etat = etatDateFin(dateFin, today, aAdhesion)
   return <Badge variant={etat === 'a_jour' ? 'success' : 'warning'} className="shrink-0">{ETAT_ADHESION_LIBELLES[etat]}</Badge>
 }

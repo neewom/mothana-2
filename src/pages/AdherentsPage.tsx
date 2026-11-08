@@ -33,6 +33,7 @@ import { PageHeader } from '../components/ui/page-header'
 import { TablePagination } from '../components/ui/table-pagination'
 import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { ADHERENT_SORT_DEFAUT, directionInitialeAdherent, paramsTriAdherents, type AdherentSortField } from '../lib/adherentsTri'
 import { ListToolbar, FilterChips, type FilterChip } from '../components/ui/list-toolbar'
 import { FilterSheet } from '../components/ui/filter-sheet'
@@ -110,6 +111,8 @@ export default function AdherentsPage() {
   })
   // Statut en cours d'édition dans le tiroir (en mobile, le statut vit dans le tiroir).
   const [brouillonStatut, setBrouillonStatut] = useState<StatutFilter>(statutFilter)
+  // À partir de sm, le statut est dans la barre d'outils : ni dans le tiroir, ni en pastille.
+  const statutDansLaBarre = useMediaQuery('(min-width: 640px)')
   // Filtres du tiroir : appliqués d'un coup (« Appliquer »), brouillon pendant l'édition.
   const [filtres, setFiltres] = useState<AdherentsFiltres>(ADHERENTS_FILTRES_VIDES)
   const [brouillon, setBrouillon] = useState<AdherentsFiltres>(ADHERENTS_FILTRES_VIDES)
@@ -234,7 +237,16 @@ export default function AdherentsPage() {
     setFiltresOpen(true)
   }
 
+  // Mobile : un statut autre que « À jour » (valeur par défaut) compte comme un filtre actif.
+  const statutEnPastille = !statutDansLaBarre && statutFilter !== 'a_jour'
+
+  function effacerFiltres() {
+    appliquerFiltres(ADHERENTS_FILTRES_VIDES)
+    if (statutEnPastille) setStatutFilter('a_jour')
+  }
+
   const chips: FilterChip[] = [
+    statutEnPastille && { key: 'statut', label: 'Statut', value: STATUT_LIBELLES[statutFilter], onRemove: () => { setStatutFilter('a_jour'); setCurrentPage(1) } },
     filtres.tag && { key: 'tag', label: 'Liste', value: filtres.tag, onRemove: () => appliquerFiltres({ ...filtres, tag: '' }) },
     filtres.excludeTag && { key: 'excludeTag', label: 'Hors liste', value: filtres.excludeTag, onRemove: () => appliquerFiltres({ ...filtres, excludeTag: '' }) },
     filtres.email && { key: 'email', label: 'Email', value: EMAIL_FILTRE_LABELS[filtres.email], onRemove: () => appliquerFiltres({ ...filtres, email: '' }) },
@@ -565,7 +577,7 @@ export default function AdherentsPage() {
         <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
           <ListToolbar
             search={{ value: searchInput, onChange: setSearchInput, placeholder: 'Nom, prénom, email…', label: 'Rechercher un adhérent' }}
-            filterCount={nombreFiltresAdherents(filtres)}
+            filterCount={nombreFiltresAdherents(filtres) + (statutEnPastille ? 1 : 0)}
             onOpenFilters={openFiltres}
             end={
               <>
@@ -611,7 +623,7 @@ export default function AdherentsPage() {
               </Select>
             </div>
           </ListToolbar>
-          <FilterChips chips={chips} onClearAll={() => appliquerFiltres(ADHERENTS_FILTRES_VIDES)} />
+          <FilterChips chips={chips} onClearAll={effacerFiltres} />
 
           {/* Barre d'actions groupées : apparaît dès qu'un adhérent est coché. */}
           {selectedIds.size > 0 && (
@@ -664,7 +676,7 @@ export default function AdherentsPage() {
                     {colonnesVisibles.includes('civilite') && <TableHead className="hidden md:table-cell">Civilité</TableHead>}
                     <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                     <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                    {colonnesVisibles.includes('statut') && <SortableTableHead field="statut" label="Statut" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
+                    {colonnesVisibles.includes('statut') && <SortableTableHead field="statut" label="Fiche" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
                     {colonnesVisibles.includes('adhesion') && <SortableTableHead field="date_fin" label="Adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
                     {colonnesVisibles.includes('date_adhesion') && <SortableTableHead field="date_adhesion" label="Date d'adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
                     {colonnesVisibles.includes('email') && <TableHead>Email</TableHead>}
@@ -697,7 +709,7 @@ export default function AdherentsPage() {
                         <TableCell className="whitespace-nowrap text-ink-muted">{a.prenom ?? '—'}</TableCell>
                         {colonnesVisibles.includes('statut') && (
                           <TableCell>
-                            <Badge variant="neutral">{a.statut === 'actif' ? 'Actif' : 'Archivé'}</Badge>
+                            <Badge variant="neutral">{a.statut === 'actif' ? 'Active' : 'Archivée'}</Badge>
                           </TableCell>
                         )}
                         {colonnesVisibles.includes('adhesion') && (
@@ -757,9 +769,13 @@ export default function AdherentsPage() {
       <FilterSheet
         open={filtresOpen}
         onOpenChange={setFiltresOpen}
-        onReset={() => { setBrouillon(ADHERENTS_FILTRES_VIDES); setBrouillonStatut('a_jour') }}
+        onReset={() => {
+          setBrouillon(ADHERENTS_FILTRES_VIDES)
+          // Le statut n'est réinitialisé que s'il est dans le tiroir (mobile).
+          if (!statutDansLaBarre) setBrouillonStatut('a_jour')
+        }}
         onApply={() => {
-          if (brouillonStatut !== statutFilter) setStatutFilter(brouillonStatut)
+          if (!statutDansLaBarre && brouillonStatut !== statutFilter) setStatutFilter(brouillonStatut)
           appliquerFiltres(brouillon)
           setFiltresOpen(false)
         }}
