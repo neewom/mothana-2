@@ -37,8 +37,40 @@ const AXIS_STROKE = '#726860' // ink-faint
 
 const MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 
+// Espace insécable avant « € » : le libellé SVG de Recharts (`Text`) coupe sur les espaces
+// ordinaires, ce qui faisait passer « € » seul à la ligne sous la valeur.
 function formatEur(n: number): string {
-  return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
+  return n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '\u00a0€'
+}
+
+// Libellé d'un segment de la barre empilée (modes de paiement) : centré dans le segment s'il y
+// tient, sinon omis plutôt que coupé sur deux lignes ou superposé au voisin — le montant de
+// chaque mode reste lisible dans la légende, sous la barre.
+const SEGMENT_LABEL_CHAR_WIDTH = 7.5 // largeur moyenne d'un caractère à 12px, gras
+const SEGMENT_LABEL_PADDING = 8
+
+interface SegmentLabelProps {
+  x?: number | string
+  y?: number | string
+  width?: number | string
+  height?: number | string
+  value?: unknown
+  color: string
+}
+
+function SegmentLabel({ x, y, width, height, value, color }: SegmentLabelProps) {
+  if (typeof value !== 'number' || value <= 0) return null
+  const text = formatEur(value)
+  const left = Number(x ?? 0)
+  const top = Number(y ?? 0)
+  const w = Number(width ?? 0)
+  const h = Number(height ?? 0)
+  if (text.length * SEGMENT_LABEL_CHAR_WIDTH + SEGMENT_LABEL_PADDING > w) return null
+  return (
+    <text x={left + w / 2} y={top + h / 2} textAnchor="middle" dominantBaseline="central" fill={color} fontSize={12} fontWeight={600}>
+      {text}
+    </text>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -241,7 +273,7 @@ export default function ComptabilitePage() {
                 <p className="py-8 text-center font-registre text-sm text-ink-faint">Aucun don sur cette année</p>
               ) : (
                 <ResponsiveContainer width="100%" height={Math.max(160, activiteBreakdown.length * 44)}>
-                  <BarChart data={activiteBreakdown} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
+                  <BarChart data={activiteBreakdown} layout="vertical" margin={{ top: 0, right: 72, left: 0, bottom: 0 }}>
                     <CartesianGrid stroke={GRID_STROKE} horizontal={false} />
                     <XAxis type="number" stroke={AXIS_STROKE} tickLine={false} axisLine={{ stroke: GRID_STROKE }} tick={{ fontSize: 12 }} tickFormatter={(v) => v.toLocaleString('fr-FR')} />
                     <YAxis type="category" dataKey="nom" stroke={AXIS_STROKE} tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={120} />
@@ -259,16 +291,19 @@ export default function ComptabilitePage() {
               <h2 className="mb-4 font-registre font-semibold text-ink">Répartition par mode de paiement — {year}</h2>
               <ResponsiveContainer width="100%" height={140}>
                 <BarChart data={modeBreakdown} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                  <XAxis type="number" hide />
+                  {/* Domaine borné au total : la barre occupe toute la largeur (le domaine « arrondi »
+                      par défaut la laissait à mi-carte et rétrécissait les segments). */}
+                  <XAxis type="number" hide domain={[0, 'dataMax']} />
                   <YAxis type="category" dataKey="name" hide />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend
                     content={() => (
                       <ul className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs">
                         {MODE_PAIEMENT_OPTIONS.map((o, i) => (
-                          <li key={o.value} className="flex items-center gap-1.5">
+                          <li key={o.value} className="flex items-center gap-1.5 whitespace-nowrap">
                             <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: CATEGORICAL[i] }} />
                             <span className="font-registre text-ink-muted">{o.label}</span>
+                            <span className="font-registre-mono text-ink">{formatEur(Number(modeBreakdown[0][`mode_${o.value}`] ?? 0))}</span>
                           </li>
                         ))}
                       </ul>
@@ -287,9 +322,7 @@ export default function ComptabilitePage() {
                     >
                       <LabelList
                         dataKey={`mode_${o.value}`}
-                        position="center"
-                        formatter={(v: number | string | boolean | null | undefined) => (typeof v === 'number' && v > 0 ? formatEur(v) : '')}
-                        style={{ fill: CATEGORICAL_LABEL[i], fontSize: 12, fontWeight: 600 }}
+                        content={(props) => <SegmentLabel x={props.x} y={props.y} width={props.width} height={props.height} value={props.value} color={CATEGORICAL_LABEL[i]} />}
                       />
                     </Bar>
                   ))}

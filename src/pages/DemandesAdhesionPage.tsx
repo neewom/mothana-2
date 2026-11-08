@@ -390,7 +390,7 @@ export default function DemandesAdhesionPage() {
                         <TableCell className="hidden text-ink-faint md:table-cell">{CIVILITE_ADHERENT_LABELS[d.civilite]}</TableCell>
                         <TableCell className="font-medium text-ink">
                           <div className="flex items-center gap-2">
-                            {d.nom}
+                            <span className="whitespace-nowrap">{d.nom}</span>
                             {estRenouvellement(d) && <Badge>Renouvellement</Badge>}
                             {hasDuplicate && (
                               <span

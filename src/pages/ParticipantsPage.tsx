@@ -577,17 +577,17 @@ export default function ParticipantsPage() {
           }
           actions={
             <>
-              <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              <Button variant="secondary" onClick={() => setImportOpen(true)} aria-label="Importer" className="w-9 px-0 md:w-auto md:px-3.5">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                 </svg>
-                Importer
+                <span className="hidden md:inline">Importer</span>
               </Button>
-              <Button variant="secondary" onClick={handleExport} disabled={loading || sortedParticipants.length === 0}>
+              <Button variant="secondary" onClick={handleExport} disabled={loading || sortedParticipants.length === 0} aria-label="Exporter" className="w-9 px-0 md:w-auto md:px-3.5">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
                 </svg>
-                Exporter
+                <span className="hidden md:inline">Exporter</span>
               </Button>
               <Button onClick={openAdd}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -647,10 +647,10 @@ export default function ParticipantsPage() {
                         <TableCell className="hidden text-ink-faint md:table-cell">
                           {p.personnes.civilite ? CIVILITE_LABELS[p.personnes.civilite] : '—'}
                         </TableCell>
-                        <TableCell className="font-medium text-ink">
+                        <TableCell className="whitespace-nowrap font-medium text-ink">
                           {p.personnes.nom}
                         </TableCell>
-                        <TableCell className="text-ink-muted">
+                        <TableCell className="whitespace-nowrap text-ink-muted">
                           {p.personnes.prenom ?? '—'}
                         </TableCell>
                         <TableCell className="hidden whitespace-nowrap text-right font-registre-mono font-medium text-ink md:table-cell">

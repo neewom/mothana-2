@@ -65,6 +65,9 @@ interface DonFichiersProps {
   // false pour une vue lecture seule (ex. side panel de détail) : n'affiche
   // que les fichiers déjà ajoutés, l'ajout se fait depuis la modale d'édition.
   canAdd?: boolean
+  // 'detail' : libellé aligné sur les `DetailField` du panneau de détail (mono, petites
+  // capitales) ; 'form' (défaut) : libellé de champ de formulaire.
+  labelStyle?: 'form' | 'detail'
 }
 
 export interface DonFichiersHandle {
@@ -76,7 +79,7 @@ export interface DonFichiersHandle {
 }
 
 const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function DonFichiers(
-  { donId, organisationId, canDelete, canAdd = true },
+  { donId, organisationId, canDelete, canAdd = true, labelStyle = 'form' },
   ref
 ) {
   const [fichiers, setFichiers] = useState<DonFichier[]>([])
@@ -264,7 +267,12 @@ const DonFichiers = forwardRef<DonFichiersHandle, DonFichiersProps>(function Don
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label>Pièces jointes</Label>
+        {labelStyle === 'detail' ? (
+          // Même libellé que les `DetailField` du panneau de détail (mono, petites capitales).
+          <p className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">Pièces jointes</p>
+        ) : (
+          <Label>Pièces jointes</Label>
+        )}
         {canAdd && (
           <>
             <button
