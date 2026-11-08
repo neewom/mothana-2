@@ -2,6 +2,7 @@ import { generateUUID } from '../uuid'
 import type { ConflictRow, ExcludedRow, FieldDef, ParsedRow } from './types'
 import type { ExistingRef, ExistingAdherentRef } from './prefetch'
 import { participantsFieldDefs, activitesFieldDefs, donsFieldDefs, adherentsFieldDefs } from './fieldDefs'
+import { ACTIVITE_DATES_ERROR, isActiviteDateRangeInvalid } from '../activiteDates'
 
 export interface BuildBatchResult {
   /** Nouvelles lignes, prêtes à envoyer telles quelles. */
@@ -209,6 +210,7 @@ export function buildActivitesBatch(
   const mappedKeys = mappedKeySet(mapping)
   const inserts: Record<string, unknown>[] = []
   const conflicts: ConflictRow[] = []
+  const excluded: ExcludedRow[] = []
   let identicalCount = 0
 
   for (const row of rows) {
@@ -219,6 +221,14 @@ export function buildActivitesBatch(
     const payloadBase: Record<string, unknown> = { id, id_externe: idExterne }
     for (const key of ACTIVITE_FIELD_KEYS) {
       payloadBase[key] = mappedKeys.has(key) ? (row.values[key] ?? null) : (match ? (match.values[key] ?? null) : null)
+    }
+
+    // Fin antérieure au début (dates importées, ou date importée + date actuelle non
+    // mappée) : la contrainte activites_dates_check rejetterait tout le lot de 500
+    // lignes — on écarte la ligne avant l'envoi, avec la raison.
+    if (isActiviteDateRangeInvalid(payloadBase.date_debut as string | null, payloadBase.date_fin as string | null)) {
+      excluded.push({ index: row.index, reason: ACTIVITE_DATES_ERROR })
+      continue
     }
 
     if (!match) {
@@ -234,7 +244,7 @@ export function buildActivitesBatch(
     }
   }
 
-  return { inserts, conflicts, identicalCount, excluded: [], warnings: [] }
+  return { inserts, conflicts, identicalCount, excluded, warnings: [] }
 }
 
 // Seuls ces champs participent à la détection de conflit pour les dons
