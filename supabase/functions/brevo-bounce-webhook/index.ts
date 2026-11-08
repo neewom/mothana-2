@@ -7,7 +7,7 @@ import { secretsEgaux } from '../_shared/webhookSecret.ts'
 // campagnes mailing envoyées via send-mailing-brevo et les reçus fiscaux envoyés via
 // send-recu-email (API transactionnelle Brevo /v3/smtp/email). Un email de reçu porte les tags
 // `recu-fiscal` et `profil:<profil_participant_id>` (_shared/brevo.ts) : son rejet marque le profil
-// du donateur dans l'organisation ; tout autre rejet marque l'adhérent par son courriel. Volet 2 de la carte Trello "Détection d'emails
+// du donateur dans l'organisation ; tout autre rejet marque les adhérents de l'organisation dont le courriel correspond (sans casse ni espaces de bord). Volet 2 de la carte Trello "Détection d'emails
 // adhérents invalides (bounce)". Enregistré automatiquement par
 // register-brevo-webhook dès qu'un admin configure sa clé API Brevo.
 //
@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
 
     // Une décision par adresse (la dernière reçue l'emporte), séparément pour les adhérents et les
     // donateurs (profil connu par son tag, sinon retrouvé par l'adresse dans l'organisation).
-    const aMarquer = new Map<string, Marquage>()
+    const adherentsParEmail = new Map<string, Marquage>()
     const profilsAMarquer = new Map<string, Marquage>()
     const donateursParEmail = new Map<string, Marquage>()
     for (const e of events) {
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       if (decision.marquer) {
         const marquage = { evenement: decision.evenement, raison: decision.raison }
         const cible = cibleRejet(e)
-        if (cible.type === 'adherent') aMarquer.set(e.email, marquage)
+        if (cible.type === 'adherent') adherentsParEmail.set(normaliserEmail(e.email), marquage)
         else if (cible.profilParticipantId) profilsAMarquer.set(cible.profilParticipantId, marquage)
         else donateursParEmail.set(normaliserEmail(e.email), marquage)
       } else if (decision.motif === 'cote_expediteur') {
@@ -117,6 +117,27 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Adhérents : retrouvés par adresse comparée sans casse ni espaces de bord (RPC
+    // adherents_par_emails, service_role seul), puis marqués par id.
+    const adherentsAMarquer = new Map<string, Marquage>()
+    if (adherentsParEmail.size > 0) {
+      const { data: adherents, error } = await adminClient.rpc('adherents_par_emails', {
+        p_organisation_id: organisationId,
+        p_emails: [...adherentsParEmail.keys()],
+      })
+      if (error) {
+        console.error('adherents_par_emails error:', error.code, error.message)
+        return new Response(JSON.stringify({ error: 'Erreur serveur' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      for (const a of (adherents ?? []) as { adherent_id: string; email_normalise: string }[]) {
+        const marquage = adherentsParEmail.get(a.email_normalise)
+        if (marquage) adherentsAMarquer.set(a.adherent_id, marquage)
+      }
+    }
+
     const maintenant = new Date().toISOString()
     for (const [profilId, { evenement, raison }] of profilsAMarquer) {
       // Filtré par organisation : un tag d'une autre organisation ne marque rien.
@@ -134,18 +155,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (aMarquer.size === 0 && profilsAMarquer.size === 0) {
+    if (adherentsParEmail.size === 0 && profilsAMarquer.size === 0) {
       return new Response(JSON.stringify({ skipped: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    for (const [email, { evenement, raison }] of aMarquer) {
+    for (const [adherentId, { evenement, raison }] of adherentsAMarquer) {
+      // Filtré par organisation, comme les profils : seul un adhérent de l'organisation authentifiée.
       const { error } = await adminClient
         .from('adherents')
         .update({ email_invalide_at: maintenant, email_invalide_evenement: evenement, email_invalide_raison: raison })
         .eq('organisation_id', organisationId)
-        .eq('courriel', email)
+        .eq('id', adherentId)
 
       if (error) {
         console.error('adherents update error:', error)
@@ -156,7 +178,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, emails: aMarquer.size, profils: profilsAMarquer.size }), {
+    return new Response(JSON.stringify({ ok: true, emails: adherentsParEmail.size, profils: profilsAMarquer.size }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
