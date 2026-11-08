@@ -1,14 +1,22 @@
 -- Coupon 13 : le vendeur accède au paiement événement et reste exclu des dons/adhésions.
 begin;
 
-insert into public.organisations (
-  id, nom, slug, code_pin_benevole, code_pin_vendeur_evenement, fonctionnalites_activees
-)
+insert into public.organisations (id, nom, slug, fonctionnalites_activees)
 values
-  ('13000000-0000-0000-0000-000000000001', 'Vendeur test A', 'vendeur-test-a', '130001', '139001',
+  ('13000000-0000-0000-0000-000000000001', 'Vendeur test A', 'vendeur-test-a',
     '{"dons":true,"adherents":true,"evenements":true}'),
-  ('13000000-0000-0000-0000-000000000002', 'Vendeur test B', 'vendeur-test-b', '130002', '139002',
+  ('13000000-0000-0000-0000-000000000002', 'Vendeur test B', 'vendeur-test-b',
     '{"dons":true,"adherents":true,"evenements":true}');
+
+-- Les PIN vivent dans organisation_secrets (batch Sécurité) ; le trigger
+-- trg_organisations_creer_secrets a déjà créé la ligne avec un PIN bénévole aléatoire.
+insert into public.organisation_secrets (organisation_id, code_pin_benevole, code_pin_vendeur_evenement)
+values
+  ('13000000-0000-0000-0000-000000000001', '130001', '139001'),
+  ('13000000-0000-0000-0000-000000000002', '130002', '139002')
+on conflict (organisation_id) do update
+  set code_pin_benevole = excluded.code_pin_benevole,
+      code_pin_vendeur_evenement = excluded.code_pin_vendeur_evenement;
 
 insert into auth.users (id, email, role, aud, raw_app_meta_data)
 values (
