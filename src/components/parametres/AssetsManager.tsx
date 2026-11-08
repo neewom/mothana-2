@@ -265,9 +265,9 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
           )}
         </div>
 
-        <p className="text-sm font-semibold text-ink">Autres visuels</p>
+        <p className="text-sm font-semibold text-ink">Tous les visuels</p>
         <p className="mt-0.5 text-xs text-ink-faint">
-          Tampon, signature ou tout autre visuel de vos reçus et cartes adhérent. PNG ou JPEG, 2 Mo max, enregistré dès l’envoi du fichier.
+          Logo, tampon, signature ou tout autre visuel de vos reçus et cartes adhérent. PNG ou JPEG, 2 Mo max, enregistré dès l’envoi du fichier.
         </p>
         <details className="mb-3 mt-1">
           <summary className="cursor-pointer select-none rounded-sm text-xs font-medium text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70">
