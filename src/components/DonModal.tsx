@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import type { Don, ProfilParticipant, Activite, ModePaiement } from '../types'
 import ParticipantAutocomplete from './ParticipantAutocomplete'
@@ -255,6 +256,22 @@ export default function DonModal({
                 <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">
                   {error}
                 </div>
+              )}
+
+              {/* Don mensuel : il se gère comme un engagement (Dons réguliers), pas comme un don ponctuel.
+                  Création ouverte d'emblée, donateur repris s'il est déjà enregistré (pas un adhérent en attente). */}
+              {!isEdit && (
+                <p className="font-registre text-xs text-ink-faint">
+                  Ce don se répète chaque mois ?{' '}
+                  <Link
+                    to={`/admin/dons-reguliers?nouveau=1${
+                      participants.some((p) => p.id === profilParticipantId) ? `&participant=${encodeURIComponent(profilParticipantId)}` : ''
+                    }`}
+                    className="rounded-sm font-medium text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
+                  >
+                    Créer un don régulier
+                  </Link>
+                </p>
               )}
 
               {/* Donateur */}

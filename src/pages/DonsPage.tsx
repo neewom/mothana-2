@@ -150,7 +150,13 @@ function DonDetailFields({ don, organisationId }: { don: Don; organisationId: st
   return (
     <>
       <DetailField label="Donateur">
-        <p className="font-semibold">{nomDonateur(don)}</p>
+        {/* Lien profond vers la fiche donateur (même forme que la recherche globale). */}
+        <Link
+          to={`/admin/participants?id=${encodeURIComponent(don.profil_participant_id)}`}
+          className="rounded-sm font-semibold text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
+        >
+          {nomDonateur(don)}
+        </Link>
         {p?.email && <p className="text-ink-muted">{p.email}</p>}
         {p?.telephone && <p className="font-registre-mono text-ink-muted">{p.telephone}</p>}
       </DetailField>
