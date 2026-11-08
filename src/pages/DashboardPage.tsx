@@ -67,6 +67,8 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true)
   const [montantMois, setMontantMois] = useState(0)
+  const [montantAnnee, setMontantAnnee] = useState(0)
+  const [nombreDonsAnnee, setNombreDonsAnnee] = useState(0)
   const [nombreDonsMois, setNombreDonsMois] = useState(0)
   const [recentDons, setRecentDons] = useState<RecentDon[]>([])
   const [recentActivites, setRecentActivites] = useState<RecentActivite[]>([])
@@ -106,15 +108,29 @@ export default function DashboardPage() {
       const now = new Date()
       const debutMois = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
       const aujourdhui = now.toISOString().split('T')[0]
+      // Année civile entière (dons datés plus tard dans l'année compris) : même périmètre que le
+      // « Total <année> » de la page Statistiques, pour que les deux chiffres concordent.
+      const annee = now.getFullYear()
       const dans30Jours = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-      const [donsMoisRes, recentDonsRes, recentActivitesRes, candidatsRenouvellementRes, expiresRes, demandesRes, engagementsRes, donsGeneresRes, organisationRes] = await Promise.all([
+      const [donsMoisRes, donsAnneeRes, recentDonsRes, recentActivitesRes, candidatsRenouvellementRes, expiresRes, demandesRes, engagementsRes, donsGeneresRes, organisationRes] = await Promise.all([
         supabase
           .from('dons')
           .select('montant')
           .eq('organisation_id', organisationId)
           .gte('date', debutMois)
           .lte('date', aujourdhui),
+        // Paginé (plus de 1 000 dons possibles sur une année), comme le chargement de Statistiques.
+        fetchAllRows<{ montant: number }>((from, to) =>
+          supabase
+            .from('dons')
+            .select('montant')
+            .eq('organisation_id', organisationId)
+            .gte('date', `${annee}-01-01`)
+            .lte('date', `${annee}-12-31`)
+            .order('id')
+            .range(from, to) as unknown as PromiseLike<{ data: { montant: number }[] | null; error: { message: string } | null }>,
+        ),
         supabase
           .from('dons')
           .select('id, montant, date, profils_participant(personnes(nom, prenom))')
@@ -170,6 +186,8 @@ export default function DashboardPage() {
       const donsMois = (donsMoisRes.data ?? []) as { montant: number }[]
       setMontantMois(donsMois.reduce((sum, d) => sum + Number(d.montant), 0))
       setNombreDonsMois(donsMois.length)
+      setMontantAnnee(donsAnneeRes.data.reduce((sum, d) => sum + Number(d.montant), 0))
+      setNombreDonsAnnee(donsAnneeRes.data.length)
       setRecentDons((recentDonsRes.data ?? []) as unknown as RecentDon[])
       setRecentActivites((recentActivitesRes.data ?? []) as RecentActivite[])
       const candidats = new Map(candidatsRenouvellementRes.data.map((c) => [c.adherents.id, c.adherents]))
@@ -236,7 +254,31 @@ export default function DashboardPage() {
 
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-      <PageHeader title="Tableau de bord" subtitle="Vue d'ensemble de votre organisation." />
+      <PageHeader
+        title="Tableau de bord"
+        subtitle="Vue d'ensemble de votre organisation."
+        actions={(donsActifs || adherentsActifs) && (
+          <>
+            {/* Emailing : rattaché au module adhérents (comme le menu Communication). */}
+            {adherentsActifs && (
+              <Button asChild variant="secondary">
+                <Link to="/admin/communication/emailing">Envoyer un email</Link>
+              </Button>
+            )}
+            {adherentsActifs && (
+              <Button asChild variant="secondary">
+                <Link to="/admin/adherents?nouveau=1">Ajouter un adhérent</Link>
+              </Button>
+            )}
+            {/* Action la plus fréquente, en dernier (action principale du gabarit). */}
+            {donsActifs && (
+              <Button asChild>
+                <Link to="/admin/dons?nouveau=1">Saisir un don</Link>
+              </Button>
+            )}
+          </>
+        )}
+      />
 
       <ActionsATraiter actions={actionsATraiter} />
 
@@ -245,7 +287,10 @@ export default function DashboardPage() {
         <StatTiles
           items={[
             ...(donsActifs
-              ? [{ label: 'Dons ce mois-ci', value: formatEur(montantMois), hint: `${nombreDonsMois} don${nombreDonsMois > 1 ? 's' : ''}` }]
+              ? [
+                  { label: 'Dons ce mois-ci', value: formatEur(montantMois), hint: `${nombreDonsMois} don${nombreDonsMois > 1 ? 's' : ''}` },
+                  { label: `Dons ${new Date().getFullYear()}`, value: formatEur(montantAnnee), hint: `${nombreDonsAnnee} don${nombreDonsAnnee > 1 ? 's' : ''}` },
+                ]
               : []),
             ...(adherentsActifs
               ? [{
@@ -273,11 +318,11 @@ export default function DashboardPage() {
               ) : (
                 <ul className="space-y-3">
                   {recentDons.map((don) => (
-                    <li key={don.id} className="flex items-center justify-between text-sm">
-                      <span className="text-ink-muted">
+                    <li key={don.id} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="min-w-0 text-ink-muted">
                         {don.profils_participant?.personnes.prenom} {don.profils_participant?.personnes.nom}
                       </span>
-                      <span className="font-medium text-ink">{formatEur(don.montant)}</span>
+                      <span className="shrink-0 whitespace-nowrap font-medium text-ink">{formatEur(don.montant)}</span>
                     </li>
                   ))}
                 </ul>
@@ -307,26 +352,28 @@ export default function DashboardPage() {
           {adherentsActifs && (
             <Card
               title="Adhésions à renouveler"
-              action={
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  <Link to="/admin/adherents?etat=a_renouveler" className="text-xs font-medium text-stamp hover:underline">Voir tout ({aRenouveler.length})</Link>
-                  <Link to="/admin/adherents?etat=expire" className="text-xs font-medium text-stamp hover:underline">Voir les expirés ({nombreExpires})</Link>
-                </div>
-              }
+              // En-tête aligné sur les autres cartes (un seul lien à droite du titre) ; le lien vers
+              // les expirés passe sous la liste, sinon les deux liens repoussent l'en-tête sous le titre.
+              action={<Link to="/admin/adherents?etat=a_renouveler" className="text-xs font-medium text-stamp hover:underline">Voir tout ({aRenouveler.length})</Link>}
             >
               {aRenouveler.length === 0 ? (
                 <p className="text-sm text-ink-faint">Aucune adhésion n'expire dans les 30 jours.</p>
               ) : (
                 <ul className="space-y-3">
                   {aRenouveler.slice(0, A_RENOUVELER_AFFICHES).map((a) => (
-                    <li key={a.adherentId} className="flex items-center justify-between text-sm">
-                      <span className="text-ink-muted">
+                    <li key={a.adherentId} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="min-w-0 text-ink-muted">
                         {a.prenom} {a.nom}
                       </span>
-                      <span className="text-xs text-ink-faint">{formatDate(a.dateFin)}</span>
+                      <span className="shrink-0 whitespace-nowrap text-xs text-ink-faint">{formatDate(a.dateFin)}</span>
                     </li>
                   ))}
                 </ul>
+              )}
+              {nombreExpires > 0 && (
+                <p className="mt-4 border-t border-paper-border pt-3 text-xs">
+                  <Link to="/admin/adherents?etat=expire" className="font-medium text-stamp hover:underline">Voir les expirés ({nombreExpires})</Link>
+                </p>
               )}
             </Card>
           )}
