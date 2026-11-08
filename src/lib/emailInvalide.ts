@@ -1,7 +1,7 @@
 // Libellé lisible du rejet qui a fait marquer une adresse « email invalide » (fiche adhérent).
 // Événements écrits par brevo-bounce-webhook (normalisés, _shared/brevoRejets.ts) ou à la
 // validation d'une demande d'adhésion dont la confirmation a été rejetée (Resend).
-import { estDomaineIntrouvable } from '../../supabase/functions/_shared/brevoRejets.ts'
+import { estDomaineIntrouvable, estRejetCoteExpediteur } from '../../supabase/functions/_shared/brevoRejets.ts'
 
 const LIBELLES: Record<string, string> = {
   hard_bounce: 'Adresse inexistante (rejet définitif)',
@@ -12,7 +12,8 @@ const LIBELLES: Record<string, string> = {
 }
 
 export function libelleRejetEmail(evenement: string | null, raison: string | null): string | null {
-  if (estDomaineIntrouvable(raison)) return 'Domaine introuvable'
+  // Un domaine d'expéditeur introuvable (ancien marquage) ne se présente pas comme celui du destinataire.
+  if (estDomaineIntrouvable(raison) && !estRejetCoteExpediteur(raison)) return 'Domaine introuvable'
   if (evenement && LIBELLES[evenement]) return LIBELLES[evenement]
   if (raison) return raison
   return null

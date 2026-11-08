@@ -8,6 +8,10 @@ describe('libelleRejetEmail', () => {
     expect(libelleRejetEmail('blocked', null)).toBe('Adresse bloquée par Brevo après des rejets')
     expect(libelleRejetEmail('error', 'Mailbox full')).toBe('Mailbox full')
     expect(libelleRejetEmail('soft_bounce', 'Unable to find MX of domain hotmail.co')).toBe('Domaine introuvable')
+    // Ancien marquage dont la raison vise le domaine de l'expéditeur : raison brute, pas « Domaine introuvable ».
+    expect(libelleRejetEmail('hard_bounce', '450 4.1.8 <comite@watbussy.fr>: Sender address rejected: Domain not found'))
+      .toBe('Adresse inexistante (rejet définitif)')
+    expect(libelleRejetEmail('error', 'Sender address rejected: Domain not found')).toBe('Sender address rejected: Domain not found')
     expect(libelleRejetEmail('soft_bounce', null)).toBe('Adresse rejetée par le serveur destinataire')
   })
 

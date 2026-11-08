@@ -50,6 +50,14 @@ describe('classerRejet', () => {
     }
   })
 
+  it('ne marque pas un soft bounce dû au domaine de l’expéditeur, marque celui du destinataire', () => {
+    expect(classerRejet('softBounce', '450 4.1.8 <comite@watbussy.fr>: Sender address rejected: Domain not found'))
+      .toEqual({ marquer: false, motif: 'cote_expediteur' })
+    expect(classerRejet('soft_bounce', EXPEDITEUR_NON_VALIDE)).toEqual({ marquer: false, motif: 'cote_expediteur' })
+    expect(classerRejet('softBounce', '450 4.1.2 <a@hotmail.co>: Recipient address rejected: Domain not found'))
+      .toMatchObject({ marquer: true, evenement: 'soft_bounce' })
+  })
+
   it('ignore les soft bounces temporaires (boîte pleine, serveur indisponible, sans raison)', () => {
     for (const raison of [
       '452 4.2.2 The email account that you tried to reach is over quota',

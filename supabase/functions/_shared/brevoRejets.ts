@@ -49,6 +49,13 @@ export function estDomaineIntrouvable(raison: unknown): boolean {
   return typeof raison === 'string' && RAISON_DOMAINE_INTROUVABLE.test(raison)
 }
 
+// Raison qui met en cause l'expéditeur (ex. Postfix reject_unknown_sender_domain : « 450 4.1.8
+// <comite@…>: Sender address rejected: Domain not found »). Aussi utilisé par le libellé de la
+// fiche, pour ne pas afficher « Domaine introuvable » sur un domaine d'expéditeur.
+export function estRejetCoteExpediteur(raison: unknown): boolean {
+  return typeof raison === 'string' && RAISON_COTE_EXPEDITEUR.some((r) => r.test(raison))
+}
+
 export type DecisionRejet =
   | { marquer: true; evenement: EvenementRejet; raison: string | null }
   | { marquer: false; motif: 'evenement_non_concerne' | 'cote_expediteur' | 'rejet_temporaire' }
@@ -57,13 +64,15 @@ export function classerRejet(evenement: unknown, raison: unknown): DecisionRejet
   const normalise = typeof evenement === 'string' ? EVENEMENTS[evenement] : undefined
   if (!normalise) return { marquer: false, motif: 'evenement_non_concerne' }
   const texte = typeof raison === 'string' && raison.trim() !== '' ? raison.trim().slice(0, 500) : null
+  // hard_bounce / invalid_email : propres au destinataire. blocked / error / soft_bounce : selon la
+  // raison, l'expéditeur étant écarté en premier (un « Sender address rejected: Domain not found »
+  // ne doit pas passer pour un domaine destinataire introuvable).
+  if ((normalise === 'blocked' || normalise === 'error' || normalise === 'soft_bounce') && estRejetCoteExpediteur(texte)) {
+    return { marquer: false, motif: 'cote_expediteur' }
+  }
   // soft_bounce : temporaire (boîte pleine, serveur indisponible…), sauf domaine introuvable.
   if (normalise === 'soft_bounce' && !estDomaineIntrouvable(texte)) {
     return { marquer: false, motif: 'rejet_temporaire' }
-  }
-  // hard_bounce / invalid_email : propres au destinataire. blocked / error : selon la raison.
-  if ((normalise === 'blocked' || normalise === 'error') && texte && RAISON_COTE_EXPEDITEUR.some((r) => r.test(texte))) {
-    return { marquer: false, motif: 'cote_expediteur' }
   }
   return { marquer: true, evenement: normalise, raison: texte }
 }

@@ -95,7 +95,7 @@ async function traiterOrganisation(
   apiKey: string,
   jours: number,
 ): Promise<{ lignes: Ligne[]; stats: Record<string, number> }> {
-  const stats: Record<string, number> = { evenements: 0, cote_expediteur: 0, rejet_temporaire: 0, adresses_sans_fiche: 0 }
+  const stats: Record<string, number> = { evenements: 0, non_reconnus: 0, cote_expediteur: 0, rejet_temporaire: 0, adresses_sans_fiche: 0 }
 
   // Rejet retenu par adresse et par cible : le plus récent qui marque.
   const adherentsParEmail = new Map<string, Rejet>()
@@ -105,7 +105,10 @@ async function traiterOrganisation(
     for (const e of await lireEvenements(apiKey, type, jours)) {
       stats.evenements++
       if (!e.email || !e.date) continue
-      const decision = classerRejet(evenementDepuisStatistiques(e.event), e.reason)
+      // Nom d'événement inconnu de la table de traduction : repli sur le type demandé, compté.
+      const traduit = evenementDepuisStatistiques(e.event)
+      if (!traduit) stats.non_reconnus++
+      const decision = classerRejet(traduit ?? evenementDepuisStatistiques(type), e.reason)
       if (!decision.marquer) {
         if (decision.motif in stats) stats[decision.motif]++
         continue
@@ -316,7 +319,7 @@ async function main() {
       console.error(`- ${nom} (${o.organisation_id}) : ${stats.evenements} événements, ${lignes.length} fiches concernées, ` +
         `${aMarquer} à marquer, ${lignes.filter((l) => l.dejaMarque).length} déjà marquées, ` +
         `${lignes.filter((l) => action(l) === 'a_verifier_livre_depuis').length} livrées depuis le rejet ; ignorés : ` +
-        `${stats.cote_expediteur} côté expéditeur, ${stats.rejet_temporaire} soft bounces temporaires, ${stats.adresses_sans_fiche} adresses sans fiche`)
+        `${stats.cote_expediteur} côté expéditeur, ${stats.non_reconnus} au nom d’événement non reconnu (classés selon le type demandé), ${stats.rejet_temporaire} soft bounces temporaires, ${stats.adresses_sans_fiche} adresses sans fiche`)
     } catch (err) {
       // Une organisation en erreur (clé Brevo révoquée…) n'interrompt pas les suivantes.
       console.error(`- ${nom} (${o.organisation_id}) : ERREUR ${err instanceof Error ? err.message : String(err)}`)
