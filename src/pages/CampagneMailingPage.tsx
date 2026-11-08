@@ -401,7 +401,7 @@ export default function CampagneMailingPage() {
   const { filtreStatut, tagEnvoi } = parseEnvoyerA(envoyerA)
 
   // Garde-fou de séquencement : au chargement, le fetch parti avec la valeur
-  // par défaut de envoyerA ("Actifs") peut répondre après celui relancé une
+  // par défaut de envoyerA ("Tous sauf archivés") peut répondre après celui relancé une
   // fois le brouillon localStorage restauré vers la vraie valeur — sans
   // garde, le résultat qui arrive en dernier écrase l'autre, peu importe
   // lequel est correct. On n'applique que le résultat du dernier appel lancé.
@@ -736,7 +736,7 @@ export default function CampagneMailingPage() {
                 className="w-full"
               >
                 <optgroup label="Statut">
-                  <option value="statut:actif">Adhérents actifs</option>
+                  <option value="statut:actif">Tous sauf archivés</option>
                   <option value="statut:archive">Adhérents archivés</option>
                   <option value="statut:tous">Tous les adhérents</option>
                 </optgroup>

@@ -43,9 +43,50 @@ function dateCourte(iso: string): string {
   return `${jour}/${mois}/${annee}`
 }
 
+/** Seuil de l'état « À renouveler » : la date de fin tombe dans les N prochains jours (même seuil
+ * que la tuile « Adhésions à renouveler (30 j) » de l'accueil et que `search_adherents`). */
+export const JOURS_A_RENOUVELER = 30
+
+/** `today` (AAAA-MM-JJ) + `jours`, au même format (calcul en UTC, comme `today`). */
+export function ajouterJours(today: string, jours: number): string {
+  const d = new Date(`${today}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + jours)
+  return d.toISOString().slice(0, 10)
+}
+
+export type EtatAdhesion = 'a_jour' | 'a_renouveler' | 'expire'
+
 /**
- * Libellé de la dernière adhésion d'un adhérent : « À jour · jusqu'au … », « Expirée depuis le … »,
- * « Aucune adhésion ». L'ambre signale une adhésion expirée (fait dérivé des dates).
+ * État de la dernière adhésion d'un adhérent non archivé, même règle que `search_adherents` :
+ * « À renouveler » si la date de fin tombe entre aujourd'hui et aujourd'hui + 30 jours (inclus),
+ * « Expiré » si elle est passée ou s'il n'y a aucune adhésion, « À jour » sinon (y compris sans
+ * date de fin).
+ */
+export function etatAdhesion(adhesion: Pick<Adhesion, 'date_fin'> | undefined, today: string): EtatAdhesion {
+  if (!adhesion) return 'expire'
+  if (!adhesion.date_fin || adhesion.date_fin > ajouterJours(today, JOURS_A_RENOUVELER)) return 'a_jour'
+  return adhesion.date_fin >= today ? 'a_renouveler' : 'expire'
+}
+
+/**
+ * État d'après la seule date de fin de la dernière adhésion, telle que la renvoie
+ * `search_adherents_verification` (bénévole) : vide = aucune adhésion → expiré (comme
+ * `search_adherents`, `expire`).
+ */
+export function etatDateFin(dateFin: string | null | undefined, today: string): EtatAdhesion {
+  return dateFin ? etatAdhesion({ date_fin: dateFin }, today) : 'expire'
+}
+
+export const ETAT_ADHESION_LIBELLES: Record<EtatAdhesion, string> = {
+  a_jour: 'À jour',
+  a_renouveler: 'À renouveler',
+  expire: 'Adhésion expirée',
+}
+
+/**
+ * Libellé de la dernière adhésion d'un adhérent : « À jour · jusqu'au … », « À renouveler ·
+ * jusqu'au … », « Expirée depuis le … », « Aucune adhésion ». L'ambre signale une adhésion à
+ * renouveler ou expirée (fait dérivé des dates).
  */
 export function libelleAdhesion(
   adhesion: Pick<Adhesion, 'date_fin'> | undefined,
@@ -53,16 +94,13 @@ export function libelleAdhesion(
 ): { label: string; variant: 'success' | 'warning' | 'neutral' } {
   if (!adhesion) return { label: 'Aucune adhésion', variant: 'neutral' }
   if (!adhesion.date_fin) return { label: 'À jour', variant: 'success' }
-  if (adhesion.date_fin >= today) return { label: `À jour · jusqu'au ${dateCourte(adhesion.date_fin)}`, variant: 'success' }
-  return { label: `Expirée depuis le ${dateCourte(adhesion.date_fin)}`, variant: 'warning' }
-}
-
-/**
- * Adhésion expirée d'après la date de fin de la dernière adhésion : passée, ou absente (aucune
- * adhésion — la date de fin est toujours calculée à la saisie). Même frontière que
- * `libelleAdhesion` et que `search_adherents` (`expire`) : une adhésion qui finit aujourd'hui est
- * encore à jour.
- */
-export function adhesionExpiree(dateFin: string | null | undefined, today: string): boolean {
-  return !dateFin || dateFin < today
+  const fin = dateCourte(adhesion.date_fin)
+  switch (etatAdhesion(adhesion, today)) {
+    case 'a_jour':
+      return { label: `À jour · jusqu'au ${fin}`, variant: 'success' }
+    case 'a_renouveler':
+      return { label: `À renouveler · jusqu'au ${fin}`, variant: 'warning' }
+    default:
+      return { label: `Expirée depuis le ${fin}`, variant: 'warning' }
+  }
 }

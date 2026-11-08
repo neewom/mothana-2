@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
 // Tuiles chiffrées communes (accueil, Dons, Statistiques, détail événement) : un seul bandeau
@@ -11,6 +12,8 @@ export interface StatTile {
   /** Précision sous la valeur (masquée en mobile quand trois tuiles tiennent sur une ligne). */
   hint?: React.ReactNode
   hintTone?: 'neutral' | 'success' | 'warning'
+  /** Rend la tuile cliquable (lien interne, ex. vers la liste filtrée correspondante). */
+  href?: string
 }
 
 const HINT_TONES: Record<NonNullable<StatTile['hintTone']>, string> = {
@@ -37,8 +40,19 @@ export function StatTiles({ items, className }: { items: StatTile[]; className?:
       )}
     >
       {items.map((item) => (
-        <div key={item.label} className="min-w-0 bg-white p-3 sm:p-5">
-          <dt className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">{item.label}</dt>
+        // Tuile cliquable : le lien porte le libellé et s'étend à toute la cellule (`after:inset-0`),
+        // pour garder une structure <dl> valide (div > dt + dd).
+        <div key={item.label} className={cn('min-w-0 bg-white p-3 sm:p-5', item.href && 'relative transition-colors hover:bg-paper')}>
+          <dt className="font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+            {item.href ? (
+              <Link
+                to={item.href}
+                className="after:absolute after:inset-0 after:rounded-none focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-stamp/70"
+              >
+                {item.label}
+              </Link>
+            ) : item.label}
+          </dt>
           <dd
             className={cn(
               'mt-1 font-registre-mono font-semibold tabular-nums text-ink sm:mt-2 sm:text-2xl',

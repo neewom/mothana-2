@@ -80,7 +80,7 @@ export function lignesExportAdherents(
   )
 }
 
-const SLUG_STATUT: Record<string, string> = { a_jour: 'actifs', expire: 'expires', archive: 'archives', all: 'tous' }
+const SLUG_STATUT: Record<string, string> = { a_jour: 'a-jour', a_renouveler: 'a-renouveler', expire: 'expires', archive: 'archives', all: 'tous' }
 
 export function nomFichierExportAdherents(statut: string, selection: boolean, today: string): string {
   return `adherents_${selection ? 'selection' : SLUG_STATUT[statut] ?? statut}_${today}.csv`

@@ -63,7 +63,9 @@ describe('lignesExportAdherents', () => {
 describe('nomFichierExportAdherents', () => {
   it('nomme le fichier d’après l’état ou la sélection', () => {
     expect(nomFichierExportAdherents('expire', false, today)).toBe('adherents_expires_2026-10-17.csv')
-    expect(nomFichierExportAdherents('a_jour', false, today)).toBe('adherents_actifs_2026-10-17.csv')
+    // Vocabulaire unique (carte lpFg4vvc) : « actifs » devient « a-jour ».
+    expect(nomFichierExportAdherents('a_jour', false, today)).toBe('adherents_a-jour_2026-10-17.csv')
+    expect(nomFichierExportAdherents('a_renouveler', false, today)).toBe('adherents_a-renouveler_2026-10-17.csv')
     expect(nomFichierExportAdherents('all', true, today)).toBe('adherents_selection_2026-10-17.csv')
   })
 })
