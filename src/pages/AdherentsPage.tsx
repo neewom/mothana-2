@@ -324,6 +324,19 @@ export default function AdherentsPage() {
     return () => { cancelled = true }
   }, [linkedAdherentId, organisationId, setSearchParams])
 
+  // Arrivée depuis l'action rapide « Ajouter un adhérent » de l'accueil (?nouveau=1) : création
+  // ouverte d'emblée, paramètre retiré de l'URL pour ne pas rouvrir la modale au rechargement.
+  useEffect(() => {
+    if (searchParams.get('nouveau') !== '1') return
+    setEditingAdherent(undefined)
+    setAdherentModalOpen(true)
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.delete('nouveau')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
+
   function handleAdherentSaved(saved: Adherent) {
     const wasEdit = !!editingAdherent
     showToast(`${adherentFullName(saved)} ${wasEdit ? 'modifié' : 'ajouté'}`)
