@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { getCanonicalSiteUrl } from '../lib/environment'
 import { Button } from './ui/button'
@@ -44,11 +44,18 @@ interface AdminAccountsManagerProps {
    * demande ne part, les cases par compte sont donc grisées (retour utilisateur du 2026-10-25).
    */
   notificationsEquipeActives?: boolean
+  /**
+   * Formulaire d'ajout piloté par la page (bouton d'action dans l'en-tête, gabarit `ui/page-header`) :
+   * quand ces deux props sont fournies, le bouton d'ajout en bas de liste n'est plus affiché.
+   */
+  addFormOpen?: boolean
+  onAddFormOpenChange?: (open: boolean) => void
 }
 
 const ROLE_LABELS: Record<AccountRow['role'], string> = {
   admin: 'Administrateur',
-  contributeur: 'Contributeur',
+  // Libellé « Membre » (décision utilisateur 2026-11-08) ; le rôle reste `contributeur` en base.
+  contributeur: 'Membre',
 }
 
 export default function AdminAccountsManager({
@@ -64,12 +71,26 @@ export default function AdminAccountsManager({
   emptyLabel = 'Aucun compte pour cette organisation.',
   onAccountAdded,
   notificationsEquipeActives = true,
+  addFormOpen,
+  onAddFormOpenChange,
 }: AdminAccountsManagerProps) {
   const [accounts, setAccounts] = useState<AccountRow[]>([])
   const [loading, setLoading] = useState(false)
   const [listError, setListError] = useState<string | null>(null)
   const [showDisabled, setShowDisabled] = useState(false)
-  const [showAddForm, setShowAddForm] = useState(false)
+  const [internalShowAddForm, setInternalShowAddForm] = useState(false)
+  const addFormControlled = addFormOpen !== undefined && onAddFormOpenChange !== undefined
+  const showAddForm = addFormControlled ? addFormOpen : internalShowAddForm
+  const setShowAddForm = addFormControlled ? onAddFormOpenChange : setInternalShowAddForm
+  const addFormRef = useRef<HTMLFormElement>(null)
+  const nomInputRef = useRef<HTMLInputElement>(null)
+
+  // Ouvert depuis l'en-tête de page : amener le formulaire (en bas de liste) à l'écran et y placer le focus.
+  useEffect(() => {
+    if (!showAddForm || !addFormControlled) return
+    addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    nomInputRef.current?.focus({ preventScroll: true })
+  }, [showAddForm, addFormControlled])
   const [newNom, setNewNom] = useState('')
   const [newEmail, setNewEmail] = useState('')
   const [newRole, setNewRole] = useState<AccountRow['role']>('admin')
@@ -184,8 +205,8 @@ export default function AdminAccountsManager({
     const name = account.nom_affiche ?? account.email
     const message =
       nextRole === 'admin'
-        ? `Passer « ${name} » administrateur ? Ce compte pourra gérer les contributeurs de l'organisation.`
-        : `Passer « ${name} » contributeur ? Ce compte garde les mêmes accès, sans droit de gestion des comptes.`
+        ? `Passer « ${name} » administrateur ? Ce compte pourra gérer les membres de l'organisation.`
+        : `Passer « ${name} » membre ? Ce compte garde les mêmes accès, sans droit de gestion des comptes.`
     if (!window.confirm(message)) return
 
     setListError(null)
@@ -266,7 +287,7 @@ export default function AdminAccountsManager({
                         {roleChangingId === account.utilisateur_id
                           ? '…'
                           : account.role === 'admin'
-                          ? 'Passer contributeur'
+                          ? 'Passer membre'
                           : 'Passer administrateur'}
                       </Button>
                     )}
@@ -307,7 +328,7 @@ export default function AdminAccountsManager({
       )}
 
       {showAddForm ? (
-        <form onSubmit={handleAdd} className="space-y-3 rounded-sm border border-paper-border bg-paper p-4">
+        <form ref={addFormRef} onSubmit={handleAdd} className="space-y-3 rounded-sm border border-paper-border bg-paper p-4">
           <p className="font-registre-mono text-xs font-semibold uppercase tracking-wide text-ink-faint">{newFormTitle}</p>
           {addError && (
             <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-3 py-2 font-registre text-xs text-stamp">{addError}</div>
@@ -317,6 +338,7 @@ export default function AdminAccountsManager({
               Nom affiché <span className="text-stamp">*</span>
             </Label>
             <Input
+              ref={nomInputRef}
               id="account-nom"
               type="text"
               required
@@ -349,11 +371,11 @@ export default function AdminAccountsManager({
                 onChange={(e) => setNewRole(e.target.value as AccountRow['role'])}
               >
                 <option value="admin">Administrateur</option>
-                <option value="contributeur">Contributeur</option>
+                <option value="contributeur">Membre</option>
               </Select>
               <p className="text-xs text-ink-faint">
                 {newRole === 'admin'
-                  ? 'Gère les comptes contributeurs de l’organisation.'
+                  ? 'Gère les comptes membres de l’organisation.'
                   : 'Mêmes accès qu’un administrateur, sans droit de gestion des comptes.'}
               </p>
             </div>
@@ -372,7 +394,7 @@ export default function AdminAccountsManager({
             </Button>
           </div>
         </form>
-      ) : (
+      ) : addFormControlled ? null : (
         <button
           type="button"
           onClick={() => setShowAddForm(true)}
