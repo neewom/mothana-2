@@ -21,9 +21,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Tri des événements par `classerRejet` (_shared/brevoRejets.ts) : hard bounce et adresse
-// invalide marquent toujours ; blocked / error seulement si la raison ne met pas en cause
-// l'expéditeur, le domaine d'envoi ou le compte Brevo. Correction du 2026-10-23 : les `error`
+// Tri des événements par `classerRejet` (_shared/brevoRejets.ts) : adresse invalide marque
+// toujours ; hard bounce / blocked / error / soft bounce seulement si la raison ne met pas en cause
+// l'expéditeur, le domaine d'envoi ou le compte Brevo (soft bounce : domaine introuvable seul). Correction du 2026-10-23 : les `error`
 // du 2026-09-10 (@exemple.fr), pris pour des domaines sans MX, étaient en fait des refus
 // d'expéditeur non validé ; le vrai « MX introuvable » arrive en softBounce, souscrit depuis le
 // 2026-11-08 : un soft bounce ne marque que si le domaine est introuvable (autres : temporaires).

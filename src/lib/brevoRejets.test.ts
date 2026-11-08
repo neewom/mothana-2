@@ -36,7 +36,17 @@ describe('classerRejet', () => {
     expect(classerRejet('blocked', null)).toEqual({ marquer: true, evenement: 'blocked', raison: null })
   })
 
-  it('marque toujours les rejets définitifs, quel que soit le nom de l’événement', () => {
+  it('ne marque pas un hard bounce dû à l’expéditeur, marque ceux du destinataire', () => {
+    expect(classerRejet('hardBounce', '550 5.7.1 <comite@watbussy.fr>: Sender address rejected: Access denied'))
+      .toEqual({ marquer: false, motif: 'cote_expediteur' })
+    expect(classerRejet('hard_bounce', '550 5.1.1 The email account that you tried to reach does not exist'))
+      .toMatchObject({ marquer: true, evenement: 'hard_bounce' })
+    expect(classerRejet('hardBounce', '552 mailbox is over quota')).toMatchObject({ marquer: true, evenement: 'hard_bounce' })
+    // invalid_email reste toujours marqué, même avec une raison qui citerait l'expéditeur.
+    expect(classerRejet('invalid_email', 'Sender address rejected')).toMatchObject({ marquer: true, evenement: 'invalid_email' })
+  })
+
+  it('marque les rejets définitifs du destinataire, quel que soit le nom de l’événement', () => {
     expect(classerRejet('hardBounce', '550 5.1.1 User unknown')).toEqual({ marquer: true, evenement: 'hard_bounce', raison: '550 5.1.1 User unknown' })
     expect(classerRejet('hard_bounce', '')).toEqual({ marquer: true, evenement: 'hard_bounce', raison: null })
     expect(classerRejet('invalid', undefined)).toEqual({ marquer: true, evenement: 'invalid_email', raison: null })

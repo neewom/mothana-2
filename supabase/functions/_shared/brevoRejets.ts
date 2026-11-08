@@ -9,6 +9,9 @@
 // ceux du 2026-09-10 sur @exemple.fr, attribués à tort à un domaine sans MX) ; le vrai cas
 // « Unable to find MX of domain … » arrive en `softBounce`, souscrit depuis le 2026-11-08 : un soft
 // bounce ne marque l'adresse que si son domaine est introuvable (les autres sont temporaires).
+// Seul `invalid_email` marque toujours : un hard bounce peut aussi venir d'un refus de
+// l'expéditeur (« 550 5.7.1 <…>: Sender address rejected: Access denied »), écarté comme les
+// autres événements (le script de rattrapage rejoue 90 jours de hardBounces).
 
 export type EvenementRejet = 'hard_bounce' | 'soft_bounce' | 'invalid_email' | 'blocked' | 'error'
 
@@ -64,10 +67,10 @@ export function classerRejet(evenement: unknown, raison: unknown): DecisionRejet
   const normalise = typeof evenement === 'string' ? EVENEMENTS[evenement] : undefined
   if (!normalise) return { marquer: false, motif: 'evenement_non_concerne' }
   const texte = typeof raison === 'string' && raison.trim() !== '' ? raison.trim().slice(0, 500) : null
-  // hard_bounce / invalid_email : propres au destinataire. blocked / error / soft_bounce : selon la
-  // raison, l'expéditeur étant écarté en premier (un « Sender address rejected: Domain not found »
-  // ne doit pas passer pour un domaine destinataire introuvable).
-  if ((normalise === 'blocked' || normalise === 'error' || normalise === 'soft_bounce') && estRejetCoteExpediteur(texte)) {
+  // invalid_email : propre au destinataire, toujours marqué. Tous les autres (hard_bounce, blocked,
+  // error, soft_bounce) : un rejet côté expéditeur est écarté en premier (un « Sender address
+  // rejected: Domain not found » ne doit pas passer pour un domaine destinataire introuvable).
+  if (normalise !== 'invalid_email' && estRejetCoteExpediteur(texte)) {
     return { marquer: false, motif: 'cote_expediteur' }
   }
   // soft_bounce : temporaire (boîte pleine, serveur indisponible…), sauf domaine introuvable.
