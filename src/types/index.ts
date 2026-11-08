@@ -174,8 +174,8 @@ export interface TemplateCarteAdherent {
 }
 
 // Colonne organisations.modele_recu_pdf (JSONB) — édité pour partie sur Paramètres >
-// Organisation (rna, siren, objet_social, president_nom/titre) et pour partie sur Paramètres >
-// Reçus fiscaux (mention_legale, numérotation, taux) : chaque page relit l'objet juste avant
+// Organisation (rna, siren, objet_social, president_nom/titre) et pour partie sur Dons >
+// Paramètres (mention_legale, numérotation, taux) : chaque page relit l'objet juste avant
 // d'écrire et ne remplace que ses propres champs.
 export type FormatNumeroRecu = 'sequence' | 'donateur'
 

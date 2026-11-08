@@ -27,7 +27,7 @@ import {
   objetEffectif,
 } from '../../supabase/functions/_shared/recuEmail.ts'
 
-// Paramètres › Reçus fiscaux : ce qui reste purement fiscal de l'ancienne page Fiscalité
+// Dons › Paramètres (réglages des reçus fiscaux) : ce qui reste purement fiscal de l'ancienne page Fiscalité
 // (mention légale, taux, numérotation), l'email d'envoi des reçus et les modèles de reçus. L'identité de l'association
 // (adresse, RNA, SIREN, objet social) est dans Paramètres › Organisation.
 
@@ -189,7 +189,7 @@ export default function ParametresRecusFiscauxPage() {
     <div className="-m-6 min-h-[calc(100%+3rem)] bg-paper p-6 font-registre">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Reçus fiscaux</h1>
+          <h1 className="text-2xl font-bold text-ink md:text-3xl">Paramètres des reçus fiscaux</h1>
           <p className="mt-1 text-sm text-ink-muted">Mention légale, taux, numérotation, email d'envoi et modèles des reçus remis à vos donateurs.</p>
         </div>
 
@@ -203,7 +203,7 @@ export default function ParametresRecusFiscauxPage() {
             description="Affichées sur chaque reçu. L'adresse, le RNA, le SIREN et l'objet social se règlent dans Organisation."
           >
             {/* Information, pas une action requise : encadré neutre (l'ambre est réservé aux actions à faire). */}
-            <div className="mb-6 rounded-sm border border-paper-border bg-paper px-4 py-3 text-sm text-ink-muted">
+            <div className="mb-6 rounded-sm bg-paper p-4 text-sm text-ink-muted">
               <p className="font-medium text-ink">Obligations légales</p>
               <ul className="mt-1.5 list-disc space-y-1 pl-4">
                 <li>L'association doit conserver une copie de chaque reçu émis pendant 6 ans.</li>
@@ -368,7 +368,7 @@ export default function ParametresRecusFiscauxPage() {
 
         <ParametresSection
           title="Modèles de reçus fiscaux"
-          description="Gérez les templates HTML utilisés pour générer les reçus 11580 (particuliers) et 16216 (entreprises). Enregistrés depuis leur éditeur."
+          description="Gérez les templates HTML utilisés pour générer les reçus 11580 (particuliers) et 16216 (entreprises). Chaque modèle s’enregistre à part, depuis son éditeur : le bouton « Enregistrer les modifications » ci-dessus ne le concerne pas."
         >
           {organisationId && <TemplatesRecuSection organisationId={organisationId} lectureSeule={!peutModifier} />}
         </ParametresSection>

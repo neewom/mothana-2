@@ -17,9 +17,9 @@ describe('buildNavItems', () => {
   it('range Communication et le porte-monnaie selon la simulation 1', () => {
     const nav = buildNavItems(flags(), noCounters)
     expect(labels(nav)).toEqual(['Accueil', 'Dons', 'Adhérents', 'Activités', 'Communication', 'Statistiques', 'Paramètres'])
-    expect(group(nav, 'Activités')?.map((i) => i.to)).toEqual(['/admin/activites', '/admin/activites/porte-monnaie'])
+    expect(group(nav, 'Activités')?.map((i) => i.to)).toEqual(['/admin/activites', '/admin/activites/porte-monnaie', '/admin/activites/parametres'])
     expect(group(nav, 'Communication')?.map((i) => i.to)).toEqual(['/admin/communication/emailing', '/admin/communication/courrier'])
-    expect(group(nav, 'Adhérents')?.map((i) => i.label)).toEqual(['Adhérents', 'Demandes'])
+    expect(group(nav, 'Adhérents')?.map((i) => i.label)).toEqual(['Adhérents', 'Demandes', 'Journal', 'Paramètres'])
   })
 
   it('sans le module adhérents : ni Adhérents ni Communication', () => {
@@ -32,12 +32,13 @@ describe('buildNavItems', () => {
   it('sans evenements : pas de Porte-monnaie', () => {
     const nav = buildNavItems(flags({ evenements: false }), noCounters)
     expect(group(nav, 'Activités')?.map((i) => i.label)).toEqual(['Toutes les activités'])
+    expect(group(nav, 'Paramètres')?.map((i) => i.label)).not.toContain('Porte-monnaie')
   })
 
   it('avec seulement evenements : Activités ne contient que le porte-monnaie', () => {
     const nav = buildNavItems(flags({ dons: false, adherents: false }), noCounters)
     expect(labels(nav)).toEqual(['Accueil', 'Activités', 'Paramètres'])
-    expect(group(nav, 'Activités')?.map((i) => i.label)).toEqual(['Porte-monnaie'])
+    expect(group(nav, 'Activités')?.map((i) => i.label)).toEqual(['Porte-monnaie', 'Paramètres'])
   })
 
   it('sans dons : ni Dons ni Statistiques', () => {
@@ -52,26 +53,43 @@ describe('buildNavItems', () => {
     expect(group(nav, 'Adhérents')?.find((i) => i.label === 'Demandes')?.count).toBe(2)
   })
 
-  it('range les Paramètres par sujet, Équipe seulement pour un admin', () => {
+  it('range les réglages de chaque module dans son groupe', () => {
+    const nav = buildNavItems(flags(), noCounters, { canManageTeam: true, canManageSecrets: true })
+    expect(group(nav, 'Dons')?.map((i) => i.to)).toEqual(['/admin/dons', '/admin/dons-reguliers', '/admin/participants', '/admin/recus', '/admin/dons/parametres'])
+    expect(group(nav, 'Adhérents')?.map((i) => i.to)).toEqual(['/admin/adherents', '/admin/adherents/demandes', '/admin/adherents/journal', '/admin/adherents/parametres'])
+    // Un seul item allumé : « Dons » et « Adhérents » ne doivent pas l'être sur leur page Paramètres.
+    expect(group(nav, 'Dons')?.find((i) => i.label === 'Dons')?.end).toBe(true)
+    expect(group(nav, 'Adhérents')?.find((i) => i.label === 'Adhérents')?.end).toBe(true)
+  })
+
+  it('aucune adresse de page n’est préfixe d’une adresse d’un autre groupe (un seul groupe allumé)', () => {
+    const nav = buildNavItems(flags(), noCounters, { canManageTeam: true, canManageSecrets: true })
+    const groups = nav.filter((e) => e.type === 'group')
+    for (const g of groups) {
+      for (const other of groups) {
+        if (other === g) continue
+        for (const item of g.items) {
+          for (const o of other.items) expect(o.to.startsWith(item.to), `${item.to} / ${o.to}`).toBe(false)
+        }
+      }
+    }
+  })
+
+  it('Paramètres ne garde que le transversal, Équipe et secrets selon les droits', () => {
     const admin = group(buildNavItems(flags(), noCounters, { canManageTeam: true, canManageSecrets: true }), 'Paramètres')!
-    expect(admin.map((i) => i.label)).toEqual([
-      'Organisation', 'Reçus fiscaux', 'Adhésions', 'Porte-monnaie', 'Équipe', 'Codes PIN', 'Intégrations', 'Journal des adhérents',
-    ])
-    expect(admin.filter((i) => i.section).map((i) => i.section)).toEqual(['Association', 'Accès', 'Outils'])
+    expect(admin.map((i) => i.label)).toEqual(['Organisation', 'Équipe', 'Codes PIN', 'Intégrations'])
     const contributeur = group(buildNavItems(flags(), noCounters, { canManageTeam: false, canManageSecrets: false }), 'Paramètres')!
-    expect(contributeur.map((i) => i.label)).not.toContain('Équipe')
     // Secrets (audit sécurité 2026-10-24) : ni Codes PIN ni Intégrations pour un contributeur.
-    expect(contributeur.map((i) => i.label)).not.toContain('Codes PIN')
-    expect(contributeur.map((i) => i.label)).not.toContain('Intégrations')
-    expect(contributeur.find((i) => i.label === 'Journal des adhérents')?.section).toBe('Outils')
+    expect(contributeur.map((i) => i.label)).toEqual(['Organisation'])
+    const contributeurNav = buildNavItems(flags(), noCounters, { canManageTeam: false, canManageSecrets: false })
+    expect(group(contributeurNav, 'Adhérents')?.map((i) => i.label)).toContain('Journal')
+    expect(group(contributeurNav, 'Dons')?.map((i) => i.label)).toContain('Paramètres')
     const superAdmin = group(buildNavItems(flags(), noCounters, { canManageTeam: false, canManageSecrets: true }), 'Paramètres')!
-    expect(superAdmin.find((i) => i.label === 'Codes PIN')?.section).toBe('Accès')
-    expect(contributeur.map((i) => i.label)).not.toContain('Mon compte')
+    expect(superAdmin.map((i) => i.label)).toEqual(['Organisation', 'Codes PIN', 'Intégrations'])
   })
 
   it('Paramètres suit les modules actifs', () => {
     const items = group(buildNavItems(flags({ dons: false, adherents: false, evenements: false }), noCounters, { canManageTeam: true, canManageSecrets: true }), 'Paramètres')!
-    expect(items.map((i) => i.label)).toEqual(['Organisation', 'Équipe', 'Codes PIN', 'Journal des adhérents'])
-    expect(items.find((i) => i.label === 'Journal des adhérents')?.section).toBe('Outils')
+    expect(items.map((i) => i.label)).toEqual(['Organisation', 'Équipe', 'Codes PIN'])
   })
 })

@@ -18,7 +18,7 @@ import {
   valeursEmailRecu,
 } from '../../supabase/functions/_shared/recuEmail.ts'
 
-// Paramètres › Reçus fiscaux › Email d'envoi : objet + message de l'email qui accompagne le reçu
+// Dons › Paramètres › Email d'envoi : objet + message de l'email qui accompagne le reçu
 // (send-recu-email). Même éditeur riche que l'emailing ; l'aperçu utilise le rendu de l'Edge
 // Function (_shared/recuEmail.ts), donc il montre exactement l'email envoyé.
 

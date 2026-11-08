@@ -1,6 +1,6 @@
 import type { FormatNumeroRecu } from '../types'
 
-// Exemple affiché dans Paramètres › Reçus fiscaux et dans la prévisualisation des modèles.
+// Exemple affiché dans Dons › Paramètres et dans la prévisualisation des modèles.
 // Le vrai numéro est attribué uniquement par l'Edge Function generate-recu
 // (supabase/functions/_shared/numeroRecu.ts et RPC next_numero_recu) : même forme, jamais fabriqué ici.
 

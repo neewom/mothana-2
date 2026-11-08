@@ -83,6 +83,6 @@ export function resumeValidationParticipant(v: ParticipantValidation): string | 
 export function pagesParametresACompleter(missing: string[]): { label: string; to: string }[] {
   const pages: { label: string; to: string }[] = []
   if (missing.some((field) => field !== 'mention légale')) pages.push({ label: 'Paramètres › Organisation', to: '/admin/parametres' })
-  if (missing.includes('mention légale')) pages.push({ label: 'Paramètres › Reçus fiscaux', to: '/admin/parametres/recus-fiscaux' })
+  if (missing.includes('mention légale')) pages.push({ label: 'Dons › Paramètres', to: '/admin/dons/parametres' })
   return pages
 }
