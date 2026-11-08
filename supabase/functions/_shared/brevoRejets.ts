@@ -7,15 +7,18 @@
 // Données réelles (API statistiques Brevo, staging, 2026-10-23) : tous les `error` observés
 // portaient « Sending has been rejected because the sender you used … is not valid… » (dont
 // ceux du 2026-09-10 sur @exemple.fr, attribués à tort à un domaine sans MX) ; le vrai cas
-// « Unable to find MX of domain … » arrive en `softBounce`, événement non souscrit.
+// « Unable to find MX of domain … » arrive en `softBounce`, souscrit depuis le 2026-11-08 : un soft
+// bounce ne marque l'adresse que si son domaine est introuvable (les autres sont temporaires).
 
-export type EvenementRejet = 'hard_bounce' | 'invalid_email' | 'blocked' | 'error'
+export type EvenementRejet = 'hard_bounce' | 'soft_bounce' | 'invalid_email' | 'blocked' | 'error'
 
 // Noms d'abonnement (hardBounce, invalid) et noms documentés du payload (hard_bounce,
 // invalid_email) : les deux formes sont acceptées, aucun hard bounce n'ayant encore été observé.
 const EVENEMENTS: Record<string, EvenementRejet> = {
   hardBounce: 'hard_bounce',
   hard_bounce: 'hard_bounce',
+  softBounce: 'soft_bounce',
+  soft_bounce: 'soft_bounce',
   invalid: 'invalid_email',
   invalid_email: 'invalid_email',
   blocked: 'blocked',
@@ -37,19 +40,47 @@ const RAISON_COTE_EXPEDITEUR = [
   /\bapi key\b/i,
 ]
 
+// Domaine du destinataire introuvable (faute de frappe : hotmail.co, mail.frs…) : raison réelle
+// Brevo « Unable to find MX of domain … » (soft bounce). Partagé avec le libellé de la fiche
+// (src/lib/emailInvalide.ts).
+const RAISON_DOMAINE_INTROUVABLE = /unable to find mx|domain not found|no such domain|nxdomain/i
+
+export function estDomaineIntrouvable(raison: unknown): boolean {
+  return typeof raison === 'string' && RAISON_DOMAINE_INTROUVABLE.test(raison)
+}
+
 export type DecisionRejet =
   | { marquer: true; evenement: EvenementRejet; raison: string | null }
-  | { marquer: false; motif: 'evenement_non_concerne' | 'cote_expediteur' }
+  | { marquer: false; motif: 'evenement_non_concerne' | 'cote_expediteur' | 'rejet_temporaire' }
 
 export function classerRejet(evenement: unknown, raison: unknown): DecisionRejet {
   const normalise = typeof evenement === 'string' ? EVENEMENTS[evenement] : undefined
   if (!normalise) return { marquer: false, motif: 'evenement_non_concerne' }
   const texte = typeof raison === 'string' && raison.trim() !== '' ? raison.trim().slice(0, 500) : null
+  // soft_bounce : temporaire (boîte pleine, serveur indisponible…), sauf domaine introuvable.
+  if (normalise === 'soft_bounce' && !estDomaineIntrouvable(texte)) {
+    return { marquer: false, motif: 'rejet_temporaire' }
+  }
   // hard_bounce / invalid_email : propres au destinataire. blocked / error : selon la raison.
   if ((normalise === 'blocked' || normalise === 'error') && texte && RAISON_COTE_EXPEDITEUR.some((r) => r.test(texte))) {
     return { marquer: false, motif: 'cote_expediteur' }
   }
   return { marquer: true, evenement: normalise, raison: texte }
+}
+
+// L'API statistiques Brevo (GET /v3/smtp/statistics/events, script de rattrapage) nomme les
+// événements autrement que le webhook (constaté sur staging le 2026-11-08 : `softBounces`,
+// `hardBounces`) : traduction vers les noms d'abonnement du webhook, acceptés par classerRejet.
+const EVENEMENTS_STATISTIQUES: Record<string, string> = {
+  hardBounces: 'hardBounce',
+  softBounces: 'softBounce',
+  invalid: 'invalid',
+  blocked: 'blocked',
+  error: 'error',
+}
+
+export function evenementDepuisStatistiques(evenement: unknown): string | null {
+  return typeof evenement === 'string' ? (EVENEMENTS_STATISTIQUES[evenement] ?? null) : null
 }
 
 // Clé de comparaison d'une adresse (repli par adresse de brevo-bounce-webhook) : même

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classerRejet, normaliserEmail } from '../../supabase/functions/_shared/brevoRejets'
+import { classerRejet, estDomaineIntrouvable, evenementDepuisStatistiques, normaliserEmail } from '../../supabase/functions/_shared/brevoRejets'
 
 // Raisons réelles relevées dans l'API statistiques Brevo (staging).
 const EXPEDITEUR_NON_VALIDE = 'Sending has been rejected because the sender you used contact@samakan.fr is not valid. Validate your sender or authenticate your domain'
@@ -43,8 +43,28 @@ describe('classerRejet', () => {
     expect(classerRejet('invalid_email', 'x')).toMatchObject({ marquer: true, evenement: 'invalid_email' })
   })
 
+  it('marque un soft bounce seulement si le domaine est introuvable (raison réelle Brevo)', () => {
+    for (const e of ['softBounce', 'soft_bounce']) {
+      expect(classerRejet(e, MX_INTROUVABLE)).toEqual({ marquer: true, evenement: 'soft_bounce', raison: MX_INTROUVABLE })
+      expect(classerRejet(e, 'Unable to find MX of domain hotmail.co')).toMatchObject({ marquer: true })
+    }
+  })
+
+  it('ignore les soft bounces temporaires (boîte pleine, serveur indisponible, sans raison)', () => {
+    for (const raison of [
+      '452 4.2.2 The email account that you tried to reach is over quota',
+      'Mailbox full',
+      '421 4.7.0 Try again later, closing connection',
+      'Connection timed out',
+      '',
+      null,
+    ]) {
+      expect(classerRejet('softBounce', raison), String(raison)).toEqual({ marquer: false, motif: 'rejet_temporaire' })
+    }
+  })
+
   it('ignore les autres événements', () => {
-    for (const e of ['delivered', 'softBounce', 'soft_bounce', 'opened', undefined, 42]) {
+    for (const e of ['delivered', 'softBounces', 'hardBounces', 'opened', undefined, 42]) {
       expect(classerRejet(e, MX_INTROUVABLE)).toEqual({ marquer: false, motif: 'evenement_non_concerne' })
     }
   })
@@ -52,6 +72,25 @@ describe('classerRejet', () => {
   it('tronque une raison très longue', () => {
     const r = classerRejet('error', 'x'.repeat(800))
     expect(r.marquer && r.raison?.length).toBe(500)
+  })
+})
+
+describe('estDomaineIntrouvable', () => {
+  it('reconnaît les raisons « domaine introuvable »', () => {
+    expect(estDomaineIntrouvable(MX_INTROUVABLE)).toBe(true)
+    expect(estDomaineIntrouvable('550 NXDOMAIN')).toBe(true)
+    expect(estDomaineIntrouvable('Mailbox full')).toBe(false)
+    expect(estDomaineIntrouvable(null)).toBe(false)
+  })
+})
+
+describe('evenementDepuisStatistiques', () => {
+  it('traduit les noms de l’API statistiques vers ceux du webhook (constaté sur staging)', () => {
+    expect(evenementDepuisStatistiques('softBounces')).toBe('softBounce')
+    expect(evenementDepuisStatistiques('hardBounces')).toBe('hardBounce')
+    expect(evenementDepuisStatistiques('error')).toBe('error')
+    expect(evenementDepuisStatistiques('delivered')).toBeNull()
+    expect(classerRejet(evenementDepuisStatistiques('softBounces'), MX_INTROUVABLE)).toMatchObject({ marquer: true, evenement: 'soft_bounce' })
   })
 })
 

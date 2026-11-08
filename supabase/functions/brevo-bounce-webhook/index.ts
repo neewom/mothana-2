@@ -3,7 +3,7 @@ import { cibleRejet } from '../_shared/brevo.ts'
 import { classerRejet, normaliserEmail } from '../_shared/brevoRejets.ts'
 import { secretsEgaux } from '../_shared/webhookSecret.ts'
 
-// Reçoit les événements webhook Brevo (hard_bounce, invalid_email, blocked, error) sur les
+// Reçoit les événements webhook Brevo (hard_bounce, soft_bounce, invalid_email, blocked, error) sur les
 // campagnes mailing envoyées via send-mailing-brevo et les reçus fiscaux envoyés via
 // send-recu-email (API transactionnelle Brevo /v3/smtp/email). Un email de reçu porte les tags
 // `recu-fiscal` et `profil:<profil_participant_id>` (_shared/brevo.ts) : son rejet marque le profil
@@ -25,7 +25,8 @@ const corsHeaders = {
 // invalide marquent toujours ; blocked / error seulement si la raison ne met pas en cause
 // l'expéditeur, le domaine d'envoi ou le compte Brevo. Correction du 2026-10-23 : les `error`
 // du 2026-09-10 (@exemple.fr), pris pour des domaines sans MX, étaient en fait des refus
-// d'expéditeur non validé ; le vrai « MX introuvable » arrive en softBounce (non souscrit).
+// d'expéditeur non validé ; le vrai « MX introuvable » arrive en softBounce, souscrit depuis le
+// 2026-11-08 : un soft bounce ne marque que si le domaine est introuvable (autres : temporaires).
 // Noms d'événement : le payload utilise hard_bounce / invalid_email (constaté en prod : aucun
 // hardBounce n'avait jamais été marqué) ; les deux formes sont acceptées.
 
