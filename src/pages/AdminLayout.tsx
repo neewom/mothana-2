@@ -175,11 +175,8 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
       {open && (
         <div className="ml-4 mt-1 space-y-1 border-l border-white/10 pl-4">
           {group.items.map((item) => (
-            <div key={item.to}>
-            {item.section && (
-              <p className="px-3 pb-1 pt-2 font-registre-mono text-[11px] uppercase tracking-wide text-paper/50">{item.section}</p>
-            )}
             <NavLink
+              key={item.to}
               to={item.to}
               end={item.end}
               onClick={onClose}
@@ -197,7 +194,6 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
                 </>
               )}
             </NavLink>
-            </div>
           ))}
         </div>
       )}

@@ -25,8 +25,6 @@ export interface NavGroupItem {
   to: string
   end?: boolean
   count?: number | null
-  /** Intertitre affiché avant le premier élément d'une section (sous-menu Paramètres). */
-  section?: string
 }
 
 export type NavEntry = NavLinkItem | NavGroup
@@ -49,10 +47,12 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       label: 'Dons',
       icon: 'don',
       items: [
-        { label: 'Dons', to: '/admin/dons' },
+        // `end` : la page Paramètres (/admin/dons/parametres) ne doit pas allumer aussi « Dons ».
+        { label: 'Dons', to: '/admin/dons', end: true },
         { label: 'Dons réguliers', to: '/admin/dons-reguliers', count: counters.donsReguliersAConfirmer },
         { label: 'Donateurs', to: '/admin/participants' },
         { label: 'Reçus fiscaux', to: '/admin/recus' },
+        { label: 'Paramètres', to: '/admin/dons/parametres' },
       ],
     })
   }
@@ -65,14 +65,20 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       items: [
         { label: 'Adhérents', to: '/admin/adherents', end: true },
         { label: 'Demandes', to: '/admin/adherents/demandes', count: counters.demandesEnAttente },
+        { label: 'Journal', to: '/admin/adherents/journal' },
+        { label: 'Paramètres', to: '/admin/adherents/parametres' },
       ],
     })
   }
 
   // Activités regroupe l'agenda et le porte-monnaie (une fête est d'abord une activité).
+  // Paramètres du porte-monnaie sous /admin/activites/parametres et non sous
+  // /admin/activites/porte-monnaie/… : « Porte-monnaie » (sans `end`, pour rester allumé sur le
+  // détail d'un événement) s'allumerait aussi.
   const activiteItems = [
     ...(flags.dons || flags.adherents ? [{ label: 'Toutes les activités', to: '/admin/activites', end: true }] : []),
     ...(flags.evenements ? [{ label: 'Porte-monnaie', to: '/admin/activites/porte-monnaie' }] : []),
+    ...(flags.evenements ? [{ label: 'Paramètres', to: '/admin/activites/parametres' }] : []),
   ]
   if (activiteItems.length > 0) {
     items.push({ type: 'group', label: 'Activités', icon: 'activites', items: activiteItems })
@@ -95,16 +101,13 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
     items.push({ type: 'link', label: 'Statistiques', to: '/admin/statistiques', icon: 'chart' })
   }
 
-  // Paramètres rangés par sujet (simulation 6) ; « Mon compte » est dans le menu compte.
+  // Paramètres : le transversal seulement, les réglages d'un module sont dans son groupe
+  // (passe UX du 2026-11-08) ; « Mon compte » est dans le menu compte.
   const parametres: NavGroupItem[] = [
-    { label: 'Organisation', to: '/admin/parametres', end: true, section: 'Association' },
-    ...(flags.dons ? [{ label: 'Reçus fiscaux', to: '/admin/parametres/recus-fiscaux' }] : []),
-    ...(flags.adherents ? [{ label: 'Adhésions', to: '/admin/parametres/adhesions' }] : []),
-    ...(flags.evenements ? [{ label: 'Porte-monnaie', to: '/admin/parametres/porte-monnaie' }] : []),
-    ...(options.canManageTeam ? [{ label: 'Équipe', to: '/admin/parametres/equipe', section: 'Accès' }] : []),
-    ...(options.canManageSecrets ? [{ label: 'Codes PIN', to: '/admin/parametres/codes-pin', ...(options.canManageTeam ? {} : { section: 'Accès' }) }] : []),
-    ...(flags.adherents && options.canManageSecrets ? [{ label: 'Intégrations', to: '/admin/parametres/integrations', section: 'Outils' }] : []),
-    { label: 'Journal des adhérents', to: '/admin/parametres/journal', ...(flags.adherents && options.canManageSecrets ? {} : { section: 'Outils' }) },
+    { label: 'Organisation', to: '/admin/parametres', end: true },
+    ...(options.canManageTeam ? [{ label: 'Équipe', to: '/admin/parametres/equipe' }] : []),
+    ...(options.canManageSecrets ? [{ label: 'Codes PIN', to: '/admin/parametres/codes-pin' }] : []),
+    ...(flags.adherents && options.canManageSecrets ? [{ label: 'Intégrations', to: '/admin/parametres/integrations' }] : []),
   ]
   items.push({ type: 'group', label: 'Paramètres', icon: 'cog', items: parametres })
 
