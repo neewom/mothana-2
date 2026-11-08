@@ -270,9 +270,9 @@ export default function DashboardPage() {
                 <Link to="/admin/adherents?nouveau=1">Ajouter un adhérent</Link>
               </Button>
             )}
-            {/* Action la plus fréquente, en dernier (action principale du gabarit). */}
+            {/* Action la plus fréquente : en dernier à partir de md (gabarit), en premier en mobile pour ne pas rester seule sur une 2ᵉ ligne. */}
             {donsActifs && (
-              <Button asChild>
+              <Button asChild className="order-first md:order-none">
                 <Link to="/admin/dons?nouveau=1">Saisir un don</Link>
               </Button>
             )}
