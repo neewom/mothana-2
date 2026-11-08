@@ -20,10 +20,12 @@ export default function SaveBar({ dirty, saving, success, error, onReset, submit
   return (
     // Collée en bas seulement quand il y a quelque chose à enregistrer ou à signaler : au repos,
     // elle reste en fin de page pour ne pas masquer le formulaire (surtout sur mobile).
+    // -bottom-6 compense le p-6 du <main> défilant (AdminLayout) : avec bottom-0, la barre s'arrêtait
+    // 24 px au-dessus du bas de l'écran.
     <div
       className={cn(
         '-mx-6 flex flex-wrap items-center justify-end gap-3 border-t border-paper-border px-6 py-3',
-        dirty || saving || error ? 'sticky bottom-0 z-10 bg-white/95 backdrop-blur-sm' : 'bg-transparent'
+        dirty || saving || error ? 'sticky -bottom-6 z-10 bg-white/95 backdrop-blur-sm' : 'bg-transparent'
       )}
     >
       <p className="mr-auto text-sm" aria-live="polite">
