@@ -16,7 +16,7 @@ export type ColonneAdherent =
 
 export const COLONNES_DISPONIBLES: { key: ColonneAdherent; label: string }[] = [
   { key: 'civilite', label: 'Civilité' },
-  { key: 'statut', label: 'Statut' },
+  { key: 'statut', label: 'Fiche' },
   { key: 'adhesion', label: 'Adhésion' },
   { key: 'date_adhesion', label: "Date d'adhésion" },
   { key: 'email', label: 'Email' },
@@ -27,7 +27,7 @@ export const COLONNES_DISPONIBLES: { key: ColonneAdherent; label: string }[] = [
   { key: 'listes', label: 'Listes' },
 ]
 
-// « Statut » (actif/archivé) n'est plus affiché par défaut depuis le gabarit de liste
+// « Fiche » (active/archivée, ex-« Statut ») n'est plus affiché par défaut depuis le gabarit de liste
 // (2026-10) : le filtre Actifs/Archivés suffit, et le mot « Actif » désignait sinon deux
 // notions sur la même ligne. Toujours disponible via Colonnes.
 const COLONNES_PAR_DEFAUT: ColonneAdherent[] = ['civilite', 'adhesion']

@@ -69,12 +69,17 @@ export function etatAdhesion(adhesion: Pick<Adhesion, 'date_fin'> | undefined, t
 }
 
 /**
- * État d'après la seule date de fin de la dernière adhésion, telle que la renvoie
- * `search_adherents_verification` (bénévole) : vide = aucune adhésion → expiré (comme
- * `search_adherents`, `expire`).
+ * État d'après la date de fin de la dernière adhésion et l'existence d'une adhésion, tels que les
+ * renvoie `search_adherents_verification` (bénévole), même règle que `search_adherents` : aucune
+ * adhésion → expiré ; adhésion sans date de fin → à jour. `aAdhesion` absent (ancienne version de
+ * la fonction, sans la colonne `a_adhesion`) : une date de fin vide vaut « aucune adhésion ».
  */
-export function etatDateFin(dateFin: string | null | undefined, today: string): EtatAdhesion {
-  return dateFin ? etatAdhesion({ date_fin: dateFin }, today) : 'expire'
+export function etatDateFin(
+  dateFin: string | null | undefined,
+  today: string,
+  aAdhesion: boolean = Boolean(dateFin),
+): EtatAdhesion {
+  return etatAdhesion(aAdhesion ? { date_fin: dateFin ?? null } : undefined, today)
 }
 
 export const ETAT_ADHESION_LIBELLES: Record<EtatAdhesion, string> = {
@@ -86,13 +91,14 @@ export const ETAT_ADHESION_LIBELLES: Record<EtatAdhesion, string> = {
 /**
  * Libellé de la dernière adhésion d'un adhérent : « À jour · jusqu'au … », « À renouveler ·
  * jusqu'au … », « Expirée depuis le … », « Aucune adhésion ». L'ambre signale une adhésion à
- * renouveler ou expirée (fait dérivé des dates).
+ * renouveler, expirée ou absente (fait dérivé des dates ; une fiche sans adhésion est classée dans
+ * « Expirés »).
  */
 export function libelleAdhesion(
   adhesion: Pick<Adhesion, 'date_fin'> | undefined,
   today: string,
-): { label: string; variant: 'success' | 'warning' | 'neutral' } {
-  if (!adhesion) return { label: 'Aucune adhésion', variant: 'neutral' }
+): { label: string; variant: 'success' | 'warning' } {
+  if (!adhesion) return { label: 'Aucune adhésion', variant: 'warning' }
   if (!adhesion.date_fin) return { label: 'À jour', variant: 'success' }
   const fin = dateCourte(adhesion.date_fin)
   switch (etatAdhesion(adhesion, today)) {

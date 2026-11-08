@@ -45,7 +45,8 @@ function cellules(
     case 'prenom':
       return { 'Prénom': a.prenom ?? '' }
     case 'statut':
-      return { Statut: a.statut === 'actif' ? 'Actif' : 'Archivé' }
+      // État de la fiche (« Active » / « Archivée »), distinct de l'état d'adhésion (« À jour »…).
+      return { Fiche: a.statut === 'actif' ? 'Active' : 'Archivée' }
     case 'adhesion':
       return { 'Adhésion': libelleAdhesion(adhesion, today).label }
     case 'date_adhesion':
