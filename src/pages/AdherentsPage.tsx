@@ -553,13 +553,6 @@ export default function AdherentsPage() {
                 <ActionMenu
                   label="Importer ou exporter"
                   iconOnly
-                  icon={
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-                      <circle cx="5" cy="12" r="1.75" />
-                      <circle cx="12" cy="12" r="1.75" />
-                      <circle cx="19" cy="12" r="1.75" />
-                    </svg>
-                  }
                   items={[
                     { label: 'Importer', onSelect: () => setImportOpen(true) },
                     { label: exporting ? 'Export…' : 'Exporter', onSelect: () => void handleExport(), disabled: exporting || totalCount === 0 },
@@ -604,19 +597,11 @@ export default function AdherentsPage() {
                     2e ligne de la barre ; de sm à xl (sidebar comprise à 1024) : bouton icône, pour que la
                     barre tienne sur une ligne à côté d'une recherche de 288 px. */}
                 <div className="sm:hidden">
-                  <ActionMenu label="Sélection et listes" items={optionsMenuItems} compact />
+                  {/* Marge du bouton réduite (px-3) : tient à côté de « Filtres · n » à 375 px. */}
+                  <ActionMenu label="Sélection et listes" items={optionsMenuItems} className="[&>button]:px-3" />
                 </div>
                 <div className="hidden sm:block xl:hidden">
-                  <ActionMenu
-                    label="Sélection et listes"
-                    iconOnly
-                    icon={
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm0 5.25h.007v.008H3.75V12zm0 5.25h.007v.008H3.75v-.008z" />
-                      </svg>
-                    }
-                    items={optionsMenuItems}
-                  />
+                  <ActionMenu label="Sélection et listes" iconOnly items={optionsMenuItems} />
                 </div>
               </>
             }
@@ -684,7 +669,7 @@ export default function AdherentsPage() {
                     </TableHead>
                     {colonnesVisibles.includes('civilite') && <TableHead className="hidden xl:table-cell">Civilité</TableHead>}
                     <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                    {colonnesVisibles.includes('adhesion') && <SortableTableHead field="date_fin" label="Adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
+                    {colonnesVisibles.includes('adhesion') && <SortableTableHead field="date_fin" label="Adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />}
                     <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
                     {colonnesVisibles.includes('statut') && <SortableTableHead field="statut" label="Fiche" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
                     {colonnesVisibles.includes('date_adhesion') && <SortableTableHead field="date_adhesion" label="Date d'adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
@@ -714,18 +699,20 @@ export default function AdherentsPage() {
                         {colonnesVisibles.includes('civilite') && (
                           <TableCell className="hidden whitespace-nowrap text-ink-faint xl:table-cell">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
                         )}
-                        {/* Mobile : « NOM Prénom » dans une seule cellule, la colonne Prénom est masquée. */}
+                        {/* Mobile : « NOM Prénom » et la pastille Adhésion (libellé sans date) dans une seule
+                            cellule, sous le nom ; les colonnes Prénom et Adhésion sont masquées. */}
                         <TableCell className="whitespace-nowrap font-medium text-ink">
                           {a.nom}
                           {a.prenom && <span className="font-normal text-ink-muted md:hidden"> {a.prenom}</span>}
+                          {colonnesVisibles.includes('adhesion') && (
+                            <div className="mt-1 md:hidden">
+                              <Badge variant={adhesion.variant}>{libelleAdhesionCourt(latestAdhesions.get(a.id), todayIso)}</Badge>
+                            </div>
+                          )}
                         </TableCell>
                         {colonnesVisibles.includes('adhesion') && (
-                          <TableCell>
-                            {/* Mobile : libellé sans date, pour que l'état reste lisible à côté du nom. */}
-                            <Badge variant={adhesion.variant}>
-                              <span className="md:hidden">{libelleAdhesionCourt(latestAdhesions.get(a.id), todayIso)}</span>
-                              <span className="hidden md:inline">{adhesion.label}</span>
-                            </Badge>
+                          <TableCell className="hidden md:table-cell">
+                            <Badge variant={adhesion.variant}>{adhesion.label}</Badge>
                           </TableCell>
                         )}
                         <TableCell className="hidden whitespace-nowrap text-ink-muted md:table-cell">{a.prenom ?? '—'}</TableCell>

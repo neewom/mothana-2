@@ -393,8 +393,8 @@ export default function DemandesAdhesionPage() {
                         <TableCell className="hidden text-ink-faint xl:table-cell">{CIVILITE_ADHERENT_LABELS[d.civilite]}</TableCell>
                         <TableCell className="font-medium text-ink">
                           <span className="whitespace-nowrap">{d.nom}</span>
-                          {/* Pastilles sous le nom (pas à côté) : la colonne Nom reste étroite et « Soumise le »
-                              visible sans défilement jusqu'à 1024 px. */}
+                          {/* Pastilles sous le nom (pas à côté) : la colonne Nom reste étroite, pour garder
+                              « Soumise le » visible sans défilement avec des noms usuels. */}
                           {(!estRenouvellement(d) || hasDuplicate) && (
                             <div className="mt-1 flex items-center gap-1.5">
                               {!estRenouvellement(d) && <Badge>{TAG_ANCIENNE_ADHESION}</Badge>}
@@ -409,7 +409,7 @@ export default function DemandesAdhesionPage() {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-ink-muted">{d.prenom ?? '—'}</TableCell>
+                        <TableCell className="whitespace-nowrap text-ink-muted">{d.prenom ?? '—'}</TableCell>
                         <TableCell className="font-registre-mono text-xs whitespace-nowrap text-ink-faint">
                           {formatDateTime(dateAffichee(d, tab))}
                         </TableCell>
@@ -750,13 +750,12 @@ export default function DemandesAdhesionPage() {
 
                 {detailDemande.statut === 'en_attente' && (
                   <div className="flex shrink-0 justify-end gap-3 border-t border-paper-border bg-white px-6 py-4">
-                    <Button variant="destructive" onClick={() => { const d = detailDemande; setDetailDemande(null); setRefusingDemande(d) }}>
+                    <Button variant="danger" onClick={() => { const d = detailDemande; setDetailDemande(null); setRefusingDemande(d) }}>
                       Refuser
                     </Button>
                     {!renouvellement ? (
                       <Button
                         variant="success"
-                        className="border-none bg-success text-white hover:bg-success/90"
                         onClick={() => { const d = detailDemande; setDetailDemande(null); setRatifyingDemande(d) }}
                       >
                         Valider
@@ -764,7 +763,6 @@ export default function DemandesAdhesionPage() {
                     ) : adherentVise && (
                       <Button
                         variant="success"
-                        className="border-none bg-success text-white hover:bg-success/90"
                         onClick={() => { const d = detailDemande; setDetailDemande(null); setValidatingDemande(d) }}
                       >
                         Valider
