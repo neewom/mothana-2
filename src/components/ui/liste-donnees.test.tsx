@@ -143,3 +143,16 @@ describe('ListeDonnees — cartes', () => {
     expect(avecCases).toContain('aria-label="Sélectionner Alice Martin"')
   })
 })
+
+describe('ListeDonnees — rowClassName', () => {
+  const signaler = (l: Ligne) => (l.id === 'b' ? 'ligne-signalee' : undefined)
+
+  it('applique les classes propres à une ligne, en tableau comme en cartes', () => {
+    for (const mode of ['tableau', 'cartes'] as const) {
+      const html = renderToStaticMarkup(
+        <ListeDonnees rows={LIGNES} rowKey={(l) => l.id} columns={COLONNES} mode={mode} onRowClick={() => {}} rowClassName={signaler} />,
+      )
+      expect((html.match(/ligne-signalee/g) ?? []).length).toBe(1)
+    }
+  })
+})

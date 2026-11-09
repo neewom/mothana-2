@@ -37,6 +37,8 @@ import { Button } from './button'
  *     par » (même état de tri que les en-têtes) ; la pagination reste celle de la page ;
  *   - `onRowClick` : ligne ou carte cliquable et atteignable au clavier (Tab, puis Entrée ou
  *     Espace), chevron final (`chevronClassName` pour le masquer à certains paliers) ;
+ *   - `rowClassName(row)` : classes d'une ligne et de sa carte (ex. fond d'alerte d'une ligne
+ *     à signaler) ;
  *   - `selection` : cases par ligne ou par carte ; « Tout sélectionner » en tête du tableau, ou
  *     dans la barre du mode cartes ; `tableClassName` masque la colonne des cases à certains
  *     paliers, `showInCards` affiche les cases des cartes.
@@ -74,6 +76,8 @@ export interface ListeDonneesProps<T, F extends string> {
   /** Nom de la ligne pour les lecteurs d'écran (case « Sélectionner … »). */
   rowLabel?: (row: T) => string
   chevronClassName?: string
+  /** Classes propres à une ligne (tableau) et à sa carte, ex. fond d'alerte. */
+  rowClassName?: (row: T) => string | undefined
   selection?: ListeSelection
 }
 
@@ -114,7 +118,7 @@ export function ListeDonnees<T, F extends string>(props: ListeDonneesProps<T, F>
 }
 
 function ListeTableau<T, F extends string>({
-  rows, rowKey, columns, sort, onRowClick, activeKey, rowLabel, chevronClassName, selection,
+  rows, rowKey, columns, sort, onRowClick, activeKey, rowLabel, chevronClassName, rowClassName, selection,
 }: ListeDonneesProps<T, F>) {
   const toutCoche = !!selection && selection.selected.size > 0 && selection.selected.size === rows.length
 
@@ -169,6 +173,7 @@ function ListeTableau<T, F extends string>({
                 })}
                 className={cn(
                   onRowClick && 'cursor-pointer hover:bg-paper-border/20 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-stamp/70',
+                  rowClassName?.(row),
                   active && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]',
                 )}
               >
@@ -203,7 +208,7 @@ function ListeTableau<T, F extends string>({
 }
 
 function ListeCartes<T, F extends string>({
-  rows, rowKey, columns, sort, onRowClick, activeKey, rowLabel, selection,
+  rows, rowKey, columns, sort, onRowClick, activeKey, rowLabel, rowClassName, selection,
 }: ListeDonneesProps<T, F>) {
   const roles = repartirParRole(columns)
   const options = optionsDeTri<F, ColonneListe<T, F>>(columns)
@@ -294,7 +299,7 @@ function ListeCartes<T, F extends string>({
           )
 
           return (
-            <li key={key} className={cn('flex items-stretch', active && 'bg-stamp/[0.05]')}>
+            <li key={key} className={cn('flex items-stretch', rowClassName?.(row), active && 'bg-stamp/[0.05]')}>
               {selection && casesVisibles && (
                 <label className="flex shrink-0 items-center pl-4 pr-1">
                   <input
