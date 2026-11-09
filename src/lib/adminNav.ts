@@ -72,8 +72,8 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       icon: 'don',
       action: SAISIR_DON,
       items: [
-        // `end` : la page Paramètres (/admin/dons/parametres) ne doit pas allumer aussi « Dons ».
-        { label: 'Dons', to: '/admin/dons', end: true },
+        // `end` : la page Paramètres (/admin/dons/parametres) ne doit pas allumer aussi « Tous les dons ».
+        { label: 'Tous les dons', to: '/admin/dons', end: true },
         { label: 'Dons réguliers', to: '/admin/dons-reguliers', count: counters.donsReguliersAConfirmer },
         { label: 'Donateurs', to: '/admin/participants' },
         { label: 'Reçus fiscaux', to: '/admin/recus' },

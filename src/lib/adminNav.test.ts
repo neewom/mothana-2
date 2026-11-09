@@ -58,7 +58,7 @@ describe('buildNavItems', () => {
     expect(group(nav, 'Dons')?.map((i) => i.to)).toEqual(['/admin/dons', '/admin/dons-reguliers', '/admin/participants', '/admin/recus', '/admin/dons/parametres'])
     expect(group(nav, 'Adhérents')?.map((i) => i.to)).toEqual(['/admin/adherents', '/admin/adherents/renouvellements', '/admin/adherents/journal', '/admin/adherents/parametres'])
     // Un seul item allumé : « Dons » et « Adhérents » ne doivent pas l'être sur leur page Paramètres.
-    expect(group(nav, 'Dons')?.find((i) => i.label === 'Dons')?.end).toBe(true)
+    expect(group(nav, 'Dons')?.find((i) => i.label === 'Tous les dons')?.end).toBe(true)
     expect(group(nav, 'Adhérents')?.find((i) => i.label === 'Adhérents')?.end).toBe(true)
   })
 
