@@ -178,7 +178,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'J’ai oublié le code PIN bénévole, comment le retrouver ?',
         answer:
-          "Un administrateur peut l'afficher (icône œil) ou le régénérer depuis Paramètres > Codes PIN.",
+          "Un administrateur peut l'afficher (icône œil) ou le régénérer depuis Paramètres > Équipe et accès (section Codes PIN).",
       },
       {
         question: 'Que peut faire un bénévole une fois connecté ?',

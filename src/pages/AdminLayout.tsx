@@ -243,8 +243,9 @@ export default function AdminLayout() {
 
   const isSuperAdminViewing = auth.type === 'super_admin'
   const navCounters = useLoadNavCounters(organisationId, fonctionnalitesActivees)
-  const canManageTeam = auth.type === 'admin' && auth.role === 'admin'
-  const canManageSecrets = isSuperAdminViewing || canManageTeam
+  // Super-admin en mode Consulter : accès à tout, sans distinction de rôle (décision du 2026-11-09).
+  const canManageTeam = isSuperAdminViewing || (auth.type === 'admin' && auth.role === 'admin')
+  const canManageSecrets = canManageTeam
   const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES, navCounters, { canManageTeam, canManageSecrets })
   const location = useLocation()
 
