@@ -12,6 +12,8 @@ interface PinCodeCardProps {
   description: string
   initialPin: string | null
   successMessage: string
+  /** Niveau du titre de la carte (3 dans la section « Codes PIN » d'Équipe et accès). */
+  level?: 2 | 3
 }
 
 function EyeIcon({ open }: { open: boolean }) {
@@ -28,7 +30,7 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 /** Code PIN affichable et régénérable (Edge Function update-pin) — action immédiate, sans Enregistrer. */
-export default function PinCodeCard({ organisationId, role, title, description, initialPin, successMessage }: PinCodeCardProps) {
+export default function PinCodeCard({ organisationId, role, title, description, initialPin, successMessage, level = 2 }: PinCodeCardProps) {
   const [pin, setPin] = useState(initialPin ?? '')
   const [visible, setVisible] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -75,7 +77,7 @@ export default function PinCodeCard({ organisationId, role, title, description, 
   const label = role === 'vendeur' ? 'PIN vendeur' : 'PIN bénévole'
 
   return (
-    <ParametresSection title={title} description={description}>
+    <ParametresSection title={title} description={description} level={level}>
       <div className="max-w-md space-y-4">
         <div>
           <Label>{role === 'vendeur' ? 'Code PIN vendeur' : 'Code PIN actuel'}</Label>

@@ -115,11 +115,23 @@ export default function EmailRecuSection({
         </StatusNotice>
       )}
       {etatBrevo && brevoConfigure(etatBrevo) && (
-        <p className="text-sm text-ink-muted">
-          Expéditeur : <span className="font-medium text-ink break-all">{etatBrevo.expediteurNom} &lt;{etatBrevo.expediteurEmail}&gt;</span>, via votre compte Brevo.
-          Si cet expéditeur n'est pas validé chez Brevo, un reçu envoyé depuis son détail part depuis noreply@samakan.fr
-          et l'envoi en lot échoue.
-        </p>
+        <div className="space-y-1">
+          {/* Même modèle que la ligne Brevo d'Emailing ; « Voir » en lecture seule (même règle que peutModifierBrevo). */}
+          <p className="text-sm text-ink-muted">
+            Envoi via Brevo
+            {etatBrevo.expediteurEmail && (
+              <> (expéditeur <span className="font-medium text-ink [overflow-wrap:anywhere]">{etatBrevo.expediteurNom ? `${etatBrevo.expediteurNom} <${etatBrevo.expediteurEmail}>` : etatBrevo.expediteurEmail}</span>)</>
+            )}
+            {' · '}
+            <Link to="/admin/parametres/integrations" className="font-medium text-stamp underline underline-offset-2 hover:no-underline">
+              {lectureSeule ? 'Voir' : 'Modifier'}
+            </Link>
+          </p>
+          <p className="text-xs text-ink-faint">
+            Si cet expéditeur n'est pas validé chez Brevo, un reçu envoyé depuis son détail part depuis noreply@samakan.fr
+            et l'envoi en lot échoue.
+          </p>
+        </div>
       )}
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-2">
