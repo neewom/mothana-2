@@ -74,13 +74,14 @@ function App() {
             </Route>
             <Route element={<FeatureGuard feature="adherents" />}>
               <Route path="adherents" element={<AdherentsPage />} />
-              <Route path="adherents/demandes" element={<DemandesAdhesionPage />} />
+              <Route path="adherents/renouvellements" element={<DemandesAdhesionPage />} />
               <Route path="communication/emailing" element={<CampagneMailingPage />} />
               <Route path="communication/courrier" element={<CampagneCourrierPage />} />
               <Route path="adherents/parametres" element={<ParametresAdhesionsPage />} />
-              <Route path="parametres/integrations" element={<ParametresIntegrationsPage />} />
             </Route>
             <Route element={<FeatureGuard feature={['dons', 'adherents']} />}>
+              {/* Brevo sert l'emailing (Adhérents) et l'envoi des reçus fiscaux (Dons). */}
+              <Route path="parametres/integrations" element={<ParametresIntegrationsPage />} />
               <Route path="activites" element={<ActivitesPage />} />
             </Route>
             <Route element={<FeatureGuard feature="evenements" />}>
@@ -103,6 +104,8 @@ function App() {
             <Route path="parametres/adhesions" element={<LegacyRedirect to="/admin/adherents/parametres" />} />
             <Route path="parametres/porte-monnaie" element={<LegacyRedirect to="/admin/activites/parametres" />} />
             <Route path="parametres/journal" element={<LegacyRedirect to="/admin/adherents/journal" />} />
+            {/* « Demandes » devient « Renouvellements » (2026-11-09). */}
+            <Route path="adherents/demandes" element={<LegacyRedirect to="/admin/adherents/renouvellements" />} />
             <Route path="parametres" element={<ParametresOrganisationPage />} />
             <Route path="parametres/equipe" element={<ParametresEquipePage />} />
             <Route path="parametres/codes-pin" element={<ParametresCodesPinPage />} />

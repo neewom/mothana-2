@@ -64,7 +64,7 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       icon: 'idCard',
       items: [
         { label: 'Adhérents', to: '/admin/adherents', end: true },
-        { label: 'Demandes', to: '/admin/adherents/demandes', count: counters.demandesEnAttente },
+        { label: 'Renouvellements', to: '/admin/adherents/renouvellements', count: counters.demandesEnAttente },
         { label: 'Journal', to: '/admin/adherents/journal' },
         { label: 'Paramètres', to: '/admin/adherents/parametres' },
       ],
@@ -107,7 +107,8 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
     { label: 'Organisation', to: '/admin/parametres', end: true },
     ...(options.canManageTeam ? [{ label: 'Équipe', to: '/admin/parametres/equipe' }] : []),
     ...(options.canManageSecrets ? [{ label: 'Codes PIN', to: '/admin/parametres/codes-pin' }] : []),
-    ...(flags.adherents && options.canManageSecrets ? [{ label: 'Intégrations', to: '/admin/parametres/integrations' }] : []),
+    // Intégrations (Brevo) sert l'emailing et l'envoi des reçus fiscaux : dès que Dons ou Adhérents est actif.
+    ...((flags.dons || flags.adherents) && options.canManageSecrets ? [{ label: 'Intégrations', to: '/admin/parametres/integrations' }] : []),
   ]
   // Une seule entrée (membre : Organisation seule) : lien direct plutôt qu'un groupe à un élément.
   if (parametres.length === 1) {

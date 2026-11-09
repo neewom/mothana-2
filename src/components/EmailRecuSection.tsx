@@ -115,7 +115,7 @@ export default function EmailRecuSection({
         </StatusNotice>
       )}
       {etatBrevo && brevoConfigure(etatBrevo) && (
-        <div className="space-y-1">
+        <div className="space-y-3">
           {/* Même modèle que la ligne Brevo d'Emailing ; « Voir » en lecture seule (même règle que peutModifierBrevo). */}
           <p className="text-sm text-ink-muted">
             Envoi via Brevo
@@ -127,10 +127,10 @@ export default function EmailRecuSection({
               {lectureSeule ? 'Voir' : 'Modifier'}
             </Link>
           </p>
-          <p className="text-xs text-ink-faint">
+          <StatusNotice tone="warning">
             Si cet expéditeur n'est pas validé chez Brevo, un reçu envoyé depuis son détail part depuis noreply@samakan.fr
             et l'envoi en lot échoue.
-          </p>
+          </StatusNotice>
         </div>
       )}
 
