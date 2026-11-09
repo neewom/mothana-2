@@ -18,6 +18,14 @@ export interface NavGroup {
   label: string
   icon: NavIconName
   items: NavGroupItem[]
+  /** Action rapide du groupe (icône « + » à droite de son titre, visible même replié). */
+  action?: NavQuickAction
+}
+
+/** Action de création (« Saisir un don »…) : bouton « + Nouveau » en tête du menu et « + » des groupes. */
+export interface NavQuickAction {
+  label: string
+  to: string
 }
 
 export interface NavGroupItem {
@@ -25,11 +33,25 @@ export interface NavGroupItem {
   to: string
   end?: boolean
   count?: number | null
-  /** Intertitre affiché avant le premier élément d'une section (sous-menu Paramètres). */
-  section?: string
 }
 
 export type NavEntry = NavLinkItem | NavGroup
+
+// Actions rapides (retour de test du 2026-11-09 : les boutons de l'en-tête de l'accueil semblaient
+// perdus, déplacés dans le menu). Ouvertes à tous les rôles, super-admin en mode Consulter compris :
+// seuls les modules actifs les filtrent, comme le reste du menu. `?nouveau=1` ouvre la saisie.
+const SAISIR_DON: NavQuickAction = { label: 'Saisir un don', to: '/admin/dons?nouveau=1' }
+const AJOUTER_ADHERENT: NavQuickAction = { label: 'Ajouter un adhérent', to: '/admin/adherents?nouveau=1' }
+// Emailing rattaché au module adhérents, comme le groupe Communication.
+const ENVOYER_EMAIL: NavQuickAction = { label: 'Envoyer un email', to: '/admin/communication/emailing' }
+
+/** Contenu du bouton « + Nouveau », de l'action la plus fréquente à la moins fréquente. */
+export function buildQuickActions(flags: FonctionnalitesActivees): NavQuickAction[] {
+  return [
+    ...(flags.dons ? [SAISIR_DON] : []),
+    ...(flags.adherents ? [AJOUTER_ADHERENT, ENVOYER_EMAIL] : []),
+  ]
+}
 
 export interface NavOptions {
   /** Admin de l'organisation (pas contributeur, pas super-admin en mode Consulter). */
@@ -48,11 +70,14 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       type: 'group',
       label: 'Dons',
       icon: 'don',
+      action: SAISIR_DON,
       items: [
-        { label: 'Dons', to: '/admin/dons' },
+        // `end` : la page Paramètres (/admin/dons/parametres) ne doit pas allumer aussi « Dons ».
+        { label: 'Dons', to: '/admin/dons', end: true },
         { label: 'Dons réguliers', to: '/admin/dons-reguliers', count: counters.donsReguliersAConfirmer },
         { label: 'Donateurs', to: '/admin/participants' },
         { label: 'Reçus fiscaux', to: '/admin/recus' },
+        { label: 'Paramètres', to: '/admin/dons/parametres' },
       ],
     })
   }
@@ -62,17 +87,24 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       type: 'group',
       label: 'Adhérents',
       icon: 'idCard',
+      action: AJOUTER_ADHERENT,
       items: [
         { label: 'Adhérents', to: '/admin/adherents', end: true },
-        { label: 'Demandes', to: '/admin/adherents/demandes', count: counters.demandesEnAttente },
+        { label: 'Renouvellements', to: '/admin/adherents/renouvellements', count: counters.demandesEnAttente },
+        { label: 'Journal', to: '/admin/adherents/journal' },
+        { label: 'Paramètres', to: '/admin/adherents/parametres' },
       ],
     })
   }
 
   // Activités regroupe l'agenda et le porte-monnaie (une fête est d'abord une activité).
+  // Paramètres du porte-monnaie sous /admin/activites/parametres et non sous
+  // /admin/activites/porte-monnaie/… : « Porte-monnaie » (sans `end`, pour rester allumé sur le
+  // détail d'un événement) s'allumerait aussi.
   const activiteItems = [
     ...(flags.dons || flags.adherents ? [{ label: 'Toutes les activités', to: '/admin/activites', end: true }] : []),
     ...(flags.evenements ? [{ label: 'Porte-monnaie', to: '/admin/activites/porte-monnaie' }] : []),
+    ...(flags.evenements ? [{ label: 'Paramètres', to: '/admin/activites/parametres' }] : []),
   ]
   if (activiteItems.length > 0) {
     items.push({ type: 'group', label: 'Activités', icon: 'activites', items: activiteItems })
@@ -84,6 +116,7 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       type: 'group',
       label: 'Communication',
       icon: 'megaphone',
+      action: ENVOYER_EMAIL,
       items: [
         { label: 'Emailing', to: '/admin/communication/emailing' },
         { label: 'Courrier', to: '/admin/communication/courrier' },
@@ -95,18 +128,21 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
     items.push({ type: 'link', label: 'Statistiques', to: '/admin/statistiques', icon: 'chart' })
   }
 
-  // Paramètres rangés par sujet (simulation 6) ; « Mon compte » est dans le menu compte.
+  // Paramètres : le transversal seulement, les réglages d'un module sont dans son groupe
+  // (passe UX du 2026-11-08) ; « Mon compte » est dans le menu compte.
   const parametres: NavGroupItem[] = [
-    { label: 'Organisation', to: '/admin/parametres', end: true, section: 'Association' },
-    ...(flags.dons ? [{ label: 'Reçus fiscaux', to: '/admin/parametres/recus-fiscaux' }] : []),
-    ...(flags.adherents ? [{ label: 'Adhésions', to: '/admin/parametres/adhesions' }] : []),
-    ...(flags.evenements ? [{ label: 'Porte-monnaie', to: '/admin/parametres/porte-monnaie' }] : []),
-    ...(options.canManageTeam ? [{ label: 'Équipe', to: '/admin/parametres/equipe', section: 'Accès' }] : []),
-    ...(options.canManageSecrets ? [{ label: 'Codes PIN', to: '/admin/parametres/codes-pin', ...(options.canManageTeam ? {} : { section: 'Accès' }) }] : []),
-    ...(flags.adherents && options.canManageSecrets ? [{ label: 'Intégrations', to: '/admin/parametres/integrations', section: 'Outils' }] : []),
-    { label: 'Journal des adhérents', to: '/admin/parametres/journal', ...(flags.adherents && options.canManageSecrets ? {} : { section: 'Outils' }) },
+    { label: 'Organisation', to: '/admin/parametres', end: true },
+    ...(options.canManageTeam ? [{ label: 'Équipe', to: '/admin/parametres/equipe' }] : []),
+    ...(options.canManageSecrets ? [{ label: 'Codes PIN', to: '/admin/parametres/codes-pin' }] : []),
+    // Intégrations (Brevo) sert l'emailing et l'envoi des reçus fiscaux : dès que Dons ou Adhérents est actif.
+    ...((flags.dons || flags.adherents) && options.canManageSecrets ? [{ label: 'Intégrations', to: '/admin/parametres/integrations' }] : []),
   ]
-  items.push({ type: 'group', label: 'Paramètres', icon: 'cog', items: parametres })
+  // Une seule entrée (membre : Organisation seule) : lien direct plutôt qu'un groupe à un élément.
+  if (parametres.length === 1) {
+    items.push({ type: 'link', label: 'Paramètres', to: parametres[0].to, icon: 'cog', end: parametres[0].end })
+  } else {
+    items.push({ type: 'group', label: 'Paramètres', icon: 'cog', items: parametres })
+  }
 
   return items
 }

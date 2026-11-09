@@ -239,8 +239,8 @@ export default function ParametresAdhesionsPage() {
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-ink md:text-3xl">Adhésions</h1>
-        <p className="mt-1 text-sm text-ink-muted">Durée des adhésions, carte adhérent, saisie par les bénévoles et renouvellement en ligne.</p>
+        <h1 className="text-2xl font-bold text-ink md:text-3xl">Paramètres des adhérents</h1>
+        <p className="mt-1 text-sm text-ink-muted">Réglages du module Adhérents : carte adhérent, durée des adhésions, saisie par les bénévoles et renouvellement en ligne.</p>
       </div>
 
       {!peutModifier && <LectureSeuleNotice />}

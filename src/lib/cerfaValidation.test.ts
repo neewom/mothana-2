@@ -5,8 +5,8 @@ import { pagesParametresACompleter, validateOrganisationCerfa, resumeValidationP
 describe('pagesParametresACompleter', () => {
   it('renvoie Organisation pour l’identité et Reçus fiscaux pour la mention légale', () => {
     expect(pagesParametresACompleter(['adresse', 'RNA ou SIREN']).map((p) => p.to)).toEqual(['/admin/parametres'])
-    expect(pagesParametresACompleter(['mention légale']).map((p) => p.to)).toEqual(['/admin/parametres/recus-fiscaux'])
-    expect(pagesParametresACompleter(['ville', 'mention légale']).map((p) => p.to)).toEqual(['/admin/parametres', '/admin/parametres/recus-fiscaux'])
+    expect(pagesParametresACompleter(['mention légale']).map((p) => p.to)).toEqual(['/admin/dons/parametres'])
+    expect(pagesParametresACompleter(['ville', 'mention légale']).map((p) => p.to)).toEqual(['/admin/parametres', '/admin/dons/parametres'])
     expect(pagesParametresACompleter([])).toEqual([])
   })
 

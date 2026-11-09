@@ -18,7 +18,7 @@ import {
   valeursEmailRecu,
 } from '../../supabase/functions/_shared/recuEmail.ts'
 
-// Paramètres › Reçus fiscaux › Email d'envoi : objet + message de l'email qui accompagne le reçu
+// Dons › Paramètres › Email d'envoi : objet + message de l'email qui accompagne le reçu
 // (send-recu-email). Même éditeur riche que l'emailing ; l'aperçu utilise le rendu de l'Edge
 // Function (_shared/recuEmail.ts), donc il montre exactement l'email envoyé.
 
@@ -115,11 +115,23 @@ export default function EmailRecuSection({
         </StatusNotice>
       )}
       {etatBrevo && brevoConfigure(etatBrevo) && (
-        <p className="text-sm text-ink-muted">
-          Expéditeur : <span className="font-medium text-ink break-all">{etatBrevo.expediteurNom} &lt;{etatBrevo.expediteurEmail}&gt;</span>, via votre compte Brevo.
-          Si cet expéditeur n'est pas validé chez Brevo, un reçu envoyé depuis son détail part depuis noreply@samakan.fr
-          et l'envoi en lot échoue.
-        </p>
+        <div className="space-y-3">
+          {/* Même modèle que la ligne Brevo d'Emailing ; « Voir » en lecture seule (même règle que peutModifierBrevo). */}
+          <p className="text-sm text-ink-muted">
+            Envoi via Brevo
+            {etatBrevo.expediteurEmail && (
+              <> (expéditeur <span className="font-medium text-ink [overflow-wrap:anywhere]">{etatBrevo.expediteurNom ? `${etatBrevo.expediteurNom} <${etatBrevo.expediteurEmail}>` : etatBrevo.expediteurEmail}</span>)</>
+            )}
+            {' · '}
+            <Link to="/admin/parametres/integrations" className="font-medium text-stamp underline underline-offset-2 hover:no-underline">
+              {lectureSeule ? 'Voir' : 'Modifier'}
+            </Link>
+          </p>
+          <StatusNotice tone="warning">
+            Si cet expéditeur n'est pas validé chez Brevo, un reçu envoyé depuis son détail part depuis noreply@samakan.fr
+            et l'envoi en lot échoue.
+          </StatusNotice>
+        </div>
       )}
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-2">

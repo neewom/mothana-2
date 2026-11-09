@@ -44,7 +44,7 @@ describe('messageErreurValidation', () => {
   })
 
   it('traduit l’absence de règle d’adhésion en renvoyant vers les paramètres', () => {
-    expect(messageErreurValidation('REGLE_ADHESION_INTROUVABLE')).toMatch(/Paramètres → Adhésions/)
+    expect(messageErreurValidation('REGLE_ADHESION_INTROUVABLE')).toMatch(/Adhérents › Paramètres/)
   })
 
   it('traduit une demande déjà traitée', () => {

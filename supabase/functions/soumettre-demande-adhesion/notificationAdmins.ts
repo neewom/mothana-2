@@ -8,11 +8,11 @@ import { normaliseSiteUrl } from '../_shared/siteUrl.ts'
 // Projet Supabase de recette : son repli est test.samakan.fr, jamais la prod.
 const PROJET_RECETTE = 'cxngcmvxktddhyxboyyx'
 
-/** Lien vers la page des demandes : origine du formulaire si elle est autorisée, sinon le site de l'environnement. */
+/** Lien vers la page Renouvellements (ex-« Demandes ») : origine du formulaire si elle est autorisée, sinon le site de l'environnement. */
 export function lienPageDemandes(siteUrlClient: unknown, supabaseUrl: string | undefined): string {
   const origine = normaliseSiteUrl(siteUrlClient)
     ?? (supabaseUrl?.includes(PROJET_RECETTE) ? 'https://test.samakan.fr' : 'https://samakan.fr')
-  return `${origine}/admin/adherents/demandes`
+  return `${origine}/admin/adherents/renouvellements`
 }
 
 export type TypeDemande = 'adhesion' | 'renouvellement'
