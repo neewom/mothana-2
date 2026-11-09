@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type Ref } from 'react'
 import type { JournalModification } from '../types'
 import { fetchJournalModificationsForLigne, libelleAuteurJournal } from '../lib/journalModifications'
 import { getErrorMessage } from '../lib/errors'
@@ -7,13 +7,15 @@ import JournalActionLabel from './JournalActionLabel'
 interface AdherentHistoriqueSectionProps {
   organisationId: string
   adherentId: string
+  /** Accès depuis le haut de la fiche (AdherentModal) : ouvrir et faire défiler jusqu'à la section. */
+  detailsRef?: Ref<HTMLDetailsElement>
 }
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-export default function AdherentHistoriqueSection({ organisationId, adherentId }: AdherentHistoriqueSectionProps) {
+export default function AdherentHistoriqueSection({ organisationId, adherentId, detailsRef }: AdherentHistoriqueSectionProps) {
   const [entries, setEntries] = useState<JournalModification[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -36,7 +38,7 @@ export default function AdherentHistoriqueSection({ organisationId, adherentId }
   }, [load])
 
   return (
-    <details className="rounded-sm border border-paper-border bg-white">
+    <details ref={detailsRef} className="scroll-mt-4 rounded-sm border border-paper-border bg-white">
       <summary className="cursor-pointer select-none rounded-sm px-3 py-2 font-registre text-sm font-medium text-ink-muted hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70">
         Historique{entries.length > 0 ? ` (${entries.length})` : ''}
       </summary>

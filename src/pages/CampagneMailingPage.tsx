@@ -4,6 +4,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
+import { useAuth } from '../hooks/useAuth'
 import { getCanonicalSiteUrl } from '../lib/environment'
 import { classifyMailingRecipients, type MailingRecipientGroups } from '../lib/mailingRecipients'
 import { fetchAllRows } from '../lib/fetchAllRows'
@@ -168,6 +169,9 @@ export default function CampagneMailingPage() {
   const { toast, showToast, dismissToast } = useToast()
 
   // Config Brevo
+  const { auth } = useAuth()
+  // Intégrations : modifiables par l'admin (et le super-admin en Consulter), lecture seule sinon.
+  const peutModifierBrevo = auth.type === 'super_admin' || (auth.type === 'admin' && auth.role === 'admin')
   const [configLoading, setConfigLoading] = useState(true)
   const [configured, setConfigured] = useState(false)
 
@@ -401,7 +405,7 @@ export default function CampagneMailingPage() {
   const { filtreStatut, tagEnvoi } = parseEnvoyerA(envoyerA)
 
   // Garde-fou de séquencement : au chargement, le fetch parti avec la valeur
-  // par défaut de envoyerA ("Actifs") peut répondre après celui relancé une
+  // par défaut de envoyerA ("Tous sauf archivés") peut répondre après celui relancé une
   // fois le brouillon localStorage restauré vers la vraie valeur — sans
   // garde, le résultat qui arrive en dernier écrase l'autre, peu importe
   // lequel est correct. On n'applique que le résultat du dernier appel lancé.
@@ -576,6 +580,14 @@ export default function CampagneMailingPage() {
       <div>
         <h1 className="text-2xl font-bold text-ink md:text-3xl">Emailing</h1>
         <p className="mt-1 text-sm text-ink-muted">Envoyez une campagne d'information à vos adhérents via Brevo.</p>
+        {!configLoading && configured && (
+          <p className="mt-1 text-sm text-ink-muted">
+            Brevo : configuré ·{' '}
+            <Link to="/admin/parametres/integrations" className="font-medium text-stamp underline underline-offset-2 hover:no-underline">
+              {peutModifierBrevo ? 'Modifier' : 'Voir'}
+            </Link>
+          </p>
+        )}
       </div>
 
       {!configLoading && !configured && (
@@ -736,7 +748,7 @@ export default function CampagneMailingPage() {
                 className="w-full"
               >
                 <optgroup label="Statut">
-                  <option value="statut:actif">Adhérents actifs</option>
+                  <option value="statut:actif">Tous sauf archivés</option>
                   <option value="statut:archive">Adhérents archivés</option>
                   <option value="statut:tous">Tous les adhérents</option>
                 </optgroup>

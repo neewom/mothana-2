@@ -7,6 +7,7 @@ import { activitesImportConfig } from '../lib/import/configs'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { filterActivites } from '../lib/activiteSearch'
 import { cn } from '../lib/utils'
+import { ACTIVITE_DATES_ERROR, activiteDbErrorMessage, isActiviteDateRangeInvalid } from '../lib/activiteDates'
 import { Button } from '../components/ui/button'
 import { PageHeader } from '../components/ui/page-header'
 import { ListToolbar } from '../components/ui/list-toolbar'
@@ -112,9 +113,18 @@ function ActiviteModal({ open, onClose, onSaved, onDelete, activite, organisatio
     }
   }, [open, activite])
 
+  // Validation live (règle projet) : erreur dès que la fin précède le début, sans
+  // attribut min bloquant sur le champ ; la contrainte activites_dates_check en base
+  // fait foi en dernier recours.
+  const datesInvalid = isActiviteDateRangeInvalid(dateDebut, dateFin)
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    if (datesInvalid) {
+      setError(ACTIVITE_DATES_ERROR)
+      return
+    }
     setSaving(true)
 
     const payload = {
@@ -128,12 +138,12 @@ function ActiviteModal({ open, onClose, onSaved, onDelete, activite, organisatio
         .from('activites')
         .update(payload)
         .eq('id', activite.id)
-      if (err) { setError(err.message); setSaving(false); return }
+      if (err) { setError(activiteDbErrorMessage(err.message)); setSaving(false); return }
     } else {
       const { error: err } = await supabase
         .from('activites')
         .insert({ ...payload, organisation_id: organisationId })
-      if (err) { setError(err.message); setSaving(false); return }
+      if (err) { setError(activiteDbErrorMessage(err.message)); setSaving(false); return }
     }
 
     setSaving(false)
@@ -195,14 +205,22 @@ function ActiviteModal({ open, onClose, onSaved, onDelete, activite, organisatio
                 type="date"
                 value={dateFin}
                 onChange={(e) => setDateFin(e.target.value)}
+                aria-invalid={datesInvalid}
+                aria-describedby={datesInvalid ? 'activite-fin-erreur' : undefined}
+                className={cn(datesInvalid && 'border-stamp focus-visible:ring-stamp/70')}
               />
             </div>
           </div>
+          {datesInvalid && (
+            <p id="activite-fin-erreur" className="-mt-2 font-registre-mono text-[11px] text-stamp">
+              {ACTIVITE_DATES_ERROR}
+            </p>
+          )}
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={onClose}>
               Annuler
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || datesInvalid}>
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </div>
@@ -266,11 +284,11 @@ function ActiviteRow({
       <div className="flex flex-1 items-center gap-4 min-w-0">
         <Postmark statut={statut} dateIso={postmarkDate} />
         <div className="min-w-0 flex-1">
-          <p className={cn('truncate font-registre font-semibold', isTerminee ? 'text-sm text-ink-muted' : 'text-base text-ink md:text-lg')}>
+          <p className={cn('break-words font-registre font-semibold', isTerminee ? 'text-sm text-ink-muted' : 'text-base text-ink md:text-lg')}>
             {activite.nom}
           </p>
           {statutText && <p className="mt-0.5 font-registre text-sm text-ink-muted">{statutText}</p>}
-          <p className={cn('mt-1 font-registre-mono text-xs', isTerminee ? 'text-ink-faint' : counts && counts.dons > 0 ? 'font-medium text-stamp' : 'text-ink-faint')}>
+          <p className={cn('mt-1 font-registre-mono text-xs', isTerminee ? 'text-ink-faint' : counts && counts.dons > 0 ? 'font-medium text-ink-muted' : 'text-ink-faint')}>
             {countsText}
           </p>
           {activite.id_externe && (
@@ -302,6 +320,8 @@ export default function ActivitesPage() {
   const [search, setSearch] = useState('')
   const [pageSize, setPageSize] = useState(50)
   const [currentPage, setCurrentPage] = useState(1)
+  // null = choix par défaut (replié s'il y a des activités actives ou récurrentes).
+  const [termineesOpen, setTermineesOpen] = useState<boolean | null>(null)
 
   const fetchActivites = useCallback(async () => {
     setLoading(true)
@@ -382,6 +402,9 @@ export default function ActivitesPage() {
     return { datees, recurrentes, terminees }
   }, [paginatedActivites, todayIso])
 
+  // Une recherche en cours déplie aussi les terminées, pour ne pas masquer un résultat.
+  const termineesVisible = termineesOpen ?? (search.trim() !== '' || (datees.length === 0 && recurrentes.length === 0))
+
   const nombreAVenirOuEnCours = useMemo(
     () => activites.filter((a) => {
       const statut = getStatut(a, todayIso)
@@ -458,6 +481,8 @@ export default function ActivitesPage() {
         récurrentes | terminées), empilés en mobile ; cachet à gauche de chaque ligne, actions
         à droite. Passé de deux à trois blocs le 2026-09-22 pour séparer les activités datées
         des récurrentes sans date, jusque-là mêlées dans le même bloc (retour utilisateur).
+        Le 2026-11-09 (carte JaknySME) : terminées passées sous les deux autres blocs, en
+        pleine largeur et repliables, la troisième colonne déséquilibrait la grille.
         FORM: direction "carnet tamponné x registre" (fusion E), choisie via AskUserQuestion
         (concept-seed/serve-question non exécutable ici — pas de génération d'image dans cette
         session), validée par l'utilisateur après 2 itérations (compteurs réels dons/
@@ -523,58 +548,80 @@ export default function ActivitesPage() {
           </div>
         ) : (
           <>
-            <div className="lg:flex lg:items-start lg:gap-6">
-              {/* Datées : à venir / en cours */}
-              {datees.length > 0 && (
-                <div className="mb-6 min-w-0 lg:mb-0 lg:flex-1">
-                  <p className="mb-2 px-1 font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">
-                    À venir / en cours
-                  </p>
-                  <ul className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
-                    {datees.map(({ activite, statut }) => (
-                      <ActiviteRow
-                        key={activite.id}
-                        activite={activite}
-                        statut={statut}
-                        counts={donsByActivite.get(activite.id)}
-                        onEdit={() => openEdit(activite)}
-                      />
-                    ))}
-                  </ul>
-                </div>
-              )}
+            {/* Actives et récurrentes côte à côte en desktop ; les terminées, souvent les plus
+                nombreuses, passent dessous en pleine largeur et repliables (passe UX, carte
+                JaknySME) — la grille à trois colonnes laissait « Récurrentes » à moitié vide
+                face à une colonne « Terminées » très longue. */}
+            {(datees.length > 0 || recurrentes.length > 0) && (
+              <div className="space-y-6 lg:flex lg:items-start lg:gap-6 lg:space-y-0">
+                {/* Datées : à venir / en cours */}
+                {datees.length > 0 && (
+                  <div className="min-w-0 lg:flex-1">
+                    <p className="mb-2 px-1 font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">
+                      À venir / en cours
+                    </p>
+                    <ul className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+                      {datees.map(({ activite, statut }) => (
+                        <ActiviteRow
+                          key={activite.id}
+                          activite={activite}
+                          statut={statut}
+                          counts={donsByActivite.get(activite.id)}
+                          onEdit={() => openEdit(activite)}
+                        />
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-              {/* Récurrentes : sans date, jamais de tampon */}
-              {recurrentes.length > 0 && (
-                <div className="mb-6 min-w-0 lg:mb-0 lg:flex-1">
-                  <p className="mb-2 px-1 font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">
-                    Récurrentes
-                  </p>
-                  <ul className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
-                    {recurrentes.map(({ activite, statut }) => (
-                      <ActiviteRow
-                        key={activite.id}
-                        activite={activite}
-                        statut={statut}
-                        counts={donsByActivite.get(activite.id)}
-                        onEdit={() => openEdit(activite)}
-                      />
-                    ))}
-                  </ul>
-                </div>
-              )}
+                {/* Récurrentes : sans date, jamais de tampon */}
+                {recurrentes.length > 0 && (
+                  <div className="min-w-0 lg:flex-1">
+                    <p className="mb-2 px-1 font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">
+                      Récurrentes
+                    </p>
+                    <ul className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+                      {recurrentes.map(({ activite, statut }) => (
+                        <ActiviteRow
+                          key={activite.id}
+                          activite={activite}
+                          statut={statut}
+                          counts={donsByActivite.get(activite.id)}
+                          onEdit={() => openEdit(activite)}
+                        />
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
 
-              {/* Terminées */}
-              {terminees.length > 0 && (
-                <div className="min-w-0 lg:flex-1">
-                  <p className="mb-2 px-1 font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">
-                    Terminées
-                  </p>
-                  {/* Le statut "terminée" se lit déjà via la taille/le poids du cachet et
-                      ink-faint sur le texte — un opacity-90 supplémentaire ici cassait le
-                      contraste AA du texte, sans rien ajouter à la hiérarchie (revue de
-                      finition, 2e passe). */}
-                  <ul className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+            {/* Terminées : repliées par défaut quand il y a des activités actives ou
+                récurrentes à montrer, dépliées sinon (rien d'autre à voir) ou pendant
+                une recherche. */}
+            {terminees.length > 0 && (
+              <div className="min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setTermineesOpen(!termineesVisible)}
+                  aria-expanded={termineesVisible}
+                  aria-controls="activites-terminees"
+                  className={cn(
+                    'flex w-full items-center gap-2 rounded-sm border border-paper-border bg-white px-4 py-3 text-left font-registre text-sm text-ink-muted transition-colors hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70',
+                    termineesVisible && 'mb-2',
+                  )}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={cn('h-4 w-4 shrink-0 text-ink-faint transition-transform', termineesVisible && 'rotate-90')} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                  Terminées ({terminees.length})
+                </button>
+                {/* Le statut "terminée" se lit déjà via la taille/le poids du cachet et
+                    ink-faint sur le texte — un opacity-90 supplémentaire ici cassait le
+                    contraste AA du texte, sans rien ajouter à la hiérarchie (revue de
+                    finition, 2e passe). */}
+                {termineesVisible && (
+                  <ul id="activites-terminees" className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
                     {terminees.map(({ activite, statut }) => (
                       <ActiviteRow
                         key={activite.id}
@@ -585,11 +632,13 @@ export default function ActivitesPage() {
                       />
                     ))}
                   </ul>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
-            {/* Pagination commune, en carte autonome sous les trois registres. */}
+            {/* Pagination commune, en carte autonome sous les trois registres ; masquée
+                quand tout tient sur une page. */}
+            {pageCount > 1 && (
             <div className="rounded-sm border border-paper-border bg-white">
               <TablePagination
                 className="border-t-0"
@@ -601,6 +650,7 @@ export default function ActivitesPage() {
                 onPageSizeChange={setPageSize}
               />
             </div>
+            )}
           </>
         )}
       </div>

@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import EmailRecuSection from '../components/EmailRecuSection'
 import ParametresSection from '../components/ParametresSection'
+import ParametresGroupe from '../components/parametres/ParametresGroupe'
 import LectureSeuleNotice from '../components/parametres/LectureSeuleNotice'
 import SaveBar from '../components/parametres/SaveBar'
 import TemplatesRecuSection from '../components/TemplatesRecuSection'
@@ -27,7 +28,7 @@ import {
   objetEffectif,
 } from '../../supabase/functions/_shared/recuEmail.ts'
 
-// Paramètres › Reçus fiscaux : ce qui reste purement fiscal de l'ancienne page Fiscalité
+// Dons › Paramètres (« Paramètres des dons », section Reçus fiscaux) : ce qui reste purement fiscal de l'ancienne page Fiscalité
 // (mention légale, taux, numérotation), l'email d'envoi des reçus et les modèles de reçus. L'identité de l'association
 // (adresse, RNA, SIREN, objet social) est dans Paramètres › Organisation.
 
@@ -75,6 +76,7 @@ function messageAStocker(html: string): string | null {
 
 export default function ParametresRecusFiscauxPage() {
   const organisationId = useOrganisationId()
+  const { hash } = useLocation()
   const peutModifier = usePeutModifierParametres()
   const [saved, setSaved] = useState<RecusForm | null>(null)
   const [form, setForm] = useState<RecusForm | null>(null)
@@ -176,6 +178,12 @@ export default function ParametresRecusFiscauxPage() {
     setSaving(false)
   }
 
+  // Arrivée par une ancre (ex. #email-recus depuis Intégrations) : la page n'a son contenu qu'une fois chargée.
+  const charge = form !== null
+  useEffect(() => {
+    if (charge && hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' })
+  }, [charge, hash])
+
   if (fetchError) {
     return (
       <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">{fetchError}</div>
@@ -189,189 +197,196 @@ export default function ParametresRecusFiscauxPage() {
     <div className="-m-6 min-h-[calc(100%+3rem)] bg-paper p-6 font-registre">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-ink md:text-3xl">Reçus fiscaux</h1>
-          <p className="mt-1 text-sm text-ink-muted">Mention légale, taux, numérotation, email d'envoi et modèles des reçus remis à vos donateurs.</p>
+          <h1 className="text-2xl font-bold text-ink md:text-3xl">Paramètres des dons</h1>
+          <p className="mt-1 text-sm text-ink-muted">Réglages du module Dons : mention légale, taux, numérotation, email d'envoi et modèles des reçus fiscaux.</p>
         </div>
 
         {!peutModifier && <LectureSeuleNotice />}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Contributeur : champs désactivés d'un bloc (la base refuse aussi l'écriture). */}
-          <fieldset disabled={!peutModifier} className="min-w-0 space-y-6">
-          <ParametresSection
-            title="Informations fiscales"
-            description="Affichées sur chaque reçu. L'adresse, le RNA, le SIREN et l'objet social se règlent dans Organisation."
-          >
-            {/* Information, pas une action requise : encadré neutre (l'ambre est réservé aux actions à faire). */}
-            <div className="mb-6 rounded-sm border border-paper-border bg-paper px-4 py-3 text-sm text-ink-muted">
-              <p className="font-medium text-ink">Obligations légales</p>
-              <ul className="mt-1.5 list-disc space-y-1 pl-4">
-                <li>L'association doit conserver une copie de chaque reçu émis pendant 6 ans.</li>
-                <li>Depuis le 1er janvier 2021, l'association doit déclarer annuellement le montant total des dons et le nombre de reçus émis (article 222 bis du CGI).</li>
-                <li>Une association qui émet des reçus sans y être habilitée s'expose à une amende égale à 66% des sommes inscrites.</li>
-              </ul>
-              <p className="mt-2">
-                Identité de l'association (adresse, RNA ou SIREN, objet social) :{' '}
-                <Link to="/admin/parametres" className="font-medium text-stamp underline underline-offset-2">Paramètres › Organisation</Link>.
-              </p>
-            </div>
-
-            <div className="max-w-lg space-y-4">
-              <div>
-                <Label htmlFor="modele-mention-legale">Mention légale</Label>
-                <Textarea
-                  id="modele-mention-legale"
-                  rows={2}
-                  value={form.mentionLegale}
-                  onChange={(e) => update('mentionLegale', e.target.value)}
-                  className="mt-1 resize-none"
-                />
-                <p className="mt-1 text-xs text-ink-faint">Affichée sur le reçu pour justifier l'éligibilité au mécénat.</p>
-              </div>
-
-              <div>
-                <Label htmlFor="modele-format-numero-recu">Format du numéro de reçu</Label>
-                <Select
-                  id="modele-format-numero-recu"
-                  value={form.formatNumeroRecu}
-                  onChange={(e) => update('formatNumeroRecu', formatNumeroRecu(e.target.value))}
-                  className="mt-1 w-full"
-                >
-                  <option value="sequence">Séquence annuelle</option>
-                  <option value="donateur">Année + numéro de donateur</option>
-                </Select>
-                <p className="mt-1 text-xs text-ink-faint">
-                  Exemple :{' '}
-                  <span className="font-medium text-ink">
-                    {exempleNumeroRecu(form.formatNumeroRecu, anneeExemple, { numeroDepart: form.numeroRecuDepart })}
-                  </span>
-                  {form.formatNumeroRecu === 'donateur'
-                    ? ' pour le donateur n° 2803. Un donateur sans numéro de donateur ne peut pas recevoir de reçu.'
-                    : ', puis la suite de la séquence, qui repart chaque 1er janvier.'}
-                  {' '}Un reçu déjà émis garde son numéro.
+        <ParametresGroupe id="parametres-recus-fiscaux" title="Reçus fiscaux">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Contributeur : champs désactivés d'un bloc (la base refuse aussi l'écriture). */}
+            <fieldset disabled={!peutModifier} className="min-w-0 space-y-6">
+            <ParametresSection
+              level={3}
+              title="Informations fiscales"
+              description="Affichées sur chaque reçu. L'adresse, le RNA, le SIREN et l'objet social se règlent dans Organisation."
+            >
+              {/* Information, pas une action requise : encadré neutre (l'ambre est réservé aux actions à faire). */}
+              <div className="mb-6 rounded-sm bg-paper p-4 text-sm text-ink-muted">
+                <p className="font-medium text-ink">Obligations légales</p>
+                <ul className="mt-1.5 list-disc space-y-1 pl-4">
+                  <li>L'association doit conserver une copie de chaque reçu émis pendant 6 ans.</li>
+                  <li>Depuis le 1er janvier 2021, l'association doit déclarer annuellement le montant total des dons et le nombre de reçus émis (article 222 bis du CGI).</li>
+                  <li>Une association qui émet des reçus sans y être habilitée s'expose à une amende égale à 66% des sommes inscrites.</li>
+                </ul>
+                <p className="mt-2">
+                  Identité de l'association (adresse, RNA ou SIREN, objet social) :{' '}
+                  <Link to="/admin/parametres" className="font-medium text-stamp underline underline-offset-2">Paramètres › Organisation</Link>.
                 </p>
               </div>
 
-              <div className="flex gap-3">
-                {form.formatNumeroRecu === 'sequence' && (
+              <div className="max-w-lg space-y-4">
+                <div>
+                  <Label htmlFor="modele-mention-legale">Mention légale</Label>
+                  <Textarea
+                    id="modele-mention-legale"
+                    rows={2}
+                    value={form.mentionLegale}
+                    onChange={(e) => update('mentionLegale', e.target.value)}
+                    className="mt-1 resize-none"
+                  />
+                  <p className="mt-1 text-xs text-ink-faint">Affichée sur le reçu pour justifier l'éligibilité au mécénat.</p>
+                </div>
+
+                <div>
+                  <Label htmlFor="modele-format-numero-recu">Format du numéro de reçu</Label>
+                  <Select
+                    id="modele-format-numero-recu"
+                    value={form.formatNumeroRecu}
+                    onChange={(e) => update('formatNumeroRecu', formatNumeroRecu(e.target.value))}
+                    className="mt-1 w-full"
+                  >
+                    <option value="sequence">Séquence annuelle</option>
+                    <option value="donateur">Année + numéro de donateur</option>
+                  </Select>
+                  <p className="mt-1 text-xs text-ink-faint">
+                    Exemple :{' '}
+                    <span className="font-medium text-ink">
+                      {exempleNumeroRecu(form.formatNumeroRecu, anneeExemple, { numeroDepart: form.numeroRecuDepart })}
+                    </span>
+                    {form.formatNumeroRecu === 'donateur'
+                      ? ' pour le donateur n° 2803. Un donateur sans numéro de donateur ne peut pas recevoir de reçu.'
+                      : ', puis la suite de la séquence, qui repart chaque 1er janvier.'}
+                    {' '}Un reçu déjà émis garde son numéro.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  {form.formatNumeroRecu === 'sequence' && (
+                    <div className="flex-1">
+                      <Label htmlFor="modele-numero-recu-depart">Numéro du premier reçu</Label>
+                      <Input
+                        id="modele-numero-recu-depart"
+                        type="number"
+                        min={1}
+                        value={form.numeroRecuDepart}
+                        onChange={(e) => update('numeroRecuDepart', Number(e.target.value))}
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
                   <div className="flex-1">
-                    <Label htmlFor="modele-numero-recu-depart">Numéro du premier reçu</Label>
-                    <Input
-                      id="modele-numero-recu-depart"
-                      type="number"
-                      min={1}
-                      value={form.numeroRecuDepart}
-                      onChange={(e) => update('numeroRecuDepart', Number(e.target.value))}
-                      className="mt-1"
-                    />
+                    <Label htmlFor="modele-taux-reduction">Taux de réduction fiscale</Label>
+                    <div className="relative mt-1">
+                      <Input
+                        id="modele-taux-reduction"
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={form.tauxReduction}
+                        onChange={(e) => update('tauxReduction', Number(e.target.value))}
+                        className="pr-8"
+                      />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-faint">%</span>
+                    </div>
+                    <p className="mt-1 text-xs text-ink-faint">66% standard, 75% pour certains organismes (ex : aide aux personnes en difficulté).</p>
                   </div>
-                )}
-                <div className="flex-1">
-                  <Label htmlFor="modele-taux-reduction">Taux de réduction fiscale</Label>
-                  <div className="relative mt-1">
-                    <Input
-                      id="modele-taux-reduction"
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={form.tauxReduction}
-                      onChange={(e) => update('tauxReduction', Number(e.target.value))}
-                      className="pr-8"
-                    />
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-faint">%</span>
-                  </div>
-                  <p className="mt-1 text-xs text-ink-faint">66% standard, 75% pour certains organismes (ex : aide aux personnes en difficulté).</p>
                 </div>
               </div>
-            </div>
-          </ParametresSection>
+            </ParametresSection>
 
-          <ParametresSection
-            title="Email d'envoi des reçus"
-            description="Objet et message de l'email qui accompagne chaque reçu envoyé à un donateur."
-          >
-            <EmailRecuSection
-              objet={form.emailObjet}
-              html={form.emailHtml}
-              organisationNom={organisationNom}
-              etatBrevo={etatBrevo}
-              lectureSeule={!peutModifier}
-              onObjetChange={(objet) => update('emailObjet', objet)}
-              onHtmlChange={(html) => update('emailHtml', html)}
-              onHtmlNormalise={(html) => {
-                setSaved((current) => (current ? { ...current, emailHtml: html } : current))
-                setForm((current) => (current ? { ...current, emailHtml: html } : current))
+            <ParametresSection
+              id="email-recus"
+              level={3}
+              title="Email d'envoi des reçus"
+              description="Objet et message de l'email qui accompagne chaque reçu envoyé à un donateur."
+            >
+              <EmailRecuSection
+                objet={form.emailObjet}
+                html={form.emailHtml}
+                organisationNom={organisationNom}
+                etatBrevo={etatBrevo}
+                lectureSeule={!peutModifier}
+                onObjetChange={(objet) => update('emailObjet', objet)}
+                onHtmlChange={(html) => update('emailHtml', html)}
+                onHtmlNormalise={(html) => {
+                  setSaved((current) => (current ? { ...current, emailHtml: html } : current))
+                  setForm((current) => (current ? { ...current, emailHtml: html } : current))
+                }}
+              />
+            </ParametresSection>
+
+            <ParametresSection
+              level={3}
+              title="Envoi en lot"
+              description="Rythme de « Envoyer les reçus non envoyés » : l'envoi s'étale sur plusieurs jours si besoin, sans dépasser ce quota."
+            >
+              <div className="max-w-lg space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <div className="flex-1">
+                    <Label htmlFor="envoi-lot-par-jour">Emails par jour au plus</Label>
+                    <Input
+                      id="envoi-lot-par-jour"
+                      inputMode="numeric"
+                      value={form.envoiParJour}
+                      onChange={(e) => update('envoiParJour', e.target.value.replace(/[^\d]/g, ''))}
+                      aria-invalid={parJour === null}
+                      className={cn('mt-1', parJour === null && 'border-stamp focus-visible:ring-stamp/70')}
+                    />
+                    {parJour === null && (
+                      <p className="mt-1 font-registre-mono text-[11px] text-stamp">
+                        Entre {RYTHME_ENVOI_BORNES.parJour.min} et {RYTHME_ENVOI_BORNES.parJour.max.toLocaleString('fr-FR')}.
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="envoi-lot-par-minute">Rythme moyen par minute</Label>
+                    <Input
+                      id="envoi-lot-par-minute"
+                      inputMode="numeric"
+                      value={form.envoiParMinute}
+                      onChange={(e) => update('envoiParMinute', e.target.value.replace(/[^\d]/g, ''))}
+                      aria-invalid={parMinute === null}
+                      className={cn('mt-1', parMinute === null && 'border-stamp focus-visible:ring-stamp/70')}
+                    />
+                    {parMinute === null && (
+                      <p className="mt-1 font-registre-mono text-[11px] text-stamp">
+                        Entre {RYTHME_ENVOI_BORNES.parMinute.min} et {RYTHME_ENVOI_BORNES.parMinute.max}.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-ink-faint">
+                  Réglez-le sur le quota de votre offre Brevo (offre gratuite : 300 emails par jour, tous envois confondus) en gardant
+                  une marge pour vos campagnes : le quota compte les reçus envoyés un par un et en lot, pas les campagnes. Le plafond strict
+                  est le quota par jour ; le rythme par minute est une moyenne. Par défaut : 250 par jour, 5 par minute en moyenne.
+                </p>
+              </div>
+            </ParametresSection>
+
+            </fieldset>
+
+            {peutModifier && <SaveBar
+              dirty={dirty}
+              saving={saving}
+              success={success}
+              error={error}
+              onReset={() => {
+                setForm(saved)
+                setError(null)
               }}
-            />
-          </ParametresSection>
+            />}
+          </form>
 
           <ParametresSection
-            title="Envoi en lot"
-            description="Rythme de « Envoyer les reçus non envoyés » : l'envoi s'étale sur plusieurs jours si besoin, sans dépasser ce quota."
+            level={3}
+            title="Modèles de reçus fiscaux"
+            description="Gérez les templates HTML utilisés pour générer les reçus 11580 (particuliers) et 16216 (entreprises). Chaque modèle s’enregistre à part, depuis son éditeur : le bouton « Enregistrer les modifications » ci-dessus ne le concerne pas."
           >
-            <div className="max-w-lg space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <div className="flex-1">
-                  <Label htmlFor="envoi-lot-par-jour">Emails par jour au plus</Label>
-                  <Input
-                    id="envoi-lot-par-jour"
-                    inputMode="numeric"
-                    value={form.envoiParJour}
-                    onChange={(e) => update('envoiParJour', e.target.value.replace(/[^\d]/g, ''))}
-                    aria-invalid={parJour === null}
-                    className={cn('mt-1', parJour === null && 'border-stamp focus-visible:ring-stamp/70')}
-                  />
-                  {parJour === null && (
-                    <p className="mt-1 font-registre-mono text-[11px] text-stamp">
-                      Entre {RYTHME_ENVOI_BORNES.parJour.min} et {RYTHME_ENVOI_BORNES.parJour.max.toLocaleString('fr-FR')}.
-                    </p>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <Label htmlFor="envoi-lot-par-minute">Rythme moyen par minute</Label>
-                  <Input
-                    id="envoi-lot-par-minute"
-                    inputMode="numeric"
-                    value={form.envoiParMinute}
-                    onChange={(e) => update('envoiParMinute', e.target.value.replace(/[^\d]/g, ''))}
-                    aria-invalid={parMinute === null}
-                    className={cn('mt-1', parMinute === null && 'border-stamp focus-visible:ring-stamp/70')}
-                  />
-                  {parMinute === null && (
-                    <p className="mt-1 font-registre-mono text-[11px] text-stamp">
-                      Entre {RYTHME_ENVOI_BORNES.parMinute.min} et {RYTHME_ENVOI_BORNES.parMinute.max}.
-                    </p>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-ink-faint">
-                Réglez-le sur le quota de votre offre Brevo (offre gratuite : 300 emails par jour, tous envois confondus) en gardant
-                une marge pour vos campagnes : le quota compte les reçus envoyés un par un et en lot, pas les campagnes. Le plafond strict
-                est le quota par jour ; le rythme par minute est une moyenne. Par défaut : 250 par jour, 5 par minute en moyenne.
-              </p>
-            </div>
+            {organisationId && <TemplatesRecuSection organisationId={organisationId} lectureSeule={!peutModifier} />}
           </ParametresSection>
-
-          </fieldset>
-
-          {peutModifier && <SaveBar
-            dirty={dirty}
-            saving={saving}
-            success={success}
-            error={error}
-            onReset={() => {
-              setForm(saved)
-              setError(null)
-            }}
-          />}
-        </form>
-
-        <ParametresSection
-          title="Modèles de reçus fiscaux"
-          description="Gérez les templates HTML utilisés pour générer les reçus 11580 (particuliers) et 16216 (entreprises). Enregistrés depuis leur éditeur."
-        >
-          {organisationId && <TemplatesRecuSection organisationId={organisationId} lectureSeule={!peutModifier} />}
-        </ParametresSection>
+        </ParametresGroupe>
       </div>
       {guardDialog}
     </div>

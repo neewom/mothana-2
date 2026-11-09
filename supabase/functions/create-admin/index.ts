@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 function inviteAdminEmailHtml(nom: string, organisationNom: string, actionLink: string, role: 'admin' | 'contributeur'): string {
-  const roleLabel = role === 'admin' ? 'administrateur' : 'contributeur'
+  const roleLabel = role === 'admin' ? 'administrateur' : 'membre'
   return `<!doctype html><html><body style="font-family: ui-sans-serif, system-ui, sans-serif; background: #f8fafc; padding: 32px;">
   <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e2e8f0;">
     <h1 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">Bienvenue sur Samakan</h1>

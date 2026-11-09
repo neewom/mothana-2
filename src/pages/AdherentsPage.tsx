@@ -33,12 +33,13 @@ import { PageHeader } from '../components/ui/page-header'
 import { TablePagination } from '../components/ui/table-pagination'
 import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { ADHERENT_SORT_DEFAUT, directionInitialeAdherent, paramsTriAdherents, type AdherentSortField } from '../lib/adherentsTri'
 import { ListToolbar, FilterChips, type FilterChip } from '../components/ui/list-toolbar'
 import { FilterSheet } from '../components/ui/filter-sheet'
 import { ActionMenu } from '../components/ui/action-menu'
 import {
-  ADHERENTS_FILTRES_VIDES, libelleAdhesion, nombreFiltresAdherents, normaliserFiltresAdherents,
+  ADHERENTS_FILTRES_VIDES, libelleAdhesion, libelleAdhesionCourt, nombreFiltresAdherents, normaliserFiltresAdherents,
   EMAIL_FILTRE_LABELS, type AdherentsFiltres, type EmailFilter,
 } from '../lib/adherentsFiltres'
 
@@ -54,9 +55,28 @@ function formatLocalisation(a: Adherent): string {
   return [[a.code_postal, a.ville].filter(Boolean).join(' '), a.pays].filter(Boolean).join(', ') || '—'
 }
 
-// « Actifs » = à jour de leur adhésion ; « Expirés » = statut actif mais dernière adhésion passée
-// (ou aucune adhésion). Calculé par search_adherents, rien n'est stocké.
-type StatutFilter = 'a_jour' | 'expire' | 'archive' | 'all'
+// États d'adhésion des fiches non archivées, d'après la dernière adhésion : « À jour », « À
+// renouveler » (fin dans les 30 jours), « Expirés » (fin passée, ou aucune adhésion). Calculé par
+// search_adherents (même règle que etatAdhesion), rien n'est stocké.
+type StatutFilter = 'a_jour' | 'a_renouveler' | 'expire' | 'archive' | 'all'
+const STATUTS_FILTRE: StatutFilter[] = ['a_jour', 'a_renouveler', 'expire', 'archive', 'all']
+
+const STATUT_LIBELLES: Record<StatutFilter, string> = {
+  a_jour: 'À jour',
+  a_renouveler: 'À renouveler',
+  expire: 'Expirés',
+  archive: 'Archivés',
+  all: 'Tous',
+}
+
+// Sous-titre de la page : « 18 adhérents à jour », « 1 adhérent expiré »…
+const STATUT_SOUS_TITRE: Record<StatutFilter, [string, string]> = {
+  a_jour: ['à jour', 'à jour'],
+  a_renouveler: ['à renouveler', 'à renouveler'],
+  expire: ['expiré', 'expirés'],
+  archive: ['archivé', 'archivés'],
+  all: ['au total', 'au total'],
+}
 
 // Export : limite PostgREST de 1 000 lignes par appel.
 const EXPORT_PAGE_SIZE = 1000
@@ -84,11 +104,15 @@ export default function AdherentsPage() {
 
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
-  // État initial depuis l'URL (?etat=expire, lien « Voir les expirés » de l'accueil), sinon Actifs.
+  // État initial depuis l'URL (?etat=a_renouveler / ?etat=expire, liens de l'accueil), sinon À jour.
   const [statutFilter, setStatutFilter] = useState<StatutFilter>(() => {
     const etat = new URLSearchParams(window.location.search).get('etat')
-    return etat === 'a_jour' || etat === 'expire' || etat === 'archive' || etat === 'all' ? etat : 'a_jour'
+    return STATUTS_FILTRE.find((s) => s === etat) ?? 'a_jour'
   })
+  // Statut en cours d'édition dans le tiroir (en mobile, le statut vit dans le tiroir).
+  const [brouillonStatut, setBrouillonStatut] = useState<StatutFilter>(statutFilter)
+  // À partir de sm, le statut est dans la barre d'outils : ni dans le tiroir, ni en pastille.
+  const statutDansLaBarre = useMediaQuery('(min-width: 640px)')
   // Filtres du tiroir : appliqués d'un coup (« Appliquer »), brouillon pendant l'édition.
   const [filtres, setFiltres] = useState<AdherentsFiltres>(ADHERENTS_FILTRES_VIDES)
   const [brouillon, setBrouillon] = useState<AdherentsFiltres>(ADHERENTS_FILTRES_VIDES)
@@ -209,10 +233,20 @@ export default function AdherentsPage() {
 
   function openFiltres() {
     setBrouillon(filtres)
+    setBrouillonStatut(statutFilter)
     setFiltresOpen(true)
   }
 
+  // Mobile : un statut autre que « À jour » (valeur par défaut) compte comme un filtre actif.
+  const statutEnPastille = !statutDansLaBarre && statutFilter !== 'a_jour'
+
+  function effacerFiltres() {
+    appliquerFiltres(ADHERENTS_FILTRES_VIDES)
+    if (statutEnPastille) setStatutFilter('a_jour')
+  }
+
   const chips: FilterChip[] = [
+    statutEnPastille && { key: 'statut', label: 'Statut', value: STATUT_LIBELLES[statutFilter], onRemove: () => { setStatutFilter('a_jour'); setCurrentPage(1) } },
     filtres.tag && { key: 'tag', label: 'Liste', value: filtres.tag, onRemove: () => appliquerFiltres({ ...filtres, tag: '' }) },
     filtres.excludeTag && { key: 'excludeTag', label: 'Hors liste', value: filtres.excludeTag, onRemove: () => appliquerFiltres({ ...filtres, excludeTag: '' }) },
     filtres.email && { key: 'email', label: 'Email', value: EMAIL_FILTRE_LABELS[filtres.email], onRemove: () => appliquerFiltres({ ...filtres, email: '' }) },
@@ -220,8 +254,6 @@ export default function AdherentsPage() {
     filtres.ville && { key: 'ville', label: 'Ville', value: filtres.ville, onRemove: () => appliquerFiltres({ ...filtres, ville: '' }) },
     filtres.pays && { key: 'pays', label: 'Pays', value: filtres.pays, onRemove: () => appliquerFiltres({ ...filtres, pays: '' }) },
   ].filter((chip): chip is FilterChip => Boolean(chip))
-
-  const STATUT_SOUS_TITRE: Record<StatutFilter, string> = { a_jour: 'actif', expire: 'expiré', archive: 'archivé', all: 'au total' }
 
   const [exporting, setExporting] = useState(false)
 
@@ -303,6 +335,19 @@ export default function AdherentsPage() {
       })
     return () => { cancelled = true }
   }, [linkedAdherentId, organisationId, setSearchParams])
+
+  // Arrivée depuis l'action rapide « Ajouter un adhérent » du menu latéral (?nouveau=1) : création
+  // ouverte d'emblée, paramètre retiré de l'URL pour ne pas rouvrir la modale au rechargement.
+  useEffect(() => {
+    if (searchParams.get('nouveau') !== '1') return
+    setEditingAdherent(undefined)
+    setAdherentModalOpen(true)
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.delete('nouveau')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
 
   function handleAdherentSaved(saved: Adherent) {
     const wasEdit = !!editingAdherent
@@ -462,6 +507,14 @@ export default function AdherentsPage() {
     setPdfPreview(null)
   }
 
+  // Menu « Sélection et listes » de la barre d'outils, sous xl (voir la barre d'outils).
+  const optionsMenuItems = [
+    { label: selectionMode ? 'Terminer la sélection' : 'Sélectionner', onSelect: toggleSelectionMode },
+    { label: 'Colonnes', onSelect: () => setColonnesModalOpen(true) },
+    { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
+    { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
+  ]
+
   return (
     <>
       {/*
@@ -486,19 +539,17 @@ export default function AdherentsPage() {
           subtitle={
             loading && totalCount === 0
               ? 'Chargement…'
-              : statutFilter === 'all'
-                ? `${totalCount} adhérent${totalCount > 1 ? 's' : ''} au total`
-                : `${totalCount} adhérent${totalCount > 1 ? 's' : ''} ${STATUT_SOUS_TITRE[statutFilter]}${totalCount > 1 ? 's' : ''}`
+              : `${totalCount} adhérent${totalCount > 1 ? 's' : ''} ${STATUT_SOUS_TITRE[statutFilter][totalCount > 1 ? 1 : 0]}`
           }
           actions={
             <>
-              <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              <Button variant="secondary" onClick={() => setImportOpen(true)} className="hidden sm:inline-flex">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                 </svg>
                 Importer
               </Button>
-              <Button variant="secondary" onClick={() => void handleExport()} disabled={exporting || totalCount === 0}>
+              <Button variant="secondary" onClick={() => void handleExport()} disabled={exporting || totalCount === 0} className="hidden sm:inline-flex">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
                 </svg>
@@ -510,6 +561,17 @@ export default function AdherentsPage() {
                 </svg>
                 Ajouter un adhérent
               </Button>
+              {/* Mobile : Importer / Exporter regroupés derrière un bouton « ⋯ » après l'action principale. */}
+              <div className="sm:hidden">
+                <ActionMenu
+                  label="Importer ou exporter"
+                  iconOnly
+                  items={[
+                    { label: 'Importer', onSelect: () => setImportOpen(true) },
+                    { label: exporting ? 'Export…' : 'Exporter', onSelect: () => void handleExport(), disabled: exporting || totalCount === 0 },
+                  ]}
+                />
+              </div>
             </>
           }
         />
@@ -524,47 +586,51 @@ export default function AdherentsPage() {
         <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
           <ListToolbar
             search={{ value: searchInput, onChange: setSearchInput, placeholder: 'Nom, prénom, email…', label: 'Rechercher un adhérent' }}
-            filterCount={nombreFiltresAdherents(filtres)}
+            filterCount={nombreFiltresAdherents(filtres) + (statutEnPastille ? 1 : 0)}
             onOpenFilters={openFiltres}
             end={
               <>
-                {/* Sur mobile, la colonne des cases à cocher n'apparaît qu'en mode sélection. */}
-                <Button
-                  variant={selectionMode ? 'default' : 'secondary'}
-                  onClick={toggleSelectionMode}
-                  className="sm:hidden"
-                  aria-pressed={selectionMode}
-                >
-                  Sélectionner
-                </Button>
-                <Button variant="secondary" onClick={() => setColonnesModalOpen(true)}>
+                <Button variant="secondary" onClick={() => setColonnesModalOpen(true)} className="hidden xl:inline-flex">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6zM9.75 4.5v15m4.5-15v15" />
                   </svg>
                   Colonnes
                 </Button>
-                <ActionMenu
-                  label="Listes"
-                  items={[
-                    { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
-                    { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
-                  ]}
-                />
+                <div className="hidden xl:block">
+                  <ActionMenu
+                    label="Listes"
+                    items={[
+                      { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
+                      { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
+                    ]}
+                  />
+                </div>
+                {/* Sous xl : sélection, Colonnes et Listes regroupés dans un seul menu (la colonne des
+                    cases à cocher n'apparaît alors qu'en mode sélection). Mobile : bouton libellé, sur la
+                    2e ligne de la barre ; de sm à xl (sidebar comprise à 1024) : bouton icône, pour que la
+                    barre tienne sur une ligne à côté d'une recherche de 288 px. */}
+                <div className="sm:hidden">
+                  {/* Marge du bouton réduite (px-3) : tient à côté de « Filtres · n » à 375 px. */}
+                  <ActionMenu label="Sélection et listes" items={optionsMenuItems} className="[&>button]:px-3" />
+                </div>
+                <div className="hidden sm:block xl:hidden">
+                  <ActionMenu label="Sélection et listes" iconOnly items={optionsMenuItems} />
+                </div>
               </>
             }
           >
-            <Select
-              aria-label="Statut"
-              value={statutFilter}
-              onChange={(e) => { setStatutFilter(e.target.value as StatutFilter); setCurrentPage(1) }}
-            >
-              <option value="a_jour">Actifs</option>
-              <option value="expire">Expirés</option>
-              <option value="archive">Archivés</option>
-              <option value="all">Tous</option>
-            </Select>
+            {/* Mobile : le statut passe dans le tiroir de filtres (barre d'outils sur deux lignes). */}
+            <div className="hidden sm:block">
+              <Select
+                aria-label="Statut"
+                value={statutFilter}
+                onChange={(e) => { setStatutFilter(e.target.value as StatutFilter); setCurrentPage(1) }}
+              >
+                {STATUTS_FILTRE.map((s) => <option key={s} value={s}>{STATUT_LIBELLES[s]}</option>)}
+              </Select>
+            </div>
           </ListToolbar>
-          <FilterChips chips={chips} onClearAll={() => appliquerFiltres(ADHERENTS_FILTRES_VIDES)} />
+          <FilterChips chips={chips} onClearAll={effacerFiltres} />
 
           {/* Barre d'actions groupées : apparaît dès qu'un adhérent est coché. */}
           {selectedIds.size > 0 && (
@@ -605,7 +671,7 @@ export default function AdherentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className={selectionMode ? '' : 'hidden sm:table-cell'}>
+                    <TableHead className={selectionMode ? '' : 'hidden xl:table-cell'}>
                       <input
                         type="checkbox"
                         checked={selectedIds.size > 0 && selectedIds.size === adherents.length}
@@ -614,11 +680,11 @@ export default function AdherentsPage() {
                         aria-label="Tout sélectionner"
                       />
                     </TableHead>
-                    {colonnesVisibles.includes('civilite') && <TableHead>Civilité</TableHead>}
+                    {colonnesVisibles.includes('civilite') && <TableHead className="hidden xl:table-cell">Civilité</TableHead>}
                     <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                    <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                    {colonnesVisibles.includes('statut') && <SortableTableHead field="statut" label="Statut" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
-                    {colonnesVisibles.includes('adhesion') && <SortableTableHead field="date_fin" label="Adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
+                    {colonnesVisibles.includes('adhesion') && <SortableTableHead field="date_fin" label="Adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />}
+                    <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
+                    {colonnesVisibles.includes('statut') && <SortableTableHead field="statut" label="Fiche" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
                     {colonnesVisibles.includes('date_adhesion') && <SortableTableHead field="date_adhesion" label="Date d'adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
                     {colonnesVisibles.includes('email') && <TableHead>Email</TableHead>}
                     {colonnesVisibles.includes('telephone') && <TableHead>Téléphone</TableHead>}
@@ -634,7 +700,7 @@ export default function AdherentsPage() {
                     const adhesion = libelleAdhesion(latestAdhesions.get(a.id), todayIso)
                     return (
                       <TableRow key={a.id} onClick={() => openEdit(a)} className="cursor-pointer hover:bg-paper-border/20">
-                        <TableCell className={selectionMode ? '' : 'hidden sm:table-cell'} onClick={(e) => e.stopPropagation()}>
+                        <TableCell className={selectionMode ? '' : 'hidden xl:table-cell'} onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(a.id)}
@@ -644,18 +710,28 @@ export default function AdherentsPage() {
                           />
                         </TableCell>
                         {colonnesVisibles.includes('civilite') && (
-                          <TableCell className="whitespace-nowrap text-ink-faint">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
+                          <TableCell className="hidden whitespace-nowrap text-ink-faint xl:table-cell">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
                         )}
-                        <TableCell className="whitespace-nowrap font-medium text-ink">{a.nom}</TableCell>
-                        <TableCell className="whitespace-nowrap text-ink-muted">{a.prenom ?? '—'}</TableCell>
-                        {colonnesVisibles.includes('statut') && (
-                          <TableCell>
-                            <Badge variant="neutral">{a.statut === 'actif' ? 'Actif' : 'Archivé'}</Badge>
+                        {/* Mobile : « NOM Prénom » et la pastille Adhésion (libellé sans date) dans une seule
+                            cellule, sous le nom ; les colonnes Prénom et Adhésion sont masquées. */}
+                        <TableCell className="whitespace-nowrap font-medium text-ink">
+                          {a.nom}
+                          {a.prenom && <span className="font-normal text-ink-muted md:hidden"> {a.prenom}</span>}
+                          {colonnesVisibles.includes('adhesion') && (
+                            <div className="mt-1 md:hidden">
+                              <Badge variant={adhesion.variant}>{libelleAdhesionCourt(latestAdhesions.get(a.id), todayIso)}</Badge>
+                            </div>
+                          )}
+                        </TableCell>
+                        {colonnesVisibles.includes('adhesion') && (
+                          <TableCell className="hidden md:table-cell">
+                            <Badge variant={adhesion.variant}>{adhesion.label}</Badge>
                           </TableCell>
                         )}
-                        {colonnesVisibles.includes('adhesion') && (
+                        <TableCell className="hidden whitespace-nowrap text-ink-muted md:table-cell">{a.prenom ?? '—'}</TableCell>
+                        {colonnesVisibles.includes('statut') && (
                           <TableCell>
-                            <Badge variant={adhesion.variant}>{adhesion.label}</Badge>
+                            <Badge variant="neutral">{a.statut === 'actif' ? 'Active' : 'Archivée'}</Badge>
                           </TableCell>
                         )}
                         {colonnesVisibles.includes('date_adhesion') && (
@@ -710,9 +786,24 @@ export default function AdherentsPage() {
       <FilterSheet
         open={filtresOpen}
         onOpenChange={setFiltresOpen}
-        onReset={() => setBrouillon(ADHERENTS_FILTRES_VIDES)}
-        onApply={() => { appliquerFiltres(brouillon); setFiltresOpen(false) }}
+        onReset={() => {
+          setBrouillon(ADHERENTS_FILTRES_VIDES)
+          // Le statut n'est réinitialisé que s'il est dans le tiroir (mobile).
+          if (!statutDansLaBarre) setBrouillonStatut('a_jour')
+        }}
+        onApply={() => {
+          if (!statutDansLaBarre && brouillonStatut !== statutFilter) setStatutFilter(brouillonStatut)
+          appliquerFiltres(brouillon)
+          setFiltresOpen(false)
+        }}
       >
+        {/* Statut : dans la barre d'outils à partir de sm, ici en mobile. */}
+        <div className="space-y-1.5 sm:hidden">
+          <Label htmlFor="adh-filtre-statut">Statut</Label>
+          <Select id="adh-filtre-statut" className="w-full" value={brouillonStatut} onChange={(e) => setBrouillonStatut(e.target.value as StatutFilter)}>
+            {STATUTS_FILTRE.map((s) => <option key={s} value={s}>{STATUT_LIBELLES[s]}</option>)}
+          </Select>
+        </div>
         <div className="space-y-1.5">
           <Label htmlFor="adh-filtre-liste">Liste</Label>
           <Select id="adh-filtre-liste" className="w-full" value={brouillon.tag} onChange={(e) => setBrouillon((b) => ({ ...b, tag: e.target.value }))}>
@@ -837,7 +928,7 @@ export default function AdherentsPage() {
               <h2 className="font-registre text-lg font-semibold text-ink">Archiver l'adhérent</h2>
               <p className="mt-2 font-registre text-sm text-ink-muted">
                 Êtes-vous sûr de vouloir archiver <span className="font-medium text-ink">« {adherentFullName(archiveConfirm)} »</span> ?
-                Il n'apparaîtra plus dans la liste des adhérents actifs, mais reste réactivable.
+                Il n'apparaîtra plus que dans le filtre « Archivés », et reste réactivable.
               </p>
               <div className="mt-5 flex justify-end gap-3">
                 <Button variant="secondary" onClick={() => setArchiveConfirm(null)}>Annuler</Button>

@@ -14,6 +14,7 @@ import type { Adherent } from '../types'
 import AdherentModal from '../components/AdherentModal'
 import { Button } from '../components/ui/button'
 import { Dialog, DialogContent } from '../components/ui/dialog'
+import { libelleAValider } from '../lib/renouvellementsLibelles'
 
 interface RecentDon {
   id: string
@@ -45,9 +46,9 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function Card({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+function Card({ title, children, action, className }: { title: string; children: React.ReactNode; action?: React.ReactNode; className?: string }) {
   return (
-    <div className="rounded-sm border border-paper-border bg-white">
+    <div className={cn('rounded-sm border border-paper-border bg-white', className)}>
       {/* gap + flex-wrap : titre et action ne se collent jamais ; l'action passe à la ligne si la
           colonne est trop étroite (grille à 3 colonnes vers 1 024–1 280 px). */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-paper-border px-5 py-3">
@@ -67,12 +68,16 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true)
   const [montantMois, setMontantMois] = useState(0)
+  const [montantAnnee, setMontantAnnee] = useState(0)
+  const [nombreDonsAnnee, setNombreDonsAnnee] = useState(0)
   const [nombreDonsMois, setNombreDonsMois] = useState(0)
   const [recentDons, setRecentDons] = useState<RecentDon[]>([])
   const [recentActivites, setRecentActivites] = useState<RecentActivite[]>([])
   const [aRenouveler, setARenouveler] = useState<AdherentARenouveler[]>([])
   const [nombreExpires, setNombreExpires] = useState(0)
+  // Demandes en attente : renouvellements, et anciennes demandes d'adhésion (formulaire public retiré) comptées à part.
   const [demandesEnAttente, setDemandesEnAttente] = useState(0)
+  const [anciennesAdhesionsEnAttente, setAnciennesAdhesionsEnAttente] = useState(0)
   const [donsReguliersAConfirmer, setDonsReguliersAConfirmer] = useState(0)
   const [adherentsEmailInvalideList, setAdherentsEmailInvalideList] = useState<Adherent[]>([])
   const [emailInvalideModalOpen, setEmailInvalideModalOpen] = useState(false)
@@ -106,15 +111,29 @@ export default function DashboardPage() {
       const now = new Date()
       const debutMois = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
       const aujourdhui = now.toISOString().split('T')[0]
+      // Année civile entière (dons datés plus tard dans l'année compris) : même périmètre que le
+      // « Total <année> » de la page Statistiques, pour que les deux chiffres concordent.
+      const annee = now.getFullYear()
       const dans30Jours = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-      const [donsMoisRes, recentDonsRes, recentActivitesRes, candidatsRenouvellementRes, expiresRes, demandesRes, engagementsRes, donsGeneresRes, organisationRes] = await Promise.all([
+      const [donsMoisRes, donsAnneeRes, recentDonsRes, recentActivitesRes, candidatsRenouvellementRes, expiresRes, demandesRes, engagementsRes, donsGeneresRes, organisationRes] = await Promise.all([
         supabase
           .from('dons')
           .select('montant')
           .eq('organisation_id', organisationId)
           .gte('date', debutMois)
           .lte('date', aujourdhui),
+        // Paginé (plus de 1 000 dons possibles sur une année), comme le chargement de Statistiques.
+        fetchAllRows<{ montant: number }>((from, to) =>
+          supabase
+            .from('dons')
+            .select('montant')
+            .eq('organisation_id', organisationId)
+            .gte('date', `${annee}-01-01`)
+            .lte('date', `${annee}-12-31`)
+            .order('id')
+            .range(from, to) as unknown as PromiseLike<{ data: { montant: number }[] | null; error: { message: string } | null }>,
+        ),
         supabase
           .from('dons')
           .select('id, montant, date, profils_participant(personnes(nom, prenom))')
@@ -130,7 +149,7 @@ export default function DashboardPage() {
           .or(`date_debut.gte.${aujourdhui},date_fin.gte.${aujourdhui}`)
           .order('date_debut', { ascending: true })
           .limit(5),
-        // Candidats : adhérents actifs ayant une adhésion qui se termine dans les 30 jours ; on ne
+        // Candidats : adhérents non archivés ayant une adhésion qui se termine dans les 30 jours ; on ne
         // garde ensuite que ceux dont c'est la **dernière** adhésion (pas encore renouvelés).
         fetchAllRows<CandidatRenouvellement>((from, to) =>
           supabase
@@ -147,7 +166,7 @@ export default function DashboardPage() {
         supabase.rpc('search_adherents', { p_organisation_id: organisationId, p_statut: 'expire', p_limit: 1, p_offset: 0 }),
         supabase
           .from('demandes_adhesion')
-          .select('id', { count: 'exact', head: true })
+          .select('type')
           .eq('organisation_id', organisationId)
           .eq('statut', 'en_attente'),
         supabase
@@ -170,13 +189,17 @@ export default function DashboardPage() {
       const donsMois = (donsMoisRes.data ?? []) as { montant: number }[]
       setMontantMois(donsMois.reduce((sum, d) => sum + Number(d.montant), 0))
       setNombreDonsMois(donsMois.length)
+      setMontantAnnee(donsAnneeRes.data.reduce((sum, d) => sum + Number(d.montant), 0))
+      setNombreDonsAnnee(donsAnneeRes.data.length)
       setRecentDons((recentDonsRes.data ?? []) as unknown as RecentDon[])
       setRecentActivites((recentActivitesRes.data ?? []) as RecentActivite[])
       const candidats = new Map(candidatsRenouvellementRes.data.map((c) => [c.adherents.id, c.adherents]))
       const dernieres = await chargerDernieresAdhesions([...candidats.keys()])
       setARenouveler(adherentsARenouveler([...candidats.values()], dernieres, aujourdhui, dans30Jours))
       setNombreExpires(((expiresRes.data ?? []) as { total_count: number }[])[0]?.total_count ?? 0)
-      setDemandesEnAttente(demandesRes.count ?? 0)
+      const demandes = (demandesRes.data ?? []) as { type: 'adhesion' | 'renouvellement' }[]
+      setDemandesEnAttente(demandes.length)
+      setAnciennesAdhesionsEnAttente(demandes.filter((d) => d.type === 'adhesion').length)
 
       const engagements = (engagementsRes.data ?? []) as { id: string; jour_prelevement: number; date_debut: string; date_fin: string | null }[]
       const donsGeneres = (donsGeneresRes.data ?? []) as { don_regulier_id: string; date: string }[]
@@ -203,10 +226,12 @@ export default function DashboardPage() {
     ...(adherentsActifs && demandesEnAttente > 0 ? [{
       key: 'demandes',
       icone: 'M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-8.25 3h.008v.008h-.008V12.75z',
-      titre: `${demandesEnAttente} demande${demandesEnAttente > 1 ? 's' : ''} d'adhésion en attente de ratification`,
-      detail: "Renouvellements en ligne et demandes reçues, à examiner par le conseil d'administration.",
-      libelle: 'Examiner',
-      to: '/admin/adherents/demandes',
+      titre: libelleAValider(demandesEnAttente - anciennesAdhesionsEnAttente, anciennesAdhesionsEnAttente),
+      detail: anciennesAdhesionsEnAttente > 0
+        ? "Envoyés par les adhérents depuis leur lien personnel, plus les anciennes demandes d'adhésion encore en attente."
+        : 'Envoyés par les adhérents depuis leur lien personnel de renouvellement.',
+      libelle: 'Valider',
+      to: '/admin/adherents/renouvellements',
     }] : []),
     ...(donsActifs && donsReguliersAConfirmer > 0 ? [{
       key: 'dons-reguliers',
@@ -230,12 +255,14 @@ export default function DashboardPage() {
       titre: "Statuts de l'association non configurés",
       detail: "La page de renouvellement et l'espace bénévole ne peuvent pas les proposer à la lecture.",
       libelle: 'Configurer',
-      to: '/admin/parametres/adhesions',
+      to: '/admin/adherents/parametres',
     }] : []),
   ]
 
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
+      {/* Actions rapides (saisir un don, ajouter un adhérent, envoyer un email) : dans le menu
+          latéral (« + Nouveau » et « + » des groupes), plus dans cet en-tête (retour de test 2026-11-09). */}
       <PageHeader title="Tableau de bord" subtitle="Vue d'ensemble de votre organisation." />
 
       <ActionsATraiter actions={actionsATraiter} />
@@ -245,25 +272,31 @@ export default function DashboardPage() {
         <StatTiles
           items={[
             ...(donsActifs
-              ? [{ label: 'Dons ce mois-ci', value: formatEur(montantMois), hint: `${nombreDonsMois} don${nombreDonsMois > 1 ? 's' : ''}` }]
+              ? [
+                  { label: 'Dons ce mois-ci', value: formatEur(montantMois), hint: `${nombreDonsMois} don${nombreDonsMois > 1 ? 's' : ''}` },
+                  { label: `Dons ${new Date().getFullYear()}`, value: formatEur(montantAnnee), hint: `${nombreDonsAnnee} don${nombreDonsAnnee > 1 ? 's' : ''}` },
+                ]
               : []),
             ...(adherentsActifs
               ? [{
                   label: 'Adhésions à renouveler (30 j)',
                   value: String(aRenouveler.length),
                   hint: aRenouveler.length === 0 ? 'Aucune échéance dans les 30 jours' : 'Expirent dans les 30 jours',
+                  href: '/admin/adherents?etat=a_renouveler',
                 }, {
                   label: 'Adhésions expirées',
                   value: String(nombreExpires),
-                  hint: nombreExpires === 0 ? 'Aucun adhérent expiré' : 'Adhérents actifs non renouvelés',
+                  hint: nombreExpires === 0 ? 'Aucun adhérent expiré' : 'Adhésion échue, non renouvelée',
+                  href: '/admin/adherents?etat=expire',
                 }]
               : []),
           ]}
         />
       )}
 
+      {/* 3 cartes : 2 colonnes à 1024 (sidebar comprise, trop serré à 3), 3 à partir de xl. */}
       {(donsActifs || adherentsActifs) && (
-        <div className={cn('grid grid-cols-1 gap-4', donsActifs && adherentsActifs ? 'lg:grid-cols-3' : 'lg:grid-cols-2')}>
+        <div className={cn('grid grid-cols-1 gap-4', donsActifs && adherentsActifs ? 'lg:grid-cols-2 xl:grid-cols-3' : 'lg:grid-cols-2')}>
           {donsActifs && (
             <Card title="Dons récents" action={<Link to="/admin/dons" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
               {recentDons.length === 0 ? (
@@ -271,11 +304,11 @@ export default function DashboardPage() {
               ) : (
                 <ul className="space-y-3">
                   {recentDons.map((don) => (
-                    <li key={don.id} className="flex items-center justify-between text-sm">
-                      <span className="text-ink-muted">
+                    <li key={don.id} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="min-w-0 truncate text-ink-muted">
                         {don.profils_participant?.personnes.prenom} {don.profils_participant?.personnes.nom}
                       </span>
-                      <span className="font-medium text-ink">{formatEur(don.montant)}</span>
+                      <span className="shrink-0 whitespace-nowrap font-medium text-ink">{formatEur(don.montant)}</span>
                     </li>
                   ))}
                 </ul>
@@ -291,7 +324,7 @@ export default function DashboardPage() {
                 <ul className="space-y-3">
                   {recentActivites.map((activite) => (
                     <li key={activite.id} className="text-sm">
-                      <p className="text-ink-muted">{activite.nom}</p>
+                      <p className="truncate text-ink-muted">{activite.nom}</p>
                       {activite.date_debut && (
                         <p className="text-xs text-ink-faint">{formatDate(activite.date_debut)}</p>
                       )}
@@ -304,22 +337,31 @@ export default function DashboardPage() {
 
           {adherentsActifs && (
             <Card
+              // À lg, 3ᵉ carte seule sur sa ligne : pleine largeur plutôt qu'une demi-largeur vide.
+              className={donsActifs ? 'lg:col-span-2 xl:col-span-1' : undefined}
               title="Adhésions à renouveler"
-              action={<Link to="/admin/adherents?etat=expire" className="text-xs font-medium text-stamp hover:underline">Voir les expirés ({nombreExpires})</Link>}
+              // En-tête aligné sur les autres cartes (un seul lien à droite du titre) ; le lien vers
+              // les expirés passe sous la liste, sinon les deux liens repoussent l'en-tête sous le titre.
+              action={<Link to="/admin/adherents?etat=a_renouveler" className="text-xs font-medium text-stamp hover:underline">Voir tout ({aRenouveler.length})</Link>}
             >
               {aRenouveler.length === 0 ? (
                 <p className="text-sm text-ink-faint">Aucune adhésion n'expire dans les 30 jours.</p>
               ) : (
                 <ul className="space-y-3">
                   {aRenouveler.slice(0, A_RENOUVELER_AFFICHES).map((a) => (
-                    <li key={a.adherentId} className="flex items-center justify-between text-sm">
-                      <span className="text-ink-muted">
+                    <li key={a.adherentId} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="min-w-0 truncate text-ink-muted">
                         {a.prenom} {a.nom}
                       </span>
-                      <span className="text-xs text-ink-faint">{formatDate(a.dateFin)}</span>
+                      <span className="shrink-0 whitespace-nowrap text-xs text-ink-faint">{formatDate(a.dateFin)}</span>
                     </li>
                   ))}
                 </ul>
+              )}
+              {nombreExpires > 0 && (
+                <p className="mt-4 border-t border-paper-border pt-3 text-xs">
+                  <Link to="/admin/adherents?etat=expire" className="font-medium text-stamp hover:underline">Voir les expirés ({nombreExpires})</Link>
+                </p>
               )}
             </Card>
           )}

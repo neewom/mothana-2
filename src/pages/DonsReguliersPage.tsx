@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { DonRegulier, ProfilParticipant, Activite } from '../types'
@@ -46,9 +47,11 @@ interface DonRegulierModalProps {
   participants: ProfilParticipant[]
   activites: Activite[]
   organisationId: string
+  /** Donateur présélectionné à la création (lien « Créer un don régulier » de la saisie de don). */
+  defaultParticipantId?: string
 }
 
-function DonRegulierModal({ open, onClose, onSaved, engagement, participants, activites, organisationId }: DonRegulierModalProps) {
+function DonRegulierModal({ open, onClose, onSaved, engagement, participants, activites, organisationId, defaultParticipantId }: DonRegulierModalProps) {
   const isEdit = !!engagement
   const [profilParticipantId, setProfilParticipantId] = useState('')
   const [activiteId, setActiviteId] = useState('')
@@ -61,7 +64,7 @@ function DonRegulierModal({ open, onClose, onSaved, engagement, participants, ac
 
   useEffect(() => {
     if (open) {
-      setProfilParticipantId(engagement?.profil_participant_id ?? '')
+      setProfilParticipantId(engagement?.profil_participant_id ?? defaultParticipantId ?? '')
       setActiviteId(engagement?.activite_id ?? '')
       setMontant(engagement ? String(engagement.montant) : '')
       setJourPrelevement(engagement ? String(engagement.jour_prelevement) : '1')
@@ -69,7 +72,7 @@ function DonRegulierModal({ open, onClose, onSaved, engagement, participants, ac
       setDateFin(engagement?.date_fin ?? '')
       setError(null)
     }
-  }, [open, engagement])
+  }, [open, engagement, defaultParticipantId])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -278,6 +281,8 @@ export default function DonsReguliersPage() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<DonRegulier | undefined>(undefined)
+  const [defaultParticipantId, setDefaultParticipantId] = useState<string | undefined>(undefined)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [deleteConfirm, setDeleteConfirm] = useState<DonRegulier | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [recherche, setRecherche] = useState('')
@@ -381,8 +386,19 @@ export default function DonsReguliersPage() {
 
   function openAdd() {
     setEditing(undefined)
+    setDefaultParticipantId(undefined)
     setModalOpen(true)
   }
+
+  // Arrivée depuis « Ce don se répète chaque mois ? » (saisie de don) : création ouverte d'emblée,
+  // donateur repris s'il était choisi. Paramètres retirés de l'URL pour ne pas rouvrir au rechargement.
+  useEffect(() => {
+    if (searchParams.get('nouveau') !== '1') return
+    setEditing(undefined)
+    setDefaultParticipantId(searchParams.get('participant') ?? undefined)
+    setModalOpen(true)
+    setSearchParams({}, { replace: true })
+  }, [searchParams, setSearchParams])
 
   function openEdit(e: DonRegulier) {
     setEditing(e)
@@ -503,9 +519,16 @@ export default function DonsReguliersPage() {
         <PageHeader
           title="Dons réguliers"
           subtitle={
-            loading
-              ? 'Chargement…'
-              : `${actifs.length} engagement${actifs.length > 1 ? 's' : ''} actif${actifs.length > 1 ? 's' : ''} · ${formatEur(totalMensuel)} par mois`
+            <>
+              <p>
+                {loading
+                  ? 'Chargement…'
+                  : `${actifs.length} engagement${actifs.length > 1 ? 's' : ''} actif${actifs.length > 1 ? 's' : ''} · ${formatEur(totalMensuel)} par mois`}
+              </p>
+              <p className="mt-1 max-w-2xl text-xs text-ink-faint">
+                Un engagement est un don mensuel prélevé chez le donateur : chaque mois, vous confirmez le prélèvement pour l’enregistrer comme don.
+              </p>
+            </>
           }
           actions={
             <Button onClick={openAdd}>
@@ -702,6 +725,7 @@ export default function DonsReguliersPage() {
         participants={participants}
         activites={activites}
         organisationId={organisationId}
+        defaultParticipantId={defaultParticipantId}
       />
 
       <Dialog open={!!deleteConfirm} onOpenChange={(next) => { if (!next) setDeleteConfirm(null) }}>

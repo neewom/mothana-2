@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import type { Don, ProfilParticipant, Activite, ModePaiement } from '../types'
 import ParticipantAutocomplete from './ParticipantAutocomplete'
@@ -14,6 +15,7 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Select } from './ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 
 interface DonModalProps {
   open: boolean
@@ -111,6 +113,20 @@ export default function DonModal({
     // la sélection en cours si la prop change pendant que la modale est déjà ouverte.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, don])
+
+  // Saisie commencée (création seulement) : quitter par le lien « Créer un don régulier » la perdrait.
+  const isDirty =
+    open &&
+    !isEdit &&
+    (profilParticipantId !== (defaultParticipantId ?? '') ||
+      activiteId !== '' ||
+      montant !== '' ||
+      date !== todayISO() ||
+      modePaiement !== 3)
+  const guardDialog = useUnsavedChangesGuard(isDirty, {
+    message: 'Vous avez commencé la saisie de ce don. Si vous quittez maintenant, elle sera perdue.',
+    stayLabel: 'Continuer la saisie',
+  })
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -244,9 +260,10 @@ export default function DonModal({
         <DialogContent
           className="max-w-md"
           aria-describedby={undefined}
+          initialFocus={isEdit ? 'content' : 'first-field'}
         >
           <DialogHeader>
-            <DialogTitle>{isEdit ? 'Modifier le don' : 'Ajouter un don'}</DialogTitle>
+            <DialogTitle>{isEdit ? 'Modifier le don' : 'Saisir un don'}</DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
@@ -329,6 +346,23 @@ export default function DonModal({
                   onChange={(e) => setMontant(e.target.value)}
                   placeholder="0.00"
                 />
+                {/* Don mensuel : il se gère comme un engagement (Dons réguliers), pas comme un don ponctuel.
+                    Création ouverte d'emblée, donateur repris s'il est déjà enregistré (pas un adhérent en
+                    attente). Placé sous le montant, là où la question se pose ; saisie commencée → le garde
+                    de modifications non enregistrées demande confirmation avant de quitter. */}
+                {!isEdit && (
+                  <p className="font-registre text-xs text-ink-faint">
+                    Ce don se répète chaque mois ?{' '}
+                    <Link
+                      to={`/admin/dons-reguliers?nouveau=1${
+                        participants.some((p) => p.id === profilParticipantId) ? `&participant=${encodeURIComponent(profilParticipantId)}` : ''
+                      }`}
+                      className="rounded-sm font-medium text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
+                    >
+                      Créer un don régulier
+                    </Link>
+                  </p>
+                )}
               </div>
 
               {/* Date */}
@@ -386,7 +420,7 @@ export default function DonModal({
 
       {/* Full participant form, opened from "+ Nouveau participant" — Dialog Radix distinct :
           la pile de calques Radix ne laisse que le calque du dessus réagir à Escape et aux
-          clics extérieurs, donc fermer ce formulaire ne ferme pas "Ajouter un don". */}
+          clics extérieurs, donc fermer ce formulaire ne ferme pas "Saisir un don". */}
       <ParticipantModal
         open={fullModalOpen}
         onClose={() => setFullModalOpen(false)}
@@ -397,6 +431,7 @@ export default function DonModal({
         }}
         organisationId={organisationId}
       />
+      {guardDialog}
     </>
   )
 }

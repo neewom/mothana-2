@@ -209,7 +209,8 @@ export default function CarteAdherentSection({ organisationId, lectureSeule = fa
                   {errMsg && <p className="mt-1 text-xs text-stamp">{errMsg}</p>}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                {/* Actions toujours à droite, y compris quand elles passent à la ligne (mobile). */}
+                <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                   <Button type="button" variant="secondary" size="sm" onClick={() => setPreviewTemplate(template)}>
                     Prévisualiser
                   </Button>
@@ -228,7 +229,7 @@ export default function CarteAdherentSection({ organisationId, lectureSeule = fa
                       {!template.is_archived && (
                         <Button
                           type="button"
-                          variant="danger"
+                          variant="secondary"
                           size="sm"
                           onClick={() => (template.is_active ? setArchiveConfirm(template) : handleArchive(template))}
                           disabled={isLoading}

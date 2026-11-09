@@ -94,10 +94,10 @@ describe('Edge Functions de renouvellement (parties pures)', () => {
   })
 
   it('notification des comptes : texte propre au renouvellement, sans donnée du demandeur', () => {
-    const html = notificationAdminsHtml('https://samakan.fr/admin/adherents/demandes', 'renouvellement')
+    const html = notificationAdminsHtml('https://samakan.fr/admin/adherents/renouvellements', 'renouvellement')
     expect(html).toContain('Nouvelle demande de renouvellement')
     expect(html).not.toMatch(/@|Bonjour /)
-    expect(sujetNotificationAdmins('renouvellement')).toBe('Nouvelle demande de renouvellement à examiner')
+    expect(sujetNotificationAdmins('renouvellement')).toBe('Nouvelle demande de renouvellement à valider')
     expect(sujetNotificationAdmins()).toBe("Nouvelle demande d'adhésion à examiner")
     expect(notificationAdminsHtml('https://samakan.fr/x')).toContain("Nouvelle demande d'adhésion")
   })

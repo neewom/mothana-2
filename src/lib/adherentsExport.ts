@@ -9,7 +9,9 @@ import { libelleAdhesion } from './adherentsFiltres'
 
 type ColonneExport = ColonneAdherent | 'nom' | 'prenom'
 
-/** Ordre des colonnes du tableau AdherentsPage — à garder aligné avec son en-tête. */
+/** Ordre des colonnes du tableau AdherentsPage — à garder aligné avec son en-tête, à une exception
+ * près : à l'écran, Adhésion s'intercale entre Nom et Prénom (pastille lisible en mobile) ; le CSV
+ * garde Nom et Prénom côte à côte. */
 export const ORDRE_COLONNES_TABLEAU: ColonneExport[] = [
   'civilite',
   'nom',
@@ -45,7 +47,8 @@ function cellules(
     case 'prenom':
       return { 'Prénom': a.prenom ?? '' }
     case 'statut':
-      return { Statut: a.statut === 'actif' ? 'Actif' : 'Archivé' }
+      // État de la fiche (« Active » / « Archivée »), distinct de l'état d'adhésion (« À jour »…).
+      return { Fiche: a.statut === 'actif' ? 'Active' : 'Archivée' }
     case 'adhesion':
       return { 'Adhésion': libelleAdhesion(adhesion, today).label }
     case 'date_adhesion':
@@ -80,7 +83,7 @@ export function lignesExportAdherents(
   )
 }
 
-const SLUG_STATUT: Record<string, string> = { a_jour: 'actifs', expire: 'expires', archive: 'archives', all: 'tous' }
+const SLUG_STATUT: Record<string, string> = { a_jour: 'a-jour', a_renouveler: 'a-renouveler', expire: 'expires', archive: 'archives', all: 'tous' }
 
 export function nomFichierExportAdherents(statut: string, selection: boolean, today: string): string {
   return `adherents_${selection ? 'selection' : SLUG_STATUT[statut] ?? statut}_${today}.csv`

@@ -2,12 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FAQ_CATEGORIES } from '../lib/faqData'
 import { Input } from '../components/ui/input'
-
-const DIACRITICS_PATTERN = new RegExp('[' + String.fromCharCode(0x0300) + '-' + String.fromCharCode(0x036f) + ']', 'g')
-
-function normalize(text: string): string {
-  return text.normalize('NFD').replace(DIACRITICS_PATTERN, '').toLowerCase()
-}
+import { correspondRecherche, normaliserRecherche } from '../lib/faqSearch'
 
 function itemKey(categoryId: string, question: string): string {
   return `${categoryId}::${question}`
@@ -19,14 +14,11 @@ export default function AidePage() {
   const isSearching = search.trim() !== ''
 
   const filteredCategories = useMemo(() => {
-    const term = normalize(search.trim())
-    if (!term) return FAQ_CATEGORIES
+    if (!normaliserRecherche(search)) return FAQ_CATEGORIES
 
     return FAQ_CATEGORIES.map((category) => ({
       ...category,
-      items: category.items.filter(
-        (item) => normalize(item.question).includes(term) || normalize(item.answer).includes(term)
-      ),
+      items: category.items.filter((item) => correspondRecherche(item, search)),
     })).filter((category) => category.items.length > 0)
   }, [search])
 
