@@ -298,7 +298,7 @@ function DetailPanel({
       <div className="space-y-2 border-t border-paper-border px-6 py-4">
         <div className="flex gap-2">
           <Button onClick={onEdit} className="flex-1">Modifier</Button>
-          <Button variant="secondary" onClick={onAddDon} className="flex-1">Ajouter un don</Button>
+          <Button variant="secondary" onClick={onAddDon} className="flex-1">Saisir un don</Button>
         </div>
         <Button variant="danger" onClick={onDelete} className="w-full">
           Supprimer le donateur

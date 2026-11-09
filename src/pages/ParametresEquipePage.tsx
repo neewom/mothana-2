@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import AdminAccountsManager from '../components/AdminAccountsManager'
-import ParametresSection from '../components/ParametresSection'
 import CodesPinSection from '../components/parametres/CodesPinSection'
 import ParametresGroupe from '../components/parametres/ParametresGroupe'
 import { Button } from '../components/ui/button'
@@ -53,7 +52,7 @@ export default function ParametresEquipePage() {
         actions={
           canManageTeam ? (
             <Button type="button" onClick={() => setAddFormOpen(true)} disabled={addFormOpen}>
-              {isSuperAdmin ? 'Ajouter un compte' : 'Ajouter un membre'}
+              Ajouter un membre
             </Button>
           ) : undefined
         }
@@ -61,39 +60,28 @@ export default function ParametresEquipePage() {
 
       {canManageTeam && organisationId ? (
         <>
-          <ParametresGroupe id="comptes" title="Comptes de l'équipe">
-            <ParametresSection
-              level={3}
-              title="Administrateurs et membres"
-              description="Les membres ont les mêmes accès que les administrateurs, sans droit de gestion des comptes."
-            >
-              {isSuperAdmin ? (
-                <AdminAccountsManager
-                  organisationId={organisationId}
-                  showRoleBadge
-                  canManageRoles
-                  heading="Comptes actifs"
-                  newFormTitle="Nouveau compte"
-                  addFormOpen={addFormOpen}
-                  onAddFormOpenChange={setAddFormOpen}
-                  emptyLabel="Aucun compte pour cette organisation."
-                  notificationsEquipeActives={notificationsEquipeActives}
-                />
-              ) : (
-                <AdminAccountsManager
-                  organisationId={organisationId}
-                  showRoleBadge
-                  manageableRoles={['contributeur']}
-                  readOnlyNote="Les comptes administrateurs sont gérés par Samakan : contactez-nous pour en ajouter ou en retirer un."
-                  heading="Comptes actifs"
-                  newFormTitle="Nouveau membre"
-                  addFormOpen={addFormOpen}
-                  onAddFormOpenChange={setAddFormOpen}
-                  emptyLabel="Aucun compte pour cette organisation."
-                  notificationsEquipeActives={notificationsEquipeActives}
-                />
-              )}
-            </ParametresSection>
+          {/* Un seul niveau de titre pour ce bloc (passe impeccable du 2026-11-09). */}
+          <ParametresGroupe
+            id="comptes"
+            title="Comptes de l'équipe"
+            description={
+              isSuperAdmin
+                ? 'Les membres ont les mêmes accès que les administrateurs, sans droit de gestion des comptes.'
+                : 'Les membres ont les mêmes accès que les administrateurs, sans droit de gestion des comptes. Vous pouvez ajouter des membres ; pour ajouter un administrateur, contactez Samakan.'
+            }
+          >
+            <AdminAccountsManager
+              organisationId={organisationId}
+              showRoleBadge
+              canManageRoles={isSuperAdmin}
+              manageableRoles={isSuperAdmin ? undefined : ['contributeur']}
+              heading={null}
+              newFormTitle="Nouveau membre"
+              addFormOpen={addFormOpen}
+              onAddFormOpenChange={setAddFormOpen}
+              emptyLabel="Aucun compte pour cette organisation."
+              notificationsEquipeActives={notificationsEquipeActives}
+            />
           </ParametresGroupe>
 
           <CodesPinSection organisationId={organisationId} avecVendeur={!!fonctionnalitesActivees?.evenements} />
