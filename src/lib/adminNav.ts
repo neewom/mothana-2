@@ -109,7 +109,12 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
     ...(options.canManageSecrets ? [{ label: 'Codes PIN', to: '/admin/parametres/codes-pin' }] : []),
     ...(flags.adherents && options.canManageSecrets ? [{ label: 'Intégrations', to: '/admin/parametres/integrations' }] : []),
   ]
-  items.push({ type: 'group', label: 'Paramètres', icon: 'cog', items: parametres })
+  // Une seule entrée (membre : Organisation seule) : lien direct plutôt qu'un groupe à un élément.
+  if (parametres.length === 1) {
+    items.push({ type: 'link', label: 'Paramètres', to: parametres[0].to, icon: 'cog', end: parametres[0].end })
+  } else {
+    items.push({ type: 'group', label: 'Paramètres', icon: 'cog', items: parametres })
+  }
 
   return items
 }

@@ -23,14 +23,14 @@ describe('buildNavItems', () => {
   })
 
   it('sans le module adhérents : ni Adhérents ni Communication', () => {
-    const nav = buildNavItems(flags({ adherents: false }), noCounters)
+    const nav = buildNavItems(flags({ adherents: false }), noCounters, { canManageTeam: true, canManageSecrets: true })
     expect(labels(nav)).not.toContain('Adhérents')
     expect(labels(nav)).not.toContain('Communication')
     expect(group(nav, 'Paramètres')?.map((i) => i.label)).not.toContain('Adhérents')
   })
 
   it('sans evenements : pas de Porte-monnaie', () => {
-    const nav = buildNavItems(flags({ evenements: false }), noCounters)
+    const nav = buildNavItems(flags({ evenements: false }), noCounters, { canManageTeam: true, canManageSecrets: true })
     expect(group(nav, 'Activités')?.map((i) => i.label)).toEqual(['Toutes les activités'])
     expect(group(nav, 'Paramètres')?.map((i) => i.label)).not.toContain('Porte-monnaie')
   })
@@ -78,10 +78,10 @@ describe('buildNavItems', () => {
   it('Paramètres ne garde que le transversal, Équipe et secrets selon les droits', () => {
     const admin = group(buildNavItems(flags(), noCounters, { canManageTeam: true, canManageSecrets: true }), 'Paramètres')!
     expect(admin.map((i) => i.label)).toEqual(['Organisation', 'Équipe', 'Codes PIN', 'Intégrations'])
-    const contributeur = group(buildNavItems(flags(), noCounters, { canManageTeam: false, canManageSecrets: false }), 'Paramètres')!
-    // Secrets (audit sécurité 2026-10-24) : ni Codes PIN ni Intégrations pour un contributeur.
-    expect(contributeur.map((i) => i.label)).toEqual(['Organisation'])
     const contributeurNav = buildNavItems(flags(), noCounters, { canManageTeam: false, canManageSecrets: false })
+    // Secrets (audit sécurité 2026-10-24) : ni Codes PIN ni Intégrations pour un contributeur, donc
+    // Organisation seule : « Paramètres » devient un lien direct, pas un groupe à un élément.
+    expect(contributeurNav.find((e) => e.label === 'Paramètres')).toEqual({ type: 'link', label: 'Paramètres', to: '/admin/parametres', icon: 'cog', end: true })
     expect(group(contributeurNav, 'Adhérents')?.map((i) => i.label)).toContain('Journal')
     expect(group(contributeurNav, 'Dons')?.map((i) => i.label)).toContain('Paramètres')
     const superAdmin = group(buildNavItems(flags(), noCounters, { canManageTeam: false, canManageSecrets: true }), 'Paramètres')!

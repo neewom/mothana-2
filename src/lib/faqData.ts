@@ -143,7 +143,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'Que faut-il configurer avant de générer un premier reçu fiscal ?',
         answer:
-          "Dans Paramètres > Organisation : nom, adresse, RNA ou SIREN et objet social ; dans Dons › Paramètres : la mention légale d'éligibilité. Tant que l'un de ces champs manque, aucun reçu ne peut être généré (message explicite sur la page Reçus fiscaux).",
+          "Dans Paramètres > Organisation : nom, adresse, RNA ou SIREN et objet social ; dans Dons › Paramètres (section Reçus fiscaux) : la mention légale d'éligibilité. Tant que l'un de ces champs manque, aucun reçu ne peut être généré (message explicite sur la page Reçus fiscaux).",
       },
       {
         question: 'Comment générer un reçu fiscal ?',

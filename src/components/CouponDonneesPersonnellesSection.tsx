@@ -96,6 +96,7 @@ export default function CouponDonneesPersonnellesSection({ organisationId, onDir
 
   return (
     <ParametresSection
+      level={3}
       title="Données personnelles des acheteurs"
       description="Portefeuilles événement : durée de conservation des emails et information des acheteurs."
     >
