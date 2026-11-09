@@ -43,7 +43,7 @@ export function confirmationRenouvellementHtml(nomAffiche: string, organisationN
   <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e2e8f0;">
     <h1 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">Demande de renouvellement bien reçue</h1>
     <p style="color: #475569; font-size: 14px; line-height: 1.5;">Bonjour ${escapeHtml(nomAffiche)},</p>
-    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Votre demande de renouvellement d'adhésion à ${escapeHtml(organisationNom)} a bien été reçue. Elle sera examinée prochainement par le conseil d'administration, qui reviendra vers vous.</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Votre demande de renouvellement d'adhésion à ${escapeHtml(organisationNom)} a bien été reçue. Elle sera examinée prochainement par l'association, qui reviendra vers vous.</p>
     <p style="color: #94a3b8; font-size: 12px;">Vous recevez cet email car cette adresse a été renseignée dans un formulaire de renouvellement d'adhésion.</p>
   </div>
 </body></html>`

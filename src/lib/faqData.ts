@@ -80,11 +80,11 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       },
       {
         question: 'Comment traiter une demande d’adhésion ou de renouvellement ?',
-        answer: "Les nouvelles adhésions se saisissent dans Adhérents ou dans l'espace bénévole (onglet « Nouvel adhérent », à autoriser dans Adhérents › Paramètres) ; un adhérent renouvelle en ligne depuis son lien personnel. Les demandes à examiner :",
+        answer: "Les nouvelles adhésions se saisissent dans Adhérents ou dans l'espace bénévole (onglet « Nouvel adhérent », à autoriser dans Adhérents › Paramètres) ; un adhérent renouvelle en ligne depuis son lien personnel. Les demandes de renouvellement à valider :",
         steps: [
-          "La demande arrive dans Adhérents > Demandes d'adhésion.",
-          'Ouvrez-la pour vérifier les informations (un doublon potentiel est signalé automatiquement).',
-          'Ratifiez (crée l’adhérent et son adhésion) ou refusez avec un motif.',
+          'La demande arrive dans Adhérents › Renouvellements.',
+          'Ouvrez-la pour comparer les coordonnées proposées avec la fiche et choisir celles à reprendre.',
+          'Validez (crée la nouvelle adhésion) ou refusez avec un motif.',
         ],
       },
       {

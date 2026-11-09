@@ -286,7 +286,7 @@ function Sidebar({ navItems, quickActions, onClose }: { navItems: NavEntry[]; qu
       <QuickActionsMenu actions={quickActions} onClose={onClose} />
 
       {/* Nav */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {navItems.map((entry) =>
           entry.type === 'group' ? (
             <NavGroupItem key={entry.label} group={entry} onClose={onClose} />

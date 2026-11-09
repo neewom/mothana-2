@@ -337,7 +337,7 @@ export default function DonsPage() {
     setModalOpen(true)
   }
 
-  // Arrivée depuis l'action rapide « Saisir un don » de l'accueil (?nouveau=1) : saisie ouverte
+  // Arrivée depuis l'action rapide « Saisir un don » du menu latéral (?nouveau=1) : saisie ouverte
   // d'emblée, paramètre retiré de l'URL pour ne pas rouvrir la modale au rechargement.
   const [searchParams, setSearchParams] = useSearchParams()
   useEffect(() => {
