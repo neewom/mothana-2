@@ -126,7 +126,7 @@ function useDonsForDashboard(organisationId: string) {
 
 interface TooltipPayloadItem {
   name?: string
-  value?: number
+  value?: number | null
   color?: string
 }
 
@@ -135,7 +135,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   return (
     <div className="rounded-sm border border-paper-border bg-white px-3 py-2 font-registre text-sm shadow-lg">
       {label && <p className="mb-1 font-medium text-ink-faint">{label}</p>}
-      {payload.map((entry, i) => (
+      {payload.filter((entry) => entry.value != null).map((entry, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="inline-block h-0.5 w-3" style={{ backgroundColor: entry.color }} />
           <span className="font-semibold text-ink">{formatEur(entry.value ?? 0)}</span>
@@ -173,7 +173,16 @@ export default function ComptabilitePage() {
       if (Number(y) === year) totalsN[monthIdx] += d.montant
       else if (Number(y) === year - 1) totalsN1[monthIdx] += d.montant
     }
-    return MOIS.map((mois, i) => ({ mois, montantN: totalsN[i], montantN1: totalsN1[i] }))
+    // La courbe de l'année affichée s'arrête au mois courant (2026-11-09) : un mois à venir vaut
+    // `null` (pas de point, pas de chute à 0) sauf s'il porte déjà un don daté dans le futur.
+    // L'année précédente reste complète.
+    const now = new Date()
+    const estAVenir = (i: number) => year > now.getFullYear() || (year === now.getFullYear() && i > now.getMonth())
+    return MOIS.map((mois, i) => ({
+      mois,
+      montantN: estAVenir(i) && totalsN[i] === 0 ? null : totalsN[i],
+      montantN1: totalsN1[i],
+    }))
   }, [dons, year])
 
   const activiteBreakdown = useMemo(() => {
@@ -200,7 +209,7 @@ export default function ComptabilitePage() {
   }, [dons, year])
 
   const stats = useMemo(() => {
-    const totalN = monthlyData.reduce((s, m) => s + m.montantN, 0)
+    const totalN = monthlyData.reduce((s, m) => s + (m.montantN ?? 0), 0)
     const totalN1 = monthlyData.reduce((s, m) => s + m.montantN1, 0)
     const variationPct = totalN1 > 0 ? ((totalN - totalN1) / totalN1) * 100 : 0
     return { totalN, totalN1, variationPct }

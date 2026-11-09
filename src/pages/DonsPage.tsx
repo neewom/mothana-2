@@ -27,6 +27,7 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
+import { ActionMenu } from '../components/ui/action-menu'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import SortableTableHead from '../components/SortableTableHead'
 import { DON_SORT_DEFAUT, directionInitialeDon, nomDonateur, trierDons, type DonSortField } from '../lib/donsSort'
@@ -289,9 +290,10 @@ export default function DonsPage() {
   }
 
   // Largeur (critère du gabarit : rien hors écran à 1 400 px) : le mode n'apparaît qu'en très
-  // grand écran, l'activité disparaît quand le panneau de détail réduit le tableau ; les deux
-  // restent dans le panneau.
-  const activiteCol = selectedDon ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
+  // grand écran, l'activité seulement à partir de `xl` (le montant doit rester visible en mobile
+  // et tablette, 2026-11-09) et disparaît quand le panneau de détail réduit le tableau ; les deux
+  // restent dans le panneau. En mobile, le montant passe avant le donateur.
+  const activiteCol = selectedDon ? 'hidden 2xl:table-cell' : 'hidden xl:table-cell'
 
   // Tri appliqué après les filtres et avant la pagination (le chargement suit l'ordre des id).
   const { sortField, sortDirection, toggleSort } = useTableSort<DonSortField>({
@@ -395,17 +397,27 @@ export default function DonsPage() {
           }
           actions={
             <>
-              <Button variant="secondary" onClick={() => setImportOpen(true)} aria-label="Importer" className="w-9 px-0 md:w-auto md:px-3.5">
+              {/* Sous `md` : un seul bouton « ⋯ » (même modèle que Donateurs et Adhérents). */}
+              <ActionMenu
+                iconOnly
+                label="Importer ou exporter"
+                className="md:hidden"
+                items={[
+                  { label: 'Importer', onSelect: () => setImportOpen(true) },
+                  { label: 'Exporter', onSelect: handleExport, disabled: filteredDons.length === 0 },
+                ]}
+              />
+              <Button variant="secondary" onClick={() => setImportOpen(true)} className="hidden md:inline-flex">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                 </svg>
-                <span className="hidden md:inline">Importer</span>
+                Importer
               </Button>
-              <Button variant="secondary" onClick={handleExport} disabled={filteredDons.length === 0} aria-label="Exporter" className="w-9 px-0 md:w-auto md:px-3.5">
+              <Button variant="secondary" onClick={handleExport} disabled={filteredDons.length === 0} className="hidden md:inline-flex">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
                 </svg>
-                <span className="hidden md:inline">Exporter</span>
+                Exporter
               </Button>
               <Button onClick={openAdd}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -448,10 +460,11 @@ export default function DonsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <SortableTableHead field="date" label="Date" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableTableHead field="date" label="Date" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="pl-4 pr-2 sm:px-6" />
+                      <SortableTableHead field="montant" label="Montant" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="px-2 md:hidden" />
+                      <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="pl-2 pr-4 sm:px-6" />
                       <TableHead className={activiteCol}>Activité</TableHead>
-                      <SortableTableHead field="montant" label="Montant" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
+                      <SortableTableHead field="montant" label="Montant" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="hidden md:table-cell" />
                       <SortableTableHead field="mode" label="Mode" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden 2xl:table-cell" />
                       <TableHead className="hidden md:table-cell" />
                     </TableRow>
@@ -466,17 +479,20 @@ export default function DonsPage() {
                           don.id === selectedDon?.id && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]'
                         )}
                       >
-                        <TableCell className="whitespace-nowrap text-ink-muted">
+                        <TableCell className="whitespace-nowrap pl-4 pr-2 text-ink-muted sm:px-6">
                           <span className="md:hidden">{formatDateShort(don.date)}</span>
                           <span className="hidden md:inline">{formatDate(don.date)}</span>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap font-medium text-ink">
+                        <TableCell className="whitespace-nowrap px-2 text-right font-registre-mono font-medium text-ink md:hidden">
+                          {formatEur(don.montant)}
+                        </TableCell>
+                        <TableCell className="max-w-[8.5rem] truncate whitespace-nowrap pl-2 pr-4 font-medium text-ink sm:max-w-[14rem] sm:px-6 md:max-w-[18rem]">
                           {nomDonateur(don)}
                         </TableCell>
-                        <TableCell className={cn(activiteCol, 'whitespace-nowrap text-ink-faint')}>
+                        <TableCell className={cn(activiteCol, 'max-w-[14rem] truncate whitespace-nowrap text-ink-faint')}>
                           {don.activites?.nom ?? '—'}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
+                        <TableCell className="hidden whitespace-nowrap text-right font-registre-mono font-medium text-ink md:table-cell">
                           {formatEur(don.montant)}
                         </TableCell>
                         <TableCell className="hidden 2xl:table-cell">
