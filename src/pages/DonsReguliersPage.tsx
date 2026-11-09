@@ -577,8 +577,8 @@ export default function DonsReguliersPage() {
           }
         />
 
-        {/* Dons à confirmer */}
-        <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+        {/* Dons à confirmer : même conteneur que la liste des engagements (bord à bord en mobile). */}
+        <ListeConteneur>
           <div className="flex flex-col gap-3 border-b border-paper-border-muted px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold text-ink">Dons à confirmer</h2>
@@ -640,7 +640,7 @@ export default function DonsReguliersPage() {
               ))}
             </ul>
           )}
-        </div>
+        </ListeConteneur>
 
         {/* Engagements : liste + panneau de détail */}
         <div className={cn('flex gap-6', selected && 'items-start')}>

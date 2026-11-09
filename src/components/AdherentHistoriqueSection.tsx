@@ -59,7 +59,7 @@ export default function AdherentHistoriqueSection({ organisationId, adherentId, 
                   <JournalActionLabel entry={entry} showTable={false} showName={false} />
                   <span className="shrink-0 font-registre-mono text-xs text-ink-faint">{formatDateTime(entry.created_at)}</span>
                 </div>
-                <p className="mt-0.5 text-xs text-ink-faint">Par {libelleAuteurJournal(entry)}</p>
+                {libelleAuteurJournal(entry) && <p className="mt-0.5 text-xs text-ink-faint">Par {libelleAuteurJournal(entry)}</p>}
               </li>
             ))}
           </ul>
