@@ -1,15 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { copyTextToClipboard } from '../../lib/clipboard'
 import { slugifyIdentifiant, type OrganisationAsset } from '../../lib/organisationAssets'
 import { isLogoEligibleUrl, ORGANISATION_LOGO_CHANGE_EVENT, setOrganisationLogo } from '../../lib/organisationLogo'
 import { storageUploadErrorMessage, type StorageUploadResult } from '../../lib/storageUpload'
 import { supabase } from '../../lib/supabaseClient'
 import { cn } from '../../lib/utils'
+import { ActionMenu, type ActionMenuItem } from '../ui/action-menu'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 
 const MAX_ASSET_SIZE = 2 * 1024 * 1024
+// Durée d'affichage de « Copié » sur le bouton « Copier le code ».
+const COPY_FEEDBACK_MS = 2000
 const ALLOWED_ASSET_TYPES = ['image/png', 'image/jpeg']
 
 async function uploadAssetFile(organisationId: string, identifiant: string, file: File): Promise<StorageUploadResult> {
@@ -40,6 +44,15 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
   const [newAssetLibelle, setNewAssetLibelle] = useState('')
   // Visuel désigné comme logo de l'en-tête (organisations.logo_asset_id) ; un seul à la fois.
   const [logoAssetId, setLogoAssetId] = useState<string | null>(null)
+  // Visuel dont le code vient d'être copié (confirmation temporaire sur son bouton).
+  const [copiedAssetId, setCopiedAssetId] = useState<string | null>(null)
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Champs fichier masqués de « Remplacer », ouverts depuis le menu ⋯ de chaque vignette.
+  const replaceInputs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  useEffect(() => () => {
+    if (copyTimer.current) clearTimeout(copyTimer.current)
+  }, [])
 
   useEffect(() => {
     if (!organisationId) return
@@ -186,7 +199,23 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
     setAssetActionLoading((prev) => ({ ...prev, [asset.id]: false }))
   }
 
+  // Copie du placeholder {{asset_…}} ; repli execCommand dans copyTextToClipboard (HTTP des serveurs de test).
+  async function handleCopyCode(asset: OrganisationAsset) {
+    const copied = await copyTextToClipboard(`{{asset_${asset.identifiant}}}`)
+    if (copyTimer.current) clearTimeout(copyTimer.current)
+    if (!copied) {
+      setCopiedAssetId(null)
+      setAssetError((prev) => ({ ...prev, [asset.id]: 'Copie impossible : sélectionnez le code pour le copier.' }))
+      return
+    }
+    setAssetError((prev) => ({ ...prev, [asset.id]: null }))
+    setCopiedAssetId(asset.id)
+    copyTimer.current = setTimeout(() => setCopiedAssetId(null), COPY_FEEDBACK_MS)
+  }
+
   async function handleDeleteAsset(asset: OrganisationAsset) {
+    const message = `Supprimer le visuel « ${asset.libelle} » ? Les modèles qui utilisent {{asset_${asset.identifiant}}} ne l’afficheront plus.`
+    if (!window.confirm(message)) return
     setAssetError((prev) => ({ ...prev, [asset.id]: null }))
     setAssetActionLoading((prev) => ({ ...prev, [asset.id]: true }))
 
@@ -208,6 +237,20 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
   }
 
   const logoAsset = assets.find((a) => a.id === logoAssetId) ?? null
+
+  function assetMenuItems(asset: OrganisationAsset): ActionMenuItem[] {
+    const busy = Boolean(assetActionLoading[asset.id])
+    const items: ActionMenuItem[] = [
+      { label: 'Remplacer', onSelect: () => replaceInputs.current[asset.id]?.click(), disabled: busy },
+    ]
+    if (asset.id === logoAssetId) {
+      items.push({ label: 'Retirer comme logo', onSelect: () => handleSetLogo(asset, false), disabled: busy })
+    } else if (isLogoEligibleUrl(asset.url)) {
+      items.push({ label: 'Définir comme logo', onSelect: () => handleSetLogo(asset, true), disabled: busy })
+    }
+    items.push({ label: 'Supprimer', onSelect: () => handleDeleteAsset(asset), disabled: busy })
+    return items
+  }
 
   return (
     <div className="max-w-lg">
@@ -280,48 +323,57 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
         </details>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {assets.map((asset) => (
-            <div key={asset.id} className="rounded-sm border border-paper-border p-3">
+            <div key={asset.id} className="flex flex-col rounded-sm border border-paper-border p-3">
               <div className="mb-2 flex items-start justify-between gap-2">
-                <p className="min-w-0 break-words text-xs font-medium text-ink-muted">{asset.libelle}</p>
-                {asset.id === logoAssetId && <Badge variant="stamp" className="shrink-0">Logo</Badge>}
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5 pt-0.5">
+                  <p className="min-w-0 break-words text-xs font-medium text-ink-muted">{asset.libelle}</p>
+                  {asset.id === logoAssetId && <Badge variant="stamp" className="shrink-0">Logo</Badge>}
+                </div>
+                {!lectureSeule && (
+                  <>
+                    <ActionMenu
+                      label={`Actions sur le visuel ${asset.libelle}`}
+                      iconOnly
+                      className="-mt-1 shrink-0"
+                      items={assetMenuItems(asset)}
+                    />
+                    <input
+                      ref={(el) => { replaceInputs.current[asset.id] = el }}
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="hidden"
+                      tabIndex={-1}
+                      aria-hidden
+                      disabled={assetActionLoading[asset.id]}
+                      onChange={(e) => {
+                        handleReplaceAsset(asset, e.target.files?.[0] ?? null)
+                        e.target.value = ''
+                      }}
+                    />
+                  </>
+                )}
               </div>
               <div className="mb-2 flex h-20 items-center justify-center overflow-hidden rounded-sm bg-paper-border/20">
                 <img src={asset.url} alt={asset.libelle} className="max-h-full max-w-full object-contain" />
               </div>
-              <p className="mb-2 truncate font-registre-mono text-[11px] text-stamp">{`{{asset_${asset.identifiant}}}`}</p>
-              {!lectureSeule && <div className="flex flex-row flex-wrap items-center gap-2 sm:flex-col sm:items-start">
-                <label className="cursor-pointer rounded-sm border border-paper-border px-3 py-1.5 font-registre text-xs font-medium text-ink-muted hover:bg-paper">
-                  {assetActionLoading[asset.id] ? 'Envoi…' : 'Remplacer'}
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    className="hidden"
-                    disabled={assetActionLoading[asset.id]}
-                    onChange={(e) => {
-                      handleReplaceAsset(asset, e.target.files?.[0] ?? null)
-                      e.target.value = ''
-                    }}
-                  />
-                </label>
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="sm"
-                  onClick={() => handleDeleteAsset(asset)}
-                  disabled={assetActionLoading[asset.id]}
-                >
-                  Supprimer
-                </Button>
-                {asset.id === logoAssetId ? (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => handleSetLogo(asset, false)} disabled={assetActionLoading[asset.id]}>
-                    Retirer comme logo
-                  </Button>
-                ) : isLogoEligibleUrl(asset.url) && (
-                  <Button type="button" variant="secondary" size="sm" onClick={() => handleSetLogo(asset, true)} disabled={assetActionLoading[asset.id]}>
-                    Définir comme logo
-                  </Button>
-                )}
-              </div>}
+              {/* Code entier, sans troncature : coupure de préférence après un « _ », sélectionnable à la main si la copie échoue. */}
+              <p className="mb-2 mt-auto select-all break-words font-registre-mono text-[11px] text-stamp">
+                {`{{asset_${asset.identifiant}}}`.split('_').map((part, i, parts) => (
+                  <span key={i}>{part}{i < parts.length - 1 && <>_<wbr /></>}</span>
+                ))}
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={() => handleCopyCode(asset)}
+                aria-label={`Copier le code du visuel ${asset.libelle}`}
+              >
+                {copiedAssetId === asset.id ? 'Code copié' : 'Copier le code'}
+              </Button>
+              <span className="sr-only" aria-live="polite">{copiedAssetId === asset.id ? 'Code copié' : ''}</span>
+              {assetActionLoading[asset.id] && <p className="mt-1.5 text-xs text-ink-faint" role="status">En cours…</p>}
               {assetError[asset.id] && <p className="mt-1.5 text-xs text-stamp">{assetError[asset.id]}</p>}
             </div>
           ))}
