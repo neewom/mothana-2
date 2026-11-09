@@ -1,4 +1,4 @@
-import { useState, type PointerEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react'
 
 interface TooltipProps {
   content: ReactNode
@@ -12,27 +12,66 @@ interface TooltipProps {
   className?: string
   /** Au-dessus par défaut ; `bottom` pour un déclencheur collé en haut de l'écran (barre du haut). */
   placement?: 'top' | 'bottom'
-  /** Bord du déclencheur sur lequel la bulle s'aligne : `right` pour un déclencheur proche du bord
-   * droit de l'écran (la bulle s'étend alors vers la gauche). */
-  align?: 'left' | 'right'
+  /** Aligné sur le bord gauche du déclencheur par défaut ; `end` (bord droit) pour un déclencheur
+   * proche du bord droit de l'écran (la bulle s'étend alors vers la gauche). */
+  align?: 'start' | 'end'
+  /** Largeur max de la bulle (`max-w-xs` par défaut) : plus étroite pour un déclencheur loin du bord gauche, en mobile. */
+  maxWidthClassName?: string
+  /** Bulle en position fixe, calculée à l'ouverture : pour un déclencheur dans un conteneur qui
+   * coupe ce qui dépasse (tableau défilant). Refermée au défilement et au redimensionnement. */
+  fixed?: boolean
 }
 
-// Hover (desktop) + tap pour rouvrir/fermer (mobile/tactile) — pas de dépendance
-// à mouseenter côté tactile, qui n'est pas fiable sur tous les navigateurs.
-export default function Tooltip({ content, children, triggerClassName, bare = false, className, placement = 'top', align = 'left' }: TooltipProps) {
+// Survol à la souris (desktop) + tap pour ouvrir/fermer (mobile/tactile). Le survol ne réagit qu'à
+// la souris : un tap émule aussi un mouseenter, qui ouvrait l'infobulle juste avant que le clic la
+// referme. Un tap ou clic en dehors la referme (en tactile, `onBlur` ne se déclenche pas toujours).
+export default function Tooltip({ content, children, triggerClassName, bare = false, className, placement = 'top', align = 'start', maxWidthClassName = 'max-w-xs', fixed = false }: TooltipProps) {
   const [open, setOpen] = useState(false)
+  const [fixedStyle, setFixedStyle] = useState<CSSProperties | undefined>(undefined)
+  const ref = useRef<HTMLSpanElement>(null)
 
-  // Survol réservé à la souris : un toucher émet aussi un « survol » juste avant le clic, qui
-  // rouvrait puis refermait aussitôt la bulle (elle ne s'ouvrait jamais au doigt).
+  function ouvrir() {
+    if (fixed && ref.current) {
+      const r = ref.current.getBoundingClientRect()
+      setFixedStyle({
+        position: 'fixed',
+        ...(placement === 'bottom' ? { top: r.bottom + 6 } : { bottom: window.innerHeight - r.top + 6 }),
+        // clientWidth exclut la barre de défilement verticale, contrairement à window.innerWidth.
+        ...(align === 'end' ? { right: document.documentElement.clientWidth - r.right } : { left: r.left }),
+      })
+    }
+    setOpen(true)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const fermerSiDehors = (e: globalThis.PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', fermerSiDehors)
+    return () => document.removeEventListener('pointerdown', fermerSiDehors)
+  }, [open])
+
+  useEffect(() => {
+    if (!open || !fixed) return
+    const fermer = () => setOpen(false)
+    window.addEventListener('scroll', fermer, true)
+    window.addEventListener('resize', fermer)
+    return () => {
+      window.removeEventListener('scroll', fermer, true)
+      window.removeEventListener('resize', fermer)
+    }
+  }, [open, fixed])
+
   const handlers = {
-    onPointerEnter: (e: PointerEvent<HTMLElement>) => { if (e.pointerType === 'mouse') setOpen(true) },
+    onPointerEnter: (e: PointerEvent<HTMLElement>) => { if (e.pointerType === 'mouse') ouvrir() },
     onPointerLeave: (e: PointerEvent<HTMLElement>) => { if (e.pointerType === 'mouse') setOpen(false) },
-    onClick: () => setOpen((o) => !o),
+    onClick: () => { if (open) setOpen(false); else ouvrir() },
     onBlur: () => setOpen(false),
   }
 
   return (
-    <span className={`relative inline-block ${className ?? ''}`}>
+    <span ref={ref} className={`relative inline-block ${className ?? ''}`}>
       {bare ? (
         <span {...handlers} className={triggerClassName}>
           {children}
@@ -47,7 +86,11 @@ export default function Tooltip({ content, children, triggerClassName, bare = fa
         </button>
       )}
       {open && (
-        <div role="tooltip" className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} z-30 w-max max-w-xs whitespace-pre-line rounded-sm bg-ink px-3 py-2 font-registre text-xs leading-relaxed text-paper shadow-lg ${placement === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
+        <div
+          role="tooltip"
+          style={fixed ? fixedStyle : undefined}
+          className={`${fixed ? '' : `absolute ${align === 'end' ? 'right-0' : 'left-0'} ${placement === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`} z-30 w-max ${maxWidthClassName} whitespace-pre-line rounded-sm bg-ink px-3 py-2 font-registre text-xs leading-relaxed text-paper shadow-lg`}
+        >
           {content}
         </div>
       )}

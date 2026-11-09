@@ -195,7 +195,7 @@ export default function GererListesModal({ open, onClose, onChanged, organisatio
                           </TableCell>
                           <TableCell>
                             <div className="flex justify-end gap-1.5">
-                              <ButtonHint align="right" hint={l.nombre_adherents === 0 ? 'La liste est déjà vide' : 'Vider la liste'}>
+                              <ButtonHint align="end" hint={l.nombre_adherents === 0 ? 'La liste est déjà vide' : 'Vider la liste'}>
                                 <Button
                                   type="button"
                                   variant="secondary"
@@ -209,7 +209,7 @@ export default function GererListesModal({ open, onClose, onChanged, organisatio
                                   </svg>
                                 </Button>
                               </ButtonHint>
-                              <ButtonHint align="right" hint="Supprimer la liste">
+                              <ButtonHint align="end" hint="Supprimer la liste">
                                 <Button
                                   type="button"
                                   variant="danger"

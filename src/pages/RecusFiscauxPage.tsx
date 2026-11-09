@@ -21,6 +21,7 @@ import { Button } from '../components/ui/button'
 import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import ButtonHint from '../components/ButtonHint'
+import Tooltip from '../components/Tooltip'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import { PageHeader } from '../components/ui/page-header'
 import { TablePagination } from '../components/ui/table-pagination'
@@ -42,7 +43,7 @@ import { useTableSort } from '../hooks/useTableSort'
 import { useModeListe } from '../hooks/useModeListe'
 import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import {
-  ENVOI_OPTIONS, GENERATION_OPTIONS, RECUS_FILTRES_VIDES, envoiVersionActuelle, filtrerRecus, nombreFiltresRecus, statutEnvoi,
+  ENVOI_OPTIONS, GENERATION_OPTIONS, RECUS_FILTRES_VIDES, envoiLigne, envoiVersionActuelle, exclusEnvoiParDonateur, filtrerRecus, nombreFiltresRecus,
   type RecusFiltres,
 } from '../lib/recusFiltres'
 
@@ -706,9 +707,13 @@ export default function RecusFiscauxPage() {
     })
   }
 
+  // Exclus du lot d'envoi (serveur) : « Non envoyé » = reçus que le bouton d'envoi traite ; repli sur
+  // l'adresse vide tant que le récapitulatif n'est pas chargé.
+  const exclusEnvoiMap = useMemo(() => exclusEnvoiParDonateur(recapEnvoi?.exclus), [recapEnvoi])
+
   const filteredRows = useMemo(
-    () => filtrerRecus(rows.filter((r) => matchesParticipantSearch(r.profil, search)), filtres),
-    [rows, search, filtres]
+    () => filtrerRecus(rows.filter((r) => matchesParticipantSearch(r.profil, search)), filtres, exclusEnvoiMap),
+    [rows, search, filtres, exclusEnvoiMap]
   )
 
   // ---------------------------------------------------------------------------
@@ -766,11 +771,21 @@ export default function RecusFiscauxPage() {
 
   // Envoi par email de la version actuelle (même règle que le panneau et le lot d'envoi, lib/recusFiltres) ;
   // rien pour un donateur sans reçu.
-  const pastilleEnvoi = (row: ParticipantRow) => {
-    const statut = statutEnvoi(row.recu, row.profil.personnes.email)
-    if (!statut || !row.recu) return null
-    if (statut === 'envoye') return <Badge variant="success">Envoyé le {formatJourMois(envoiVersionActuelle(row.recu)!)}</Badge>
-    return <Badge variant="neutral">{statut === 'sans_email' ? 'Sans email' : 'Non envoyé'}</Badge>
+  // Non envoyable : écarté par le lot d'envoi, raison du serveur en infobulle (clic sans ouvrir la fiche).
+  // En carte, la ligne entière est déjà un bouton : déclencheur `bare` (pas de bouton imbriqué).
+  const pastilleEnvoi = (row: ParticipantRow, dansCarte = false, alignFin = false) => {
+    const envoi = envoiLigne(row, exclusEnvoiMap)
+    if (!envoi || !row.recu) return null
+    if (envoi.statut === 'envoye') return <Badge variant="success">Envoyé le {formatJourMois(envoiVersionActuelle(row.recu)!)}</Badge>
+    if (envoi.statut === 'non_envoye') return <Badge variant="neutral">Non envoyé</Badge>
+    return (
+      <span onClick={(e) => e.stopPropagation()}>
+        <Tooltip content={envoi.raison} bare={dansCarte} fixed={!dansCarte} align={alignFin ? 'end' : 'start'}
+          maxWidthClassName={dansCarte ? 'max-w-60' : undefined} triggerClassName={dansCarte ? undefined : 'no-underline'}>
+          <Badge variant="warning">Non envoyable</Badge>
+        </Tooltip>
+      </span>
+    )
   }
 
   // Colonnes du tableau et place de chacune dans une carte : donateur et total en première
@@ -826,8 +841,8 @@ export default function RecusFiscauxPage() {
     {
       key: 'envoi', label: 'Envoi', role: 'pastille',
       headClassName: pastillesCol, cellClassName: cn(pastillesCol, 'whitespace-nowrap'),
-      cell: (row) => pastilleEnvoi(row) ?? <span className="text-ink-faint">—</span>,
-      carte: (row) => pastilleEnvoi(row),
+      cell: (row) => pastilleEnvoi(row, false, true) ?? <span className="text-ink-faint">—</span>,
+      carte: (row) => pastilleEnvoi(row, true),
     },
   ]
 
@@ -889,7 +904,7 @@ export default function RecusFiscauxPage() {
             )}
             {rows.length > 0 && (
               <ButtonHint
-                align="right"
+                align="end"
                 hint={
                   !(recusLot.actif || recusLot.loading || manquants.length === 0)
                     ? undefined
@@ -1150,10 +1165,10 @@ export default function RecusFiscauxPage() {
                   <p className="font-registre-mono text-xl font-bold">{formatMontant(selectedRow.total_dons)}</p>
                 </DetailField>
                 <DetailField label="Statut">
-                  {/* Mêmes pastilles que la liste : génération, avertissement de fiche, erreur, envoi. */}
+                  {/* Mêmes pastilles que la liste (génération, avertissement, erreur, envoi) ; colonne de droite : bulle alignée à droite. */}
                   <div className="flex flex-wrap items-center gap-1.5">
                     {statutRecu(selectedRow)}
-                    {pastilleEnvoi(selectedRow)}
+                    {pastilleEnvoi(selectedRow, false, true)}
                   </div>
                 </DetailField>
               </div>
@@ -1254,7 +1269,7 @@ export default function RecusFiscauxPage() {
         />
         <ChoixFiltre
           legend="Envoi par email"
-          aide="Version actuelle des reçus générés : un reçu régénéré depuis son envoi redevient « Non envoyé ». Sans email : le donateur n'a pas d'adresse."
+          aide="Version actuelle des reçus générés : un reçu régénéré depuis son envoi redevient « Non envoyé ». Non envoyable : écarté de l'envoi en lot (pas d'adresse, adresse invalide ou rejetée, envoi précédent incertain) ; la raison s'affiche sur la pastille."
           options={ENVOI_OPTIONS}
           value={brouillon.envoi}
           onChange={(envoi) => setBrouillon((b) => ({ ...b, envoi }))}

@@ -20,7 +20,7 @@ export default function ButtonHint({
   className?: string
   /** Classes de la zone de survol autour du bouton (`block` pour un bouton pleine largeur). */
   triggerClassName?: string
-  align?: 'left' | 'right'
+  align?: 'start' | 'end'
 }) {
   if (!hint) return <>{children}</>
   return (
