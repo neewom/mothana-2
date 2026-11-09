@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type PointerEvent, type ReactNode } from 'react'
 
 interface TooltipProps {
   content: ReactNode
@@ -22,9 +22,11 @@ interface TooltipProps {
 export default function Tooltip({ content, children, triggerClassName, bare = false, className, placement = 'top', align = 'left' }: TooltipProps) {
   const [open, setOpen] = useState(false)
 
+  // Survol réservé à la souris : un toucher émet aussi un « survol » juste avant le clic, qui
+  // rouvrait puis refermait aussitôt la bulle (elle ne s'ouvrait jamais au doigt).
   const handlers = {
-    onMouseEnter: () => setOpen(true),
-    onMouseLeave: () => setOpen(false),
+    onPointerEnter: (e: PointerEvent<HTMLElement>) => { if (e.pointerType === 'mouse') setOpen(true) },
+    onPointerLeave: (e: PointerEvent<HTMLElement>) => { if (e.pointerType === 'mouse') setOpen(false) },
     onClick: () => setOpen((o) => !o),
     onBlur: () => setOpen(false),
   }
