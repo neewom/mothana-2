@@ -17,6 +17,7 @@ import { participantsImportConfig } from '../lib/import/configs'
 import { MODE_PAIEMENT_LABELS } from '../lib/modePaiement'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
+import { ActionMenu } from '../components/ui/action-menu'
 import { PageHeader } from '../components/ui/page-header'
 import { TablePagination } from '../components/ui/table-pagination'
 import { ListToolbar } from '../components/ui/list-toolbar'
@@ -298,7 +299,7 @@ function DetailPanel({
       <div className="space-y-2 border-t border-paper-border px-6 py-4">
         <div className="flex gap-2">
           <Button onClick={onEdit} className="flex-1">Modifier</Button>
-          <Button variant="secondary" onClick={onAddDon} className="flex-1">Ajouter un don</Button>
+          <Button variant="secondary" onClick={onAddDon} className="flex-1">Saisir un don</Button>
         </div>
         <Button variant="danger" onClick={onDelete} className="w-full">
           Supprimer le donateur
@@ -577,13 +578,23 @@ export default function ParticipantsPage() {
           }
           actions={
             <>
-              <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              {/* Sous `md` : un seul bouton « ⋯ » (même modèle que Dons et Adhérents). */}
+              <ActionMenu
+                iconOnly
+                label="Importer ou exporter"
+                className="md:hidden"
+                items={[
+                  { label: 'Importer', onSelect: () => setImportOpen(true) },
+                  { label: 'Exporter', onSelect: handleExport, disabled: loading || sortedParticipants.length === 0 },
+                ]}
+              />
+              <Button variant="secondary" onClick={() => setImportOpen(true)} className="hidden md:inline-flex">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                 </svg>
                 Importer
               </Button>
-              <Button variant="secondary" onClick={handleExport} disabled={loading || sortedParticipants.length === 0}>
+              <Button variant="secondary" onClick={handleExport} disabled={loading || sortedParticipants.length === 0} className="hidden md:inline-flex">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-6-3.75L12 17.25m0 0L7.5 12.75M12 17.25V3" />
                 </svg>
@@ -627,9 +638,9 @@ export default function ParticipantsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <SortableTableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
+                      <SortableTableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden xl:table-cell" />
                       <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                      <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
                       <SortableTableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="hidden md:table-cell" />
                       <TableHead />
                     </TableRow>
@@ -644,13 +655,15 @@ export default function ParticipantsPage() {
                           p.id === selectedParticipant?.id && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]'
                         )}
                       >
-                        <TableCell className="hidden text-ink-faint md:table-cell">
+                        <TableCell className="hidden text-ink-faint xl:table-cell">
                           {p.personnes.civilite ? CIVILITE_LABELS[p.personnes.civilite] : '—'}
                         </TableCell>
-                        <TableCell className="font-medium text-ink">
+                        {/* Sous `md`, la colonne Prénom est masquée : le prénom suit le nom. */}
+                        <TableCell className="max-w-[16rem] truncate whitespace-nowrap font-medium text-ink md:max-w-none">
                           {p.personnes.nom}
+                          {p.personnes.prenom && <span className="font-normal text-ink-muted md:hidden"> {p.personnes.prenom}</span>}
                         </TableCell>
-                        <TableCell className="text-ink-muted">
+                        <TableCell className="hidden whitespace-nowrap text-ink-muted md:table-cell">
                           {p.personnes.prenom ?? '—'}
                         </TableCell>
                         <TableCell className="hidden whitespace-nowrap text-right font-registre-mono font-medium text-ink md:table-cell">

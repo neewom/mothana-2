@@ -76,11 +76,11 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'Comment fonctionne le renouvellement d’une adhésion ?',
         answer:
-          "La date de fin d'une adhésion est calculée automatiquement selon la règle choisie dans Paramètres → Adhésions → Durée des adhésions : un an après la date d'adhésion (par défaut), ou au 31 décembre — avec un mois à partir duquel l'adhésion vaut aussi l'année suivante (ex. une adhésion prise en décembre court jusqu'au 31 décembre de l'année suivante). Elle ne se saisit jamais à la main ; « Renouveler l'adhésion » crée un nouveau cycle avec sa propre date de fin. Après un changement de règle, l'application propose de recalculer les adhésions existantes.",
+          "La date de fin d'une adhésion est calculée automatiquement selon la règle choisie dans Adhérents › Paramètres › Durée des adhésions : un an après la date d'adhésion (par défaut), ou au 31 décembre — avec un mois à partir duquel l'adhésion vaut aussi l'année suivante (ex. une adhésion prise en décembre court jusqu'au 31 décembre de l'année suivante). Elle ne se saisit jamais à la main ; « Renouveler l'adhésion » crée un nouveau cycle avec sa propre date de fin. Après un changement de règle, l'application propose de recalculer les adhésions existantes.",
       },
       {
         question: 'Comment traiter une demande d’adhésion ou de renouvellement ?',
-        answer: "Les nouvelles adhésions se saisissent dans Adhérents ou dans l'espace bénévole (onglet « Nouvel adhérent », à autoriser dans Paramètres → Adhésions) ; un adhérent renouvelle en ligne depuis son lien personnel. Les demandes à examiner :",
+        answer: "Les nouvelles adhésions se saisissent dans Adhérents ou dans l'espace bénévole (onglet « Nouvel adhérent », à autoriser dans Adhérents › Paramètres) ; un adhérent renouvelle en ligne depuis son lien personnel. Les demandes à examiner :",
         steps: [
           "La demande arrive dans Adhérents > Demandes d'adhésion.",
           'Ouvrez-la pour vérifier les informations (un doublon potentiel est signalé automatiquement).',
@@ -143,7 +143,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'Que faut-il configurer avant de générer un premier reçu fiscal ?',
         answer:
-          "Dans Paramètres > Organisation : nom, adresse, RNA ou SIREN et objet social ; dans Paramètres > Reçus fiscaux : la mention légale d'éligibilité. Tant que l'un de ces champs manque, aucun reçu ne peut être généré (message explicite sur la page Reçus fiscaux).",
+          "Dans Paramètres > Organisation : nom, adresse, RNA ou SIREN et objet social ; dans Dons › Paramètres (section Reçus fiscaux) : la mention légale d'éligibilité. Tant que l'un de ces champs manque, aucun reçu ne peut être généré (message explicite sur la page Reçus fiscaux).",
       },
       {
         question: 'Comment générer un reçu fiscal ?',
@@ -178,7 +178,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         question: 'J’ai oublié le code PIN bénévole, comment le retrouver ?',
         answer:
-          "Un administrateur peut l'afficher (icône œil) ou le régénérer depuis Paramètres > Codes PIN.",
+          "Un administrateur peut l'afficher (icône œil) ou le régénérer depuis Paramètres > Équipe et accès (section Codes PIN).",
       },
       {
         question: 'Que peut faire un bénévole une fois connecté ?',

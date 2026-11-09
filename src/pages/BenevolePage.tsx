@@ -115,7 +115,7 @@ export default function BenevolePage() {
   const [organisationNom, setOrganisationNom] = useState<string | null>(null)
   const logoUrl = useOrganisationLogoUrl(organisationId)
   const [statutsUrl, setStatutsUrl] = useState<string | null>(null)
-  // Réglage de l'organisation (Paramètres → Adhésions) ; la RPC le revérifie à chaque saisie.
+  // Réglage de l'organisation (Adhérents › Paramètres) ; la RPC le revérifie à chaque saisie.
   const [saisieAdhesionActive, setSaisieAdhesionActive] = useState(false)
   const adhesionActive = adherentsActifs && saisieAdhesionActive
 

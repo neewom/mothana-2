@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import ParametresSection from '../components/ParametresSection'
 import AssetsManager from '../components/parametres/AssetsManager'
 import LectureSeuleNotice from '../components/parametres/LectureSeuleNotice'
@@ -6,6 +7,7 @@ import SaveBar from '../components/parametres/SaveBar'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
+import { useAdminOutletContext } from '../hooks/useAdminOutletContext'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { usePeutModifierParametres } from '../hooks/usePeutModifierParametres'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
@@ -57,6 +59,13 @@ function toForm(row: OrganisationRow): OrganisationForm {
 
 export default function ParametresOrganisationPage() {
   const organisationId = useOrganisationId()
+  // Renvoi vers les réglages rangés dans leur module (passe UX du 2026-11-08).
+  const { fonctionnalitesActivees: flags } = useAdminOutletContext()
+  const reglagesModules = [
+    ...(flags?.dons ? [{ label: 'Paramètres des dons', to: '/admin/dons/parametres' }] : []),
+    ...(flags?.adherents ? [{ label: 'Paramètres des adhérents', to: '/admin/adherents/parametres' }] : []),
+    ...(flags?.evenements ? [{ label: 'Paramètres des activités', to: '/admin/activites/parametres' }] : []),
+  ]
   const peutModifier = usePeutModifierParametres()
   const [saved, setSaved] = useState<OrganisationForm | null>(null)
   const [form, setForm] = useState<OrganisationForm | null>(null)
@@ -162,6 +171,18 @@ export default function ParametresOrganisationPage() {
         <div>
           <h1 className="text-2xl font-bold text-ink md:text-3xl">Organisation</h1>
           <p className="mt-1 text-sm text-ink-muted">Identité de l’association, signataire et visuels utilisés sur les reçus et les cartes.</p>
+          {reglagesModules.length > 0 && (
+            <p className="mt-2 text-sm text-ink-muted">
+              Les réglages propres à un module sont dans son menu :{' '}
+              {reglagesModules.map((r, i) => (
+                <Fragment key={r.to}>
+                  {i > 0 && ', '}
+                  <Link to={r.to} className="font-medium text-stamp underline underline-offset-2 hover:no-underline">{r.label}</Link>
+                </Fragment>
+              ))}
+              .
+            </p>
+          )}
         </div>
 
         {!peutModifier && <LectureSeuleNotice />}

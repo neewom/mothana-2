@@ -230,7 +230,7 @@ export default function DashboardPage() {
       titre: "Statuts de l'association non configurés",
       detail: "La page de renouvellement et l'espace bénévole ne peuvent pas les proposer à la lecture.",
       libelle: 'Configurer',
-      to: '/admin/parametres/adhesions',
+      to: '/admin/adherents/parametres',
     }] : []),
   ]
 

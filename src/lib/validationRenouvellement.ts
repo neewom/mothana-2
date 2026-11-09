@@ -76,7 +76,7 @@ export function messageErreurValidation(message: string): string {
   if (message.includes('ACCES_REFUSE')) return "Vous n'avez pas les droits pour valider cette demande."
   if (message.includes('DATE_ADHESION_REQUISE')) return "La date d'adhésion est obligatoire."
   if (message.includes('REGLE_ADHESION_INTROUVABLE')) {
-    return "Aucune durée d'adhésion n'est configurée pour l'organisation : réglez-la dans Paramètres → Adhésions."
+    return "Aucune durée d'adhésion n'est configurée pour l'organisation : réglez-la dans Adhérents › Paramètres."
   }
   // Tout autre code levé par la base (DEMANDE_PAS_UN_RENOUVELLEMENT, CHAMP_INVALIDE…) : jamais le
   // code brut à l'écran. Un message technique non codé (réseau…) reste affiché tel quel.

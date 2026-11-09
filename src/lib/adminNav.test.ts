@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
-import { buildNavItems, type NavEntry } from './adminNav'
+import { buildNavItems, buildQuickActions, type NavEntry } from './adminNav'
 
 const flags = (overrides: Partial<FonctionnalitesActivees> = {}): FonctionnalitesActivees => ({
   dons: true, adherents: true, evenements: true, credit_manuel: false, ...overrides,
@@ -17,27 +17,28 @@ describe('buildNavItems', () => {
   it('range Communication et le porte-monnaie selon la simulation 1', () => {
     const nav = buildNavItems(flags(), noCounters)
     expect(labels(nav)).toEqual(['Accueil', 'Dons', 'Adhérents', 'Activités', 'Communication', 'Statistiques', 'Paramètres'])
-    expect(group(nav, 'Activités')?.map((i) => i.to)).toEqual(['/admin/activites', '/admin/activites/porte-monnaie'])
+    expect(group(nav, 'Activités')?.map((i) => i.to)).toEqual(['/admin/activites', '/admin/activites/porte-monnaie', '/admin/activites/parametres'])
     expect(group(nav, 'Communication')?.map((i) => i.to)).toEqual(['/admin/communication/emailing', '/admin/communication/courrier'])
-    expect(group(nav, 'Adhérents')?.map((i) => i.label)).toEqual(['Adhérents', 'Demandes'])
+    expect(group(nav, 'Adhérents')?.map((i) => i.label)).toEqual(['Adhérents', 'Renouvellements', 'Journal', 'Paramètres'])
   })
 
   it('sans le module adhérents : ni Adhérents ni Communication', () => {
-    const nav = buildNavItems(flags({ adherents: false }), noCounters)
+    const nav = buildNavItems(flags({ adherents: false }), noCounters, { canManageTeam: true, canManageSecrets: true })
     expect(labels(nav)).not.toContain('Adhérents')
     expect(labels(nav)).not.toContain('Communication')
     expect(group(nav, 'Paramètres')?.map((i) => i.label)).not.toContain('Adhérents')
   })
 
   it('sans evenements : pas de Porte-monnaie', () => {
-    const nav = buildNavItems(flags({ evenements: false }), noCounters)
+    const nav = buildNavItems(flags({ evenements: false }), noCounters, { canManageTeam: true, canManageSecrets: true })
     expect(group(nav, 'Activités')?.map((i) => i.label)).toEqual(['Toutes les activités'])
+    expect(group(nav, 'Paramètres')?.map((i) => i.label)).not.toContain('Porte-monnaie')
   })
 
   it('avec seulement evenements : Activités ne contient que le porte-monnaie', () => {
     const nav = buildNavItems(flags({ dons: false, adherents: false }), noCounters)
     expect(labels(nav)).toEqual(['Accueil', 'Activités', 'Paramètres'])
-    expect(group(nav, 'Activités')?.map((i) => i.label)).toEqual(['Porte-monnaie'])
+    expect(group(nav, 'Activités')?.map((i) => i.label)).toEqual(['Porte-monnaie', 'Paramètres'])
   })
 
   it('sans dons : ni Dons ni Statistiques', () => {
@@ -46,32 +47,102 @@ describe('buildNavItems', () => {
     expect(labels(nav)).not.toContain('Statistiques')
   })
 
-  it('porte les compteurs sur Dons réguliers et Demandes', () => {
+  it('porte les compteurs sur Dons réguliers et Renouvellements', () => {
     const nav = buildNavItems(flags(), { donsReguliersAConfirmer: 3, demandesEnAttente: 2 })
     expect(group(nav, 'Dons')?.find((i) => i.label === 'Dons réguliers')?.count).toBe(3)
-    expect(group(nav, 'Adhérents')?.find((i) => i.label === 'Demandes')?.count).toBe(2)
+    expect(group(nav, 'Adhérents')?.find((i) => i.label === 'Renouvellements')?.count).toBe(2)
   })
 
-  it('range les Paramètres par sujet, Équipe seulement pour un admin', () => {
+  it('range les réglages de chaque module dans son groupe', () => {
+    const nav = buildNavItems(flags(), noCounters, { canManageTeam: true, canManageSecrets: true })
+    expect(group(nav, 'Dons')?.map((i) => i.to)).toEqual(['/admin/dons', '/admin/dons-reguliers', '/admin/participants', '/admin/recus', '/admin/dons/parametres'])
+    expect(group(nav, 'Adhérents')?.map((i) => i.to)).toEqual(['/admin/adherents', '/admin/adherents/renouvellements', '/admin/adherents/journal', '/admin/adherents/parametres'])
+    // Un seul item allumé : « Dons » et « Adhérents » ne doivent pas l'être sur leur page Paramètres.
+    expect(group(nav, 'Dons')?.find((i) => i.label === 'Dons')?.end).toBe(true)
+    expect(group(nav, 'Adhérents')?.find((i) => i.label === 'Adhérents')?.end).toBe(true)
+  })
+
+  it('aucune adresse de page n’est préfixe d’une adresse d’un autre groupe (un seul groupe allumé)', () => {
+    const nav = buildNavItems(flags(), noCounters, { canManageTeam: true, canManageSecrets: true })
+    const groups = nav.filter((e) => e.type === 'group')
+    for (const g of groups) {
+      for (const other of groups) {
+        if (other === g) continue
+        for (const item of g.items) {
+          for (const o of other.items) expect(o.to.startsWith(item.to), `${item.to} / ${o.to}`).toBe(false)
+        }
+      }
+    }
+  })
+
+  it('Paramètres ne garde que le transversal, Équipe et accès et Intégrations selon les droits', () => {
     const admin = group(buildNavItems(flags(), noCounters, { canManageTeam: true, canManageSecrets: true }), 'Paramètres')!
-    expect(admin.map((i) => i.label)).toEqual([
-      'Organisation', 'Reçus fiscaux', 'Adhésions', 'Porte-monnaie', 'Équipe', 'Codes PIN', 'Intégrations', 'Journal des adhérents',
-    ])
-    expect(admin.filter((i) => i.section).map((i) => i.section)).toEqual(['Association', 'Accès', 'Outils'])
-    const contributeur = group(buildNavItems(flags(), noCounters, { canManageTeam: false, canManageSecrets: false }), 'Paramètres')!
-    expect(contributeur.map((i) => i.label)).not.toContain('Équipe')
-    // Secrets (audit sécurité 2026-10-24) : ni Codes PIN ni Intégrations pour un contributeur.
-    expect(contributeur.map((i) => i.label)).not.toContain('Codes PIN')
-    expect(contributeur.map((i) => i.label)).not.toContain('Intégrations')
-    expect(contributeur.find((i) => i.label === 'Journal des adhérents')?.section).toBe('Outils')
-    const superAdmin = group(buildNavItems(flags(), noCounters, { canManageTeam: false, canManageSecrets: true }), 'Paramètres')!
-    expect(superAdmin.find((i) => i.label === 'Codes PIN')?.section).toBe('Accès')
-    expect(contributeur.map((i) => i.label)).not.toContain('Mon compte')
+    expect(admin.map((i) => i.label)).toEqual(['Organisation', 'Équipe et accès', 'Intégrations'])
+    expect(admin.find((i) => i.label === 'Équipe et accès')?.to).toBe('/admin/parametres/equipe')
+    const contributeurNav = buildNavItems(flags(), noCounters, { canManageTeam: false, canManageSecrets: false })
+    // Secrets (audit sécurité 2026-10-24) : ni Équipe et accès (codes PIN) ni Intégrations pour un membre, donc
+    // Organisation seule : « Paramètres » devient un lien direct, pas un groupe à un élément.
+    expect(contributeurNav.find((e) => e.label === 'Paramètres')).toEqual({ type: 'link', label: 'Paramètres', to: '/admin/parametres', icon: 'cog', end: true })
+    expect(group(contributeurNav, 'Adhérents')?.map((i) => i.label)).toContain('Journal')
+    expect(group(contributeurNav, 'Dons')?.map((i) => i.label)).toContain('Paramètres')
+    // Super-admin en mode Consulter : mêmes droits que l'admin (AdminLayout passe les deux à true).
+    const superAdmin = group(buildNavItems(flags(), noCounters, { canManageTeam: true, canManageSecrets: true }), 'Paramètres')!
+    expect(superAdmin.map((i) => i.label)).toEqual(['Organisation', 'Équipe et accès', 'Intégrations'])
+  })
+
+  it('Intégrations dès que Dons ou Adhérents est actif', () => {
+    const opts = { canManageTeam: true, canManageSecrets: true }
+    expect(group(buildNavItems(flags({ adherents: false }), noCounters, opts), 'Paramètres')?.map((i) => i.label)).toContain('Intégrations')
+    expect(group(buildNavItems(flags({ dons: false }), noCounters, opts), 'Paramètres')?.map((i) => i.label)).toContain('Intégrations')
+    expect(group(buildNavItems(flags({ dons: false, adherents: false }), noCounters, opts), 'Paramètres')?.map((i) => i.label)).not.toContain('Intégrations')
+    expect(group(buildNavItems(flags(), noCounters, { canManageTeam: false, canManageSecrets: false }), 'Paramètres')).toBeUndefined()
   })
 
   it('Paramètres suit les modules actifs', () => {
     const items = group(buildNavItems(flags({ dons: false, adherents: false, evenements: false }), noCounters, { canManageTeam: true, canManageSecrets: true }), 'Paramètres')!
-    expect(items.map((i) => i.label)).toEqual(['Organisation', 'Équipe', 'Codes PIN', 'Journal des adhérents'])
-    expect(items.find((i) => i.label === 'Journal des adhérents')?.section).toBe('Outils')
+    expect(items.map((i) => i.label)).toEqual(['Organisation', 'Équipe et accès'])
+  })
+
+  it('un membre sans module adhérents garde Paramètres en lien direct', () => {
+    const nav = buildNavItems(flags({ adherents: false }), noCounters, { canManageTeam: false, canManageSecrets: false })
+    expect(nav.find((e) => e.label === 'Paramètres')?.type).toBe('link')
+  })
+})
+
+describe('actions rapides', () => {
+  const actionOf = (entries: NavEntry[], label: string) => {
+    const entry = entries.find((e) => e.label === label)
+    return entry?.type === 'group' ? entry.action : undefined
+  }
+
+  it('« + Nouveau » : saisir un don, ajouter un adhérent, envoyer un email, dans cet ordre', () => {
+    expect(buildQuickActions(flags())).toEqual([
+      { label: 'Saisir un don', to: '/admin/dons?nouveau=1' },
+      { label: 'Ajouter un adhérent', to: '/admin/adherents?nouveau=1' },
+      { label: 'Envoyer un email', to: '/admin/communication/emailing' },
+    ])
+  })
+
+  it('suit les modules actifs', () => {
+    expect(buildQuickActions(flags({ adherents: false })).map((a) => a.label)).toEqual(['Saisir un don'])
+    expect(buildQuickActions(flags({ dons: false })).map((a) => a.label)).toEqual(['Ajouter un adhérent', 'Envoyer un email'])
+    expect(buildQuickActions(flags({ dons: false, adherents: false }))).toEqual([])
+  })
+
+  it('« + » sur Dons, Adhérents et Communication seulement, quels que soient les droits', () => {
+    for (const options of [{ canManageTeam: true, canManageSecrets: true }, { canManageTeam: false, canManageSecrets: false }, { canManageTeam: false, canManageSecrets: true }]) {
+      const nav = buildNavItems(flags(), noCounters, options)
+      expect(actionOf(nav, 'Dons')?.to).toBe('/admin/dons?nouveau=1')
+      expect(actionOf(nav, 'Adhérents')?.to).toBe('/admin/adherents?nouveau=1')
+      expect(actionOf(nav, 'Communication')?.to).toBe('/admin/communication/emailing')
+      expect(actionOf(nav, 'Activités')).toBeUndefined()
+      expect(actionOf(nav, 'Paramètres')).toBeUndefined()
+    }
+  })
+
+  it('chaque « + » reprend une action de « + Nouveau » (mêmes libellés, mêmes adresses)', () => {
+    const nav = buildNavItems(flags(), noCounters)
+    const groupActions = nav.flatMap((e) => (e.type === 'group' && e.action ? [e.action] : []))
+    expect(groupActions).toEqual(buildQuickActions(flags()))
   })
 })

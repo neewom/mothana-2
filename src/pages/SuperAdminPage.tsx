@@ -252,7 +252,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
               <div className="space-y-1.5">
                 <Label>Code PIN bénévole</Label>
                 <p className="font-registre-mono text-sm text-ink">{org.code_pin_benevole ?? '—'}</p>
-                <p className="text-xs text-ink-faint">Modifiable par un administrateur depuis Paramètres › Codes PIN.</p>
+                <p className="text-xs text-ink-faint">Modifiable par un administrateur depuis Paramètres › Équipe et accès.</p>
               </div>
             )}
             {!isEdit && (
