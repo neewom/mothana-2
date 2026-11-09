@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import BrevoConfigModal from '../components/BrevoConfigModal'
 import { brevoConfigure, chargerEtatConfigBrevo, type EtatConfigBrevo } from '../lib/brevoConfig'
+import { useAdminOutletContext } from '../hooks/useAdminOutletContext'
 import { useAuth } from '../hooks/useAuth'
 import ParametresSection from '../components/ParametresSection'
 import Toast from '../components/Toast'
@@ -10,12 +12,19 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import { useToast } from '../hooks/useToast'
 
 // Paramètres › Intégrations : configuration Brevo, sortie de la page Emailing (qui ne garde
-// qu'un rappel avec un lien vers ici quand Brevo n'est pas configuré).
+// qu'un rappel avec un lien vers ici quand Brevo n'est pas configuré). Brevo sert aussi à l'envoi
+// des reçus fiscaux par email (Dons › Paramètres).
 
 export default function ParametresIntegrationsPage() {
   const organisationId = useOrganisationId()
   const { toast, showToast, dismissToast } = useToast()
   const { auth } = useAuth()
+  const { fonctionnalitesActivees: flags } = useAdminOutletContext()
+  // Fonctionnalités qui passent par Brevo, selon les modules actifs.
+  const utilisations = [
+    ...(flags?.adherents ? [{ label: 'Emailing', to: '/admin/communication/emailing' }] : []),
+    ...(flags?.dons ? [{ label: 'Reçus fiscaux', to: '/admin/dons/parametres#email-recus' }] : []),
+  ]
   // Modification réservée à l'admin (et au super-admin en mode Consulter) ; la RPC le vérifie.
   const peutModifier = auth.type === 'super_admin' || (auth.type === 'admin' && auth.role === 'admin')
   const [config, setConfig] = useState<EtatConfigBrevo | null>(null)
@@ -42,8 +51,19 @@ export default function ParametresIntegrationsPage() {
 
       <ParametresSection
         title="Brevo"
-        description="Compte Brevo de votre organisation, utilisé pour l'envoi des campagnes d'emailing."
+        description="Compte Brevo de votre organisation, utilisé pour les campagnes d'emailing et l'envoi des reçus fiscaux par email."
       >
+        {utilisations.length > 0 && (
+          <p className="mb-4 text-sm text-ink-muted">
+            Utilisé par :{' '}
+            {utilisations.map((u, i) => (
+              <Fragment key={u.to}>
+                {i > 0 && ' · '}
+                <Link to={u.to} className="font-medium text-stamp underline underline-offset-2 hover:no-underline">{u.label}</Link>
+              </Fragment>
+            ))}
+          </p>
+        )}
         {config === null ? (
           <p className="text-sm text-ink-faint">Chargement…</p>
         ) : (
