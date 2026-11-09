@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
-import { buildNavItems, type NavEntry } from './adminNav'
+import { buildNavItems, buildQuickActions, type NavEntry } from './adminNav'
 
 const flags = (overrides: Partial<FonctionnalitesActivees> = {}): FonctionnalitesActivees => ({
   dons: true, adherents: true, evenements: true, credit_manuel: false, ...overrides,
@@ -99,5 +99,43 @@ describe('buildNavItems', () => {
   it('Paramètres suit les modules actifs', () => {
     const items = group(buildNavItems(flags({ dons: false, adherents: false, evenements: false }), noCounters, { canManageTeam: true, canManageSecrets: true }), 'Paramètres')!
     expect(items.map((i) => i.label)).toEqual(['Organisation', 'Équipe', 'Codes PIN'])
+  })
+})
+
+describe('actions rapides', () => {
+  const actionOf = (entries: NavEntry[], label: string) => {
+    const entry = entries.find((e) => e.label === label)
+    return entry?.type === 'group' ? entry.action : undefined
+  }
+
+  it('« + Nouveau » : saisir un don, ajouter un adhérent, envoyer un email, dans cet ordre', () => {
+    expect(buildQuickActions(flags())).toEqual([
+      { label: 'Saisir un don', to: '/admin/dons?nouveau=1' },
+      { label: 'Ajouter un adhérent', to: '/admin/adherents?nouveau=1' },
+      { label: 'Envoyer un email', to: '/admin/communication/emailing' },
+    ])
+  })
+
+  it('suit les modules actifs', () => {
+    expect(buildQuickActions(flags({ adherents: false })).map((a) => a.label)).toEqual(['Saisir un don'])
+    expect(buildQuickActions(flags({ dons: false })).map((a) => a.label)).toEqual(['Ajouter un adhérent', 'Envoyer un email'])
+    expect(buildQuickActions(flags({ dons: false, adherents: false }))).toEqual([])
+  })
+
+  it('« + » sur Dons, Adhérents et Communication seulement, quels que soient les droits', () => {
+    for (const options of [{ canManageTeam: true, canManageSecrets: true }, { canManageTeam: false, canManageSecrets: false }, { canManageTeam: false, canManageSecrets: true }]) {
+      const nav = buildNavItems(flags(), noCounters, options)
+      expect(actionOf(nav, 'Dons')?.to).toBe('/admin/dons?nouveau=1')
+      expect(actionOf(nav, 'Adhérents')?.to).toBe('/admin/adherents?nouveau=1')
+      expect(actionOf(nav, 'Communication')?.to).toBe('/admin/communication/emailing')
+      expect(actionOf(nav, 'Activités')).toBeUndefined()
+      expect(actionOf(nav, 'Paramètres')).toBeUndefined()
+    }
+  })
+
+  it('chaque « + » reprend une action de « + Nouveau » (mêmes libellés, mêmes adresses)', () => {
+    const nav = buildNavItems(flags(), noCounters)
+    const groupActions = nav.flatMap((e) => (e.type === 'group' && e.action ? [e.action] : []))
+    expect(groupActions).toEqual(buildQuickActions(flags()))
   })
 })
