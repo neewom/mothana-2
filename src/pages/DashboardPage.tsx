@@ -46,9 +46,9 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function Card({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+function Card({ title, children, action, className }: { title: string; children: React.ReactNode; action?: React.ReactNode; className?: string }) {
   return (
-    <div className="rounded-sm border border-paper-border bg-white">
+    <div className={cn('rounded-sm border border-paper-border bg-white', className)}>
       {/* gap + flex-wrap : titre et action ne se collent jamais ; l'action passe à la ligne si la
           colonne est trop étroite (grille à 3 colonnes vers 1 024–1 280 px). */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-paper-border px-5 py-3">
@@ -359,6 +359,8 @@ export default function DashboardPage() {
 
           {adherentsActifs && (
             <Card
+              // À lg, 3ᵉ carte seule sur sa ligne : pleine largeur plutôt qu'une demi-largeur vide.
+              className={donsActifs ? 'lg:col-span-2 xl:col-span-1' : undefined}
               title="Adhésions à renouveler"
               // En-tête aligné sur les autres cartes (un seul lien à droite du titre) ; le lien vers
               // les expirés passe sous la liste, sinon les deux liens repoussent l'en-tête sous le titre.
