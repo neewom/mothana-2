@@ -18,6 +18,14 @@ export interface NavGroup {
   label: string
   icon: NavIconName
   items: NavGroupItem[]
+  /** Action rapide du groupe (icône « + » à droite de son titre, visible même replié). */
+  action?: NavQuickAction
+}
+
+/** Action de création (« Saisir un don »…) : bouton « + Nouveau » en tête du menu et « + » des groupes. */
+export interface NavQuickAction {
+  label: string
+  to: string
 }
 
 export interface NavGroupItem {
@@ -28,6 +36,22 @@ export interface NavGroupItem {
 }
 
 export type NavEntry = NavLinkItem | NavGroup
+
+// Actions rapides (retour de test du 2026-11-09 : les boutons de l'en-tête de l'accueil semblaient
+// perdus, déplacés dans le menu). Ouvertes à tous les rôles, super-admin en mode Consulter compris :
+// seuls les modules actifs les filtrent, comme le reste du menu. `?nouveau=1` ouvre la saisie.
+const SAISIR_DON: NavQuickAction = { label: 'Saisir un don', to: '/admin/dons?nouveau=1' }
+const AJOUTER_ADHERENT: NavQuickAction = { label: 'Ajouter un adhérent', to: '/admin/adherents?nouveau=1' }
+// Emailing rattaché au module adhérents, comme le groupe Communication.
+const ENVOYER_EMAIL: NavQuickAction = { label: 'Envoyer un email', to: '/admin/communication/emailing' }
+
+/** Contenu du bouton « + Nouveau », de l'action la plus fréquente à la moins fréquente. */
+export function buildQuickActions(flags: FonctionnalitesActivees): NavQuickAction[] {
+  return [
+    ...(flags.dons ? [SAISIR_DON] : []),
+    ...(flags.adherents ? [AJOUTER_ADHERENT, ENVOYER_EMAIL] : []),
+  ]
+}
 
 export interface NavOptions {
   /** Équipe et accès (comptes + codes PIN) : admin de l'organisation ou super-admin en mode Consulter. */
@@ -46,6 +70,7 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       type: 'group',
       label: 'Dons',
       icon: 'don',
+      action: SAISIR_DON,
       items: [
         // `end` : la page Paramètres (/admin/dons/parametres) ne doit pas allumer aussi « Dons ».
         { label: 'Dons', to: '/admin/dons', end: true },
@@ -62,6 +87,7 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       type: 'group',
       label: 'Adhérents',
       icon: 'idCard',
+      action: AJOUTER_ADHERENT,
       items: [
         { label: 'Adhérents', to: '/admin/adherents', end: true },
         { label: 'Renouvellements', to: '/admin/adherents/renouvellements', count: counters.demandesEnAttente },
@@ -90,6 +116,7 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       type: 'group',
       label: 'Communication',
       icon: 'megaphone',
+      action: ENVOYER_EMAIL,
       items: [
         { label: 'Emailing', to: '/admin/communication/emailing' },
         { label: 'Courrier', to: '/admin/communication/courrier' },

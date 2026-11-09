@@ -1,6 +1,6 @@
 import GlobalSearch from '../components/GlobalSearch'
 import { useState, useEffect, type ReactElement } from 'react'
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { DEFAULT_FONCTIONNALITES, useFonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
@@ -10,10 +10,11 @@ import { isRecette } from '../lib/environment'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Sheet } from '../components/ui/sheet'
+import { ActionMenu } from '../components/ui/action-menu'
 import AccountMenu from '../components/AccountMenu'
 import Tooltip from '../components/Tooltip'
 import { NavCountersContext } from '../contexts/navCountersContext'
-import { buildNavItems, type NavEntry, type NavGroup, type NavIconName } from '../lib/adminNav'
+import { buildNavItems, buildQuickActions, type NavEntry, type NavGroup, type NavIconName, type NavQuickAction } from '../lib/adminNav'
 import { useLoadNavCounters } from '../hooks/useNavCounters'
 import { useOrganisationLogoUrl } from '../hooks/useOrganisationLogoUrl'
 import OrganisationLogo from '../components/OrganisationLogo'
@@ -91,6 +92,14 @@ function CogIcon() {
   )
 }
 
+function PlusIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    </svg>
+  )
+}
+
 function MenuIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -157,23 +166,34 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => setManualOpen(!open)}
-        className={cn(
-          'flex w-full items-center justify-between gap-3 rounded-sm px-3 py-2 font-registre text-sm font-medium transition-colors',
-          isGroupActive ? 'text-paper' : 'text-paper/70 hover:bg-white/10 hover:text-paper'
+      {/* Deux boutons côte à côte (jamais l'un dans l'autre) : le titre déplie le groupe, le « + »
+          lance l'action rapide du groupe, visible même replié. */}
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setManualOpen(!open)}
+          aria-expanded={open}
+          className={cn(
+            'flex min-w-0 flex-1 items-center justify-between gap-3 rounded-sm px-3 py-2 font-registre text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper/70',
+            isGroupActive ? 'text-paper' : 'text-paper/70 hover:bg-white/10 hover:text-paper'
+          )}
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            <NavIcon name={group.icon} />
+            <span className="truncate">{group.label}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2">
+            {!open && <NavCount count={groupCount} label="élément(s) en attente" />}
+            <ChevronDownIcon open={open} />
+          </span>
+        </button>
+        {group.action ? (
+          <GroupActionLink action={group.action} onClose={onClose} />
+        ) : (
+          // Colonne réservée : chevrons alignés d'un groupe à l'autre.
+          <span aria-hidden className="w-9 shrink-0" />
         )}
-      >
-        <span className="flex items-center gap-3">
-          <NavIcon name={group.icon} />
-          {group.label}
-        </span>
-        <span className="flex items-center gap-2">
-          {!open && <NavCount count={groupCount} label="élément(s) en attente" />}
-          <ChevronDownIcon open={open} />
-        </span>
-      </button>
+      </div>
       {open && (
         <div className="ml-4 mt-1 space-y-1 border-l border-white/10 pl-4">
           {group.items.map((item) => (
@@ -203,7 +223,54 @@ function NavGroupItem({ group, onClose }: { group: NavGroup; onClose?: () => voi
   )
 }
 
-function Sidebar({ navItems, onClose }: { navItems: NavEntry[]; onClose?: () => void }) {
+/** « + » d'un groupe : 36 px visibles comme la ligne du titre, zone de toucher portée à 44 px par
+ *  le pseudo-élément (empiète sur l'espacement entre les lignes, pas sur la ligne voisine). */
+function GroupActionLink({ action, onClose }: { action: NavQuickAction; onClose?: () => void }) {
+  return (
+    // Infobulle native (title) : l'infobulle maison est encre sur encre ici, et un tap doit naviguer.
+    <Link
+      to={action.to}
+      onClick={onClose}
+      aria-label={action.label}
+      title={action.label}
+      className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-paper/60 transition-colors before:absolute before:-inset-1 before:content-[''] hover:bg-white/10 hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper/70"
+    >
+      <PlusIcon className="h-4 w-4" />
+    </Link>
+  )
+}
+
+/** « + Nouveau » en tête du menu : les actions de création des modules actifs. */
+function QuickActionsMenu({ actions, onClose }: { actions: NavQuickAction[]; onClose?: () => void }) {
+  const navigate = useNavigate()
+  if (actions.length === 0) return null
+  return (
+    <div className="px-3 pt-1">
+      <ActionMenu
+        tone="sidebar"
+        align="left"
+        label="Nouveau"
+        // Le cachet signale l'action sans fond plein sur toute la largeur (DESIGN.md, One Accent Rule).
+        icon={
+          <span className="flex h-5 w-5 items-center justify-center rounded-sm bg-stamp text-white">
+            <PlusIcon className="h-3.5 w-3.5" />
+          </span>
+        }
+        items={actions.map((action) => ({
+          label: action.label,
+          onSelect: () => {
+            // Le tiroir se ferme aussi sur un changement de page ; ici même quand seule la requête
+            // change (déjà sur /admin/dons, « Saisir un don » → /admin/dons?nouveau=1).
+            onClose?.()
+            navigate(action.to)
+          },
+        }))}
+      />
+    </div>
+  )
+}
+
+function Sidebar({ navItems, quickActions, onClose }: { navItems: NavEntry[]; quickActions: NavQuickAction[]; onClose?: () => void }) {
   return (
     <div className="flex h-full flex-col bg-ink text-paper">
       {/* Logo */}
@@ -215,6 +282,8 @@ function Sidebar({ navItems, onClose }: { navItems: NavEntry[]; onClose?: () => 
           </button>
         )}
       </div>
+
+      <QuickActionsMenu actions={quickActions} onClose={onClose} />
 
       {/* Nav */}
       <nav className="flex-1 space-y-1 px-3 py-4">
@@ -249,6 +318,7 @@ export default function AdminLayout() {
   const canManageTeam = isSuperAdminViewing || (auth.type === 'admin' && auth.role === 'admin')
   const canManageSecrets = canManageTeam
   const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES, navCounters, { canManageTeam, canManageSecrets })
+  const quickActions = buildQuickActions(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES)
   const location = useLocation()
 
   // Ferme le tiroir mobile à chaque changement de page (y compris une navigation confirmée
@@ -298,7 +368,7 @@ export default function AdminLayout() {
     <div className="flex h-dvh overflow-hidden bg-paper font-registre">
       {/* Desktop sidebar */}
       <aside className="hidden w-64 flex-shrink-0 lg:block">
-        <Sidebar navItems={navItems} />
+        <Sidebar navItems={navItems} quickActions={quickActions} />
       </aside>
 
       {/* Mobile sidebar overlay */}
@@ -309,7 +379,7 @@ export default function AdminLayout() {
         className="z-40 lg:hidden"
         panelClassName="z-50 h-full w-64"
       >
-        <Sidebar navItems={navItems} onClose={() => setSidebarOpen(false)} />
+        <Sidebar navItems={navItems} quickActions={quickActions} onClose={() => setSidebarOpen(false)} />
       </Sheet>
 
       {/* Main area */}
