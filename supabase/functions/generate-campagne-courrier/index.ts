@@ -130,7 +130,7 @@ function selectionLabel(filtreStatut: string, tagEnvoi: string | null): string {
   if (tagEnvoi) return `Liste : ${tagEnvoi}`
   if (filtreStatut === 'archive') return 'Adhérents archivés'
   if (filtreStatut === 'tous') return 'Tous les adhérents'
-  return 'Adhérents actifs'
+  return 'Tous sauf archivés'
 }
 
 function buildQrSvg(text: string): string {

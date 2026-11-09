@@ -39,6 +39,7 @@ import {
   MESSAGE_DEMANDE_DEJA_TRAITEE,
   type ChampCoordonnee,
 } from '../lib/validationRenouvellement'
+import { libelleAValider, libelleDecidees } from '../lib/renouvellementsLibelles'
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -60,23 +61,27 @@ type Tab = 'en_attente' | 'ratifiee' | 'refusee'
 
 type SortField = 'civilite' | 'nom' | 'prenom' | 'date'
 
-// Date affichée dans la colonne : soumission (en attente) ou décision (ratifiées / refusées).
+// Date affichée dans la colonne : soumission (en attente) ou décision (validées / refusées).
 function dateAffichee(d: DemandeAdhesion, tab: Tab): string {
   return tab === 'en_attente' ? d.created_at : (d.decided_at ?? d.created_at)
 }
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'en_attente', label: 'En attente' },
-  { value: 'ratifiee', label: 'Ratifiées' },
+  { value: 'ratifiee', label: 'Validées' },
   { value: 'refusee', label: 'Refusées' },
 ]
 
-// « 3 demandes en attente », « 1 demande ratifiée », « 2 demandes refusées ».
-function sousTitreDemandes(n: number, tab: Tab): string {
-  const s = n > 1 ? 's' : ''
-  const etat = tab === 'en_attente' ? 'en attente' : tab === 'ratifiee' ? `ratifiée${s}` : `refusée${s}`
-  return `${n} demande${s} ${etat}`
+// « 3 renouvellements à valider » (anciennes demandes d'adhésion comptées à part), « 2 demandes validées ».
+function sousTitreDemandes(demandes: DemandeAdhesion[], tab: Tab): string {
+  if (tab !== 'en_attente') return libelleDecidees(demandes.length, tab)
+  const renouvellements = demandes.filter(estRenouvellement).length
+  return libelleAValider(renouvellements, demandes.length - renouvellements)
 }
+
+// Seules les anciennes demandes d'adhésion (formulaire public retiré, PR #327) portent un tag :
+// le renouvellement est le cas par défaut de la page.
+const TAG_ANCIENNE_ADHESION = "Ancienne demande d'adhésion"
 
 export default function DemandesAdhesionPage() {
   const organisationId = useOrganisationId()
@@ -123,7 +128,7 @@ export default function DemandesAdhesionPage() {
   const [champsCoches, setChampsCoches] = useState<ChampCoordonnee[]>([])
   const [validatingDemande, setValidatingDemande] = useState<DemandeAdhesion | null>(null)
   // Doublons potentiels par demande, calculés dès le chargement de la liste (pas seulement au clic
-  // sur "Ratifier") pour permettre une colorimétrie différente dans le tableau et le détail.
+  // sur "Valider") pour permettre une colorimétrie différente dans le tableau et le détail.
   const [duplicatesMap, setDuplicatesMap] = useState<Record<string, DuplicateMatch[]>>({})
   const [duplicatesMapLoading, setDuplicatesMapLoading] = useState(false)
 
@@ -206,7 +211,7 @@ export default function DemandesAdhesionPage() {
       await supabase.from('adherents').update({ email_invalide_at: ratifyingDemande.email_bounced_at, email_invalide_evenement: 'confirmation_demande' }).eq('id', adherent.id)
     }
 
-    showToast(`${demandeFullName(ratifyingDemande)} ratifié et ajouté aux adhérents`)
+    showToast(`Demande de ${demandeFullName(ratifyingDemande)} validée : fiche ajoutée aux adhérents`)
     if (organisationId) {
       await logModification({
         organisationId,
@@ -250,7 +255,7 @@ export default function DemandesAdhesionPage() {
         motif_refus: motifRefus.trim() || null,
       })
       .eq('id', refusingDemande.id)
-      // Garde contre une décision concurrente : un autre admin a pu la ratifier/valider entre-temps.
+      // Garde contre une décision concurrente : un autre admin a pu la valider entre-temps.
       .eq('statut', 'en_attente')
       .select('id')
 
@@ -312,12 +317,8 @@ export default function DemandesAdhesionPage() {
       */}
       <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
         <PageHeader
-          title="Demandes d'adhésion"
-          subtitle={
-            loading
-              ? 'Chargement…'
-              : sousTitreDemandes(demandes.length, tab) + (tab === 'en_attente' ? ' · à ratifier par le conseil d’administration' : '')
-          }
+          title="Renouvellements"
+          subtitle={loading ? 'Chargement…' : sousTitreDemandes(demandes, tab)}
         />
 
         {error && (
@@ -356,7 +357,9 @@ export default function DemandesAdhesionPage() {
             </div>
           ) : demandes.length === 0 ? (
             <div className="flex items-center justify-center py-16">
-              <p className="font-registre text-sm text-ink-faint">Aucune demande</p>
+              <p className="font-registre text-sm text-ink-faint">
+                {tab === 'en_attente' ? 'Aucun renouvellement à valider' : tab === 'ratifiee' ? 'Aucune demande validée' : 'Aucune demande refusée'}
+              </p>
             </div>
           ) : demandesFiltrees.length === 0 ? (
             <div className="flex items-center justify-center py-16">
@@ -367,11 +370,11 @@ export default function DemandesAdhesionPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <SortableTableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
+                    <SortableTableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden xl:table-cell" />
                     <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                     <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                    <TableHead className="hidden md:table-cell">Contact</TableHead>
                     <SortableTableHead field="date" label={tab === 'en_attente' ? 'Soumise le' : 'Décidée le'} sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
+                    <TableHead className="hidden md:table-cell">Contact</TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -387,22 +390,29 @@ export default function DemandesAdhesionPage() {
                           hasDuplicate ? 'bg-warning-tint hover:bg-warning-tint/70' : 'hover:bg-paper-border/20'
                         )}
                       >
-                        <TableCell className="hidden text-ink-faint md:table-cell">{CIVILITE_ADHERENT_LABELS[d.civilite]}</TableCell>
+                        <TableCell className="hidden text-ink-faint xl:table-cell">{CIVILITE_ADHERENT_LABELS[d.civilite]}</TableCell>
                         <TableCell className="font-medium text-ink">
-                          <div className="flex items-center gap-2">
-                            <span className="whitespace-nowrap">{d.nom}</span>
-                            {estRenouvellement(d) && <Badge>Renouvellement</Badge>}
-                            {hasDuplicate && (
-                              <span
-                                title={duplicatesMap[d.id].map((m) => `${adherentFullName(m.adherent)} (${m.raisons.join(', ')})`).join(' · ')}
-                                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-warning-border bg-white px-2 py-0.5 font-registre-mono text-[11px] font-medium text-warning"
-                              >
-                                Doublon possible
-                              </span>
-                            )}
-                          </div>
+                          <span className="whitespace-nowrap">{d.nom}</span>
+                          {/* Pastilles sous le nom (pas à côté) : la colonne Nom reste étroite, pour garder
+                              « Soumise le » visible sans défilement avec des noms usuels. */}
+                          {(!estRenouvellement(d) || hasDuplicate) && (
+                            <div className="mt-1 flex items-center gap-1.5">
+                              {!estRenouvellement(d) && <Badge>{TAG_ANCIENNE_ADHESION}</Badge>}
+                              {hasDuplicate && (
+                                <span
+                                  title={duplicatesMap[d.id].map((m) => `${adherentFullName(m.adherent)} (${m.raisons.join(', ')})`).join(' · ')}
+                                  className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-warning-border bg-white px-2 py-0.5 font-registre-mono text-[11px] font-medium text-warning"
+                                >
+                                  Doublon possible
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </TableCell>
-                        <TableCell className="text-ink-muted">{d.prenom ?? '—'}</TableCell>
+                        <TableCell className="whitespace-nowrap text-ink-muted">{d.prenom ?? '—'}</TableCell>
+                        <TableCell className="font-registre-mono text-xs whitespace-nowrap text-ink-faint">
+                          {formatDateTime(dateAffichee(d, tab))}
+                        </TableCell>
                         <TableCell className="hidden text-ink-faint md:table-cell">
                           <div className="flex items-center gap-1.5">
                             {d.courriel ?? '—'}
@@ -416,9 +426,6 @@ export default function DemandesAdhesionPage() {
                             )}
                           </div>
                           {d.telephone && <p className="font-registre-mono text-xs text-ink-faint">{d.telephone}</p>}
-                        </TableCell>
-                        <TableCell className="font-registre-mono text-xs text-ink-faint">
-                          {formatDateTime(dateAffichee(d, tab))}
                         </TableCell>
                         <TableCell className="text-right text-ink-faint">
                           <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -479,7 +486,7 @@ export default function DemandesAdhesionPage() {
             <div className="overflow-y-auto p-6">
               <h2 className="font-registre text-lg font-semibold text-ink">Refuser la demande</h2>
               <p className="mt-2 font-registre text-sm text-ink-muted">
-                Êtes-vous sûr de vouloir refuser la demande d'adhésion de{' '}
+                Êtes-vous sûr de vouloir refuser la {estRenouvellement(refusingDemande) ? 'demande de renouvellement' : "demande d'adhésion"} de{' '}
                 <span className="font-medium text-ink">« {demandeFullName(refusingDemande)} »</span> ? Elle restera visible dans
                 l'onglet Refusées.
               </p>
@@ -535,9 +542,14 @@ export default function DemandesAdhesionPage() {
                     {demandeFullName(detailDemande)}
                   </h2>
 
+                  {!renouvellement && (
+                    <div className="mt-2">
+                      <Badge>{TAG_ANCIENNE_ADHESION}</Badge>
+                    </div>
+                  )}
+
                   {renouvellement && (
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-registre text-sm text-ink-muted">
-                      <Badge>Renouvellement</Badge>
                       {ficheId ? (
                         <Link to={`/admin/adherents?id=${encodeURIComponent(ficheId)}`} className="font-medium text-stamp hover:underline">
                           Voir la fiche adhérent
@@ -738,24 +750,22 @@ export default function DemandesAdhesionPage() {
 
                 {detailDemande.statut === 'en_attente' && (
                   <div className="flex shrink-0 justify-end gap-3 border-t border-paper-border bg-white px-6 py-4">
-                    <Button variant="destructive" onClick={() => { const d = detailDemande; setDetailDemande(null); setRefusingDemande(d) }}>
+                    <Button variant="danger" onClick={() => { const d = detailDemande; setDetailDemande(null); setRefusingDemande(d) }}>
                       Refuser
                     </Button>
                     {!renouvellement ? (
                       <Button
                         variant="success"
-                        className="border-none bg-success text-white hover:bg-success/90"
                         onClick={() => { const d = detailDemande; setDetailDemande(null); setRatifyingDemande(d) }}
                       >
-                        Ratifier
+                        Valider
                       </Button>
                     ) : adherentVise && (
                       <Button
                         variant="success"
-                        className="border-none bg-success text-white hover:bg-success/90"
                         onClick={() => { const d = detailDemande; setDetailDemande(null); setValidatingDemande(d) }}
                       >
-                        Valider le renouvellement
+                        Valider
                       </Button>
                     )}
                   </div>

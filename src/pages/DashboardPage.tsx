@@ -130,7 +130,7 @@ export default function DashboardPage() {
           .or(`date_debut.gte.${aujourdhui},date_fin.gte.${aujourdhui}`)
           .order('date_debut', { ascending: true })
           .limit(5),
-        // Candidats : adhérents actifs ayant une adhésion qui se termine dans les 30 jours ; on ne
+        // Candidats : adhérents non archivés ayant une adhésion qui se termine dans les 30 jours ; on ne
         // garde ensuite que ceux dont c'est la **dernière** adhésion (pas encore renouvelés).
         fetchAllRows<CandidatRenouvellement>((from, to) =>
           supabase
@@ -252,10 +252,12 @@ export default function DashboardPage() {
                   label: 'Adhésions à renouveler (30 j)',
                   value: String(aRenouveler.length),
                   hint: aRenouveler.length === 0 ? 'Aucune échéance dans les 30 jours' : 'Expirent dans les 30 jours',
+                  href: '/admin/adherents?etat=a_renouveler',
                 }, {
                   label: 'Adhésions expirées',
                   value: String(nombreExpires),
-                  hint: nombreExpires === 0 ? 'Aucun adhérent expiré' : 'Adhérents actifs non renouvelés',
+                  hint: nombreExpires === 0 ? 'Aucun adhérent expiré' : 'Adhésion échue, non renouvelée',
+                  href: '/admin/adherents?etat=expire',
                 }]
               : []),
           ]}
@@ -305,7 +307,12 @@ export default function DashboardPage() {
           {adherentsActifs && (
             <Card
               title="Adhésions à renouveler"
-              action={<Link to="/admin/adherents?etat=expire" className="text-xs font-medium text-stamp hover:underline">Voir les expirés ({nombreExpires})</Link>}
+              action={
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  <Link to="/admin/adherents?etat=a_renouveler" className="text-xs font-medium text-stamp hover:underline">Voir tout ({aRenouveler.length})</Link>
+                  <Link to="/admin/adherents?etat=expire" className="text-xs font-medium text-stamp hover:underline">Voir les expirés ({nombreExpires})</Link>
+                </div>
+              }
             >
               {aRenouveler.length === 0 ? (
                 <p className="text-sm text-ink-faint">Aucune adhésion n'expire dans les 30 jours.</p>

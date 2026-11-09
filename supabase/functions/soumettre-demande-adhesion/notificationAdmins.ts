@@ -18,7 +18,7 @@ export function lienPageDemandes(siteUrlClient: unknown, supabaseUrl: string | u
 export type TypeDemande = 'adhesion' | 'renouvellement'
 
 export const SUJET_NOTIFICATION_ADMINS = "Nouvelle demande d'adhésion à examiner"
-export const SUJET_NOTIFICATION_ADMINS_RENOUVELLEMENT = 'Nouvelle demande de renouvellement à examiner'
+export const SUJET_NOTIFICATION_ADMINS_RENOUVELLEMENT = 'Nouvelle demande de renouvellement à valider'
 
 export function sujetNotificationAdmins(type: TypeDemande = 'adhesion'): string {
   return type === 'renouvellement' ? SUJET_NOTIFICATION_ADMINS_RENOUVELLEMENT : SUJET_NOTIFICATION_ADMINS
@@ -27,13 +27,14 @@ export function sujetNotificationAdmins(type: TypeDemande = 'adhesion'): string 
 export function notificationAdminsHtml(lien: string, type: TypeDemande = 'adhesion'): string {
   const titre = type === 'renouvellement' ? 'Nouvelle demande de renouvellement' : "Nouvelle demande d'adhésion"
   const texte = type === 'renouvellement'
-    ? "Un adhérent vient d'envoyer une demande de renouvellement de son adhésion par son lien personnel. Elle est à examiner par le conseil d'administration."
+    ? "Un adhérent vient d'envoyer une demande de renouvellement de son adhésion par son lien personnel. Elle est à valider dans la page Renouvellements de l'espace de gestion."
     : "Une demande d'adhésion vient d'être envoyée par le formulaire en ligne. Elle est à examiner par le conseil d'administration."
+  const bouton = type === 'renouvellement' ? 'Voir les renouvellements' : 'Voir les demandes'
   return `<!doctype html><html><body style="font-family: ui-sans-serif, system-ui, sans-serif; background: #f8fafc; padding: 32px;">
   <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e2e8f0;">
     <h1 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">${titre}</h1>
     <p style="color: #475569; font-size: 14px; line-height: 1.5;">${texte}</p>
-    <p style="margin: 24px 0;"><a href="${lien}" style="display: inline-block; background: #a8281f; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 4px;">Voir les demandes</a></p>
+    <p style="margin: 24px 0;"><a href="${lien}" style="display: inline-block; background: #a8281f; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 4px;">${bouton}</a></p>
     <p style="color: #94a3b8; font-size: 12px;">Vous recevez cet email car vous avez un compte sur l'espace de gestion de l'association.</p>
   </div>
 </body></html>`

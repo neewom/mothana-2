@@ -51,6 +51,14 @@ describe('lignesExportAdherents', () => {
     expect(lignesExportAdherents([adherent], new Map(), ['adhesion'], today)[0]['Adhésion']).toBe('Aucune adhésion')
   })
 
+  it('exporte l’état de la fiche dans une colonne « Fiche » (Active / Archivée)', () => {
+    const [active] = lignesExportAdherents([adherent], new Map(), ['statut'], today)
+    expect(Object.keys(active)).toEqual(['Nom', 'Prénom', 'Fiche'])
+    expect(active.Fiche).toBe('Active')
+    const [archivee] = lignesExportAdherents([{ ...adherent, statut: 'archive' as const }], new Map(), ['statut'], today)
+    expect(archivee.Fiche).toBe('Archivée')
+  })
+
   it('exporte la date d’adhésion de la dernière adhésion, juste après la colonne Adhésion', () => {
     const adhesions = new Map([['a1', { date_debut: '2026-03-15', date_fin: '2026-12-31' }]])
     const [ligne] = lignesExportAdherents([adherent], adhesions, ['date_adhesion', 'email', 'adhesion'], today)
@@ -63,7 +71,9 @@ describe('lignesExportAdherents', () => {
 describe('nomFichierExportAdherents', () => {
   it('nomme le fichier d’après l’état ou la sélection', () => {
     expect(nomFichierExportAdherents('expire', false, today)).toBe('adherents_expires_2026-10-17.csv')
-    expect(nomFichierExportAdherents('a_jour', false, today)).toBe('adherents_actifs_2026-10-17.csv')
+    // Vocabulaire unique (carte lpFg4vvc) : « actifs » devient « a-jour ».
+    expect(nomFichierExportAdherents('a_jour', false, today)).toBe('adherents_a-jour_2026-10-17.csv')
+    expect(nomFichierExportAdherents('a_renouveler', false, today)).toBe('adherents_a-renouveler_2026-10-17.csv')
     expect(nomFichierExportAdherents('all', true, today)).toBe('adherents_selection_2026-10-17.csv')
   })
 })

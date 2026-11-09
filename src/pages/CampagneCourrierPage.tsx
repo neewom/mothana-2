@@ -34,7 +34,7 @@ function selectionLabel(filtreStatut: FiltreStatut, tagEnvoi: string | null): st
   if (tagEnvoi) return `Liste : ${tagEnvoi}`
   if (filtreStatut === 'archive') return 'Adhérents archivés'
   if (filtreStatut === 'tous') return 'Tous les adhérents'
-  return 'Adhérents actifs'
+  return 'Tous sauf archivés'
 }
 
 interface CampagneCourrier {
@@ -335,7 +335,7 @@ export default function CampagneCourrierPage() {
                 className="w-full"
               >
                 <optgroup label="Statut">
-                  <option value="statut:actif">Adhérents actifs</option>
+                  <option value="statut:actif">Tous sauf archivés</option>
                   <option value="statut:archive">Adhérents archivés</option>
                   <option value="statut:tous">Tous les adhérents</option>
                 </optgroup>

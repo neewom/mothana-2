@@ -53,11 +53,27 @@ export async function seedDemoOrganisationData(organisationId: string): Promise<
   ])
   if (donsErr) throw donsErr
 
-  const { error: adherentsErr } = await supabase.from('adherents').insert([
-    { organisation_id: organisationId, civilite: 1, nom: 'Lefebvre', prenom: 'Thomas', statut: 'actif', tags: ['Bénévoles'], date_naissance: '1978-04-12' },
-    { organisation_id: organisationId, civilite: 2, nom: 'Martin', prenom: 'Sophie', statut: 'actif', tags: [] },
-    { organisation_id: organisationId, civilite: 1, nom: 'Moreau', prenom: 'Michel', statut: 'actif', tags: ['Conseil'], date_naissance: '1965-09-03' },
-    { organisation_id: organisationId, civilite: 2, nom: 'Leclerc', prenom: 'Anne', statut: 'archive', tags: [] },
-  ])
+  const { data: adherents, error: adherentsErr } = await supabase
+    .from('adherents')
+    .insert([
+      { organisation_id: organisationId, civilite: 1, nom: 'Lefebvre', prenom: 'Thomas', statut: 'actif', tags: ['Bénévoles'], date_naissance: '1978-04-12' },
+      { organisation_id: organisationId, civilite: 2, nom: 'Martin', prenom: 'Sophie', statut: 'actif', tags: [] },
+      { organisation_id: organisationId, civilite: 1, nom: 'Moreau', prenom: 'Michel', statut: 'actif', tags: ['Conseil'], date_naissance: '1965-09-03' },
+      { organisation_id: organisationId, civilite: 2, nom: 'Leclerc', prenom: 'Anne', statut: 'archive', tags: [] },
+    ])
+    .select('id')
   if (adherentsErr) throw adherentsErr
+  const [adherentThomas, adherentSophie, adherentMichel, adherentAnne] = adherents
+
+  // Une adhésion par adhérent (une fiche sans adhésion est une anomalie). Date de fin posée par la
+  // base selon la règle de l'organisation (trigger ; défaut « glissante » : date d'adhésion + 1 an),
+  // ce qui donne les trois états : à jour (Thomas), à renouveler (Sophie, fin dans ~15 jours),
+  // expiré (Michel), plus une adhésion passée sur la fiche archivée (Anne).
+  const { error: adhesionsErr } = await supabase.from('adhesions').insert([
+    { adherent_id: adherentThomas.id, date_debut: daysAgo(100), montant_cotisation: 20, mode_paiement: 1, date_paiement_cotisation: daysAgo(100), renouvellement: false },
+    { adherent_id: adherentSophie.id, date_debut: daysAgo(350), montant_cotisation: 20, mode_paiement: 2, date_paiement_cotisation: daysAgo(350), renouvellement: false },
+    { adherent_id: adherentMichel.id, date_debut: daysAgo(400), montant_cotisation: 20, mode_paiement: 1, date_paiement_cotisation: daysAgo(400), renouvellement: false },
+    { adherent_id: adherentAnne.id, date_debut: daysAgo(500), montant_cotisation: 20, mode_paiement: 3, date_paiement_cotisation: daysAgo(500), renouvellement: false },
+  ])
+  if (adhesionsErr) throw adhesionsErr
 }
