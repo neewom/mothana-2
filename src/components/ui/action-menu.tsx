@@ -21,12 +21,16 @@ interface ActionMenuProps {
    * Importer / Exporter des pages de liste (2026-11-09). */
   iconOnly?: boolean
   className?: string
+  /** `sidebar` : déclencheur pleine largeur sur le fond encre du menu latéral (« + Nouveau »),
+   * liste de la même largeur juste dessous. */
+  tone?: 'default' | 'sidebar'
 }
 
 // Marge minimale entre le menu et le bord de la fenêtre.
 const VIEWPORT_MARGIN = 8
 
-export function ActionMenu({ label, icon, items, align = 'right', iconOnly = false, className }: ActionMenuProps) {
+export function ActionMenu({ label, icon, items, align = 'right', iconOnly = false, className, tone = 'default' }: ActionMenuProps) {
+  const sidebar = tone === 'sidebar'
   const [open, setOpen] = React.useState(false)
   const rootRef = React.useRef<HTMLDivElement>(null)
   const buttonRef = React.useRef<HTMLButtonElement>(null)
@@ -92,12 +96,16 @@ export function ActionMenu({ label, icon, items, align = 'right', iconOnly = fal
   }
 
   return (
-    <div ref={rootRef} className={cn('relative', className)}>
+    <div ref={rootRef} className={cn('relative', sidebar && 'w-full', className)}>
       <Button
         ref={buttonRef}
         type="button"
         variant="secondary"
         size={iconOnly ? 'icon' : 'default'}
+        className={cn(
+          sidebar &&
+            'h-10 w-full justify-start border-white/15 bg-white/[0.06] text-paper hover:bg-white/10 focus-visible:ring-paper/70 focus-visible:ring-offset-ink',
+        )}
         aria-label={iconOnly ? label : undefined}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -120,7 +128,7 @@ export function ActionMenu({ label, icon, items, align = 'right', iconOnly = fal
           <>
             {icon}
             {label}
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-4 w-4 text-ink-faint" aria-hidden>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className={cn('h-4 w-4', sidebar ? 'ml-auto text-paper/60' : 'text-ink-faint')} aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" />
             </svg>
           </>
@@ -135,7 +143,7 @@ export function ActionMenu({ label, icon, items, align = 'right', iconOnly = fal
           onKeyDown={handleKeyDown}
           className={cn(
             'absolute top-full z-40 mt-1 min-w-[12rem] overflow-hidden rounded-sm border border-paper-border bg-white py-1 shadow-lg',
-            side === 'right' ? 'right-0' : 'left-0',
+            sidebar ? 'inset-x-0' : side === 'right' ? 'right-0' : 'left-0',
           )}
         >
           {items.map((item) => (
