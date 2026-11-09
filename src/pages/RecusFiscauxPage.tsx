@@ -1221,14 +1221,14 @@ export default function RecusFiscauxPage() {
       >
         <ChoixFiltre
           legend="Reçu"
-          aide="« À compléter » : pas encore de reçu, fiche du donateur incomplète (champs manquants, civilité, don au nom d'une famille)."
+          aide="À compléter : pas encore de reçu, fiche du donateur incomplète."
           options={GENERATION_OPTIONS}
           value={brouillon.generation}
           onChange={(generation) => setBrouillon((b) => ({ ...b, generation }))}
         />
         <ChoixFiltre
           legend="Envoi par email"
-          aide="Reçus générés seulement. « Non envoyé » : à envoyer, y compris un reçu régénéré depuis son dernier envoi ; « Sans email » : le donateur n'a pas d'adresse."
+          aide="Version actuelle des reçus générés : un reçu régénéré depuis son envoi redevient « Non envoyé ». Sans email : le donateur n'a pas d'adresse."
           options={ENVOI_OPTIONS}
           value={brouillon.envoi}
           onChange={(envoi) => setBrouillon((b) => ({ ...b, envoi }))}
