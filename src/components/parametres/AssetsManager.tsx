@@ -12,6 +12,7 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 
 const MAX_ASSET_SIZE = 2 * 1024 * 1024
+const COPY_ERROR = 'Copie impossible : sélectionnez le code pour le copier.'
 // Durée d'affichage de « Copié » sur le bouton « Copier le code ».
 const COPY_FEEDBACK_MS = 2000
 const ALLOWED_ASSET_TYPES = ['image/png', 'image/jpeg']
@@ -205,10 +206,11 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
     if (copyTimer.current) clearTimeout(copyTimer.current)
     if (!copied) {
       setCopiedAssetId(null)
-      setAssetError((prev) => ({ ...prev, [asset.id]: 'Copie impossible : sélectionnez le code pour le copier.' }))
+      setAssetError((prev) => ({ ...prev, [asset.id]: COPY_ERROR }))
       return
     }
-    setAssetError((prev) => ({ ...prev, [asset.id]: null }))
+    // N'efface que l'échec de copie précédent, pas une erreur d'action (ex. Remplacer raté).
+    setAssetError((prev) => (prev[asset.id] === COPY_ERROR ? { ...prev, [asset.id]: null } : prev))
     setCopiedAssetId(asset.id)
     copyTimer.current = setTimeout(() => setCopiedAssetId(null), COPY_FEEDBACK_MS)
   }
@@ -362,16 +364,19 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
                   <span key={i}>{part}{i < parts.length - 1 && <>_<wbr /></>}</span>
                 ))}
               </p>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="w-full"
-                onClick={() => handleCopyCode(asset)}
-                aria-label={`Copier le code du visuel ${asset.libelle}`}
-              >
-                {copiedAssetId === asset.id ? 'Code copié' : 'Copier le code'}
-              </Button>
+              {/* Lecture seule : le fieldset de la page désactive le bouton ; le code reste sélectionnable. */}
+              {!lectureSeule && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => handleCopyCode(asset)}
+                  aria-label={`Copier le code du visuel ${asset.libelle}`}
+                >
+                  {copiedAssetId === asset.id ? 'Code copié' : 'Copier le code'}
+                </Button>
+              )}
               <span className="sr-only" aria-live="polite">{copiedAssetId === asset.id ? 'Code copié' : ''}</span>
               {assetActionLoading[asset.id] && <p className="mt-1.5 text-xs text-ink-faint" role="status">En cours…</p>}
               {assetError[asset.id] && <p className="mt-1.5 text-xs text-stamp">{assetError[asset.id]}</p>}
