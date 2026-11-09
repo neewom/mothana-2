@@ -14,6 +14,7 @@ import { ActionMenu } from '../components/ui/action-menu'
 import AccountMenu from '../components/AccountMenu'
 import Tooltip from '../components/Tooltip'
 import { NavCountersContext } from '../contexts/navCountersContext'
+import { buildSearchPages } from '../lib/globalSearch'
 import { buildNavItems, buildQuickActions, type NavEntry, type NavGroup, type NavIconName, type NavQuickAction } from '../lib/adminNav'
 import { useLoadNavCounters } from '../hooks/useNavCounters'
 import { useOrganisationLogoUrl } from '../hooks/useOrganisationLogoUrl'
@@ -318,6 +319,8 @@ export default function AdminLayout() {
   const canManageTeam = isSuperAdminViewing || (auth.type === 'admin' && auth.role === 'admin')
   const canManageSecrets = canManageTeam
   const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES, navCounters, { canManageTeam, canManageSecrets })
+  // Pages de la recherche globale : celles du menu (mêmes filtres), plus « Mon compte » comme le menu compte.
+  const searchPages = buildSearchPages(navItems, { compte: !isSuperAdminViewing })
   const quickActions = buildQuickActions(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES)
   const location = useLocation()
 
@@ -425,7 +428,7 @@ export default function AdminLayout() {
             </Tooltip>
           </div>
           <div className="flex min-w-0 justify-end sm:min-w-[12rem] sm:flex-1">
-            <GlobalSearch organisationId={organisationId} />
+            <GlobalSearch organisationId={organisationId} pages={searchPages} />
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
