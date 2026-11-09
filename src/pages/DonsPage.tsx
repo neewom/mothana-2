@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import type { Don, ProfilParticipant, Activite } from '../types'
@@ -336,6 +336,20 @@ export default function DonsPage() {
     setEditingDon(don)
     setModalOpen(true)
   }
+
+  // Arrivée depuis l'action rapide « Saisir un don » de l'accueil (?nouveau=1) : saisie ouverte
+  // d'emblée, paramètre retiré de l'URL pour ne pas rouvrir la modale au rechargement.
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('nouveau') !== '1') return
+    setEditingDon(undefined)
+    setModalOpen(true)
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.delete('nouveau')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
 
   function handleSaved() {
     refetch()
