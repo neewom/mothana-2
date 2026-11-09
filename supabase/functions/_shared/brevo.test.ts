@@ -1,5 +1,5 @@
 // deno test --no-lock supabase/functions/_shared/brevo.test.ts
-import { cibleRejet, tagsEmailRecu, verifierExpediteurBrevo } from './brevo.ts'
+import { cibleRejet, statutExpediteurBrevo, tagsEmailRecu, verifierExpediteurBrevo } from './brevo.ts'
 
 function vrai(condition: boolean, message: string) {
   if (!condition) throw new Error(message)
@@ -35,4 +35,18 @@ Deno.test('vérification de l\'expéditeur : valide, non valide, impossible', as
   vrai(await verifierExpediteurBrevo('k', 'Contact@Asso.fr ', 't', fetchSenders(200, [{ email: 'contact@asso.fr', active: true }])) === 'valide', 'valide')
   vrai(await verifierExpediteurBrevo('k', 'contact@asso.fr', 't', fetchSenders(200, [{ email: 'contact@asso.fr', active: false }])) === 'non_valide', 'inactif')
   vrai(await verifierExpediteurBrevo('k', 'contact@asso.fr', 't', fetchSenders(403, [])) === 'impossible', '403')
+})
+
+Deno.test('statut détaillé de l\'expéditeur : actif, inactif, introuvable, impossible', async () => {
+  const actif = fetchSenders(200, [{ email: 'autre@asso.fr', active: false }, { email: 'Contact@Asso.fr', active: true }])
+  vrai(await statutExpediteurBrevo('k', ' contact@asso.fr', 't', actif) === 'actif', 'actif')
+  vrai(await statutExpediteurBrevo('k', 'contact@asso.fr', 't', fetchSenders(200, [{ email: 'contact@asso.fr', active: false }])) === 'inactif', 'inactif')
+  vrai(await statutExpediteurBrevo('k', 'contact@asso.fr', 't', fetchSenders(200, [{ email: 'autre@asso.fr', active: true }])) === 'introuvable', 'introuvable')
+  vrai(await statutExpediteurBrevo('k', 'contact@asso.fr', 't', fetchSenders(200, undefined)) === 'introuvable', 'liste absente')
+  vrai(await statutExpediteurBrevo('k', 'contact@asso.fr', 't', fetchSenders(401, [])) === 'impossible', '401')
+  vrai(await statutExpediteurBrevo('k', 'contact@asso.fr', 't', fetchSenders(500, [])) === 'impossible', '500')
+  const panne = (() => Promise.reject(new Error('réseau'))) as typeof fetch
+  vrai(await statutExpediteurBrevo('k', 'contact@asso.fr', 't', panne) === 'impossible', 'réseau')
+  // Expéditeur introuvable : toujours « non valide » pour les envois (comportement inchangé).
+  vrai(await verifierExpediteurBrevo('k', 'contact@asso.fr', 't', fetchSenders(200, [])) === 'non_valide', 'introuvable → non_valide')
 })
