@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useOrganisationId } from '../hooks/useOrganisationId'
 import { fetchAllRows } from '../lib/fetchAllRows'
 import { MODE_PAIEMENT_OPTIONS } from '../lib/modePaiement'
+import { computeSamePeriodComparison, formatDayMonth } from '../lib/samePeriodComparison'
 import type { Don, ModePaiement } from '../types'
 import { Button } from '../components/ui/button'
 import { PageHeader } from '../components/ui/page-header'
@@ -208,12 +209,13 @@ export default function ComptabilitePage() {
     return [row]
   }, [dons, year])
 
-  const stats = useMemo(() => {
-    const totalN = monthlyData.reduce((s, m) => s + (m.montantN ?? 0), 0)
-    const totalN1 = monthlyData.reduce((s, m) => s + m.montantN1, 0)
-    const variationPct = totalN1 > 0 ? ((totalN - totalN1) / totalN1) * 100 : 0
-    return { totalN, totalN1, variationPct }
-  }, [monthlyData])
+  // Tuiles : total de l'année affichée (inchangé) et comparaison à période égale — année en
+  // cours du 1er janvier à aujourd'hui sur les deux années, année passée complète. La courbe
+  // N-1 du graphique reste, elle, sur l'année entière.
+  const totalN = useMemo(() => monthlyData.reduce((s, m) => s + (m.montantN ?? 0), 0), [monthlyData])
+  const comparison = useMemo(() => computeSamePeriodComparison(dons, year, new Date()), [dons, year])
+  const periodLabel = comparison.cutoff ? `1ᵉʳ janv. – ${formatDayMonth(comparison.cutoff)}` : null
+  const variationPct = comparison.variationPct
 
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
@@ -247,14 +249,31 @@ export default function ComptabilitePage() {
           {/* Stats */}
           <StatTiles
             items={[
-              { label: `Total ${year}`, value: formatEur(stats.totalN) },
-              { label: `Total ${year - 1}`, value: formatEur(stats.totalN1) },
               {
-                label: 'Évolution',
-                value: `${stats.variationPct >= 0 ? '+' : ''}${stats.variationPct.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`,
-                hint: `${stats.variationPct >= 0 ? '↑' : '↓'} par rapport à ${year - 1}`,
-                hintTone: stats.variationPct >= 0 ? 'success' : 'warning',
+                label: `Total ${year}`,
+                value: formatEur(totalN),
+                // Dons datés après aujourd'hui (saisis d'avance) : comptés dans le total de l'année
+                // mais hors de la comparaison à date, d'où la précision pour que les tuiles se recoupent.
+                hint: comparison.cutoff && totalN > comparison.totalN
+                  ? `dont ${formatEur(totalN - comparison.totalN)} de dons après le ${formatDayMonth(comparison.cutoff)}`
+                  : undefined,
               },
+              {
+                // « à date » dans le libellé : le hint (période exacte) est masqué en mobile.
+                label: comparison.cutoff ? `${year - 1} à date` : `Total ${year - 1}`,
+                value: formatEur(comparison.totalN1),
+                hint: periodLabel ?? undefined,
+              },
+              variationPct === null
+                ? { label: 'Évolution', value: '—', hint: `pas de dons en ${year - 1}` }
+                : {
+                    label: 'Évolution',
+                    value: `${variationPct >= 0 ? '+' : ''}${variationPct.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`,
+                    hint: periodLabel
+                      ? `${variationPct >= 0 ? '↑' : '↓'} vs même période ${year - 1} (${periodLabel})`
+                      : `${variationPct >= 0 ? '↑' : '↓'} vs ${year - 1}`,
+                    hintTone: variationPct >= 0 ? 'success' : 'warning',
+                  },
             ]}
           />
 
@@ -265,7 +284,7 @@ export default function ComptabilitePage() {
               <LineChart data={monthlyData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke={GRID_STROKE} vertical={false} />
                 <XAxis dataKey="mois" stroke={AXIS_STROKE} tickLine={false} axisLine={{ stroke: GRID_STROKE }} tick={{ fontSize: 12 }} />
-                <YAxis stroke={AXIS_STROKE} tickLine={false} axisLine={false} tick={{ fontSize: 12 }} tickFormatter={(v) => v.toLocaleString('fr-FR')} width={70} />
+                <YAxis stroke={AXIS_STROKE} tickLine={false} axisLine={false} tick={{ fontSize: 12 }} tickFormatter={(v: number) => formatEur(v)} width={80} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 13 }} />
                 <Line type="monotone" dataKey="montantN" name={`${year}`} stroke={ACCENT} strokeWidth={2} dot={{ r: 4, fill: ACCENT, stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }} />
@@ -284,7 +303,7 @@ export default function ComptabilitePage() {
                 <ResponsiveContainer width="100%" height={Math.max(160, activiteBreakdown.length * 44)}>
                   <BarChart data={activiteBreakdown} layout="vertical" margin={{ top: 0, right: 72, left: 0, bottom: 0 }}>
                     <CartesianGrid stroke={GRID_STROKE} horizontal={false} />
-                    <XAxis type="number" stroke={AXIS_STROKE} tickLine={false} axisLine={{ stroke: GRID_STROKE }} tick={{ fontSize: 12 }} tickFormatter={(v) => v.toLocaleString('fr-FR')} />
+                    <XAxis type="number" stroke={AXIS_STROKE} tickLine={false} axisLine={{ stroke: GRID_STROKE }} tick={{ fontSize: 12 }} tickFormatter={(v: number) => formatEur(v)} />
                     <YAxis type="category" dataKey="nom" stroke={AXIS_STROKE} tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={120} />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="montant" name="Montant" fill={ACCENT} radius={[0, 4, 4, 0]} barSize={20}>
