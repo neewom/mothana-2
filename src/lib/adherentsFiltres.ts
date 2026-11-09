@@ -110,3 +110,12 @@ export function libelleAdhesion(
       return { label: `Expirée depuis le ${fin}`, variant: 'warning' }
   }
 }
+
+/** Libellé court (sans date) de la pastille Adhésion, affiché en mobile pour qu'elle reste lisible
+ * à côté du nom ; la date figure dans la fiche. */
+export function libelleAdhesionCourt(adhesion: Pick<Adhesion, 'date_fin'> | undefined, today: string): string {
+  if (!adhesion) return 'Aucune adhésion'
+  if (!adhesion.date_fin) return 'À jour'
+  const etat = etatAdhesion(adhesion, today)
+  return etat === 'a_jour' ? 'À jour' : etat === 'a_renouveler' ? 'À renouveler' : 'Expirée'
+}

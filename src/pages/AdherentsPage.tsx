@@ -39,7 +39,7 @@ import { ListToolbar, FilterChips, type FilterChip } from '../components/ui/list
 import { FilterSheet } from '../components/ui/filter-sheet'
 import { ActionMenu } from '../components/ui/action-menu'
 import {
-  ADHERENTS_FILTRES_VIDES, libelleAdhesion, nombreFiltresAdherents, normaliserFiltresAdherents,
+  ADHERENTS_FILTRES_VIDES, libelleAdhesion, libelleAdhesionCourt, nombreFiltresAdherents, normaliserFiltresAdherents,
   EMAIL_FILTRE_LABELS, type AdherentsFiltres, type EmailFilter,
 } from '../lib/adherentsFiltres'
 
@@ -494,6 +494,14 @@ export default function AdherentsPage() {
     setPdfPreview(null)
   }
 
+  // Menu « Sélection et listes » de la barre d'outils, sous xl (voir la barre d'outils).
+  const optionsMenuItems = [
+    { label: selectionMode ? 'Terminer la sélection' : 'Sélectionner', onSelect: toggleSelectionMode },
+    { label: 'Colonnes', onSelect: () => setColonnesModalOpen(true) },
+    { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
+    { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
+  ]
+
   return (
     <>
       {/*
@@ -540,10 +548,18 @@ export default function AdherentsPage() {
                 </svg>
                 Ajouter un adhérent
               </Button>
-              {/* Mobile : Importer / Exporter regroupés derrière l'action principale. */}
+              {/* Mobile : Importer / Exporter regroupés derrière un bouton « ⋯ » après l'action principale. */}
               <div className="sm:hidden">
                 <ActionMenu
-                  label="Plus"
+                  label="Importer ou exporter"
+                  iconOnly
+                  icon={
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <circle cx="5" cy="12" r="1.75" />
+                      <circle cx="12" cy="12" r="1.75" />
+                      <circle cx="19" cy="12" r="1.75" />
+                    </svg>
+                  }
                   items={[
                     { label: 'Importer', onSelect: () => setImportOpen(true) },
                     { label: exporting ? 'Export…' : 'Exporter', onSelect: () => void handleExport(), disabled: exporting || totalCount === 0 },
@@ -568,13 +584,13 @@ export default function AdherentsPage() {
             onOpenFilters={openFiltres}
             end={
               <>
-                <Button variant="secondary" onClick={() => setColonnesModalOpen(true)} className="hidden sm:inline-flex">
+                <Button variant="secondary" onClick={() => setColonnesModalOpen(true)} className="hidden xl:inline-flex">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6zM9.75 4.5v15m4.5-15v15" />
                   </svg>
                   Colonnes
                 </Button>
-                <div className="hidden sm:block">
+                <div className="hidden xl:block">
                   <ActionMenu
                     label="Listes"
                     items={[
@@ -583,17 +599,23 @@ export default function AdherentsPage() {
                     ]}
                   />
                 </div>
-                {/* Mobile : sélection, Colonnes et Listes regroupés dans un seul menu (barre d'outils sur
-                    deux lignes). La colonne des cases à cocher n'apparaît qu'en mode sélection. */}
+                {/* Sous xl : sélection, Colonnes et Listes regroupés dans un seul menu (la colonne des
+                    cases à cocher n'apparaît alors qu'en mode sélection). Mobile : bouton libellé, sur la
+                    2e ligne de la barre ; de sm à xl (sidebar comprise à 1024) : bouton icône, pour que la
+                    barre tienne sur une ligne à côté d'une recherche de 288 px. */}
                 <div className="sm:hidden">
+                  <ActionMenu label="Sélection et listes" items={optionsMenuItems} compact />
+                </div>
+                <div className="hidden sm:block xl:hidden">
                   <ActionMenu
-                    label="Options"
-                    items={[
-                      { label: selectionMode ? 'Terminer la sélection' : 'Sélectionner', onSelect: toggleSelectionMode },
-                      { label: 'Colonnes', onSelect: () => setColonnesModalOpen(true) },
-                      { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
-                      { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
-                    ]}
+                    label="Sélection et listes"
+                    iconOnly
+                    icon={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm0 5.25h.007v.008H3.75V12zm0 5.25h.007v.008H3.75v-.008z" />
+                      </svg>
+                    }
+                    items={optionsMenuItems}
                   />
                 </div>
               </>
@@ -651,7 +673,7 @@ export default function AdherentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className={selectionMode ? '' : 'hidden sm:table-cell'}>
+                    <TableHead className={selectionMode ? '' : 'hidden xl:table-cell'}>
                       <input
                         type="checkbox"
                         checked={selectedIds.size > 0 && selectedIds.size === adherents.length}
@@ -660,11 +682,11 @@ export default function AdherentsPage() {
                         aria-label="Tout sélectionner"
                       />
                     </TableHead>
-                    {colonnesVisibles.includes('civilite') && <TableHead className="hidden md:table-cell">Civilité</TableHead>}
+                    {colonnesVisibles.includes('civilite') && <TableHead className="hidden xl:table-cell">Civilité</TableHead>}
                     <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                    <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                    {colonnesVisibles.includes('statut') && <SortableTableHead field="statut" label="Fiche" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
                     {colonnesVisibles.includes('adhesion') && <SortableTableHead field="date_fin" label="Adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
+                    <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
+                    {colonnesVisibles.includes('statut') && <SortableTableHead field="statut" label="Fiche" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
                     {colonnesVisibles.includes('date_adhesion') && <SortableTableHead field="date_adhesion" label="Date d'adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
                     {colonnesVisibles.includes('email') && <TableHead>Email</TableHead>}
                     {colonnesVisibles.includes('telephone') && <TableHead>Téléphone</TableHead>}
@@ -680,7 +702,7 @@ export default function AdherentsPage() {
                     const adhesion = libelleAdhesion(latestAdhesions.get(a.id), todayIso)
                     return (
                       <TableRow key={a.id} onClick={() => openEdit(a)} className="cursor-pointer hover:bg-paper-border/20">
-                        <TableCell className={selectionMode ? '' : 'hidden sm:table-cell'} onClick={(e) => e.stopPropagation()}>
+                        <TableCell className={selectionMode ? '' : 'hidden xl:table-cell'} onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(a.id)}
@@ -690,18 +712,26 @@ export default function AdherentsPage() {
                           />
                         </TableCell>
                         {colonnesVisibles.includes('civilite') && (
-                          <TableCell className="hidden whitespace-nowrap text-ink-faint md:table-cell">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
+                          <TableCell className="hidden whitespace-nowrap text-ink-faint xl:table-cell">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
                         )}
-                        <TableCell className="whitespace-nowrap font-medium text-ink">{a.nom}</TableCell>
-                        <TableCell className="whitespace-nowrap text-ink-muted">{a.prenom ?? '—'}</TableCell>
+                        {/* Mobile : « NOM Prénom » dans une seule cellule, la colonne Prénom est masquée. */}
+                        <TableCell className="whitespace-nowrap font-medium text-ink">
+                          {a.nom}
+                          {a.prenom && <span className="font-normal text-ink-muted md:hidden"> {a.prenom}</span>}
+                        </TableCell>
+                        {colonnesVisibles.includes('adhesion') && (
+                          <TableCell>
+                            {/* Mobile : libellé sans date, pour que l'état reste lisible à côté du nom. */}
+                            <Badge variant={adhesion.variant}>
+                              <span className="md:hidden">{libelleAdhesionCourt(latestAdhesions.get(a.id), todayIso)}</span>
+                              <span className="hidden md:inline">{adhesion.label}</span>
+                            </Badge>
+                          </TableCell>
+                        )}
+                        <TableCell className="hidden whitespace-nowrap text-ink-muted md:table-cell">{a.prenom ?? '—'}</TableCell>
                         {colonnesVisibles.includes('statut') && (
                           <TableCell>
                             <Badge variant="neutral">{a.statut === 'actif' ? 'Active' : 'Archivée'}</Badge>
-                          </TableCell>
-                        )}
-                        {colonnesVisibles.includes('adhesion') && (
-                          <TableCell>
-                            <Badge variant={adhesion.variant}>{adhesion.label}</Badge>
                           </TableCell>
                         )}
                         {colonnesVisibles.includes('date_adhesion') && (

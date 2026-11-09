@@ -9,7 +9,9 @@ import { libelleAdhesion } from './adherentsFiltres'
 
 type ColonneExport = ColonneAdherent | 'nom' | 'prenom'
 
-/** Ordre des colonnes du tableau AdherentsPage — à garder aligné avec son en-tête. */
+/** Ordre des colonnes du tableau AdherentsPage — à garder aligné avec son en-tête, à une exception
+ * près : à l'écran, Adhésion s'intercale entre Nom et Prénom (pastille lisible en mobile) ; le CSV
+ * garde Nom et Prénom côte à côte. */
 export const ORDRE_COLONNES_TABLEAU: ColonneExport[] = [
   'civilite',
   'nom',
