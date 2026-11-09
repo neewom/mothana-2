@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { activiteDbErrorMessage } from '../activiteDates'
 
 const IMPORT_CHUNK_SIZE = 500
 
@@ -56,7 +57,7 @@ export async function runImport(
     const { data, error } = await supabase.rpc(rpcName, { payload: chunk, p_organisation_id: organisationId })
 
     if (error) {
-      summary.chunkErrors.push({ chunkIndex, rowRange: [i, i + chunk.length - 1], message: error.message })
+      summary.chunkErrors.push({ chunkIndex, rowRange: [i, i + chunk.length - 1], message: activiteDbErrorMessage(error.message) })
     } else {
       const result = data as RpcResult
       summary.created += result?.created ?? 0
