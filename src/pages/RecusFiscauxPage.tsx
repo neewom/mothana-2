@@ -147,7 +147,7 @@ export default function RecusFiscauxPage() {
   const [recapEnvoiError, setRecapEnvoiError] = useState<string | null>(null)
   const [recapEnvoiLoading, setRecapEnvoiLoading] = useState(false)
 
-  // Regénération (confirmation) et édition participant
+  // Régénération (confirmation) et édition participant
   const [regenerateConfirm, setRegenerateConfirm] = useState<ParticipantRow | null>(null)
   const [editingProfil, setEditingProfil] = useState<ProfilParticipant | undefined>(undefined)
   const [participantModalOpen, setParticipantModalOpen] = useState(false)
@@ -409,7 +409,7 @@ export default function RecusFiscauxPage() {
 
   // ---------------------------------------------------------------------------
   // Générer les reçus manquants : seulement les reçus pas encore générés (une
-  // régénération crée une nouvelle version conservée, elle passe par « Regénérer »)
+  // régénération crée une nouvelle version conservée, elle passe par « Régénérer »)
   // ---------------------------------------------------------------------------
 
   const manquants = useMemo(() => recusAGenerer(rows, orgMissing.length > 0), [rows, orgMissing])
@@ -963,7 +963,7 @@ export default function RecusFiscauxPage() {
                 disabled={genLoading[id] || isBlocked}
                 title={blockedTitle}
               >
-                {genLoading[id] ? 'Génération…' : 'Regénérer'}
+                {genLoading[id] ? 'Génération…' : 'Régénérer'}
               </Button>
             </>
           )
@@ -1107,7 +1107,7 @@ export default function RecusFiscauxPage() {
         <DialogContent className="max-w-sm" aria-describedby={undefined}>
           {regenerateConfirm && (
             <div className="p-6">
-              <h2 className="font-registre text-lg font-semibold text-ink">Regénérer le reçu</h2>
+              <h2 className="font-registre text-lg font-semibold text-ink">Régénérer le reçu</h2>
               <p className="mt-2 font-registre text-sm text-ink-muted">
                 Un reçu a déjà été généré pour{' '}
                 <span className="font-medium text-ink">« {participantFullName(regenerateConfirm.profil)} »</span> en {annee}
@@ -1127,7 +1127,7 @@ export default function RecusFiscauxPage() {
                     generateRecu(row)
                   }}
                 >
-                  Regénérer
+                  Régénérer
                 </Button>
               </div>
             </div>
