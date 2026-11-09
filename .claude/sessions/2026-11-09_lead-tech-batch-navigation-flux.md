@@ -28,3 +28,26 @@ Rôle : lead tech (checkout principal). Deux sous-agents dev en parallèle (clau
 - `impeccable` : utile comme grille de critique (cohérence, données clés hors écran, aide) ; son détecteur n'apporte rien de plus que `lint:ds` ; protocole complet trop lourd pour un lot, utilisé en mode critique.
 - Mobile : en cartes, `impeccable` recommande la transformation des tableaux ; décision utilisateur : composant commun avec choix tableau / cartes en mobile (2ᵉ batch), bord à bord retiré de ce batch.
 - Conflits entre chaînes empilées résolus au merge (`action-menu.tsx` : version dev ; `DemandesAdhesionPage.tsx` : version #371/#372).
+
+---
+
+# Suite 2026-11-09 — Lead tech — Batch « UX 2 »
+
+## Réalisé
+- **Cadrage du 2ᵉ batch UX** : 9 cartes (reliquat découpé), liste « Batch — UX 2 (A empilé, B parallèle) » ; critique `impeccable` ciblée de la page Reçus fiscaux pour retrouver le sens de « actions à droite ».
+- **Batch UX 2 mergé sur `dev`** après « ok » : #381-#389 (détail dans `docs/journal-avancement.md`). Cartes en Done, liste archivée, branches supprimées, tableau de bord vidé, Edge Functions déployées sur staging depuis `dev`, serveur 5175 arrêté.
+- **Cadré** : historique Emailing détaillé + notes ([oRptwoyy](https://trello.com/c/oRptwoyy), [M]) et Courrier ([SxdypAs1](https://trello.com/c/SxdypAs1), [S]), en tête de Todo ; décisions utilisateur : liste des destinataires figée par campagne (ligne retirée à la suppression de l'adhérent, compteurs inchangés), « Reprendre ce contenu » (Emailing), Courrier inclus, à faire après le batch.
+
+## Reste à faire
+- Go utilisateur pour les cartes Emailing puis Courrier (historique détaillé + notes), puis recadrage de « Campagne mailing : inclure les donateurs » (+ relance en un geste).
+- Promotion du batch UX 2 en prod quand l'utilisateur le décide (aucune migration, 6 Edge Functions, TNR).
+- Reportés hors batch (cf. journal) : badge « Configuré » d'Intégrations, focus après modale Radix, `aria-describedby`, colonne Activité de Dons, bulle de « Gérer les listes ».
+- Backlog à cadrer inchangé (landing, déconnexion après inactivité, ratification concurrente, paiement des cotisations, reçu rectificatif, data router) ; carte `/aide` (onboarding Wat) toujours à créer.
+
+## Blockers
+- Aucun.
+
+## Décisions / constats
+- Deux sous-agents en parallèle (pistes A empilée / B indépendante) : 9 PR en une session, boucle de relecture efficace (6 bloquants arrêtés avant revue, 0 après).
+- Correctifs mécaniques faits par le lead tech sur les PR (sélection clavier ⌘K, bouton copie en lecture seule, relance de vérification Brevo, impression depuis la modale, test ⌘K découplé du libellé du menu).
+- Une intégration locale de toutes les PR (branche `integ/ux2`, non poussée) a servi au test utilisateur et à détecter un test cassé entre deux PR parallèles.
