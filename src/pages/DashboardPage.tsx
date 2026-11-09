@@ -14,6 +14,7 @@ import type { Adherent } from '../types'
 import AdherentModal from '../components/AdherentModal'
 import { Button } from '../components/ui/button'
 import { Dialog, DialogContent } from '../components/ui/dialog'
+import { libelleAValider } from '../lib/renouvellementsLibelles'
 
 interface RecentDon {
   id: string
@@ -74,7 +75,9 @@ export default function DashboardPage() {
   const [recentActivites, setRecentActivites] = useState<RecentActivite[]>([])
   const [aRenouveler, setARenouveler] = useState<AdherentARenouveler[]>([])
   const [nombreExpires, setNombreExpires] = useState(0)
+  // Demandes en attente : renouvellements, et anciennes demandes d'adhésion (formulaire public retiré) comptées à part.
   const [demandesEnAttente, setDemandesEnAttente] = useState(0)
+  const [anciennesAdhesionsEnAttente, setAnciennesAdhesionsEnAttente] = useState(0)
   const [donsReguliersAConfirmer, setDonsReguliersAConfirmer] = useState(0)
   const [adherentsEmailInvalideList, setAdherentsEmailInvalideList] = useState<Adherent[]>([])
   const [emailInvalideModalOpen, setEmailInvalideModalOpen] = useState(false)
@@ -163,7 +166,7 @@ export default function DashboardPage() {
         supabase.rpc('search_adherents', { p_organisation_id: organisationId, p_statut: 'expire', p_limit: 1, p_offset: 0 }),
         supabase
           .from('demandes_adhesion')
-          .select('id', { count: 'exact', head: true })
+          .select('type')
           .eq('organisation_id', organisationId)
           .eq('statut', 'en_attente'),
         supabase
@@ -194,7 +197,9 @@ export default function DashboardPage() {
       const dernieres = await chargerDernieresAdhesions([...candidats.keys()])
       setARenouveler(adherentsARenouveler([...candidats.values()], dernieres, aujourdhui, dans30Jours))
       setNombreExpires(((expiresRes.data ?? []) as { total_count: number }[])[0]?.total_count ?? 0)
-      setDemandesEnAttente(demandesRes.count ?? 0)
+      const demandes = (demandesRes.data ?? []) as { type: 'adhesion' | 'renouvellement' }[]
+      setDemandesEnAttente(demandes.length)
+      setAnciennesAdhesionsEnAttente(demandes.filter((d) => d.type === 'adhesion').length)
 
       const engagements = (engagementsRes.data ?? []) as { id: string; jour_prelevement: number; date_debut: string; date_fin: string | null }[]
       const donsGeneres = (donsGeneresRes.data ?? []) as { don_regulier_id: string; date: string }[]
@@ -221,10 +226,12 @@ export default function DashboardPage() {
     ...(adherentsActifs && demandesEnAttente > 0 ? [{
       key: 'demandes',
       icone: 'M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-8.25 3h.008v.008h-.008V12.75z',
-      titre: `${demandesEnAttente} demande${demandesEnAttente > 1 ? 's' : ''} d'adhésion en attente de ratification`,
-      detail: "Renouvellements en ligne et demandes reçues, à examiner par le conseil d'administration.",
-      libelle: 'Examiner',
-      to: '/admin/adherents/demandes',
+      titre: libelleAValider(demandesEnAttente - anciennesAdhesionsEnAttente, anciennesAdhesionsEnAttente),
+      detail: anciennesAdhesionsEnAttente > 0
+        ? "Envoyés par les adhérents depuis leur lien personnel, plus les anciennes demandes d'adhésion encore en attente."
+        : 'Envoyés par les adhérents depuis leur lien personnel de renouvellement.',
+      libelle: 'Valider',
+      to: '/admin/adherents/renouvellements',
     }] : []),
     ...(donsActifs && donsReguliersAConfirmer > 0 ? [{
       key: 'dons-reguliers',
@@ -309,8 +316,9 @@ export default function DashboardPage() {
         />
       )}
 
+      {/* 3 cartes : 2 colonnes à 1024 (sidebar comprise, trop serré à 3), 3 à partir de xl. */}
       {(donsActifs || adherentsActifs) && (
-        <div className={cn('grid grid-cols-1 gap-4', donsActifs && adherentsActifs ? 'lg:grid-cols-3' : 'lg:grid-cols-2')}>
+        <div className={cn('grid grid-cols-1 gap-4', donsActifs && adherentsActifs ? 'lg:grid-cols-2 xl:grid-cols-3' : 'lg:grid-cols-2')}>
           {donsActifs && (
             <Card title="Dons récents" action={<Link to="/admin/dons" className="text-xs font-medium text-stamp hover:underline">Voir tout</Link>}>
               {recentDons.length === 0 ? (
@@ -319,7 +327,7 @@ export default function DashboardPage() {
                 <ul className="space-y-3">
                   {recentDons.map((don) => (
                     <li key={don.id} className="flex items-center justify-between gap-3 text-sm">
-                      <span className="min-w-0 text-ink-muted">
+                      <span className="min-w-0 truncate text-ink-muted">
                         {don.profils_participant?.personnes.prenom} {don.profils_participant?.personnes.nom}
                       </span>
                       <span className="shrink-0 whitespace-nowrap font-medium text-ink">{formatEur(don.montant)}</span>
@@ -338,7 +346,7 @@ export default function DashboardPage() {
                 <ul className="space-y-3">
                   {recentActivites.map((activite) => (
                     <li key={activite.id} className="text-sm">
-                      <p className="text-ink-muted">{activite.nom}</p>
+                      <p className="truncate text-ink-muted">{activite.nom}</p>
                       {activite.date_debut && (
                         <p className="text-xs text-ink-faint">{formatDate(activite.date_debut)}</p>
                       )}
@@ -362,7 +370,7 @@ export default function DashboardPage() {
                 <ul className="space-y-3">
                   {aRenouveler.slice(0, A_RENOUVELER_AFFICHES).map((a) => (
                     <li key={a.adherentId} className="flex items-center justify-between gap-3 text-sm">
-                      <span className="min-w-0 text-ink-muted">
+                      <span className="min-w-0 truncate text-ink-muted">
                         {a.prenom} {a.nom}
                       </span>
                       <span className="shrink-0 whitespace-nowrap text-xs text-ink-faint">{formatDate(a.dateFin)}</span>
