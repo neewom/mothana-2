@@ -48,7 +48,7 @@ function LienExpediteursBrevo() {
       rel="noreferrer"
       className="font-medium text-stamp underline underline-offset-2 hover:no-underline"
     >
-      Ouvrir les expéditeurs Brevo
+      Ouvrir les expéditeurs Brevo<span className="sr-only"> (nouvel onglet)</span>
     </a>
   )
 }
@@ -150,9 +150,9 @@ export default function ParametresIntegrationsPage() {
                 </div>
                 {statutExpediteur === 'en_attente' && (
                   <StatusNotice tone="warning">
-                    Brevo n'a pas encore validé cette adresse : les emails (campagnes, reçus) seront refusés tant
-                    qu'elle n'est pas validée. Cliquez sur le lien de confirmation envoyé par Brevo à cette adresse,
-                    ou authentifiez votre domaine, puis revérifiez. <LienExpediteursBrevo />
+                    Brevo n'a pas encore validé cette adresse : les campagnes et les reçus envoyés par email seront
+                    refusés. Validez-la depuis l'email de confirmation envoyé par Brevo (ou en authentifiant votre
+                    domaine), puis revérifiez. <LienExpediteursBrevo />
                   </StatusNotice>
                 )}
                 {statutExpediteur === 'introuvable' && (
