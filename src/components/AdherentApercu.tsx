@@ -41,11 +41,14 @@ export function AdherentApercuChamps({
   fiche,
   adhesion,
   todayIso,
+  erreur = false,
 }: {
   fiche: AdherentFiche
   /** undefined : en cours de chargement ; null : aucune adhésion. */
   adhesion: Adhesion | null | undefined
   todayIso: string
+  /** Relecture de la fiche en échec : seules les informations de la ligne sont affichées. */
+  erreur?: boolean
 }) {
   const etat = adhesion === undefined ? null : libelleAdhesion(adhesion ?? undefined, todayIso)
   const rejet = fiche.email_invalide_at
@@ -56,9 +59,18 @@ export function AdherentApercuChamps({
 
   return (
     <>
+      {erreur && (
+        <p role="alert" className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-3 py-2 text-sm text-stamp">
+          Impossible de relire la fiche : les informations ci-dessous peuvent être incomplètes. Fermez puis rouvrez l'aperçu pour réessayer.
+        </p>
+      )}
       <DetailField label="Adhésion">
         <div className="flex flex-wrap items-center gap-1.5">
-          {etat ? <Badge variant={etat.variant}>{etat.label}</Badge> : <span className="text-ink-faint">Chargement…</span>}
+          {etat ? (
+            <Badge variant={etat.variant}>{etat.label}</Badge>
+          ) : (
+            <span className="text-ink-faint">{erreur ? 'Indisponible' : 'Chargement…'}</span>
+          )}
           {fiche.statut === 'archive' && <Badge variant="neutral">Fiche archivée</Badge>}
         </div>
       </DetailField>

@@ -8,6 +8,10 @@ export interface ActionMenuItem {
   label: string
   onSelect: () => void
   disabled?: boolean
+  /** Raison affichée sous le libellé d'un élément désactivé (lisible aussi au toucher, sans survol). */
+  disabledReason?: string
+  /** `danger` : action à conséquence négative (ex. Supprimer), en encre cachet comme le bouton `danger`. */
+  tone?: 'default' | 'danger'
 }
 
 interface ActionMenuProps {
@@ -18,7 +22,8 @@ interface ActionMenuProps {
    * il s'ouvre de l'autre côté. */
   align?: 'left' | 'right'
   /** Bouton carré « ⋯ » sans libellé visible (`label` devient son `aria-label`) : menu mobile
-   * Importer / Exporter des pages de liste (2026-11-09). */
+   * Importer / Exporter des pages de liste (2026-11-09). Avec `icon`, l'icône remplace les trois
+   * points (deux menus icône voisins restent distincts). */
   iconOnly?: boolean
   className?: string
   /** `sidebar` : déclencheur pleine largeur sur le fond encre du menu latéral (« + Nouveau »),
@@ -118,7 +123,9 @@ export function ActionMenu({ label, icon, items, align = 'right', iconOnly = fal
           }
         }}
       >
-        {iconOnly ? (
+        {iconOnly && icon ? (
+          icon
+        ) : iconOnly ? (
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden>
             <circle cx="5" cy="12" r="1.6" />
             <circle cx="12" cy="12" r="1.6" />
@@ -146,22 +153,45 @@ export function ActionMenu({ label, icon, items, align = 'right', iconOnly = fal
             sidebar ? 'inset-x-0' : side === 'right' ? 'right-0' : 'left-0',
           )}
         >
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              tabIndex={-1}
-              disabled={item.disabled}
-              onClick={() => {
-                setOpen(false)
-                item.onSelect()
-              }}
-              className="block w-full px-4 py-2 text-left font-registre text-sm text-ink-muted hover:bg-paper focus-visible:bg-paper focus-visible:text-ink focus-visible:outline-none disabled:opacity-50"
-            >
-              {item.label}
-            </button>
-          ))}
+          {items.map((item) => {
+            const reason = item.disabled ? item.disabledReason : undefined
+            const danger = item.tone === 'danger'
+            return (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                // Avec une raison, l'élément reste atteignable au clavier (aria-disabled) pour qu'elle soit lue.
+                disabled={item.disabled && !reason}
+                aria-disabled={item.disabled || undefined}
+                onClick={() => {
+                  if (item.disabled) return
+                  setOpen(false)
+                  // Le focus revient au déclencheur (comme après Échap) ; une modale ouverte par
+                  // l'élément le reprend, puis le rend à ce bouton à sa fermeture.
+                  buttonRef.current?.focus()
+                  item.onSelect()
+                }}
+                className={cn(
+                  // Libellé sur une seule ligne : le menu prend la largeur de son plus long élément.
+                  'block w-full whitespace-nowrap px-4 py-2 text-left font-registre text-sm focus-visible:outline-none aria-disabled:cursor-not-allowed',
+                  danger
+                    ? 'text-stamp hover:bg-stamp/[0.04] focus-visible:bg-stamp/[0.04]'
+                    : 'text-ink-muted hover:bg-paper focus-visible:bg-paper focus-visible:text-ink',
+                  // Sans raison, l'élément désactivé est simplement estompé ; avec raison, seul le
+                  // libellé l'est, l'explication reste lisible.
+                  item.disabled && !reason && 'opacity-50',
+                  reason && 'hover:bg-transparent focus-visible:bg-paper',
+                )}
+              >
+                <span className={cn(reason && 'opacity-50')}>{item.label}</span>
+                {reason && (
+                  <span className="mt-0.5 block max-w-[16rem] whitespace-normal font-registre text-xs text-ink-faint">{reason}</span>
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>

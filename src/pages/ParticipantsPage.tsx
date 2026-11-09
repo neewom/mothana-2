@@ -623,7 +623,7 @@ export default function ParticipantsPage() {
                 className="md:hidden"
                 items={[
                   { label: 'Importer', onSelect: () => setImportOpen(true) },
-                  { label: 'Exporter', onSelect: handleExport, disabled: loading || sortedParticipants.length === 0 },
+                  { label: 'Exporter', onSelect: handleExport, disabled: loading || sortedParticipants.length === 0, disabledReason: !loading && sortedParticipants.length === 0 ? 'Aucun donateur à exporter' : undefined },
                 ]}
               />
               <Button variant="secondary" onClick={() => setImportOpen(true)} className="hidden md:inline-flex">
@@ -660,7 +660,7 @@ export default function ParticipantsPage() {
           {/* Carte de la liste (bord à bord en mobile) */}
           <ListeConteneur>
             <ListToolbar
-              search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Rechercher par nom et prénom…', label: 'Rechercher un donateur' }}
+              search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Nom, prénom…', label: 'Rechercher un donateur' }}
               mode={selecteur}
             />
 

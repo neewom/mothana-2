@@ -20,6 +20,7 @@ import Toast from '../components/Toast'
 import { Button } from '../components/ui/button'
 import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
+import ButtonHint from '../components/ButtonHint'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import { PageHeader } from '../components/ui/page-header'
 import { TablePagination } from '../components/ui/table-pagination'
@@ -573,6 +574,18 @@ export default function RecusFiscauxPage() {
   }
 
   const envoiDesactive = recusEnvoi.actif || recusEnvoi.loading || recusLot.actif || !recapEnvoi || nbAEnvoyer === 0 || brevoLot === false
+  // Raison d'un envoi en lot impossible : infobulle du bouton (à partir de md), ligne sous l'élément du menu « ⋯ ».
+  const raisonEnvoiDesactive = !envoiDesactive
+    ? undefined
+    : lotEnvoiEnCours
+      ? `Un envoi des reçus ${annee} est déjà en cours`
+      : brevoLot === false
+        ? 'Configurez Brevo dans Paramètres › Intégrations pour envoyer les reçus en lot'
+        : recusLot.actif
+          ? 'Une génération en lot est en cours : attendez sa fin pour envoyer les reçus'
+          : recapEnvoi && nbAEnvoyer === 0
+            ? 'Aucun reçu à envoyer (reçus déjà envoyés, ou donateurs sans email valide)'
+            : undefined
   const libelleEnvoi = lotEnvoiEnCours
     ? 'Envoi en cours…'
     : !recapEnvoi || nbAEnvoyer === 0
@@ -850,46 +863,48 @@ export default function RecusFiscauxPage() {
                 iconOnly
                 label="Autres actions"
                 className="md:hidden"
-                items={[{ label: libelleEnvoi, onSelect: ouvrirRecapEnvoi, disabled: envoiDesactive }]}
+                items={[{
+                  label: libelleEnvoi,
+                  onSelect: ouvrirRecapEnvoi,
+                  disabled: envoiDesactive,
+                  // « Envoi en cours… » se suffit à lui-même.
+                  disabledReason: lotEnvoiEnCours ? undefined : raisonEnvoiDesactive,
+                }]}
               />
             )}
             {rows.length > 0 && (
+              <ButtonHint hint={raisonEnvoiDesactive} className="hidden md:inline-block">
               <Button
                 variant="secondary"
                 className="hidden md:inline-flex"
                 onClick={ouvrirRecapEnvoi}
                 disabled={envoiDesactive}
-                title={
-                  lotEnvoiEnCours
-                    ? `Un envoi des reçus ${annee} est déjà en cours`
-                    : brevoLot === false
-                      ? 'Configurez Brevo dans Paramètres › Intégrations pour envoyer les reçus en lot'
-                      : recusLot.actif
-                      ? 'Une génération en lot est en cours : attendez sa fin pour envoyer les reçus'
-                      : recapEnvoi && nbAEnvoyer === 0
-                        ? 'Aucun reçu à envoyer (reçus déjà envoyés, ou donateurs sans email valide)'
-                        : undefined
-                }
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                 </svg>
                 {libelleEnvoi}
               </Button>
+              </ButtonHint>
             )}
             {rows.length > 0 && (
+              <ButtonHint
+                align="right"
+                hint={
+                  !(recusLot.actif || recusLot.loading || manquants.length === 0)
+                    ? undefined
+                    : lotEnCours
+                      ? `Une génération des reçus ${annee} est déjà en cours`
+                      : orgMissing.length > 0
+                        ? "Complétez les paramètres de l'organisation pour générer des reçus"
+                        : manquants.length === 0
+                          ? 'Aucun reçu manquant prêt à générer (un reçu existant se régénère depuis son détail)'
+                          : undefined
+                }
+              >
               <Button
                 onClick={ouvrirRecapitulatif}
                 disabled={recusLot.actif || recusLot.loading || manquants.length === 0}
-                title={
-                  lotEnCours
-                    ? `Une génération des reçus ${annee} est déjà en cours`
-                    : orgMissing.length > 0
-                      ? "Complétez les paramètres de l'organisation pour générer des reçus"
-                      : manquants.length === 0
-                        ? 'Aucun reçu manquant prêt à générer (un reçu existant se régénère depuis son détail)'
-                        : undefined
-                }
               >
                 {lotEnCours ? (
                   <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -921,6 +936,7 @@ export default function RecusFiscauxPage() {
                         : `Générer ${manquants.length} reçu${manquants.length > 1 ? 's' : ''}`}
                 </span>
               </Button>
+              </ButtonHint>
             )}
           </>
         }
@@ -1003,7 +1019,7 @@ export default function RecusFiscauxPage() {
       <ListeConteneur>
         {!loading && rows.length > 0 && (
           <ListToolbar
-            search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Rechercher par nom…', label: 'Rechercher un donateur' }}
+            search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Nom, prénom…', label: 'Rechercher un donateur' }}
             filterCount={nombreFiltres}
             onOpenFilters={openFiltres}
             mode={selecteur}
@@ -1068,14 +1084,19 @@ export default function RecusFiscauxPage() {
           if (!selectedRow.recu) {
             // Pendant un lot, un nouveau reçu généré à la main prendrait un numéro hors de l'ordre du lot.
             return (
-              <Button
-                className="w-full"
-                onClick={() => generateRecu(selectedRow)}
-                disabled={genLoading[id] || recusLot.actif || isBlocked}
-                title={recusLot.actif ? 'Une génération en lot est en cours : attendez sa fin pour générer ce reçu' : blockedTitle}
+              <ButtonHint
+                className="block w-full"
+                triggerClassName="block"
+                hint={recusLot.actif ? 'Une génération en lot est en cours : attendez sa fin pour générer ce reçu' : blockedTitle}
               >
-                {genLoading[id] ? 'Génération…' : 'Générer le reçu'}
-              </Button>
+                <Button
+                  className="w-full"
+                  onClick={() => generateRecu(selectedRow)}
+                  disabled={genLoading[id] || recusLot.actif || isBlocked}
+                >
+                  {genLoading[id] ? 'Génération…' : 'Générer le reçu'}
+                </Button>
+              </ButtonHint>
             )
           }
           return (
@@ -1089,15 +1110,16 @@ export default function RecusFiscauxPage() {
                   {sendLoading[id] ? 'Envoi…' : 'Envoyer par email'}
                 </Button>
               )}
-              <Button
-                variant="secondary"
-                className="w-full"
-                onClick={() => handleGenerateClick(selectedRow)}
-                disabled={genLoading[id] || isBlocked}
-                title={blockedTitle}
-              >
-                {genLoading[id] ? 'Génération…' : 'Régénérer'}
-              </Button>
+              <ButtonHint className="block w-full" triggerClassName="block" hint={blockedTitle}>
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => handleGenerateClick(selectedRow)}
+                  disabled={genLoading[id] || isBlocked}
+                >
+                  {genLoading[id] ? 'Génération…' : 'Régénérer'}
+                </Button>
+              </ButtonHint>
             </>
           )
         })()}
@@ -1128,7 +1150,11 @@ export default function RecusFiscauxPage() {
                   <p className="font-registre-mono text-xl font-bold">{formatMontant(selectedRow.total_dons)}</p>
                 </DetailField>
                 <DetailField label="Statut">
-                  <Badge variant={selectedRow.recu ? 'success' : 'neutral'}>{selectedRow.recu ? 'Généré' : 'Non généré'}</Badge>
+                  {/* Mêmes pastilles que la liste : génération, avertissement de fiche, erreur, envoi. */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {statutRecu(selectedRow)}
+                    {pastilleEnvoi(selectedRow)}
+                  </div>
                 </DetailField>
               </div>
               {selectedRow.recu && (

@@ -318,6 +318,8 @@ export default function AdherentsPage() {
 
   // Clic sur une ligne : ouvre l'aperçu, un second clic sur la même ligne le referme.
   function toggleApercu(a: Adherent) {
+    // Une erreur d'impression concerne la fiche précédente : on ne la reporte pas sur la suivante.
+    setPrintError(null)
     setApercuAdherent((current) => (current?.id === a.id ? null : a))
   }
 
@@ -659,7 +661,7 @@ export default function AdherentsPage() {
     ...(casesToujoursVisibles ? [] : [{ label: selectionMode ? 'Terminer la sélection' : 'Sélectionner', onSelect: toggleSelectionMode }]),
     { label: 'Colonnes', onSelect: () => setColonnesModalOpen(true) },
     { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
-    { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
+    { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0, disabledReason: "Aucune liste pour l'instant" },
   ]
 
   return (
@@ -702,23 +704,29 @@ export default function AdherentsPage() {
                 </svg>
                 {exporting ? 'Export…' : 'Exporter'}
               </Button>
-              <Button onClick={openAdd}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Ajouter un adhérent
-              </Button>
-              {/* Mobile : Importer / Exporter regroupés derrière un bouton « ⋯ » après l'action principale. */}
+              {/* Mobile : Importer / Exporter regroupés derrière un bouton « ⋯ », avant l'action principale
+                  (en dernier, comme sur Dons et Donateurs). */}
               <div className="sm:hidden">
                 <ActionMenu
                   label="Importer ou exporter"
                   iconOnly
                   items={[
                     { label: 'Importer', onSelect: () => setImportOpen(true) },
-                    { label: exporting ? 'Export…' : 'Exporter', onSelect: () => void handleExport(), disabled: exporting || totalCount === 0 },
+                    {
+                      label: exporting ? 'Export…' : 'Exporter',
+                      onSelect: () => void handleExport(),
+                      disabled: exporting || totalCount === 0,
+                      disabledReason: !exporting && totalCount === 0 ? 'Aucun adhérent à exporter' : undefined,
+                    },
                   ]}
                 />
               </div>
+              <Button onClick={openAdd}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Ajouter un adhérent
+              </Button>
             </>
           }
         />
@@ -726,7 +734,8 @@ export default function AdherentsPage() {
         {error && (
           <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur : {error}</div>
         )}
-        {printError && (
+        {/* Panneau ouvert : l'erreur s'affiche dans le panneau (en mobile, il recouvre la page). */}
+        {printError && !apercuAdherent && (
           <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur d'impression : {printError}</div>
         )}
 
@@ -753,7 +762,7 @@ export default function AdherentsPage() {
                       label="Listes"
                       items={[
                         { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
-                        { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
+                        { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0, disabledReason: "Aucune liste pour l'instant" },
                       ]}
                     />
                   </div>
@@ -763,6 +772,12 @@ export default function AdherentsPage() {
                   <ActionMenu
                     label="Sélection et listes"
                     iconOnly
+                    // Icône distincte du « ⋯ » d'Importer / Exporter de l'en-tête, voisin en mobile.
+                    icon={
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                      </svg>
+                    }
                     items={optionsMenuItems}
                     className={apercuAdherent ? '2xl:hidden' : 'xl:hidden'}
                   />
@@ -864,7 +879,10 @@ export default function AdherentsPage() {
               />
             )}
           >
-            {apercu.fiche && <AdherentApercuChamps fiche={apercu.fiche} adhesion={apercu.adhesion} todayIso={todayIso} />}
+            {printError && (
+              <p role="alert" className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-3 py-2 text-sm text-stamp">Erreur d'impression : {printError}</p>
+            )}
+            {apercu.fiche && <AdherentApercuChamps fiche={apercu.fiche} adhesion={apercu.adhesion} todayIso={todayIso} erreur={apercu.erreur} />}
           </SidePanel>
         </div>
       </div>

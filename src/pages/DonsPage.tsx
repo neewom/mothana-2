@@ -319,7 +319,8 @@ export default function DonsPage() {
     {
       key: 'donateur', label: 'Donateur', sortField: 'donateur', role: 'titre',
       headClassName: 'pl-2 pr-4 sm:px-6',
-      cellClassName: 'max-w-[8.5rem] truncate whitespace-nowrap pl-2 pr-4 font-medium text-ink sm:max-w-[14rem] sm:px-6 md:max-w-[18rem]',
+      // Donnée identifiante : jamais tronquée, le tableau défile horizontalement (DESIGN.md, Tables).
+      cellClassName: 'whitespace-nowrap pl-2 pr-4 font-medium text-ink sm:px-6',
       cell: nomDonateur,
     },
     {
@@ -463,7 +464,7 @@ export default function DonsPage() {
                 className="md:hidden"
                 items={[
                   { label: 'Importer', onSelect: () => setImportOpen(true) },
-                  { label: 'Exporter', onSelect: handleExport, disabled: filteredDons.length === 0 },
+                  { label: 'Exporter', onSelect: handleExport, disabled: filteredDons.length === 0, disabledReason: 'Aucun don à exporter' },
                 ]}
               />
               <Button variant="secondary" onClick={() => setImportOpen(true)} className="hidden md:inline-flex">

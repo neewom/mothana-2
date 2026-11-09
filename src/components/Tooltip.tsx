@@ -12,11 +12,14 @@ interface TooltipProps {
   className?: string
   /** Au-dessus par défaut ; `bottom` pour un déclencheur collé en haut de l'écran (barre du haut). */
   placement?: 'top' | 'bottom'
+  /** Bord du déclencheur sur lequel la bulle s'aligne : `right` pour un déclencheur proche du bord
+   * droit de l'écran (la bulle s'étend alors vers la gauche). */
+  align?: 'left' | 'right'
 }
 
 // Hover (desktop) + tap pour rouvrir/fermer (mobile/tactile) — pas de dépendance
 // à mouseenter côté tactile, qui n'est pas fiable sur tous les navigateurs.
-export default function Tooltip({ content, children, triggerClassName, bare = false, className, placement = 'top' }: TooltipProps) {
+export default function Tooltip({ content, children, triggerClassName, bare = false, className, placement = 'top', align = 'left' }: TooltipProps) {
   const [open, setOpen] = useState(false)
 
   const handlers = {
@@ -42,7 +45,7 @@ export default function Tooltip({ content, children, triggerClassName, bare = fa
         </button>
       )}
       {open && (
-        <div className={`absolute left-0 z-30 w-max max-w-xs whitespace-pre-line rounded-sm bg-ink px-3 py-2 font-registre text-xs leading-relaxed text-paper shadow-lg ${placement === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
+        <div role="tooltip" className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} z-30 w-max max-w-xs whitespace-pre-line rounded-sm bg-ink px-3 py-2 font-registre text-xs leading-relaxed text-paper shadow-lg ${placement === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
           {content}
         </div>
       )}
