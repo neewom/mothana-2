@@ -180,6 +180,8 @@ export default function ParametresIntegrationsPage() {
           onClose={() => setModalOpen(false)}
           onSaved={(values) => {
             setConfig(values)
+            // Clé API changée sans changer l'adresse : aucune dépendance de l'effet ne bouge, on relance.
+            setVerification((n) => n + 1)
             showToast('Configuration Brevo enregistrée')
           }}
           organisationId={organisationId}
