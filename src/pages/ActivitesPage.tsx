@@ -288,7 +288,7 @@ function ActiviteRow({
             {activite.nom}
           </p>
           {statutText && <p className="mt-0.5 font-registre text-sm text-ink-muted">{statutText}</p>}
-          <p className={cn('mt-1 font-registre-mono text-xs', isTerminee ? 'text-ink-faint' : counts && counts.dons > 0 ? 'font-medium text-stamp' : 'text-ink-faint')}>
+          <p className={cn('mt-1 font-registre-mono text-xs', isTerminee ? 'text-ink-faint' : counts && counts.dons > 0 ? 'font-medium text-ink-muted' : 'text-ink-faint')}>
             {countsText}
           </p>
           {activite.id_externe && (
@@ -606,9 +606,12 @@ export default function ActivitesPage() {
                   onClick={() => setTermineesOpen(!termineesVisible)}
                   aria-expanded={termineesVisible}
                   aria-controls="activites-terminees"
-                  className="mb-2 flex items-center gap-1.5 rounded-sm px-1 font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
+                  className={cn(
+                    'flex w-full items-center gap-2 rounded-sm border border-paper-border bg-white px-4 py-3 text-left font-registre text-sm text-ink-muted transition-colors hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70',
+                    termineesVisible && 'mb-2',
+                  )}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={cn('h-3 w-3 transition-transform', termineesVisible && 'rotate-90')} aria-hidden>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={cn('h-4 w-4 shrink-0 text-ink-faint transition-transform', termineesVisible && 'rotate-90')} aria-hidden>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                   Terminées ({terminees.length})
@@ -633,7 +636,9 @@ export default function ActivitesPage() {
               </div>
             )}
 
-            {/* Pagination commune, en carte autonome sous les trois registres. */}
+            {/* Pagination commune, en carte autonome sous les trois registres ; masquée
+                quand tout tient sur une page. */}
+            {pageCount > 1 && (
             <div className="rounded-sm border border-paper-border bg-white">
               <TablePagination
                 className="border-t-0"
@@ -645,6 +650,7 @@ export default function ActivitesPage() {
                 onPageSizeChange={setPageSize}
               />
             </div>
+            )}
           </>
         )}
       </div>
