@@ -13,6 +13,7 @@ import { maxDateNaissance, isAnneeNaissanceValide } from '../lib/dateNaissance'
 import type { DuplicateMatch } from '../lib/adherentDuplicateCheck'
 import { logModification, computeAdherentDiff } from '../lib/journalModifications'
 import AdherentHistoriqueSection from './AdherentHistoriqueSection'
+import ButtonHint from './ButtonHint'
 import AdherentAdhesionsSection from './AdherentAdhesionsSection'
 import TagsInput from './TagsInput'
 import { cn } from '../lib/utils'
@@ -376,11 +377,17 @@ export default function AdherentModal({
                 <Button type="button" variant="secondary" size="sm" onClick={onReactivate}>Réactiver</Button>
               )
             )}
-            {/* L'historique reste en bas de la fiche (pas de doublon) : ce bouton l'ouvre et y amène. */}
+            {/* L'historique reste en bas de la fiche (pas de doublon) : ce bouton l'ouvre et y amène.
+                En mobile, icône seule : il reste sur la ligne des autres actions. */}
             {isEdit && adherent && (
-              <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={showHistorique}>
-                Historique
-              </Button>
+              <ButtonHint align="right" hint="Historique des modifications" className="ml-auto">
+                <Button type="button" variant="ghost" size="sm" className="w-8 px-0 sm:w-auto sm:px-3" onClick={showHistorique} aria-label="Historique">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="hidden sm:inline">Historique</span>
+                </Button>
+              </ButtonHint>
             )}
           </div>
         )}

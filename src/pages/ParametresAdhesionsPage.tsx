@@ -375,7 +375,7 @@ export default function ParametresAdhesionsPage() {
           </p>
           <div className="flex items-center gap-3">
             {peutModifier && (
-              <Button type="button" variant="secondary" onClick={() => setFormulaireEditorOpen(true)}>
+              <Button type="button" variant="secondary" size="sm" onClick={() => setFormulaireEditorOpen(true)}>
                 {formulaireHeaderHtml || formulaireFooterHtml ? 'Modifier' : 'Personnaliser'}
               </Button>
             )}
