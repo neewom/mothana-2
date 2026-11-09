@@ -17,12 +17,16 @@ interface ActionMenuProps {
   /** Côté préféré ; si le menu y sortirait de la fenêtre (bouton passé à gauche en mobile…),
    * il s'ouvre de l'autre côté. */
   align?: 'left' | 'right'
+  /** Bouton carré réduit à l'icône (ex. « ⋯ » en mobile) : `label` devient son nom accessible. */
+  iconOnly?: boolean
+  /** Marge horizontale réduite (px-3), pour tenir sur une ligne étroite en mobile. */
+  compact?: boolean
 }
 
 // Marge minimale entre le menu et le bord de la fenêtre.
 const VIEWPORT_MARGIN = 8
 
-export function ActionMenu({ label, icon, items, align = 'right' }: ActionMenuProps) {
+export function ActionMenu({ label, icon, items, align = 'right', iconOnly = false, compact = false }: ActionMenuProps) {
   const [open, setOpen] = React.useState(false)
   const rootRef = React.useRef<HTMLDivElement>(null)
   const buttonRef = React.useRef<HTMLButtonElement>(null)
@@ -93,6 +97,9 @@ export function ActionMenu({ label, icon, items, align = 'right' }: ActionMenuPr
         ref={buttonRef}
         type="button"
         variant="secondary"
+        size={iconOnly ? 'icon' : 'default'}
+        aria-label={iconOnly ? label : undefined}
+        className={compact && !iconOnly ? 'px-3' : undefined}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -105,10 +112,14 @@ export function ActionMenu({ label, icon, items, align = 'right' }: ActionMenuPr
         }}
       >
         {icon}
-        {label}
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-4 w-4 text-ink-faint" aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" />
-        </svg>
+        {!iconOnly && (
+          <>
+            {label}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-4 w-4 text-ink-faint" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" />
+            </svg>
+          </>
+        )}
       </Button>
       {open && (
         <div

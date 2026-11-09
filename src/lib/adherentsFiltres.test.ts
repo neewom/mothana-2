@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ADHERENTS_FILTRES_VIDES, EMAIL_FILTRE_LABELS, ajouterJours, etatAdhesion, etatDateFin, libelleAdhesion, nombreFiltresAdherents, normaliserFiltresAdherents } from './adherentsFiltres'
+import { ADHERENTS_FILTRES_VIDES, EMAIL_FILTRE_LABELS, ajouterJours, etatAdhesion, etatDateFin, libelleAdhesion, libelleAdhesionCourt, nombreFiltresAdherents, normaliserFiltresAdherents } from './adherentsFiltres'
 
 describe('nombreFiltresAdherents', () => {
   it('compte chaque filtre renseigné', () => {
@@ -68,5 +68,16 @@ describe('ajouterJours', () => {
     expect(ajouterJours('2026-10-17', 30)).toBe('2026-11-16')
     expect(ajouterJours('2026-12-15', 30)).toBe('2027-01-14')
     expect(ajouterJours('2028-02-28', 1)).toBe('2028-02-29')
+  })
+})
+
+describe('libelleAdhesionCourt', () => {
+  const today = '2026-10-10'
+  it('garde l’état sans la date', () => {
+    expect(libelleAdhesionCourt(undefined, today)).toBe('Aucune adhésion')
+    expect(libelleAdhesionCourt({ date_fin: null }, today)).toBe('À jour')
+    expect(libelleAdhesionCourt({ date_fin: '2027-08-25' }, today)).toBe('À jour')
+    expect(libelleAdhesionCourt({ date_fin: '2026-10-10' }, today)).toBe('À renouveler')
+    expect(libelleAdhesionCourt({ date_fin: '2026-08-28' }, today)).toBe('Expirée')
   })
 })
