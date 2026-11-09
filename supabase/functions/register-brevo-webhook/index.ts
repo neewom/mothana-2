@@ -48,7 +48,10 @@ interface BrevoWebhook {
 // Correction 2026-10-23 : les `error` observés étaient des refus d'expéditeur non validé, pas
 // des domaines sans MX (qui arrivent en softBounce, non souscrit) ; brevo-bounce-webhook trie
 // désormais blocked / error selon la raison (_shared/brevoRejets.ts).
-const WEBHOOK_EVENTS = ['hardBounce', 'invalid', 'blocked', 'error']
+// `softBounce` ajouté le 2026-11-08 : seul un soft bounce « Unable to find MX » (domaine introuvable)
+// marque l'adresse, les autres sont ignorés par classerRejet. Le réenregistrement (bouton
+// super-admin ou nouvelle clé) met à jour les événements d'un webhook existant.
+const WEBHOOK_EVENTS = ['hardBounce', 'softBounce', 'invalid', 'blocked', 'error']
 
 type Resultat =
   | { ok: true; already_registered: boolean }
