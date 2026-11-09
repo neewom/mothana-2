@@ -637,7 +637,7 @@ export default function EvenementDetailPage() {
           >
             <section className="min-w-0 flex-1 overflow-hidden rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
               <ListToolbar
-                search={{ value: walletSearch, onChange: (v) => { setWalletSearch(v); walletPagination.setCurrentPage(1) }, placeholder: 'Rechercher par email ou code', label: 'Rechercher un portefeuille' }}
+                search={{ value: walletSearch, onChange: (v) => { setWalletSearch(v); walletPagination.setCurrentPage(1) }, placeholder: 'Email, code…', label: 'Rechercher un portefeuille' }}
               />
               {portefeuilles.length === 0 ? (
                 <p className="px-4 py-12 text-center text-sm text-ink-faint md:px-6">Aucun portefeuille créé pour cet événement.</p>
@@ -717,7 +717,7 @@ export default function EvenementDetailPage() {
           >
             {mouvements.length > 0 && (
               <ListToolbar
-                search={{ value: mouvementSearch, onChange: (v) => { setMouvementSearch(v); mouvementPagination.setCurrentPage(1) }, placeholder: 'Rechercher par email ou code', label: 'Rechercher un mouvement' }}
+                search={{ value: mouvementSearch, onChange: (v) => { setMouvementSearch(v); mouvementPagination.setCurrentPage(1) }, placeholder: 'Email, code…', label: 'Rechercher un mouvement' }}
               />
             )}
             {mouvements.length === 0 ? (
@@ -771,7 +771,7 @@ export default function EvenementDetailPage() {
           >
             {commandes.length > 0 && (
               <ListToolbar
-                search={{ value: commandeSearch, onChange: (v) => { setCommandeSearch(v); commandePagination.setCurrentPage(1) }, placeholder: 'Rechercher par email ou code', label: 'Rechercher une commande' }}
+                search={{ value: commandeSearch, onChange: (v) => { setCommandeSearch(v); commandePagination.setCurrentPage(1) }, placeholder: 'Email, code…', label: 'Rechercher une commande' }}
               />
             )}
             {commandes.length === 0 ? (

@@ -12,7 +12,8 @@ interface TooltipProps {
   className?: string
   /** Au-dessus par défaut ; `bottom` pour un déclencheur collé en haut de l'écran (barre du haut). */
   placement?: 'top' | 'bottom'
-  /** Aligné sur le bord gauche du déclencheur par défaut ; `end` (bord droit) près du bord droit de l'écran. */
+  /** Aligné sur le bord gauche du déclencheur par défaut ; `end` (bord droit) pour un déclencheur
+   * proche du bord droit de l'écran (la bulle s'étend alors vers la gauche). */
   align?: 'start' | 'end'
   /** Largeur max de la bulle (`max-w-xs` par défaut) : plus étroite pour un déclencheur loin du bord gauche, en mobile. */
   maxWidthClassName?: string
@@ -23,7 +24,7 @@ interface TooltipProps {
 
 // Survol à la souris (desktop) + tap pour ouvrir/fermer (mobile/tactile). Le survol ne réagit qu'à
 // la souris : un tap émule aussi un mouseenter, qui ouvrait l'infobulle juste avant que le clic la
-// referme.
+// referme. Un tap ou clic en dehors la referme (en tactile, `onBlur` ne se déclenche pas toujours).
 export default function Tooltip({ content, children, triggerClassName, bare = false, className, placement = 'top', align = 'start', maxWidthClassName = 'max-w-xs', fixed = false }: TooltipProps) {
   const [open, setOpen] = useState(false)
   const [fixedStyle, setFixedStyle] = useState<CSSProperties | undefined>(undefined)
@@ -35,11 +36,21 @@ export default function Tooltip({ content, children, triggerClassName, bare = fa
       setFixedStyle({
         position: 'fixed',
         ...(placement === 'bottom' ? { top: r.bottom + 6 } : { bottom: window.innerHeight - r.top + 6 }),
-        ...(align === 'end' ? { right: window.innerWidth - r.right } : { left: r.left }),
+        // clientWidth exclut la barre de défilement verticale, contrairement à window.innerWidth.
+        ...(align === 'end' ? { right: document.documentElement.clientWidth - r.right } : { left: r.left }),
       })
     }
     setOpen(true)
   }
+
+  useEffect(() => {
+    if (!open) return
+    const fermerSiDehors = (e: globalThis.PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', fermerSiDehors)
+    return () => document.removeEventListener('pointerdown', fermerSiDehors)
+  }, [open])
 
   useEffect(() => {
     if (!open || !fixed) return
@@ -53,8 +64,8 @@ export default function Tooltip({ content, children, triggerClassName, bare = fa
   }, [open, fixed])
 
   const handlers = {
-    onPointerEnter: (e: PointerEvent) => { if (e.pointerType === 'mouse') ouvrir() },
-    onPointerLeave: (e: PointerEvent) => { if (e.pointerType === 'mouse') setOpen(false) },
+    onPointerEnter: (e: PointerEvent<HTMLElement>) => { if (e.pointerType === 'mouse') ouvrir() },
+    onPointerLeave: (e: PointerEvent<HTMLElement>) => { if (e.pointerType === 'mouse') setOpen(false) },
     onClick: () => { if (open) setOpen(false); else ouvrir() },
     onBlur: () => setOpen(false),
   }
@@ -76,6 +87,7 @@ export default function Tooltip({ content, children, triggerClassName, bare = fa
       )}
       {open && (
         <div
+          role="tooltip"
           style={fixed ? fixedStyle : undefined}
           className={`${fixed ? '' : `absolute ${align === 'end' ? 'right-0' : 'left-0'} ${placement === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`} z-30 w-max ${maxWidthClassName} whitespace-pre-line rounded-sm bg-ink px-3 py-2 font-registre text-xs leading-relaxed text-paper shadow-lg`}
         >

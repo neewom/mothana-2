@@ -161,10 +161,12 @@ export default function CarteAdherentSection({ organisationId, lectureSeule = fa
         </p>
         {!lectureSeule && (
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+            {/* Taille `sm`, comme les actions des gabarits listés juste dessous. */}
+            <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
               Importer un modèle
             </Button>
             <Button
+              size="sm"
               onClick={() => {
                 setWizardDraft(null)
                 setEditorState('new')

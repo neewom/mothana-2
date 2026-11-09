@@ -19,6 +19,8 @@ export function useAdherentApercu(initial: Adherent | null, refreshKey: number, 
   const [fiche, setFiche] = useState<AdherentFiche | null>(initial)
   const [adhesion, setAdhesion] = useState<Adhesion | null | undefined>(undefined)
   const [introuvable, setIntrouvable] = useState(false)
+  // Relecture en échec : le panneau le dit au lieu de rester sur « Chargement… ».
+  const [erreur, setErreur] = useState(false)
   const id = initial?.id ?? null
 
   // Nouvelle fiche ouverte : affichage provisoire depuis la ligne, avant la relecture.
@@ -28,6 +30,7 @@ export function useAdherentApercu(initial: Adherent | null, refreshKey: number, 
     setFiche(initial)
     setAdhesion(undefined)
     setIntrouvable(false)
+    setErreur(false)
   }
 
   useEffect(() => {
@@ -38,17 +41,23 @@ export function useAdherentApercu(initial: Adherent | null, refreshKey: number, 
       chargerDernieresAdhesions([id]),
     ]).then(([{ data, error }, adhesions]) => {
       if (cancelled) return
-      // Erreur de lecture : on garde l'affichage provisoire ; aucune ligne : fiche supprimée.
-      if (error) return
+      // Erreur de lecture : on garde l'affichage provisoire, signalé ; aucune ligne : fiche supprimée.
+      if (error) {
+        setErreur(true)
+        return
+      }
       if (!data) {
         setIntrouvable(true)
         return
       }
+      setErreur(false)
       setFiche(data as AdherentFiche)
       setAdhesion(adhesions.get(id) ?? null)
+    }, () => {
+      if (!cancelled) setErreur(true)
     })
     return () => { cancelled = true }
   }, [id, refreshKey, organisationId])
 
-  return { fiche, adhesion, introuvable }
+  return { fiche, adhesion, introuvable, erreur }
 }

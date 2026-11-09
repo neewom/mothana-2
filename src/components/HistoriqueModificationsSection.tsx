@@ -49,7 +49,7 @@ export default function HistoriqueModificationsSection({ organisationId }: Histo
     <div className="font-registre">
       <ListToolbar
         className="mb-2 border-b-0 px-0 py-0 md:px-0"
-        search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom de la personne ou de l’auteur…', label: 'Rechercher dans le journal' }}
+        search={{ value: recherche, onChange: setRecherche, placeholder: 'Personne, auteur…', label: 'Rechercher dans le journal' }}
       />
 
       {error && <div className="mb-4 rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur : {error}</div>}
@@ -68,7 +68,7 @@ export default function HistoriqueModificationsSection({ organisationId }: Histo
             <li key={entry.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
               <div>
                 <JournalActionLabel entry={entry} />
-                <span className="text-ink-faint"> · par {libelleAuteurJournal(entry)}</span>
+                {libelleAuteurJournal(entry) && <span className="text-ink-faint"> · par {libelleAuteurJournal(entry)}</span>}
               </div>
               <span className="shrink-0 text-xs text-ink-faint">{formatDateTime(entry.created_at)}</span>
             </li>

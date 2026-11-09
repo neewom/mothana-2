@@ -72,8 +72,8 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       icon: 'don',
       action: SAISIR_DON,
       items: [
-        // `end` : la page Paramètres (/admin/dons/parametres) ne doit pas allumer aussi « Dons ».
-        { label: 'Dons', to: '/admin/dons', end: true },
+        // `end` : la page Paramètres (/admin/dons/parametres) ne doit pas allumer aussi « Tous les dons ».
+        { label: 'Tous les dons', to: '/admin/dons', end: true },
         { label: 'Dons réguliers', to: '/admin/dons-reguliers', count: counters.donsReguliersAConfirmer },
         { label: 'Donateurs', to: '/admin/participants' },
         { label: 'Reçus fiscaux', to: '/admin/recus' },
@@ -89,7 +89,7 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       icon: 'idCard',
       action: AJOUTER_ADHERENT,
       items: [
-        { label: 'Adhérents', to: '/admin/adherents', end: true },
+        { label: 'Tous les adhérents', to: '/admin/adherents', end: true },
         { label: 'Renouvellements', to: '/admin/adherents/renouvellements', count: counters.demandesEnAttente },
         { label: 'Journal', to: '/admin/adherents/journal' },
         { label: 'Paramètres', to: '/admin/adherents/parametres' },

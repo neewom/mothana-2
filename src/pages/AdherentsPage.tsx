@@ -142,7 +142,11 @@ export default function AdherentsPage() {
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [printing, setPrinting] = useState(false)
+  // Erreur d'impression de la fiche ouverte (affichée dans le panneau) / des autres impressions
+  // (sélection, modale : bannière de page) — une erreur de la sélection ne doit pas apparaître
+  // dans le panneau d'une autre personne.
   const [printError, setPrintError] = useState<string | null>(null)
+  const [panelPrintError, setPanelPrintError] = useState<string | null>(null)
   const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string; count: number } | null>(null)
   const [assignListeOpen, setAssignListeOpen] = useState(false)
   const [retirerListeOpen, setRetirerListeOpen] = useState(false)
@@ -318,6 +322,8 @@ export default function AdherentsPage() {
 
   // Clic sur une ligne : ouvre l'aperçu, un second clic sur la même ligne le referme.
   function toggleApercu(a: Adherent) {
+    // Une erreur d'impression concerne la fiche précédente : on ne la reporte pas sur la suivante.
+    setPanelPrintError(null)
     setApercuAdherent((current) => (current?.id === a.id ? null : a))
   }
 
@@ -475,13 +481,15 @@ export default function AdherentsPage() {
     })
   }
 
-  async function printCards(ids: string[], filename: string) {
+  async function printCards(ids: string[], filename: string, target: 'page' | 'panel' = 'page') {
     setPrinting(true)
     setPrintError(null)
+    setPanelPrintError(null)
+    const fail = target === 'panel' ? setPanelPrintError : setPrintError
 
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
-      setPrintError('Session expirée')
+      fail('Session expirée')
       setPrinting(false)
       return
     }
@@ -499,7 +507,7 @@ export default function AdherentsPage() {
 
     if (!res.ok) {
       const json = await res.json().catch(() => ({}))
-      setPrintError(json.error ?? 'Erreur inconnue')
+      fail(json.error ?? 'Erreur inconnue')
       setPrinting(false)
       return
     }
@@ -516,9 +524,9 @@ export default function AdherentsPage() {
     setSelectedIds(new Set())
   }
 
-  async function handlePrintSingleCard(a: Adherent) {
+  async function handlePrintSingleCard(a: Adherent, target: 'page' | 'panel' = 'page') {
     const slug = adherentFullName(a).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()
-    await printCards([a.id], `carte-${slug}.pdf`)
+    await printCards([a.id], `carte-${slug}.pdf`, target)
   }
 
   function closePdfPreview() {
@@ -659,7 +667,7 @@ export default function AdherentsPage() {
     ...(casesToujoursVisibles ? [] : [{ label: selectionMode ? 'Terminer la sélection' : 'Sélectionner', onSelect: toggleSelectionMode }]),
     { label: 'Colonnes', onSelect: () => setColonnesModalOpen(true) },
     { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
-    { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
+    { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0, disabledReason: "Aucune liste pour l'instant" },
   ]
 
   return (
@@ -702,23 +710,29 @@ export default function AdherentsPage() {
                 </svg>
                 {exporting ? 'Export…' : 'Exporter'}
               </Button>
-              <Button onClick={openAdd}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Ajouter un adhérent
-              </Button>
-              {/* Mobile : Importer / Exporter regroupés derrière un bouton « ⋯ » après l'action principale. */}
+              {/* Mobile : Importer / Exporter regroupés derrière un bouton « ⋯ », avant l'action principale
+                  (en dernier, comme sur Dons et Donateurs). */}
               <div className="sm:hidden">
                 <ActionMenu
                   label="Importer ou exporter"
                   iconOnly
                   items={[
                     { label: 'Importer', onSelect: () => setImportOpen(true) },
-                    { label: exporting ? 'Export…' : 'Exporter', onSelect: () => void handleExport(), disabled: exporting || totalCount === 0 },
+                    {
+                      label: exporting ? 'Export…' : 'Exporter',
+                      onSelect: () => void handleExport(),
+                      disabled: exporting || totalCount === 0,
+                      disabledReason: !exporting && totalCount === 0 ? 'Aucun adhérent à exporter' : undefined,
+                    },
                   ]}
                 />
               </div>
+              <Button onClick={openAdd}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Ajouter un adhérent
+              </Button>
             </>
           }
         />
@@ -726,6 +740,7 @@ export default function AdherentsPage() {
         {error && (
           <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur : {error}</div>
         )}
+        {/* L'erreur d'impression de la fiche ouverte s'affiche dans le panneau (en mobile, il recouvre la page). */}
         {printError && (
           <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur d'impression : {printError}</div>
         )}
@@ -753,7 +768,7 @@ export default function AdherentsPage() {
                       label="Listes"
                       items={[
                         { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
-                        { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
+                        { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0, disabledReason: "Aucune liste pour l'instant" },
                       ]}
                     />
                   </div>
@@ -763,6 +778,12 @@ export default function AdherentsPage() {
                   <ActionMenu
                     label="Sélection et listes"
                     iconOnly
+                    // Icône distincte du « ⋯ » d'Importer / Exporter de l'en-tête, voisin en mobile.
+                    icon={
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                      </svg>
+                    }
                     items={optionsMenuItems}
                     className={apercuAdherent ? '2xl:hidden' : 'xl:hidden'}
                   />
@@ -851,7 +872,7 @@ export default function AdherentsPage() {
 
           <SidePanel
             open={!!apercuAdherent}
-            onClose={() => setApercuAdherent(null)}
+            onClose={() => { setPanelPrintError(null); setApercuAdherent(null) }}
             title={apercu.fiche ? <AdherentApercuTitre adherent={apercu.fiche} /> : 'Adhérent'}
             footer={apercu.fiche && (
               <AdherentApercuActions
@@ -860,11 +881,14 @@ export default function AdherentsPage() {
                 printHelpText={PRINT_HELP_TEXT}
                 onEdit={() => apercu.fiche && openEdit(apercu.fiche)}
                 onRenew={() => apercu.fiche && setRenewingAdherent(apercu.fiche)}
-                onPrintCard={() => apercu.fiche && void handlePrintSingleCard(apercu.fiche)}
+                onPrintCard={() => apercu.fiche && void handlePrintSingleCard(apercu.fiche, 'panel')}
               />
             )}
           >
-            {apercu.fiche && <AdherentApercuChamps fiche={apercu.fiche} adhesion={apercu.adhesion} todayIso={todayIso} />}
+            {panelPrintError && (
+              <p role="alert" className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-3 py-2 text-sm text-stamp">Erreur d'impression : {panelPrintError}</p>
+            )}
+            {apercu.fiche && <AdherentApercuChamps fiche={apercu.fiche} adhesion={apercu.adhesion} todayIso={todayIso} erreur={apercu.erreur} />}
           </SidePanel>
         </div>
       </div>
@@ -940,7 +964,8 @@ export default function AdherentsPage() {
         onPrintCard={editingAdherent && (() => {
           const a = editingAdherent
           setAdherentModalOpen(false)
-          handlePrintSingleCard(a)
+          // Panneau ouvert sur cette fiche : l'erreur doit s'y afficher (en mobile il recouvre la bannière).
+          handlePrintSingleCard(a, apercuAdherent?.id === a.id ? 'panel' : 'page')
         })}
         onRenew={editingAdherent && (() => {
           const a = editingAdherent

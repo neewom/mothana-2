@@ -34,6 +34,6 @@ describe('saisie bénévole (creer_adhesion_benevole)', () => {
   it('nomme l’auteur « Espace bénévole » faute de profil', () => {
     expect(libelleAuteurJournal({ auteur_nom: null, details: { origine: 'benevole' } })).toBe('Espace bénévole')
     expect(libelleAuteurJournal({ auteur_nom: 'Marie', details: { origine: 'benevole' } })).toBe('Marie')
-    expect(libelleAuteurJournal({ auteur_nom: null, details: null })).toBe('—')
+    expect(libelleAuteurJournal({ auteur_nom: null, details: null })).toBeNull()
   })
 })
