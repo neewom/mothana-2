@@ -51,3 +51,8 @@ Rôle : lead tech (checkout principal). Deux sous-agents dev en parallèle (clau
 - Deux sous-agents en parallèle (pistes A empilée / B indépendante) : 9 PR en une session, boucle de relecture efficace (6 bloquants arrêtés avant revue, 0 après).
 - Correctifs mécaniques faits par le lead tech sur les PR (sélection clavier ⌘K, bouton copie en lecture seule, relance de vérification Brevo, impression depuis la modale, test ⌘K découplé du libellé du menu).
 - Une intégration locale de toutes les PR (branche `integ/ux2`, non poussée) a servi au test utilisateur et à détecter un test cassé entre deux PR parallèles.
+
+## État vérifié en fin de session (2026-11-09, après #390)
+- Aucune PR ouverte, aucun sous-agent actif, aucun serveur sur 5174/5175/5176 ; `dev` = `dc90e19` ; worktrees review / claude-dev / claude-dev2 en HEAD détaché propres ; tableau de bord des revues vide.
+- Todo : Emailing historique + notes (oRptwoyy), Courrier historique + notes (SxdypAs1), « inclure les donateurs » (GqVqTkKB), multi-organisation (reporté). Rien en In progress / To review.
+- Attend l'utilisateur : go pour oRptwoyy puis SxdypAs1 ; décision de promotion du batch UX 2 (et des batchs précédents déjà promus : rien d'autre en attente).
