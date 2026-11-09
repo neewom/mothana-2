@@ -261,31 +261,9 @@ export default function DashboardPage() {
 
   return (
     <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-      <PageHeader
-        title="Tableau de bord"
-        subtitle="Vue d'ensemble de votre organisation."
-        actions={(donsActifs || adherentsActifs) && (
-          <>
-            {/* Emailing : rattaché au module adhérents (comme le menu Communication). */}
-            {adherentsActifs && (
-              <Button asChild variant="secondary">
-                <Link to="/admin/communication/emailing">Envoyer un email</Link>
-              </Button>
-            )}
-            {adherentsActifs && (
-              <Button asChild variant="secondary">
-                <Link to="/admin/adherents?nouveau=1">Ajouter un adhérent</Link>
-              </Button>
-            )}
-            {/* Action la plus fréquente : en dernier à partir de md (gabarit), en premier en mobile pour ne pas rester seule sur une 2ᵉ ligne. */}
-            {donsActifs && (
-              <Button asChild className="order-first md:order-none">
-                <Link to="/admin/dons?nouveau=1">Saisir un don</Link>
-              </Button>
-            )}
-          </>
-        )}
-      />
+      {/* Actions rapides (saisir un don, ajouter un adhérent, envoyer un email) : dans le menu
+          latéral (« + Nouveau » et « + » des groupes), plus dans cet en-tête (retour de test 2026-11-09). */}
+      <PageHeader title="Tableau de bord" subtitle="Vue d'ensemble de votre organisation." />
 
       <ActionsATraiter actions={actionsATraiter} />
 
