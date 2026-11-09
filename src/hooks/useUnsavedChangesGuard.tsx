@@ -13,9 +13,15 @@ import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog'
  *    phase de capture avant React Router, puis confirmés dans un dialogue ui/dialog.
  * Limite assumée : le bouton « retour » du navigateur n'est pas intercepté.
  *
- * Renvoie l'élément de dialogue à placer dans la page.
+ * Renvoie l'élément de dialogue à placer dans la page. `texts` adapte le message quand la saisie
+ * en cours est celle d'une fenêtre (ex. « Saisir un don ») et non d'une page.
  */
-export function useUnsavedChangesGuard(isDirty: boolean) {
+export interface UnsavedChangesTexts {
+  message?: string
+  stayLabel?: string
+}
+
+export function useUnsavedChangesGuard(isDirty: boolean, texts: UnsavedChangesTexts = {}) {
   const navigate = useNavigate()
   const [pendingHref, setPendingHref] = useState<string | null>(null)
 
@@ -56,11 +62,11 @@ export function useUnsavedChangesGuard(isDirty: boolean) {
         <div className="p-6">
           <DialogTitle>Modifications non enregistrées</DialogTitle>
           <p id="unsaved-changes-description" className="mt-2 text-sm text-ink-muted">
-            Vous avez modifié cette page sans enregistrer. Si vous la quittez maintenant, ces modifications seront perdues.
+            {texts.message ?? 'Vous avez modifié cette page sans enregistrer. Si vous la quittez maintenant, ces modifications seront perdues.'}
           </p>
           <div className="mt-5 flex flex-wrap justify-end gap-3">
             <Button type="button" variant="secondary" onClick={() => setPendingHref(null)}>
-              Rester sur la page
+              {texts.stayLabel ?? 'Rester sur la page'}
             </Button>
             <Button
               type="button"

@@ -30,6 +30,10 @@ interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof Dialo
   /** `right` : tiroir pleine hauteur contre le bord droit (tiroir de filtres), qui glisse au
    * lieu d'apparaître sur place. Ignoré en `fullScreen`. */
   placement?: 'center' | 'right'
+  /** Focus à l'ouverture : `close` (défaut) sur le bouton Fermer ; `first-field` sur le premier
+   * élément focusable du contenu (fenêtre de création, qu'on ouvre pour saisir) ; `content` sur la
+   * fenêtre elle-même, sans anneau visible (fenêtre de modification, rien à saisir d'emblée). */
+  initialFocus?: 'close' | 'first-field' | 'content'
 }
 
 // DESIGN.md › Mouvement. Les keyframes de tailwindcss-animate posent leur propre `transform`
@@ -47,20 +51,33 @@ const CONTENT_CLASSES = {
 }
 
 const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Content>, DialogContentProps>(
-  ({ className, children, onOpenAutoFocus, fullScreen = false, placement = 'center', ...props }, ref) => {
+  ({ className, children, onOpenAutoFocus, fullScreen = false, placement = 'center', initialFocus = 'close', ...props }, ref) => {
   const closeRef = React.useRef<HTMLButtonElement>(null)
+  const contentRef = React.useRef<HTMLDivElement | null>(null)
+  const setRefs = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      contentRef.current = node
+      if (typeof ref === 'function') ref(node)
+      else if (ref) ref.current = node
+    },
+    [ref]
+  )
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
-        ref={ref}
+        ref={setRefs}
         // Focus par défaut de Radix sur le premier élément focusable (souvent un champ de
         // formulaire) — déplacé vers le bouton Fermer, moins intrusif à l'ouverture qu'un
         // input déjà en édition (demande explicite utilisateur, généralisée à toutes les
-        // modales via cette primitive partagée).
+        // modales via cette primitive partagée). Exceptions par `initialFocus` (2026-11-09) :
+        // création → premier champ (comportement natif de Radix), modification → la fenêtre.
         onOpenAutoFocus={(e) => {
-          e.preventDefault()
-          closeRef.current?.focus()
+          if (initialFocus !== 'first-field') {
+            e.preventDefault()
+            if (initialFocus === 'content') contentRef.current?.focus({ preventScroll: true })
+            else closeRef.current?.focus()
+          }
           onOpenAutoFocus?.(e)
         }}
         className={cn(
@@ -69,7 +86,7 @@ const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.C
           // — nécessaire pour un formulaire long comme AdherentModal (header et pied de page
           // fixes, seul le corps scrolle), et ça marche aussi bien pour un contenu court qui
           // ne remplit jamais max-h.
-          'z-50 flex flex-col gap-0 overflow-hidden bg-paper font-registre',
+          'z-50 flex flex-col gap-0 overflow-hidden bg-paper font-registre focus:outline-none',
           CONTENT_CLASSES[fullScreen ? 'fullScreen' : placement],
           className
         )}

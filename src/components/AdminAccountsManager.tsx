@@ -34,7 +34,8 @@ interface AdminAccountsManagerProps {
   readOnlyNote?: string
   /** Super-admin : choix du rôle à la création et changement de rôle d'un compte existant (contrôlés côté serveur). */
   canManageRoles?: boolean
-  heading?: string
+  /** Intertitre au-dessus de la liste ; `null` quand la page porte déjà le titre du bloc. */
+  heading?: string | null
   addButtonLabel?: string
   newFormTitle?: string
   emptyLabel?: string
@@ -230,7 +231,7 @@ export default function AdminAccountsManager({
 
   return (
     <div className="space-y-4">
-      <h3 className="font-registre text-sm font-semibold text-ink">{heading}</h3>
+      {heading && <h3 className="font-registre text-sm font-semibold text-ink">{heading}</h3>}
 
       {listError && (
         <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 font-registre text-sm text-stamp">{listError}</div>
@@ -294,7 +295,8 @@ export default function AdminAccountsManager({
                     {manageableRoles && !manageableRoles.includes(account.role) ? null : (
                     <Button
                       type="button"
-                      variant="secondary"
+                      // Désactiver : action de ligne négative (DESIGN.md, variante `danger`) ; Réactiver reste neutre.
+                      variant={account.is_banned ? 'secondary' : 'danger'}
                       size="sm"
                       onClick={() => handleToggleBan(account)}
                       disabled={banningId === account.utilisateur_id}

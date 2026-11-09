@@ -21,6 +21,9 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Select } from './ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
+import { Badge } from './ui/badge'
+import { chargerDernieresAdhesions } from '../lib/dernieresAdhesions'
+import { libelleAdhesion } from '../lib/adherentsFiltres'
 
 interface IdentitePrefill {
   civilite: CiviliteAdherent
@@ -93,6 +96,23 @@ export default function AdherentModal({
     details.scrollIntoView({ behavior: 'smooth', block: 'start' })
     details.querySelector('summary')?.focus({ preventScroll: true })
   }
+
+  // Résumé d'adhésion en tête de fiche (modification) : même dernière adhésion et même libellé que
+  // la liste des adhérents (`chargerDernieresAdhesions`, `libelleAdhesion`). `undefined` = en cours.
+  const [derniereAdhesion, setDerniereAdhesion] = useState<Adhesion | null | undefined>(undefined)
+  useEffect(() => {
+    setDerniereAdhesion(undefined)
+    if (!open || !adherent?.id) return
+    let cancelled = false
+    void chargerDernieresAdhesions([adherent.id]).then((map) => {
+      if (!cancelled) setDerniereAdhesion(map.get(adherent.id) ?? null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, adherent?.id])
+  const resumeAdhesion =
+    derniereAdhesion === undefined ? null : libelleAdhesion(derniereAdhesion ?? undefined, new Date().toISOString().split('T')[0])
 
   // Identité
   const [civilite, setCivilite] = useState<CiviliteAdherent>(0)
@@ -330,7 +350,7 @@ export default function AdherentModal({
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
-      <DialogContent className="max-w-lg" aria-describedby={undefined}>
+      <DialogContent className="max-w-lg" aria-describedby={undefined} initialFocus={isEdit ? 'content' : 'first-field'}>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Modifier l'adhérent" : 'Ajouter un adhérent'}</DialogTitle>
         </DialogHeader>
@@ -362,6 +382,13 @@ export default function AdherentModal({
                 Historique
               </Button>
             )}
+          </div>
+        )}
+
+        {isEdit && (
+          <div className="flex min-h-[2.5rem] items-center gap-2 border-b border-paper-border px-6 py-2 font-registre text-xs text-ink-muted">
+            <span>Adhésion</span>
+            {resumeAdhesion ? <Badge variant={resumeAdhesion.variant}>{resumeAdhesion.label}</Badge> : <span aria-hidden>…</span>}
           </div>
         )}
 
