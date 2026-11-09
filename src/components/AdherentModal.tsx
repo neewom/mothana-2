@@ -21,6 +21,9 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Select } from './ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
+import { Badge } from './ui/badge'
+import { chargerDernieresAdhesions } from '../lib/dernieresAdhesions'
+import { libelleAdhesion } from '../lib/adherentsFiltres'
 
 interface IdentitePrefill {
   civilite: CiviliteAdherent
@@ -84,6 +87,32 @@ export default function AdherentModal({
 }: AdherentModalProps) {
   const isEdit = !!adherent
   const hasManagementActions = isEdit && (onPrintCard || onRenew || onArchive || onReactivate)
+  const historiqueRef = useRef<HTMLDetailsElement>(null)
+
+  function showHistorique() {
+    const details = historiqueRef.current
+    if (!details) return
+    details.open = true
+    details.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    details.querySelector('summary')?.focus({ preventScroll: true })
+  }
+
+  // Résumé d'adhésion en tête de fiche (modification) : même dernière adhésion et même libellé que
+  // la liste des adhérents (`chargerDernieresAdhesions`, `libelleAdhesion`). `undefined` = en cours.
+  const [derniereAdhesion, setDerniereAdhesion] = useState<Adhesion | null | undefined>(undefined)
+  useEffect(() => {
+    setDerniereAdhesion(undefined)
+    if (!open || !adherent?.id) return
+    let cancelled = false
+    void chargerDernieresAdhesions([adherent.id]).then((map) => {
+      if (!cancelled) setDerniereAdhesion(map.get(adherent.id) ?? null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, adherent?.id])
+  const resumeAdhesion =
+    derniereAdhesion === undefined ? null : libelleAdhesion(derniereAdhesion ?? undefined, new Date().toISOString().split('T')[0])
 
   // Identité
   const [civilite, setCivilite] = useState<CiviliteAdherent>(0)
@@ -321,12 +350,12 @@ export default function AdherentModal({
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose() }}>
-      <DialogContent className="max-w-lg" aria-describedby={undefined}>
+      <DialogContent className="max-w-lg" aria-describedby={undefined} initialFocus={isEdit ? 'content' : 'first-field'}>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Modifier l'adhérent" : 'Ajouter un adhérent'}</DialogTitle>
         </DialogHeader>
 
-        {hasManagementActions && (
+        {(hasManagementActions || (isEdit && adherent)) && (
           <div className="flex flex-wrap items-center gap-2 border-b border-paper-border px-6 py-3">
             {onPrintCard && (
               <Button type="button" variant="secondary" size="sm" onClick={onPrintCard} disabled={printing} title={printHelpText}>
@@ -347,6 +376,19 @@ export default function AdherentModal({
                 <Button type="button" variant="secondary" size="sm" onClick={onReactivate}>Réactiver</Button>
               )
             )}
+            {/* L'historique reste en bas de la fiche (pas de doublon) : ce bouton l'ouvre et y amène. */}
+            {isEdit && adherent && (
+              <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={showHistorique}>
+                Historique
+              </Button>
+            )}
+          </div>
+        )}
+
+        {isEdit && (
+          <div className="flex min-h-[2.5rem] items-center gap-2 border-b border-paper-border px-6 py-2 font-registre text-xs text-ink-muted">
+            <span>Adhésion</span>
+            {resumeAdhesion ? <Badge variant={resumeAdhesion.variant}>{resumeAdhesion.label}</Badge> : <span aria-hidden>…</span>}
           </div>
         )}
 
@@ -638,7 +680,7 @@ export default function AdherentModal({
             {isEdit && adherent && (
               <div className="space-y-3 border-t border-paper-border pt-4">
                 <AdherentAdhesionsSection adherentId={adherent.id} />
-                <AdherentHistoriqueSection organisationId={organisationId} adherentId={adherent.id} />
+                <AdherentHistoriqueSection organisationId={organisationId} adherentId={adherent.id} detailsRef={historiqueRef} />
               </div>
             )}
           </div>

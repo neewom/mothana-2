@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react'
-import PinCodeCard from '../components/parametres/PinCodeCard'
-import { useAdminOutletContext } from '../hooks/useAdminOutletContext'
-import { useOrganisationId } from '../hooks/useOrganisationId'
-import { supabase } from '../lib/supabaseClient'
+import { useLocation } from 'react-router-dom'
+import ParametresGroupe from './ParametresGroupe'
+import PinCodeCard from './PinCodeCard'
+import { supabase } from '../../lib/supabaseClient'
 
-// Paramètres › Codes PIN : bénévole puis vendeur (si le porte-monnaie est actif). Sortis de
-// l'ancienne page Organisation ; régénération immédiate, sans bouton Enregistrer.
-export default function ParametresCodesPinPage() {
-  const organisationId = useOrganisationId()
-  const { fonctionnalitesActivees } = useAdminOutletContext()
+interface CodesPinSectionProps {
+  organisationId: string
+  /** Module porte-monnaie actif : ajoute le PIN vendeur après le PIN bénévole. */
+  avecVendeur: boolean
+}
+
+/**
+ * Section « Codes PIN » de Paramètres › Équipe et accès (ex-page Codes PIN, fusionnée le
+ * 2026-11-09) : bénévole puis vendeur si le porte-monnaie est actif ; régénération immédiate, sans
+ * bouton Enregistrer. Ancre `#codes-pin` (redirection de l'ancienne adresse /admin/parametres/codes-pin).
+ */
+export default function CodesPinSection({ organisationId, avecVendeur }: CodesPinSectionProps) {
+  const { hash } = useLocation()
   const [pins, setPins] = useState<{ benevole: string | null; vendeur: string | null } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,19 +38,19 @@ export default function ParametresCodesPinPage() {
     return () => { cancelled = true }
   }, [organisationId])
 
-  return (
-    <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
-      <div>
-        <h1 className="text-2xl font-bold text-ink md:text-3xl">Codes PIN</h1>
-        <p className="mt-1 text-sm text-ink-muted">Accès partagés des bénévoles et des vendeurs, sans compte individuel.</p>
-      </div>
+  // Arrivée par l'ancre (#codes-pin) : la section n'a sa hauteur définitive qu'une fois les PIN chargés.
+  useEffect(() => {
+    if (hash === '#codes-pin' && (pins || error)) document.getElementById('codes-pin')?.scrollIntoView({ block: 'start' })
+  }, [hash, pins, error])
 
+  return (
+    <ParametresGroupe id="codes-pin" title="Codes PIN" description="Accès partagés des bénévoles et des vendeurs, sans compte individuel.">
       {error && <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{error}</div>}
       {!pins && !error && <p className="text-sm text-ink-faint">Chargement…</p>}
-
       {pins && (
         <>
           <PinCodeCard
+            level={3}
             organisationId={organisationId}
             role="benevole"
             title="Code PIN bénévole"
@@ -50,8 +58,9 @@ export default function ParametresCodesPinPage() {
             initialPin={pins.benevole}
             successMessage="Nouveau PIN généré — pensez à le communiquer à vos bénévoles"
           />
-          {fonctionnalitesActivees?.evenements && (
+          {avecVendeur && (
             <PinCodeCard
+              level={3}
               organisationId={organisationId}
               role="vendeur"
               title="Code PIN vendeur"
@@ -62,6 +71,6 @@ export default function ParametresCodesPinPage() {
           )}
         </>
       )}
-    </div>
+    </ParametresGroupe>
   )
 }

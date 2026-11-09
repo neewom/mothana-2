@@ -150,7 +150,13 @@ function DonDetailFields({ don, organisationId }: { don: Don; organisationId: st
   return (
     <>
       <DetailField label="Donateur">
-        <p className="font-semibold">{nomDonateur(don)}</p>
+        {/* Lien profond vers la fiche donateur (même forme que la recherche globale). */}
+        <Link
+          to={`/admin/participants?id=${encodeURIComponent(don.profil_participant_id)}`}
+          className="rounded-sm font-semibold text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70"
+        >
+          {nomDonateur(don)}
+        </Link>
         {p?.email && <p className="text-ink-muted">{p.email}</p>}
         {p?.telephone && <p className="font-registre-mono text-ink-muted">{p.telephone}</p>}
       </DetailField>
@@ -405,7 +411,7 @@ export default function DonsPage() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
-                Ajouter un don
+                Saisir un don
               </Button>
             </>
           }

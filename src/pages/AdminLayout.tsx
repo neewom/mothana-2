@@ -314,8 +314,9 @@ export default function AdminLayout() {
 
   const isSuperAdminViewing = auth.type === 'super_admin'
   const navCounters = useLoadNavCounters(organisationId, fonctionnalitesActivees)
-  const canManageTeam = auth.type === 'admin' && auth.role === 'admin'
-  const canManageSecrets = isSuperAdminViewing || canManageTeam
+  // Super-admin en mode Consulter : accès à tout, sans distinction de rôle (décision du 2026-11-09).
+  const canManageTeam = isSuperAdminViewing || (auth.type === 'admin' && auth.role === 'admin')
+  const canManageSecrets = canManageTeam
   const navItems = buildNavItems(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES, navCounters, { canManageTeam, canManageSecrets })
   const quickActions = buildQuickActions(fonctionnalitesActivees ?? DEFAULT_FONCTIONNALITES)
   const location = useLocation()
@@ -435,7 +436,7 @@ export default function AdminLayout() {
             <AccountMenu
               nomAffiche={isSuperAdminViewing ? 'Super-admin' : nomAffiche}
               email={userEmail}
-              roleLabel={auth.type === 'admin' ? (auth.role === 'admin' ? 'Administrateur' : 'Contributeur') : null}
+              roleLabel={auth.type === 'admin' ? (auth.role === 'admin' ? 'Administrateur' : 'Membre') : null}
               showAccountLink={!isSuperAdminViewing}
               onLogout={isSuperAdminViewing ? undefined : () => void handleLogout()}
             />

@@ -54,9 +54,9 @@ export function buildQuickActions(flags: FonctionnalitesActivees): NavQuickActio
 }
 
 export interface NavOptions {
-  /** Admin de l'organisation (pas contributeur, pas super-admin en mode Consulter). */
+  /** Équipe et accès (comptes + codes PIN) : admin de l'organisation ou super-admin en mode Consulter. */
   canManageTeam: boolean
-  /** Codes PIN et Intégrations (secrets) : admin de l'organisation ou super-admin. */
+  /** Intégrations (secrets) : admin de l'organisation ou super-admin. */
   canManageSecrets?: boolean
 }
 
@@ -132,8 +132,8 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
   // (passe UX du 2026-11-08) ; « Mon compte » est dans le menu compte.
   const parametres: NavGroupItem[] = [
     { label: 'Organisation', to: '/admin/parametres', end: true },
-    ...(options.canManageTeam ? [{ label: 'Équipe', to: '/admin/parametres/equipe' }] : []),
-    ...(options.canManageSecrets ? [{ label: 'Codes PIN', to: '/admin/parametres/codes-pin' }] : []),
+    // Équipe et accès : comptes de l'équipe et codes PIN (pages fusionnées le 2026-11-09).
+    ...(options.canManageTeam ? [{ label: 'Équipe et accès', to: '/admin/parametres/equipe' }] : []),
     // Intégrations (Brevo) sert l'emailing et l'envoi des reçus fiscaux : dès que Dons ou Adhérents est actif.
     ...((flags.dons || flags.adherents) && options.canManageSecrets ? [{ label: 'Intégrations', to: '/admin/parametres/integrations' }] : []),
   ]

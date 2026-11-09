@@ -58,9 +58,15 @@ export default function ParticipantAutocomplete({
         value={displayValue}
         disabled={disabled}
         onChange={(e) => { setDraft(e.target.value); setOpen(true); onSearchChange?.(e.target.value) }}
-        onFocus={() => setOpen(true)}
+        // Liste ouverte au clic, à la frappe ou à la flèche bas — pas au simple focus : la fenêtre
+        // « Saisir un don » place le focus sur ce champ à l'ouverture (2026-11-09) sans recouvrir
+        // le formulaire d'une liste non demandée.
+        onClick={() => setOpen(true)}
         onBlur={handleBlur}
-        onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setOpen(false)
+          if (e.key === 'ArrowDown') setOpen(true)
+        }}
         placeholder={placeholder}
         autoComplete="off"
       />

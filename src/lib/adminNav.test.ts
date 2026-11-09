@@ -75,17 +75,19 @@ describe('buildNavItems', () => {
     }
   })
 
-  it('Paramètres ne garde que le transversal, Équipe et secrets selon les droits', () => {
+  it('Paramètres ne garde que le transversal, Équipe et accès et Intégrations selon les droits', () => {
     const admin = group(buildNavItems(flags(), noCounters, { canManageTeam: true, canManageSecrets: true }), 'Paramètres')!
-    expect(admin.map((i) => i.label)).toEqual(['Organisation', 'Équipe', 'Codes PIN', 'Intégrations'])
+    expect(admin.map((i) => i.label)).toEqual(['Organisation', 'Équipe et accès', 'Intégrations'])
+    expect(admin.find((i) => i.label === 'Équipe et accès')?.to).toBe('/admin/parametres/equipe')
     const contributeurNav = buildNavItems(flags(), noCounters, { canManageTeam: false, canManageSecrets: false })
-    // Secrets (audit sécurité 2026-10-24) : ni Codes PIN ni Intégrations pour un contributeur, donc
+    // Secrets (audit sécurité 2026-10-24) : ni Équipe et accès (codes PIN) ni Intégrations pour un membre, donc
     // Organisation seule : « Paramètres » devient un lien direct, pas un groupe à un élément.
     expect(contributeurNav.find((e) => e.label === 'Paramètres')).toEqual({ type: 'link', label: 'Paramètres', to: '/admin/parametres', icon: 'cog', end: true })
     expect(group(contributeurNav, 'Adhérents')?.map((i) => i.label)).toContain('Journal')
     expect(group(contributeurNav, 'Dons')?.map((i) => i.label)).toContain('Paramètres')
-    const superAdmin = group(buildNavItems(flags(), noCounters, { canManageTeam: false, canManageSecrets: true }), 'Paramètres')!
-    expect(superAdmin.map((i) => i.label)).toEqual(['Organisation', 'Codes PIN', 'Intégrations'])
+    // Super-admin en mode Consulter : mêmes droits que l'admin (AdminLayout passe les deux à true).
+    const superAdmin = group(buildNavItems(flags(), noCounters, { canManageTeam: true, canManageSecrets: true }), 'Paramètres')!
+    expect(superAdmin.map((i) => i.label)).toEqual(['Organisation', 'Équipe et accès', 'Intégrations'])
   })
 
   it('Intégrations dès que Dons ou Adhérents est actif', () => {
@@ -98,7 +100,12 @@ describe('buildNavItems', () => {
 
   it('Paramètres suit les modules actifs', () => {
     const items = group(buildNavItems(flags({ dons: false, adherents: false, evenements: false }), noCounters, { canManageTeam: true, canManageSecrets: true }), 'Paramètres')!
-    expect(items.map((i) => i.label)).toEqual(['Organisation', 'Équipe', 'Codes PIN'])
+    expect(items.map((i) => i.label)).toEqual(['Organisation', 'Équipe et accès'])
+  })
+
+  it('un membre sans module adhérents garde Paramètres en lien direct', () => {
+    const nav = buildNavItems(flags({ adherents: false }), noCounters, { canManageTeam: false, canManageSecrets: false })
+    expect(nav.find((e) => e.label === 'Paramètres')?.type).toBe('link')
   })
 })
 

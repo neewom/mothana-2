@@ -29,8 +29,9 @@ async function uploadAssetFile(organisationId: string, identifiant: string, file
 /**
  * Visuels de l'organisation (logo, tampon, signature…) : chaque asset devient un placeholder
  * {{asset_<identifiant>}} des modèles. Actions immédiates (pas de bouton Enregistrer).
+ * Le logo (organisations.logo_asset_id) a son bloc en tête ; il reste aussi listé parmi les visuels.
  */
-// lectureSeule : contributeur, visuels consultables sans remplacement, suppression ni ajout.
+// lectureSeule : membre (rôle contributeur), visuels consultables sans remplacement, suppression ni ajout.
 export default function AssetsManager({ organisationId, lectureSeule = false }: { organisationId: string; lectureSeule?: boolean }) {
   const [assets, setAssets] = useState<OrganisationAsset[]>([])
   const [assetsLoading, setAssetsLoading] = useState(true)
@@ -76,6 +77,36 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
     return true
   }
 
+  // Ajout d'un visuel : `key` porte l'état (chargement, erreur) du bloc qui l'a déclenché
+  // ('new' pour la tuile d'ajout, 'logo' pour le bloc Logo de l'association).
+  async function addAsset(file: File, libelle: string, identifiant: string, key: string): Promise<OrganisationAsset | null> {
+    setAssetError((prev) => ({ ...prev, [key]: null }))
+    setAssetActionLoading((prev) => ({ ...prev, [key]: true }))
+
+    const { url, error: uploadError } = await uploadAssetFile(organisationId, identifiant, file)
+    if (!url) {
+      setAssetError((prev) => ({ ...prev, [key]: uploadError }))
+      setAssetActionLoading((prev) => ({ ...prev, [key]: false }))
+      return null
+    }
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('organisation_assets')
+      .insert({ organisation_id: organisationId, identifiant, libelle, url })
+      .select('id, identifiant, libelle, url')
+      .single()
+
+    if (insertError || !inserted) {
+      setAssetError((prev) => ({ ...prev, [key]: insertError?.message ?? 'Erreur inconnue' }))
+      setAssetActionLoading((prev) => ({ ...prev, [key]: false }))
+      return null
+    }
+
+    setAssets((prev) => [...prev, inserted as OrganisationAsset])
+    setAssetActionLoading((prev) => ({ ...prev, [key]: false }))
+    return inserted as OrganisationAsset
+  }
+
   async function handleAddAsset(file: File | null) {
     if (!file || !newAssetLibelle.trim()) return
     if (!validateAssetFile(file, 'new')) return
@@ -90,31 +121,29 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
       return
     }
 
-    setAssetError((prev) => ({ ...prev, new: null }))
-    setAssetActionLoading((prev) => ({ ...prev, new: true }))
+    if (await addAsset(file, newAssetLibelle.trim(), identifiant, 'new')) setNewAssetLibelle('')
+  }
 
-    const { url, error: uploadError } = await uploadAssetFile(organisationId, identifiant, file)
-    if (!url) {
-      setAssetError((prev) => ({ ...prev, new: uploadError }))
-      setAssetActionLoading((prev) => ({ ...prev, new: false }))
-      return
+  // Bloc « Logo de l'association » sans logo défini : le fichier devient un visuel « Logo »
+  // (identifiant libre : logo, logo-2…) puis est désigné comme logo, comme « Définir comme logo ».
+  async function handleAddLogo(file: File | null) {
+    if (!file) return
+    if (!validateAssetFile(file, 'logo')) return
+
+    let identifiant = 'logo'
+    for (let n = 2; assets.some((a) => a.identifiant === identifiant); n++) identifiant = `logo-${n}`
+
+    const inserted = await addAsset(file, 'Logo', identifiant, 'logo')
+    if (!inserted) return
+
+    setAssetActionLoading((prev) => ({ ...prev, logo: true }))
+    try {
+      await setOrganisationLogo(organisationId, inserted.id)
+      setLogoAssetId(inserted.id)
+    } catch (e) {
+      setAssetError((prev) => ({ ...prev, logo: e instanceof Error ? e.message : 'Erreur inconnue' }))
     }
-
-    const { data: inserted, error: insertError } = await supabase
-      .from('organisation_assets')
-      .insert({ organisation_id: organisationId, identifiant, libelle: newAssetLibelle.trim(), url })
-      .select('id, identifiant, libelle, url')
-      .single()
-
-    if (insertError || !inserted) {
-      setAssetError((prev) => ({ ...prev, new: insertError?.message ?? 'Erreur inconnue' }))
-      setAssetActionLoading((prev) => ({ ...prev, new: false }))
-      return
-    }
-
-    setAssets((prev) => [...prev, inserted as OrganisationAsset])
-    setNewAssetLibelle('')
-    setAssetActionLoading((prev) => ({ ...prev, new: false }))
+    setAssetActionLoading((prev) => ({ ...prev, logo: false }))
   }
 
   async function handleReplaceAsset(asset: OrganisationAsset, file: File | null) {
@@ -178,16 +207,77 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
     setAssetActionLoading((prev) => ({ ...prev, [asset.id]: false }))
   }
 
+  const logoAsset = assets.find((a) => a.id === logoAssetId) ?? null
+
   return (
     <div className="max-w-lg">
-      <p className="mb-3 text-xs text-ink-faint">
-        Logo, tampon, signature ou tout autre visuel — chaque asset ajouté devient utilisable comme placeholder{' '}
-        <code>{'{{asset_<identifiant>}}'}</code> dans vos templates. PNG ou JPEG, 2 Mo max. Enregistré immédiatement à l'upload.
-        Le visuel défini comme logo s'affiche dans l'en-tête de l'espace admin et de l'espace bénévole.
-      </p>
       {assetsLoading ? (
         <p className="text-xs text-ink-faint">Chargement…</p>
       ) : (
+        <>
+        {/* Logo de l'association : en tête, repérable sans connaître la mécanique des visuels. */}
+        <div className="mb-6 rounded-sm border border-paper-border p-4">
+          <p className="text-sm font-semibold text-ink">Logo de l’association</p>
+          <p className="mt-0.5 text-xs text-ink-faint">Affiché dans l’en-tête de l’espace admin et de l’espace bénévole. PNG ou JPEG, 2 Mo max.</p>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex h-20 w-full shrink-0 items-center justify-center overflow-hidden rounded-sm bg-paper-border/20 sm:w-40">
+              {logoAsset ? (
+                <img src={logoAsset.url} alt="Logo de l’association" className="max-h-full max-w-full object-contain" />
+              ) : (
+                <span className="text-xs text-ink-faint">Aucun logo</span>
+              )}
+            </div>
+            {!lectureSeule && (
+              <div className="flex flex-wrap items-center gap-2">
+                <label
+                  className={cn(
+                    'rounded-sm border border-stamp px-3 py-1.5 font-registre text-xs font-medium text-stamp hover:bg-stamp/[0.06]',
+                    assetActionLoading[logoAsset ? logoAsset.id : 'logo'] ? 'cursor-wait opacity-60' : 'cursor-pointer'
+                  )}
+                >
+                  {assetActionLoading[logoAsset ? logoAsset.id : 'logo'] ? 'Envoi…' : logoAsset ? 'Remplacer' : 'Ajouter un logo'}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    className="hidden"
+                    disabled={assetActionLoading[logoAsset ? logoAsset.id : 'logo']}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null
+                      if (logoAsset) handleReplaceAsset(logoAsset, file)
+                      else handleAddLogo(file)
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+                {logoAsset && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => handleSetLogo(logoAsset, false)} disabled={assetActionLoading[logoAsset.id]}>
+                    Retirer comme logo
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+          {!logoAsset && !lectureSeule && assets.some((a) => isLogoEligibleUrl(a.url)) && (
+            <p className="mt-2 text-xs text-ink-faint">Ou choisissez un visuel existant ci-dessous avec « Définir comme logo ».</p>
+          )}
+          {(logoAsset ? assetError[logoAsset.id] : assetError.logo) && (
+            <p className="mt-1.5 text-xs text-stamp">{logoAsset ? assetError[logoAsset.id] : assetError.logo}</p>
+          )}
+        </div>
+
+        <p className="text-sm font-semibold text-ink">Tous les visuels</p>
+        <p className="mt-0.5 text-xs text-ink-faint">
+          Logo, tampon, signature ou tout autre visuel de vos reçus et cartes adhérent. PNG ou JPEG, 2 Mo max, enregistré dès l’envoi du fichier.
+        </p>
+        <details className="mb-3 mt-1">
+          <summary className="cursor-pointer select-none rounded-sm text-xs font-medium text-stamp hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70">
+            En savoir plus
+          </summary>
+          <p className="mt-1 text-xs text-ink-faint">
+            Chaque visuel ajouté devient utilisable dans vos modèles (reçus, carte adhérent) avec la variable{' '}
+            <code>{'{{asset_<identifiant>}}'}</code>, affichée sous son aperçu. L’identifiant est tiré du libellé saisi à l’ajout.
+          </p>
+        </details>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {assets.map((asset) => (
             <div key={asset.id} className="rounded-sm border border-paper-border p-3">
@@ -273,6 +363,7 @@ export default function AssetsManager({ organisationId, lectureSeule = false }: 
             {assetError.new && <p className="mt-1.5 text-xs text-stamp">{assetError.new}</p>}
           </div>}
         </div>
+        </>
       )}
     </div>
   )

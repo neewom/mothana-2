@@ -7,7 +7,7 @@ import { cn } from '../lib/utils'
 interface AccountMenuProps {
   nomAffiche: string | null
   email: string | null
-  /** Rôle affiché sous l'identité (« Administrateur », « Contributeur »). */
+  /** Rôle affiché sous l'identité (« Administrateur », « Membre » pour le rôle contributeur). */
   roleLabel?: string | null
   /** Absent en mode « Consulter » super-admin : ni compte d'organisation ni déconnexion depuis cette vue. */
   onLogout?: () => void

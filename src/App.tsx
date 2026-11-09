@@ -35,7 +35,6 @@ import ParametresAdhesionsPage from './pages/ParametresAdhesionsPage'
 import ParametresJournalPage from './pages/ParametresJournalPage'
 import ParametresPorteMonnaiePage from './pages/ParametresPorteMonnaiePage'
 import ParametresEquipePage from './pages/ParametresEquipePage'
-import ParametresCodesPinPage from './pages/ParametresCodesPinPage'
 import ParametresIntegrationsPage from './pages/ParametresIntegrationsPage'
 import ParametresCompteAdminPage from './pages/ParametresCompteAdminPage'
 import SuperAdminLayout from './pages/SuperAdminLayout'
@@ -108,7 +107,8 @@ function App() {
             <Route path="adherents/demandes" element={<LegacyRedirect to="/admin/adherents/renouvellements" />} />
             <Route path="parametres" element={<ParametresOrganisationPage />} />
             <Route path="parametres/equipe" element={<ParametresEquipePage />} />
-            <Route path="parametres/codes-pin" element={<ParametresCodesPinPage />} />
+            {/* Codes PIN fusionnés dans Équipe et accès (2026-11-09). */}
+            <Route path="parametres/codes-pin" element={<LegacyRedirect to="/admin/parametres/equipe#codes-pin" />} />
             {/* Journal des adhérents : rangé sous Adhérents, sans garde de module comme avant. */}
             <Route path="adherents/journal" element={<ParametresJournalPage />} />
             <Route path="parametres/compte" element={<ParametresCompteAdminPage />} />
