@@ -62,9 +62,9 @@ export default function ParametresOrganisationPage() {
   // Renvoi vers les réglages rangés dans leur module (passe UX du 2026-11-08).
   const { fonctionnalitesActivees: flags } = useAdminOutletContext()
   const reglagesModules = [
-    ...(flags?.dons ? [{ label: 'reçus fiscaux (Dons › Paramètres)', to: '/admin/dons/parametres' }] : []),
-    ...(flags?.adherents ? [{ label: 'adhésions (Adhérents › Paramètres)', to: '/admin/adherents/parametres' }] : []),
-    ...(flags?.evenements ? [{ label: 'porte-monnaie (Activités › Paramètres)', to: '/admin/activites/parametres' }] : []),
+    ...(flags?.dons ? [{ label: 'Paramètres des dons', to: '/admin/dons/parametres' }] : []),
+    ...(flags?.adherents ? [{ label: 'Paramètres des adhérents', to: '/admin/adherents/parametres' }] : []),
+    ...(flags?.evenements ? [{ label: 'Paramètres des activités', to: '/admin/activites/parametres' }] : []),
   ]
   const peutModifier = usePeutModifierParametres()
   const [saved, setSaved] = useState<OrganisationForm | null>(null)
@@ -173,7 +173,7 @@ export default function ParametresOrganisationPage() {
           <p className="mt-1 text-sm text-ink-muted">Identité de l’association, signataire et visuels utilisés sur les reçus et les cartes.</p>
           {reglagesModules.length > 0 && (
             <p className="mt-2 text-sm text-ink-muted">
-              Les réglages propres à un module sont dans sa rubrique :{' '}
+              Les réglages propres à un module sont dans son menu :{' '}
               {reglagesModules.map((r, i) => (
                 <Fragment key={r.to}>
                   {i > 0 && ', '}
