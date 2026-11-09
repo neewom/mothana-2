@@ -254,8 +254,8 @@ export default function ComptabilitePage() {
                 value: formatEur(totalN),
                 // Dons datés après aujourd'hui (saisis d'avance) : comptés dans le total de l'année
                 // mais hors de la comparaison à date, d'où la précision pour que les tuiles se recoupent.
-                hint: comparison.cutoff && totalN > comparison.totalN
-                  ? `dont ${formatEur(totalN - comparison.totalN)} de dons après le ${formatDayMonth(comparison.cutoff)}`
+                hint: comparison.cutoff && comparison.totalAfterCutoff > 0
+                  ? `dont ${formatEur(comparison.totalAfterCutoff)} de dons après le ${formatDayMonth(comparison.cutoff)}`
                   : undefined,
               },
               {
@@ -265,7 +265,12 @@ export default function ComptabilitePage() {
                 hint: periodLabel ?? undefined,
               },
               variationPct === null
-                ? { label: 'Évolution', value: '—', hint: `pas de dons en ${year - 1}` }
+                ? {
+                    label: 'Évolution',
+                    value: '—',
+                    // À date, N-1 = 0 sur la période ne veut pas dire aucun don dans l'année N-1.
+                    hint: comparison.cutoff ? `pas de dons sur la même période ${year - 1}` : `pas de dons en ${year - 1}`,
+                  }
                 : {
                     label: 'Évolution',
                     value: `${variationPct >= 0 ? '+' : ''}${variationPct.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`,

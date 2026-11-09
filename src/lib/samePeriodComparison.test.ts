@@ -57,6 +57,42 @@ describe('computeSamePeriodComparison', () => {
     expect(r.variationPct).toBe(0)
   })
 
+  it('totalAfterCutoff : dons datés après aujourd’hui, arrondi au centime', () => {
+    const r = computeSamePeriodComparison(
+      [
+        { date: '2026-03-01', montant: 0.1 },
+        { date: '2026-04-01', montant: 0.2 },
+        { date: '2026-11-09', montant: 0.3 },
+        { date: '2026-12-01', montant: 12.34 },
+        { date: '2026-12-31', montant: 0.01 },
+        { date: '2025-12-01', montant: 99 },
+      ],
+      2026,
+      new Date(2026, 10, 9),
+    )
+    expect(r.totalAfterCutoff).toBe(12.35)
+    expect(r.totalN).toBeCloseTo(0.6)
+  })
+
+  it('totalAfterCutoff vaut exactement 0 sans don futur, malgré les résidus flottants', () => {
+    const dons = [
+      { date: '2026-01-10', montant: 0.2 },
+      { date: '2026-02-10', montant: 0.3 },
+      { date: '2026-02-20', montant: 0.1 },
+    ]
+    const r = computeSamePeriodComparison(dons, 2026, new Date(2026, 10, 9))
+    // Cas reproduit : la somme des sommes mensuelles (monthlyData de la page) dépasse
+    // la somme don par don, alors qu'aucun don n'est daté après aujourd'hui.
+    const monthlySum = 0.2 + (0.3 + 0.1)
+    expect(monthlySum).toBeGreaterThan(r.totalN)
+    expect(r.totalAfterCutoff).toBe(0)
+  })
+
+  it('année passée : totalAfterCutoff à 0', () => {
+    const r = computeSamePeriodComparison([{ date: '2025-12-31', montant: 7 }], 2025, new Date(2026, 10, 9))
+    expect(r.totalAfterCutoff).toBe(0)
+  })
+
   it('tolère une date avec heure', () => {
     const r = computeSamePeriodComparison([{ date: '2026-11-09T10:00:00', montant: 3 }], 2026, new Date(2026, 10, 9))
     expect(r.totalN).toBe(3)

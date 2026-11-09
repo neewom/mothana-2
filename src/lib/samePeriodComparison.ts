@@ -16,6 +16,8 @@ export interface SamePeriodComparison {
   totalN1: number
   /** Variation en %, `null` quand l'année précédente vaut 0 (affichée « — »). */
   variationPct: number | null
+  /** Dons de l'année affichée datés après la coupure (saisis d'avance), arrondi au centime ; 0 pour une année complète. */
+  totalAfterCutoff: number
   /** Dernier jour inclus (`MM-DD`) quand la comparaison est à date, `null` pour une année complète. */
   cutoff: string | null
 }
@@ -41,10 +43,12 @@ export function computeSamePeriodComparison(
 
   let totalN = 0
   let totalN1 = 0
+  let totalAfterCutoff = 0
   for (const d of dons) {
     const y = Number(d.date.slice(0, 4))
     const day = d.date.slice(0, 10)
     if (y === year && day <= endN) totalN += d.montant
+    else if (y === year) totalAfterCutoff += d.montant
     else if (y === year - 1 && day <= endN1) totalN1 += d.montant
   }
 
@@ -52,6 +56,8 @@ export function computeSamePeriodComparison(
     totalN,
     totalN1,
     variationPct: totalN1 > 0 ? ((totalN - totalN1) / totalN1) * 100 : null,
+    // Arrondi au centime : une somme de montants à centimes laisse des résidus flottants (~1e-13).
+    totalAfterCutoff: Math.round(totalAfterCutoff * 100) / 100,
     cutoff: toDate ? cutoffN : null,
   }
 }
