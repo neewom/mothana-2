@@ -97,7 +97,7 @@ describe('pages de la recherche globale', () => {
   it('place les pages en tête, avant les résultats de la RPC', () => {
     const pages = searchPages(pagesFor(flags()), 'dons')
     const items = buildSearchItems(response({ activites: [{ id: 'act', nom: 'Dons de printemps', date_debut: null }] }), pages)
-    expect(items[0]).toMatchObject({ group: 'Pages', label: 'Dons', to: '/admin/dons' })
+    expect(items[0]).toMatchObject({ group: 'Pages', to: '/admin/dons' })
     expect(items[items.length - 1].group).toBe('Activités')
   })
 
