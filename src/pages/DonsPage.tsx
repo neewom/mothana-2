@@ -397,6 +397,20 @@ export default function DonsPage() {
     }, { replace: true })
   }, [searchParams, setSearchParams])
 
+  // Raccourci « Dons de X » de la recherche globale (?q=<nom>) : recherche préremplie, paramètre
+  // retiré de l'URL comme ?nouveau=1 (la recherche reste modifiable ensuite).
+  useEffect(() => {
+    const q = searchParams.get('q')
+    if (q === null) return
+    setRecherche(q)
+    setCurrentPage(1)
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.delete('q')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
+
   function handleSaved() {
     refetch()
     setSelectedDon(null)
