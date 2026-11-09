@@ -224,7 +224,8 @@ function ListeCartes<T, F extends string>({
           )}
           {sort && options.length > 0 && (
             <div className="ml-auto flex items-center gap-2">
-              <label htmlFor={triId} className="whitespace-nowrap font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+              {/* À côté de « Tout sélectionner », le libellé reste pour les lecteurs d'écran : la barre tient sur une ligne à 375 px. */}
+              <label htmlFor={triId} className={cn('whitespace-nowrap font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint', casesVisibles && 'sr-only')}>
                 Trier par
               </label>
               <Select
