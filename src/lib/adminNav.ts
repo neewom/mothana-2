@@ -89,7 +89,7 @@ export function buildNavItems(flags: FonctionnalitesActivees, counters: NavCount
       icon: 'idCard',
       action: AJOUTER_ADHERENT,
       items: [
-        { label: 'Adhérents', to: '/admin/adherents', end: true },
+        { label: 'Tous les adhérents', to: '/admin/adherents', end: true },
         { label: 'Renouvellements', to: '/admin/adherents/renouvellements', count: counters.demandesEnAttente },
         { label: 'Journal', to: '/admin/adherents/journal' },
         { label: 'Paramètres', to: '/admin/adherents/parametres' },
