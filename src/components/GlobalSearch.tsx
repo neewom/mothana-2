@@ -62,7 +62,8 @@ export default function GlobalSearch({ organisationId, pages }: { organisationId
       }
       setError(false)
       setResponse(data as GlobalSearchResponse)
-      setActive(0)
+      // Pas de setActive(0) ici : les pages, en tête, sont déjà affichées et peuvent être en cours
+      // de parcours au clavier ; la frappe remet déjà la sélection à 0 (onChange).
     }, DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [terme, organisationId])
