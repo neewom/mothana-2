@@ -13,6 +13,8 @@ export default function ButtonHint({
   className,
   triggerClassName,
   align,
+  placement,
+  maxWidthClassName,
 }: {
   hint: string | null | undefined
   children: ReactNode
@@ -21,10 +23,15 @@ export default function ButtonHint({
   /** Classes de la zone de survol autour du bouton (`block` pour un bouton pleine largeur). */
   triggerClassName?: string
   align?: 'start' | 'end'
+  /** Au-dessus par défaut ; `bottom` quand la place manque au-dessus (haut de page sous un conteneur
+   * qui coupe ce qui dépasse, haut de modale). */
+  placement?: 'top' | 'bottom'
+  /** Largeur max de la bulle (`max-w-xs` par défaut), à réduire si le bouton est loin du bord en mobile. */
+  maxWidthClassName?: string
 }) {
   if (!hint) return <>{children}</>
   return (
-    <Tooltip bare content={hint} className={className} triggerClassName={triggerClassName} align={align}>
+    <Tooltip bare content={hint} className={className} triggerClassName={triggerClassName} align={align} placement={placement} maxWidthClassName={maxWidthClassName}>
       {children}
     </Tooltip>
   )

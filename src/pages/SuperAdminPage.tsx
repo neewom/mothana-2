@@ -211,7 +211,7 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
               )}
             </div>
             {isEdit && org && (
-              <ButtonHint align="end" hint="Consulter l'organisation" className="-mt-2">
+              <ButtonHint align="end" placement="bottom" hint="Consulter l'organisation" className="-mt-2">
                 <Button
                   type="button"
                   variant="ghost"

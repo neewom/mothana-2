@@ -888,7 +888,7 @@ export default function RecusFiscauxPage() {
               />
             )}
             {rows.length > 0 && (
-              <ButtonHint hint={raisonEnvoiDesactive} className="hidden md:inline-block">
+              <ButtonHint hint={raisonEnvoiDesactive} placement="bottom" className="hidden md:inline-block">
                 <Button
                   variant="secondary"
                   className="hidden md:inline-flex"
@@ -905,6 +905,9 @@ export default function RecusFiscauxPage() {
             {rows.length > 0 && (
               <ButtonHint
                 align="end"
+                placement="bottom"
+                // En mobile, le bouton n'est pas collé au bord droit : bulle plus étroite pour ne pas sortir à gauche.
+                maxWidthClassName="max-w-60 md:max-w-xs"
                 hint={
                   !(recusLot.actif || recusLot.loading || manquants.length === 0)
                     ? undefined
