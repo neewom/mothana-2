@@ -29,7 +29,7 @@ describe('notificationAdminsHtml', () => {
 
 describe('notificationAdminsHtml — renouvellement', () => {
   it('parle de validation, jamais de ratification ni de conseil', () => {
-    const html = notificationAdminsHtml('https://samakan.fr/admin/adherents/demandes', 'renouvellement')
+    const html = notificationAdminsHtml('https://samakan.fr/admin/adherents/renouvellements', 'renouvellement')
     expect(html).toContain('Voir les renouvellements')
     expect(html).toContain('à valider')
     expect(html).not.toMatch(/ratif|conseil d|examiner/i)

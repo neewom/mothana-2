@@ -76,7 +76,7 @@ export default function ParametresEquipePage() {
               canManageRoles={isSuperAdmin}
               manageableRoles={isSuperAdmin ? undefined : ['contributeur']}
               heading={null}
-              newFormTitle="Nouveau membre"
+              newFormTitle={isSuperAdmin ? 'Nouveau compte' : 'Nouveau membre'}
               addFormOpen={addFormOpen}
               onAddFormOpenChange={setAddFormOpen}
               emptyLabel="Aucun compte pour cette organisation."

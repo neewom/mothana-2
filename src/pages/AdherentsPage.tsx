@@ -336,7 +336,7 @@ export default function AdherentsPage() {
     return () => { cancelled = true }
   }, [linkedAdherentId, organisationId, setSearchParams])
 
-  // Arrivée depuis l'action rapide « Ajouter un adhérent » de l'accueil (?nouveau=1) : création
+  // Arrivée depuis l'action rapide « Ajouter un adhérent » du menu latéral (?nouveau=1) : création
   // ouverte d'emblée, paramètre retiré de l'URL pour ne pas rouvrir la modale au rechargement.
   useEffect(() => {
     if (searchParams.get('nouveau') !== '1') return
