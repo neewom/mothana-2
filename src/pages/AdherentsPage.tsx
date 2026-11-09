@@ -38,6 +38,10 @@ import { ADHERENT_SORT_DEFAUT, directionInitialeAdherent, paramsTriAdherents, ty
 import { ListToolbar, FilterChips, type FilterChip } from '../components/ui/list-toolbar'
 import { FilterSheet } from '../components/ui/filter-sheet'
 import { ActionMenu } from '../components/ui/action-menu'
+import { SidePanel } from '../components/ui/side-panel'
+import { AdherentApercuActions, AdherentApercuChamps, AdherentApercuTitre } from '../components/AdherentApercu'
+import { useAdherentApercu } from '../hooks/useAdherentApercu'
+import { cn } from '../lib/utils'
 import {
   ADHERENTS_FILTRES_VIDES, libelleAdhesion, libelleAdhesionCourt, nombreFiltresAdherents, normaliserFiltresAdherents,
   EMAIL_FILTRE_LABELS, type AdherentsFiltres, type EmailFilter,
@@ -128,6 +132,11 @@ export default function AdherentsPage() {
   const [archiveConfirm, setArchiveConfirm] = useState<Adherent | null>(null)
   const [archiving, setArchiving] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  // Panneau d'aperçu (clic sur une ligne, ou lien ?id=) ; relu à chaque changement de la fiche.
+  const [apercuAdherent, setApercuAdherent] = useState<Adherent | null>(null)
+  const [apercuRefresh, setApercuRefresh] = useState(0)
+  const apercu = useAdherentApercu(apercuAdherent, apercuRefresh, organisationId)
+  const rafraichirApercu = () => setApercuRefresh((n) => n + 1)
 
   // Sur mobile, la colonne checkbox reste masquée tant que ce mode n'est pas activé
   // (action secondaire, coûteuse en largeur) — toujours visible sur desktop.
@@ -308,8 +317,18 @@ export default function AdherentsPage() {
     setAdherentModalOpen(true)
   }
 
+  // Clic sur une ligne : ouvre l'aperçu, un second clic sur la même ligne le referme.
+  function toggleApercu(a: Adherent) {
+    setApercuAdherent((current) => (current?.id === a.id ? null : a))
+  }
+
+  // Fiche ouverte introuvable à la relecture (supprimée entre-temps) : l'aperçu se referme.
+  useEffect(() => {
+    if (apercu.introuvable) setApercuAdherent(null)
+  }, [apercu.introuvable])
+
   // Lien profond depuis la recherche globale : ?id=<adherent_id>. La liste étant paginée côté
-  // serveur, la fiche est chargée directement (dans l'organisation courante) puis ouverte.
+  // serveur, la fiche est chargée directement (dans l'organisation courante) puis ouverte en aperçu.
   const [searchParams, setSearchParams] = useSearchParams()
   const linkedAdherentId = searchParams.get('id')
   useEffect(() => {
@@ -323,10 +342,7 @@ export default function AdherentsPage() {
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled) return
-        if (data) {
-          setEditingAdherent(data as Adherent)
-          setAdherentModalOpen(true)
-        }
+        if (data) setApercuAdherent(data as Adherent)
         setSearchParams((current) => {
           const next = new URLSearchParams(current)
           next.delete('id')
@@ -354,6 +370,7 @@ export default function AdherentsPage() {
     showToast(`${adherentFullName(saved)} ${wasEdit ? 'modifié' : 'ajouté'}`)
     fetchAdherents()
     fetchAvailableTags()
+    if (wasEdit) rafraichirApercu()
   }
 
   function handleListesChanged() {
@@ -383,6 +400,7 @@ export default function AdherentsPage() {
     if (renewingAdherent) showToast(`Adhésion renouvelée pour ${adherentFullName(renewingAdherent)}`)
     setRenewingAdherent(undefined)
     fetchAdherents()
+    rafraichirApercu()
   }
 
   async function handleArchive() {
@@ -413,6 +431,7 @@ export default function AdherentsPage() {
     }
     setArchiveConfirm(null)
     fetchAdherents()
+    rafraichirApercu()
   }
 
   async function handleReactivate(a: Adherent) {
@@ -432,6 +451,7 @@ export default function AdherentsPage() {
       })
     }
     fetchAdherents()
+    rafraichirApercu()
   }
 
   function toggleSelected(id: string) {
@@ -506,6 +526,14 @@ export default function AdherentsPage() {
     if (pdfPreview) URL.revokeObjectURL(pdfPreview.url)
     setPdfPreview(null)
   }
+
+  // Panneau d'aperçu ouvert (il réduit le tableau en desktop) : la civilité et les colonnes
+  // facultatives ne restent qu'en très grand écran ; toutes figurent dans l'aperçu (motif de Dons).
+  const colCivilite = apercuAdherent ? 'hidden 2xl:table-cell' : 'hidden xl:table-cell'
+  const colSecondaire = apercuAdherent ? 'hidden 2xl:table-cell' : undefined
+  // Le prénom rejoint alors la cellule du nom (comme en mobile), pour laisser la place à l'adhésion.
+  const colPrenom = apercuAdherent ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
+  const prenomDansNom = apercuAdherent ? '2xl:hidden' : 'md:hidden'
 
   // Menu « Sélection et listes » de la barre d'outils, sous xl (voir la barre d'outils).
   const optionsMenuItems = [
@@ -583,7 +611,9 @@ export default function AdherentsPage() {
           <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur d'impression : {printError}</div>
         )}
 
-        <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+        {/* Tableau + panneau d'aperçu (gabarit de liste, comme Dons). */}
+        <div className={cn('flex gap-6', apercuAdherent && 'items-start')}>
+        <div className="min-w-0 flex-1 rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
           <ListToolbar
             search={{ value: searchInput, onChange: setSearchInput, placeholder: 'Nom, prénom, email…', label: 'Rechercher un adhérent' }}
             filterCount={nombreFiltresAdherents(filtres) + (statutEnPastille ? 1 : 0)}
@@ -680,18 +710,18 @@ export default function AdherentsPage() {
                         aria-label="Tout sélectionner"
                       />
                     </TableHead>
-                    {colonnesVisibles.includes('civilite') && <TableHead className="hidden xl:table-cell">Civilité</TableHead>}
+                    {colonnesVisibles.includes('civilite') && <TableHead className={colCivilite}>Civilité</TableHead>}
                     <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
                     {colonnesVisibles.includes('adhesion') && <SortableTableHead field="date_fin" label="Adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />}
-                    <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
-                    {colonnesVisibles.includes('statut') && <SortableTableHead field="statut" label="Fiche" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
-                    {colonnesVisibles.includes('date_adhesion') && <SortableTableHead field="date_adhesion" label="Date d'adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
-                    {colonnesVisibles.includes('email') && <TableHead>Email</TableHead>}
-                    {colonnesVisibles.includes('telephone') && <TableHead>Téléphone</TableHead>}
-                    {colonnesVisibles.includes('adresse') && <TableHead>Adresse</TableHead>}
-                    {colonnesVisibles.includes('localisation') && <SortableTableHead field="code_postal" label="Localisation" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
-                    {colonnesVisibles.includes('date_naissance') && <TableHead>Date de naissance</TableHead>}
-                    {colonnesVisibles.includes('listes') && <TableHead>Listes</TableHead>}
+                    <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={colPrenom} />
+                    {colonnesVisibles.includes('statut') && <SortableTableHead field="statut" label="Fiche" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={colSecondaire} />}
+                    {colonnesVisibles.includes('date_adhesion') && <SortableTableHead field="date_adhesion" label="Date d'adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={colSecondaire} />}
+                    {colonnesVisibles.includes('email') && <TableHead className={colSecondaire}>Email</TableHead>}
+                    {colonnesVisibles.includes('telephone') && <TableHead className={colSecondaire}>Téléphone</TableHead>}
+                    {colonnesVisibles.includes('adresse') && <TableHead className={colSecondaire}>Adresse</TableHead>}
+                    {colonnesVisibles.includes('localisation') && <SortableTableHead field="code_postal" label="Localisation" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={colSecondaire} />}
+                    {colonnesVisibles.includes('date_naissance') && <TableHead className={colSecondaire}>Date de naissance</TableHead>}
+                    {colonnesVisibles.includes('listes') && <TableHead className={colSecondaire}>Listes</TableHead>}
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -699,7 +729,14 @@ export default function AdherentsPage() {
                   {adherents.map((a) => {
                     const adhesion = libelleAdhesion(latestAdhesions.get(a.id), todayIso)
                     return (
-                      <TableRow key={a.id} onClick={() => openEdit(a)} className="cursor-pointer hover:bg-paper-border/20">
+                      <TableRow
+                        key={a.id}
+                        onClick={() => toggleApercu(a)}
+                        className={cn(
+                          'cursor-pointer hover:bg-paper-border/20',
+                          a.id === apercuAdherent?.id && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]',
+                        )}
+                      >
                         <TableCell className={selectionMode ? '' : 'hidden xl:table-cell'} onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
@@ -710,13 +747,13 @@ export default function AdherentsPage() {
                           />
                         </TableCell>
                         {colonnesVisibles.includes('civilite') && (
-                          <TableCell className="hidden whitespace-nowrap text-ink-faint xl:table-cell">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
+                          <TableCell className={cn(colCivilite, 'whitespace-nowrap text-ink-faint')}>{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
                         )}
                         {/* Mobile : « NOM Prénom » et la pastille Adhésion (libellé sans date) dans une seule
                             cellule, sous le nom ; les colonnes Prénom et Adhésion sont masquées. */}
                         <TableCell className="whitespace-nowrap font-medium text-ink">
                           {a.nom}
-                          {a.prenom && <span className="font-normal text-ink-muted md:hidden"> {a.prenom}</span>}
+                          {a.prenom && <span className={cn('font-normal text-ink-muted', prenomDansNom)}> {a.prenom}</span>}
                           {colonnesVisibles.includes('adhesion') && (
                             <div className="mt-1 md:hidden">
                               <Badge variant={adhesion.variant}>{libelleAdhesionCourt(latestAdhesions.get(a.id), todayIso)}</Badge>
@@ -725,37 +762,41 @@ export default function AdherentsPage() {
                         </TableCell>
                         {colonnesVisibles.includes('adhesion') && (
                           <TableCell className="hidden md:table-cell">
-                            <Badge variant={adhesion.variant}>{adhesion.label}</Badge>
+                            {/* Panneau ouvert : libellé court sous 2xl (la date est dans l'aperçu). */}
+                            <Badge variant={adhesion.variant} className={apercuAdherent ? 'hidden 2xl:inline-flex' : undefined}>{adhesion.label}</Badge>
+                            {apercuAdherent && (
+                              <Badge variant={adhesion.variant} className="2xl:hidden">{libelleAdhesionCourt(latestAdhesions.get(a.id), todayIso)}</Badge>
+                            )}
                           </TableCell>
                         )}
-                        <TableCell className="hidden whitespace-nowrap text-ink-muted md:table-cell">{a.prenom ?? '—'}</TableCell>
+                        <TableCell className={cn(colPrenom, 'whitespace-nowrap text-ink-muted')}>{a.prenom ?? '—'}</TableCell>
                         {colonnesVisibles.includes('statut') && (
-                          <TableCell>
+                          <TableCell className={colSecondaire}>
                             <Badge variant="neutral">{a.statut === 'actif' ? 'Active' : 'Archivée'}</Badge>
                           </TableCell>
                         )}
                         {colonnesVisibles.includes('date_adhesion') && (
-                          <TableCell className="whitespace-nowrap text-ink-muted">
+                          <TableCell className={cn(colSecondaire, 'whitespace-nowrap text-ink-muted')}>
                             {latestAdhesions.get(a.id)?.date_debut ? formatDate(latestAdhesions.get(a.id)!.date_debut) : '—'}
                           </TableCell>
                         )}
                         {colonnesVisibles.includes('email') && (
-                          <TableCell className="text-ink-muted">{a.courriel ?? '—'}</TableCell>
+                          <TableCell className={cn(colSecondaire, 'text-ink-muted')}>{a.courriel ?? '—'}</TableCell>
                         )}
                         {colonnesVisibles.includes('telephone') && (
-                          <TableCell className="text-ink-muted">{a.telephone ?? '—'}</TableCell>
+                          <TableCell className={cn(colSecondaire, 'text-ink-muted')}>{a.telephone ?? '—'}</TableCell>
                         )}
                         {colonnesVisibles.includes('adresse') && (
-                          <TableCell className="text-ink-muted">{a.adresse ?? '—'}</TableCell>
+                          <TableCell className={cn(colSecondaire, 'text-ink-muted')}>{a.adresse ?? '—'}</TableCell>
                         )}
                         {colonnesVisibles.includes('localisation') && (
-                          <TableCell className="text-ink-muted">{formatLocalisation(a)}</TableCell>
+                          <TableCell className={cn(colSecondaire, 'text-ink-muted')}>{formatLocalisation(a)}</TableCell>
                         )}
                         {colonnesVisibles.includes('date_naissance') && (
-                          <TableCell className="text-ink-muted">{a.date_naissance ? formatDate(a.date_naissance) : '—'}</TableCell>
+                          <TableCell className={cn(colSecondaire, 'text-ink-muted')}>{a.date_naissance ? formatDate(a.date_naissance) : '—'}</TableCell>
                         )}
                         {colonnesVisibles.includes('listes') && (
-                          <TableCell className="text-ink-muted">{a.tags.length > 0 ? a.tags.join(', ') : '—'}</TableCell>
+                          <TableCell className={cn(colSecondaire, 'text-ink-muted')}>{a.tags.length > 0 ? a.tags.join(', ') : '—'}</TableCell>
                         )}
                         <TableCell className="text-right text-ink-faint">
                           <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -780,6 +821,25 @@ export default function AdherentsPage() {
               onPageSizeChange={setPageSize}
             />
           )}
+        </div>
+
+        <SidePanel
+          open={!!apercuAdherent}
+          onClose={() => setApercuAdherent(null)}
+          title={apercu.fiche ? <AdherentApercuTitre adherent={apercu.fiche} /> : 'Adhérent'}
+          footer={apercu.fiche && (
+            <AdherentApercuActions
+              fiche={apercu.fiche}
+              printing={printing}
+              printHelpText={PRINT_HELP_TEXT}
+              onEdit={() => apercu.fiche && openEdit(apercu.fiche)}
+              onRenew={() => apercu.fiche && setRenewingAdherent(apercu.fiche)}
+              onPrintCard={() => apercu.fiche && void handlePrintSingleCard(apercu.fiche)}
+            />
+          )}
+        >
+          {apercu.fiche && <AdherentApercuChamps fiche={apercu.fiche} adhesion={apercu.adhesion} todayIso={todayIso} />}
+        </SidePanel>
         </div>
       </div>
 
