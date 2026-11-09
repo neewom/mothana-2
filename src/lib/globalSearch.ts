@@ -1,6 +1,6 @@
 import type { NavEntry } from './adminNav'
 import { formatCentimes } from './portefeuilleAcheteur'
-import { correspondRecherche } from './textSearch'
+import { normalizeSearchText } from './participantSearch'
 
 // Résultats de la RPC rechercher_global (supabase/migrations/recherche_globale.sql).
 export interface SearchPersonne {
@@ -99,11 +99,25 @@ export function buildSearchPages(navItems: NavEntry[], options: { compte?: boole
   return pages
 }
 
-/** Pages dont le titre, le fil d'Ariane ou les mots-clés contiennent chaque mot saisi. */
+// Mots sans accents ni casse ; tiret et apostrophe séparent (« porte-monnaie » → porte, monnaie).
+function mots(text: string): string[] {
+  return normalizeSearchText(text.replace(/[-'’]/g, ' ')).split(/\s+/).filter(Boolean)
+}
+
+/**
+ * Pages dont un mot du titre, du fil d'Ariane ou des mots-clés commence par chaque mot saisi.
+ * Début de mot et non sous-chaîne : « ma » (début d'un nom) ne doit pas remonter « Paramètres »
+ * ni « Emailing » au-dessus des personnes.
+ */
 export function searchPages(pages: SearchPage[], terme: string): SearchItem[] {
   if (terme.trim().length < SEARCH_MIN_LENGTH) return []
+  const saisis = mots(terme)
+  if (saisis.length === 0) return []
   return pages
-    .filter((page) => correspondRecherche([page.label, page.sublabel, page.keywords], terme))
+    .filter((page) => {
+      const champs = mots(`${page.label} ${page.sublabel} ${page.keywords}`)
+      return saisis.every((saisi) => champs.some((mot) => mot.startsWith(saisi)))
+    })
     .slice(0, MAX_PAGES)
     .map((page) => ({ key: `page:${page.to}`, group: 'Pages', label: page.label, sublabel: page.sublabel, to: page.to }))
 }

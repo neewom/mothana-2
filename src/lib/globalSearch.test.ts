@@ -104,4 +104,10 @@ describe('pages de la recherche globale', () => {
   it('n’affiche rien sous 2 caractères', () => {
     expect(searchPages(pagesFor(flags()), 'd')).toEqual([])
   })
+
+  it('cherche en début de mot : le début d’un nom ne remonte pas de page', () => {
+    expect(found(pagesFor(flags()), 'ma')).toEqual([])
+    expect(found(pagesFor(flags()), 'param').length).toBe(6)
+    expect(found(pagesFor(flags()), 'monnaie').map(([, to]) => to)).toEqual(['/admin/activites/porte-monnaie', '/admin/activites/parametres'])
+  })
 })
