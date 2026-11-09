@@ -123,7 +123,9 @@ function ListeTableau<T, F extends string>({
   const toutCoche = !!selection && selection.selected.size > 0 && selection.selected.size === rows.length
 
   return (
-    <ScrollShadowX>
+    // `relative` : le libellé `sr-only` (position absolue) de la colonne du chevron reste pris
+    // dans le défilement horizontal au lieu d'élargir la page quand le tableau déborde.
+    <ScrollShadowX className="relative">
       <Table>
         <TableHeader>
           <TableRow>
@@ -239,7 +241,7 @@ function ListeCartes<T, F extends string>({
                 onChange={(e) => { if (e.target.value !== sort.field) sort.onSort(e.target.value as F) }}
                 className="py-1.5"
               >
-                {!options.some((o) => o.field === sort.field) && <option value={sort.field} hidden>—</option>}
+                {!options.some((o) => o.field === sort.field) && <option value={sort.field} hidden>Par défaut</option>}
                 {options.map((o) => <option key={o.field} value={o.field}>{o.label}</option>)}
               </Select>
               <Button
