@@ -6,6 +6,7 @@ import { useOrganisationId } from '../hooks/useOrganisationId'
 import { DEFAULT_FONCTIONNALITES, useFonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
 import { supabase } from '../lib/supabaseClient'
 import RecetteBanner from '../components/RecetteBanner'
+import { isRecette } from '../lib/environment'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Sheet } from '../components/ui/sheet'
@@ -128,7 +129,8 @@ function navLinkClasses({ isActive }: { isActive: boolean }): string {
   )
 }
 
-/** Pastille de compteur (alertes de l'accueil reprises dans le menu) ; rien sous 1. */
+/** Pastille de compteur (alertes de l'accueil reprises dans le menu) ; rien sous 1. Ambre et non
+ *  cachet : c'est un état métier (éléments en attente), pas une action (DESIGN.md, One Accent Rule). */
 function NavCount({ count, active, label }: { count?: number | null; active?: boolean; label: string }) {
   if (!count || count < 1) return null
   return (
@@ -136,7 +138,7 @@ function NavCount({ count, active, label }: { count?: number | null; active?: bo
       aria-label={`${count} ${label}`}
       className={cn(
         'ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 font-registre-mono text-[11px] font-semibold leading-none tabular-nums',
-        active ? 'bg-white text-stamp' : 'bg-stamp text-white'
+        active ? 'bg-white text-ink' : 'bg-warning text-white'
       )}
     >
       {count > 99 ? '99+' : count}
@@ -312,25 +314,24 @@ export default function AdminLayout() {
 
       {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <RecetteBanner />
-
-        {/* Super-admin banner */}
-        {isSuperAdminViewing && (
-          <div className="flex items-center justify-between bg-stamp px-4 py-2 text-sm text-white">
-            <span>
-              Mode consultation super-admin —{' '}
-              <span className="font-semibold">{organisationNom ?? '…'}</span>
+        {/* Mode Consulter : une seule ligne sombre (consultation + environnement de test), le lien
+            « Quitter » est le seul élément au cachet. Hors Consulter, le bandeau de test seul. */}
+        {isSuperAdminViewing ? (
+          <div className="flex items-center gap-3 bg-ink px-4 py-1.5 text-xs text-paper">
+            <span className="min-w-0 flex-1 truncate">
+              {isRecette() && <span className="font-medium text-warning-border">Test · </span>}
+              Consultation · <span className="font-semibold">{organisationNom ?? '…'}</span>
             </span>
             <button
+              type="button"
               onClick={handleBackToSuperAdmin}
-              className="flex items-center gap-1.5 rounded-sm bg-white/20 px-3 py-1 text-xs font-medium hover:bg-white/30"
+              className="shrink-0 rounded-sm bg-stamp px-2.5 py-0.5 font-medium text-white hover:bg-stamp/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper/70"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-              </svg>
-              Retour au dashboard
+              Quitter
             </button>
           </div>
+        ) : (
+          <RecetteBanner />
         )}
 
         {/* Top bar — une seule ligne à toutes les largeurs : nom d'organisation tronqué (nom
