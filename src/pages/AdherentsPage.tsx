@@ -964,7 +964,8 @@ export default function AdherentsPage() {
         onPrintCard={editingAdherent && (() => {
           const a = editingAdherent
           setAdherentModalOpen(false)
-          handlePrintSingleCard(a)
+          // Panneau ouvert sur cette fiche : l'erreur doit s'y afficher (en mobile il recouvre la bannière).
+          handlePrintSingleCard(a, apercuAdherent?.id === a.id ? 'panel' : 'page')
         })}
         onRenew={editingAdherent && (() => {
           const a = editingAdherent
