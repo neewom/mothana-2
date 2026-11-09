@@ -17,11 +17,9 @@ import ParticipantModal from '../components/ParticipantModal'
 import DeclarationCerfaCard from '../components/DeclarationCerfaCard'
 import { useRecapitulatif222Bis } from '../hooks/useRecapitulatif222Bis'
 import Toast from '../components/Toast'
-import ScrollShadowX from '../components/ScrollShadowX'
 import { Button } from '../components/ui/button'
 import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import { PageHeader } from '../components/ui/page-header'
 import { TablePagination } from '../components/ui/table-pagination'
@@ -36,8 +34,9 @@ import RecusLotBandeau from '../components/RecusLotBandeau'
 import RecusLotRecapitulatifDialog from '../components/RecusLotRecapitulatifDialog'
 import EmailInvalideIndicateur from '../components/EmailInvalideIndicateur'
 import type { RecapitulatifEnvoi } from '../types/recusLot'
-import SortableTableHead from '../components/SortableTableHead'
+import { ListeConteneur, ListeDonnees, type ColonneListe } from '../components/ui/liste-donnees'
 import { useTableSort } from '../hooks/useTableSort'
+import { useModeListe } from '../hooks/useModeListe'
 import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 
 // ---------------------------------------------------------------------------
@@ -646,12 +645,78 @@ export default function RecusFiscauxPage() {
     return sortedRows.slice(start, start + pageSize)
   }, [sortedRows, safePage, pageSize])
 
+  // Sous 768 px : cartes par défaut, ou tableau au choix (mémorisé sur l'appareil).
+  const { mode, selecteur } = useModeListe('recus-fiscaux')
+
+  // Statut du reçu (pastilles) : généré ou non, blocage de validation, erreur d'une action.
+  const statutRecu = (row: ParticipantRow) => {
+    const resume = resumeValidationParticipant(row.validation)
+    const profilId = row.profil.id
+    return (
+      <>
+        {/* Un reçu bloqué n'est pas généré : la pastille d'avertissement suffit. */}
+        {(row.recu || !resume) && (
+          <Badge variant={row.recu ? 'success' : 'neutral'}>{row.recu ? 'Généré' : 'Non généré'}</Badge>
+        )}
+        {resume && <Badge variant="warning">{resume}</Badge>}
+        {(genError[profilId] || dlError[profilId] || sendError[profilId]) && <Badge variant="stamp">Erreur</Badge>}
+      </>
+    )
+  }
+
+  // Colonnes du tableau et place de chacune dans une carte : donateur et total en première
+  // ligne, n° de reçu et email dessous, statut en pastilles (tout l'essentiel sans ouvrir la fiche).
+  const colonnes: ColonneListe<ParticipantRow, RecuSortField>[] = [
+    {
+      key: 'donateur', label: 'Donateur', sortField: 'donateur', role: 'titre',
+      cellClassName: 'whitespace-nowrap',
+      cell: (row) => (
+        <>
+          <span className="font-medium text-ink">{participantFullName(row.profil)}</span>
+          {row.profil.personnes.email && <div className={cn('text-xs text-ink-faint', selectedRow && 'hidden 2xl:block')}>{row.profil.personnes.email}</div>}
+          {row.profil.email_invalide_at && (
+            <div className="mt-1"><EmailInvalideIndicateur invalideLe={row.profil.email_invalide_at} /></div>
+          )}
+        </>
+      ),
+      carte: (row) => participantFullName(row.profil),
+    },
+    {
+      key: 'total', label: 'Total dons', sortField: 'total', role: 'montant', align: 'right',
+      cellClassName: 'whitespace-nowrap font-registre-mono font-medium text-ink',
+      cell: (row) => formatMontant(row.total_dons),
+    },
+    {
+      key: 'numero', label: 'N° reçu', sortField: 'numero', role: 'secondaire',
+      headClassName: secondaryCol, cellClassName: cn(secondaryCol, 'whitespace-nowrap font-registre-mono text-ink-muted'),
+      cell: (row) => row.recu?.numero_ordre ?? '—',
+      carte: (row) => row.recu?.numero_ordre && <span className="font-registre-mono">N° {row.recu.numero_ordre}</span>,
+    },
+    {
+      // Réservée aux cartes : dans le tableau, l'email vit sous le nom du donateur.
+      key: 'email', label: 'Email', role: 'secondaire',
+      headClassName: 'hidden', cellClassName: 'hidden',
+      cell: () => null,
+      carte: (row) => row.profil.personnes.email,
+    },
+    {
+      key: 'statut', label: 'Statut', role: 'pastille',
+      cell: (row) => <div className="flex items-center gap-1.5">{statutRecu(row)}</div>,
+      carte: (row) => (
+        <>
+          {statutRecu(row)}
+          <EmailInvalideIndicateur invalideLe={row.profil.email_invalide_at} />
+        </>
+      ),
+    },
+  ]
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
+    <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper px-4 py-6 font-registre md:px-6">
       <PageHeader
         title="Reçus fiscaux"
         subtitle={
@@ -809,10 +874,11 @@ export default function RecusFiscauxPage() {
 
       {/* Liste + panneau de détail */}
       <div className={cn('flex gap-6', selectedRow && 'items-start')}>
-      <div className="min-w-0 flex-1 rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+      <ListeConteneur>
         {!loading && rows.length > 0 && (
           <ListToolbar
             search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Rechercher par nom…', label: 'Rechercher un donateur' }}
+            mode={selecteur}
           />
         )}
         {loading ? (
@@ -832,62 +898,17 @@ export default function RecusFiscauxPage() {
             <p className="font-registre text-sm font-medium text-ink-faint">Aucun résultat pour votre recherche</p>
           </div>
         ) : (
-          <ScrollShadowX>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                  <SortableTableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
-                  <SortableTableHead field="numero" label="N° reçu" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={secondaryCol} />
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="hidden md:table-cell" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedRows.map((row) => {
-                  const profilId = row.profil.id
-                  const resume = resumeValidationParticipant(row.validation)
-                  return (
-                    <TableRow
-                      key={profilId}
-                      onClick={() => setSelectedId(profilId === selectedId ? null : profilId)}
-                      className={cn(
-                        'cursor-pointer hover:bg-paper-border/20',
-                        profilId === selectedId && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]'
-                      )}
-                    >
-                      <TableCell className="whitespace-nowrap">
-                        <span className="font-medium text-ink">{participantFullName(row.profil)}</span>
-                        {row.profil.personnes.email && <div className={cn('text-xs text-ink-faint', selectedRow && 'hidden 2xl:block')}>{row.profil.personnes.email}</div>}
-                        {row.profil.email_invalide_at && (
-                          <div className="mt-1"><EmailInvalideIndicateur invalideLe={row.profil.email_invalide_at} /></div>
-                        )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
-                        {formatMontant(row.total_dons)}
-                      </TableCell>
-                      <TableCell className={cn(secondaryCol, 'whitespace-nowrap font-registre-mono text-ink-muted')}>{row.recu?.numero_ordre ?? '—'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          {/* Un reçu bloqué n'est pas généré : la pastille d'avertissement suffit. */}
-                          {(row.recu || !resume) && (
-                            <Badge variant={row.recu ? 'success' : 'neutral'}>{row.recu ? 'Généré' : 'Non généré'}</Badge>
-                          )}
-                          {resume && <Badge variant="warning">{resume}</Badge>}
-                          {(genError[profilId] || dlError[profilId] || sendError[profilId]) && <Badge variant="stamp">Erreur</Badge>}
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden text-right text-ink-faint md:table-cell">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </ScrollShadowX>
+          <ListeDonnees
+            rows={paginatedRows}
+            rowKey={(row) => row.profil.id}
+            columns={colonnes}
+            mode={mode}
+            sort={{ field: sortField, direction: sortDirection, onSort: toggleSort }}
+            onRowClick={(row) => setSelectedId(row.profil.id === selectedId ? null : row.profil.id)}
+            activeKey={selectedId}
+            rowLabel={(row) => participantFullName(row.profil)}
+            chevronClassName="hidden md:table-cell"
+          />
         )}
 
         {/* Pagination */}
@@ -901,7 +922,7 @@ export default function RecusFiscauxPage() {
             onPageSizeChange={setPageSize}
           />
         )}
-      </div>
+      </ListeConteneur>
 
       <SidePanel
         open={!!selectedRow}
