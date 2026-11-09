@@ -464,7 +464,7 @@ export default function DonsPage() {
                 className="md:hidden"
                 items={[
                   { label: 'Importer', onSelect: () => setImportOpen(true) },
-                  { label: 'Exporter', onSelect: handleExport, disabled: filteredDons.length === 0, disabledReason: 'Aucun don à exporter' },
+                  { label: 'Exporter', onSelect: handleExport, disabled: loading || filteredDons.length === 0, disabledReason: !loading && filteredDons.length === 0 ? 'Aucun don à exporter' : undefined },
                 ]}
               />
               <Button variant="secondary" onClick={() => setImportOpen(true)} className="hidden md:inline-flex">

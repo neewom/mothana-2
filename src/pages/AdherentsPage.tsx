@@ -142,7 +142,11 @@ export default function AdherentsPage() {
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [printing, setPrinting] = useState(false)
+  // Erreur d'impression de la fiche ouverte (affichée dans le panneau) / des autres impressions
+  // (sélection, modale : bannière de page) — une erreur de la sélection ne doit pas apparaître
+  // dans le panneau d'une autre personne.
   const [printError, setPrintError] = useState<string | null>(null)
+  const [panelPrintError, setPanelPrintError] = useState<string | null>(null)
   const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string; count: number } | null>(null)
   const [assignListeOpen, setAssignListeOpen] = useState(false)
   const [retirerListeOpen, setRetirerListeOpen] = useState(false)
@@ -319,7 +323,7 @@ export default function AdherentsPage() {
   // Clic sur une ligne : ouvre l'aperçu, un second clic sur la même ligne le referme.
   function toggleApercu(a: Adherent) {
     // Une erreur d'impression concerne la fiche précédente : on ne la reporte pas sur la suivante.
-    setPrintError(null)
+    setPanelPrintError(null)
     setApercuAdherent((current) => (current?.id === a.id ? null : a))
   }
 
@@ -477,13 +481,15 @@ export default function AdherentsPage() {
     })
   }
 
-  async function printCards(ids: string[], filename: string) {
+  async function printCards(ids: string[], filename: string, target: 'page' | 'panel' = 'page') {
     setPrinting(true)
     setPrintError(null)
+    setPanelPrintError(null)
+    const fail = target === 'panel' ? setPanelPrintError : setPrintError
 
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
-      setPrintError('Session expirée')
+      fail('Session expirée')
       setPrinting(false)
       return
     }
@@ -501,7 +507,7 @@ export default function AdherentsPage() {
 
     if (!res.ok) {
       const json = await res.json().catch(() => ({}))
-      setPrintError(json.error ?? 'Erreur inconnue')
+      fail(json.error ?? 'Erreur inconnue')
       setPrinting(false)
       return
     }
@@ -518,9 +524,9 @@ export default function AdherentsPage() {
     setSelectedIds(new Set())
   }
 
-  async function handlePrintSingleCard(a: Adherent) {
+  async function handlePrintSingleCard(a: Adherent, target: 'page' | 'panel' = 'page') {
     const slug = adherentFullName(a).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()
-    await printCards([a.id], `carte-${slug}.pdf`)
+    await printCards([a.id], `carte-${slug}.pdf`, target)
   }
 
   function closePdfPreview() {
@@ -734,8 +740,8 @@ export default function AdherentsPage() {
         {error && (
           <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur : {error}</div>
         )}
-        {/* Panneau ouvert : l'erreur s'affiche dans le panneau (en mobile, il recouvre la page). */}
-        {printError && !apercuAdherent && (
+        {/* L'erreur d'impression de la fiche ouverte s'affiche dans le panneau (en mobile, il recouvre la page). */}
+        {printError && (
           <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur d'impression : {printError}</div>
         )}
 
@@ -866,7 +872,7 @@ export default function AdherentsPage() {
 
           <SidePanel
             open={!!apercuAdherent}
-            onClose={() => setApercuAdherent(null)}
+            onClose={() => { setPanelPrintError(null); setApercuAdherent(null) }}
             title={apercu.fiche ? <AdherentApercuTitre adherent={apercu.fiche} /> : 'Adhérent'}
             footer={apercu.fiche && (
               <AdherentApercuActions
@@ -875,12 +881,12 @@ export default function AdherentsPage() {
                 printHelpText={PRINT_HELP_TEXT}
                 onEdit={() => apercu.fiche && openEdit(apercu.fiche)}
                 onRenew={() => apercu.fiche && setRenewingAdherent(apercu.fiche)}
-                onPrintCard={() => apercu.fiche && void handlePrintSingleCard(apercu.fiche)}
+                onPrintCard={() => apercu.fiche && void handlePrintSingleCard(apercu.fiche, 'panel')}
               />
             )}
           >
-            {printError && (
-              <p role="alert" className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-3 py-2 text-sm text-stamp">Erreur d'impression : {printError}</p>
+            {panelPrintError && (
+              <p role="alert" className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-3 py-2 text-sm text-stamp">Erreur d'impression : {panelPrintError}</p>
             )}
             {apercu.fiche && <AdherentApercuChamps fiche={apercu.fiche} adhesion={apercu.adhesion} todayIso={todayIso} erreur={apercu.erreur} />}
           </SidePanel>
