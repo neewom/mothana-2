@@ -94,7 +94,7 @@ export default function BrevoConfigModal({ open, onClose, onSaved, organisationI
       <DialogContent className="max-w-lg" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Configuration Brevo</DialogTitle>
-          <p className="mt-1 text-sm text-ink-muted">Compte Brevo de votre organisation, utilisé pour l'envoi des campagnes.</p>
+          <p className="mt-1 text-sm text-ink-muted">Compte Brevo de votre organisation, utilisé pour les campagnes d'emailing et l'envoi des reçus fiscaux par email.</p>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">

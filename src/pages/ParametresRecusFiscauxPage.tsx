@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import EmailRecuSection from '../components/EmailRecuSection'
 import ParametresSection from '../components/ParametresSection'
 import ParametresGroupe from '../components/parametres/ParametresGroupe'
@@ -76,6 +76,7 @@ function messageAStocker(html: string): string | null {
 
 export default function ParametresRecusFiscauxPage() {
   const organisationId = useOrganisationId()
+  const { hash } = useLocation()
   const peutModifier = usePeutModifierParametres()
   const [saved, setSaved] = useState<RecusForm | null>(null)
   const [form, setForm] = useState<RecusForm | null>(null)
@@ -176,6 +177,12 @@ export default function ParametresRecusFiscauxPage() {
     }
     setSaving(false)
   }
+
+  // Arrivée par une ancre (ex. #email-recus depuis Intégrations) : la page n'a son contenu qu'une fois chargée.
+  const charge = form !== null
+  useEffect(() => {
+    if (charge && hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' })
+  }, [charge, hash])
 
   if (fetchError) {
     return (
@@ -290,6 +297,7 @@ export default function ParametresRecusFiscauxPage() {
             </ParametresSection>
 
             <ParametresSection
+              id="email-recus"
               level={3}
               title="Email d'envoi des reçus"
               description="Objet et message de l'email qui accompagne chaque reçu envoyé à un donateur."
