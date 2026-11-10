@@ -3,6 +3,8 @@ import { convertirHtmlEnPdf, escapeHtml } from '../_shared/html.ts'
 import { fetchAllRows } from '../_shared/fetchAllRows.ts'
 import { resolveOrganisationId } from '../_shared/resolveOrganisationId.ts'
 import qrcodeGenerator from 'https://esm.sh/qrcode-generator@1.4.4'
+import { enLots, libelleExclusion, libelleSelection, type FiltreStatut } from '../_shared/libellesCampagne.ts'
+import { adresseComplete, lignesDestinataires } from './detailCampagne.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,6 +22,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 interface Adherent {
+  id: string
   civilite: number
   nom: string
   prenom: string | null
@@ -50,6 +53,8 @@ const CIVILITE_LABELS: Record<number, string> = {
 // Planche Avery L7163 et équivalents (référence mesurée sur l'exemple fourni
 // par l'utilisateur) : 99,1 x 38,1mm, 2 colonnes x 7 lignes = 14 étiquettes/A4.
 const LABELS_PER_PAGE = 14
+// Insertion du détail des destinataires par lots (une campagne peut viser plusieurs milliers d'adhérents).
+const DETAIL_BATCH_SIZE = 500
 
 // Mise en page fixe, non éditable (contrainte physique de la planche
 // adhésive, cf. cadrage) — distincte du gabarit Cerfa/carte adhérent.
@@ -124,13 +129,6 @@ function slugify(s: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-}
-
-function selectionLabel(filtreStatut: string, tagEnvoi: string | null): string {
-  if (tagEnvoi) return `Liste : ${tagEnvoi}`
-  if (filtreStatut === 'archive') return 'Adhérents archivés'
-  if (filtreStatut === 'tous') return 'Tous les adhérents'
-  return 'Tous sauf archivés'
 }
 
 function buildQrSvg(text: string): string {
@@ -229,7 +227,7 @@ Deno.serve(async (req) => {
     const { data: adherentsData, error: adherentsError } = await fetchAllRows<Adherent>((from, to) => {
       let query = adminClient
         .from('adherents')
-        .select('civilite, nom, prenom, adresse, code_postal, ville, tags')
+        .select('id, civilite, nom, prenom, adresse, code_postal, ville, tags')
         .eq('organisation_id', organisationId)
 
       if (tag_envoi) {
@@ -249,9 +247,8 @@ Deno.serve(async (req) => {
     const tousAdherents = adherentsData.filter(
       (a) => !exclude_tag || !(a.tags ?? []).includes(exclude_tag),
     )
-    const destinataires = tousAdherents.filter(
-      (a) => a.adresse?.trim() && a.code_postal?.trim() && a.ville?.trim(),
-    )
+    // Adresse postale complète (adresse, code postal, ville) ; sinon exclu — detailCampagne.ts.
+    const destinataires = tousAdherents.filter(adresseComplete)
     const nombreExclus = tousAdherents.length - destinataires.length
 
     if (destinataires.length === 0) {
@@ -316,18 +313,52 @@ Deno.serve(async (req) => {
     // 6. Historique
     // ---------------------------------------------------------------------
 
-    const { error: historiqueError } = await adminClient.from('campagnes_courrier').insert({
-      organisation_id: organisationId,
-      activite_id: activite.id,
-      selection_label: selectionLabel(filtre_statut, tag_envoi ?? null),
-      nombre_destinataires: destinataires.length,
-      nombre_exclus: nombreExclus,
-      genere_par: user.id,
-    })
+    // Libellés figés construits ici (pas fournis par le client) : noms des listes relus en base.
+    const nomsListes = [tag_envoi, exclude_tag].filter((n): n is string => typeof n === 'string' && n !== '')
+    const listesConnues = new Set<string>()
+    if (nomsListes.length > 0) {
+      const { data: listes, error: listesError } = await adminClient
+        .from('listes_diffusion')
+        .select('nom')
+        .eq('organisation_id', organisationId)
+        .in('nom', nomsListes)
+      if (listesError) console.error('generate-campagne-courrier: lecture des listes de diffusion', listesError.code, listesError.message)
+      for (const l of listes ?? []) listesConnues.add(l.nom as string)
+    }
+    const nomListe = (tag: string | null | undefined) => (tag && listesConnues.has(tag) ? tag : null)
 
-    if (historiqueError) {
+    const { data: campagne, error: historiqueError } = await adminClient
+      .from('campagnes_courrier')
+      .insert({
+        organisation_id: organisationId,
+        activite_id: activite.id,
+        selection_label: libelleSelection(filtre_statut as FiltreStatut, tag_envoi || null, nomListe(tag_envoi)),
+        exclusion_label: libelleExclusion(exclude_tag || null, nomListe(exclude_tag)),
+        detail_enregistre: true,
+        nombre_destinataires: destinataires.length,
+        nombre_exclus: nombreExclus,
+        genere_par: user.id,
+      })
+      .select('id')
+      .single()
+
+    if (historiqueError || !campagne) {
       console.error('Historique insert error:', historiqueError)
       // Non-bloquant : la génération a réussi, seul l'historique échoue
+    } else {
+      // Destinataires et exclus figés, par lots. Non bloquant comme l'historique : le PDF est
+      // généré. Un lot en échec retire les lignes déjà insérées plutôt que de laisser une liste
+      // partielle (les compteurs de la campagne restent exacts).
+      const lignes = lignesDestinataires(tousAdherents, campagne.id as string, organisationId)
+      for (const lot of enLots(lignes, DETAIL_BATCH_SIZE)) {
+        const { error: detailError } = await adminClient.from('campagnes_courrier_destinataires').insert(lot)
+        if (detailError) {
+          console.error('generate-campagne-courrier: insertion du détail des destinataires', detailError.code, detailError.message)
+          const { error } = await adminClient.from('campagnes_courrier_destinataires').delete().eq('campagne_id', campagne.id)
+          if (error) console.error('generate-campagne-courrier: retrait du détail partiel', error.code, error.message)
+          break
+        }
+      }
     }
 
     return new Response(pdfBuffer, {
