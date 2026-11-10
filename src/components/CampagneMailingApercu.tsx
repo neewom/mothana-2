@@ -91,21 +91,24 @@ export function CampagneMailingApercuChamps({
         )}
       </DetailField>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-4">
         <DetailField label="Envoyés"><span className="font-registre-mono">{campagne.nombre_destinataires}</span></DetailField>
         <DetailField label="Exclus"><span className="font-registre-mono">{campagne.nombre_exclus}</span></DetailField>
-        <DetailField label="Pièces j.">
-          {campagne.nombre_pieces_jointes === null ? (
-            <span className="text-ink-faint">—</span>
-          ) : (
-            <span className="font-registre-mono">{campagne.nombre_pieces_jointes}</span>
-          )}
-        </DetailField>
       </div>
+
+      <NotesCampagne key={campagne.id} campagne={campagne} onSaved={onNotesSaved} />
 
       <ApercuMessage campagneId={campagne.id} sujet={campagne.sujet} />
 
-      <NotesCampagne key={campagne.id} campagne={campagne} onSaved={onNotesSaved} />
+      <DetailField label="Pièces jointes">
+        {campagne.nombre_pieces_jointes === null ? (
+          <span className="text-ink-faint">{NON_ENREGISTRE}</span>
+        ) : campagne.nombre_pieces_jointes === 0 ? (
+          'Aucune'
+        ) : (
+          pluriel(campagne.nombre_pieces_jointes, 'fichier')
+        )}
+      </DetailField>
 
       {anterieure ? (
         <DetailField label="Destinataires">
@@ -156,7 +159,7 @@ function ApercuMessage({ campagneId, sujet }: { campagneId: string; sujet: strin
             title={`Aperçu du message « ${sujet} »`}
             sandbox=""
             srcDoc={doc}
-            className="h-56 w-full rounded-sm border border-paper-border bg-white"
+            className="h-48 w-full rounded-sm border border-paper-border bg-white"
           />
           <button
             type="button"

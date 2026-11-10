@@ -151,30 +151,15 @@ const HISTORIQUE_COLONNES: ColonneListe<Campagne, HistoriqueSortField>[] = [
         {c.notes && <span className="self-center"><IconeNote /></span>}
       </span>
     ),
-    cellClassName: 'max-w-[18rem] xl:max-w-[24rem]',
-  },
-  {
-    key: 'selection',
-    label: 'Sélection',
-    role: 'secondaire',
-    cell: (c) =>
-      c.selection_label === null ? (
-        <span className="whitespace-nowrap text-ink-faint">Non enregistré</span>
-      ) : (
-        <span className="block whitespace-nowrap">
-          <span className="block text-ink">{c.selection_label}</span>
-          {c.exclusion_label && <span className="block text-xs text-ink-muted">{c.exclusion_label}</span>}
-        </span>
-      ),
-    carte: (c) => (c.selection_label === null ? null : c.exclusion_label ? `${c.selection_label}, ${c.exclusion_label.toLowerCase()}` : c.selection_label),
+    cellClassName: 'max-w-[13rem] xl:max-w-[18rem] 2xl:max-w-[24rem]',
   },
   {
     key: 'destinataires',
     label: 'Destinataires',
-    role: 'montant',
+    role: 'secondaire',
     sortField: 'destinataires',
     cell: (c) => c.nombre_destinataires,
-    carte: (c) => pluriel(c.nombre_destinataires, 'envoi'),
+    carte: (c) => pluriel(c.nombre_destinataires, 'destinataire'),
     cellClassName: 'text-ink-muted',
   },
   {
@@ -185,6 +170,24 @@ const HISTORIQUE_COLONNES: ColonneListe<Campagne, HistoriqueSortField>[] = [
     cell: (c) => c.nombre_exclus,
     carte: (c) => (c.nombre_exclus > 0 ? pluriel(c.nombre_exclus, 'exclu') : null),
     cellClassName: 'text-ink-muted',
+  },
+  {
+    key: 'selection',
+    label: 'Sélection',
+    role: 'secondaire',
+    cell: (c) =>
+      c.selection_label === null ? (
+        <span className="whitespace-nowrap text-ink-faint">
+          <span aria-hidden>—</span>
+          <span className="sr-only">Non enregistré</span>
+        </span>
+      ) : (
+        <span className="block whitespace-nowrap">
+          <span className="block text-ink">{c.selection_label}</span>
+          {c.exclusion_label && <span className="block text-xs text-ink-muted">{c.exclusion_label}</span>}
+        </span>
+      ),
+    carte: (c) => (c.selection_label === null ? null : c.exclusion_label ? `${c.selection_label} (${c.exclusion_label.replace(/^Sauf/, 'sauf')})` : c.selection_label),
   },
 ]
 
@@ -1004,7 +1007,7 @@ export default function CampagneMailingPage() {
 
       <div className={cn('flex gap-6', campagneOuverte && 'items-start')}>
         <div className="min-w-0 flex-1">
-          <SectionCard title="Historique" description="20 dernières campagnes envoyées. Cliquez sur une campagne pour voir son détail." accent noPadding>
+          <SectionCard title="Historique" description="20 dernières campagnes envoyées. Ouvrez-en une pour voir son détail et ses notes." accent noPadding>
             {historiqueLoading ? (
               <div className="flex items-center justify-center px-6 py-8">
                 <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
