@@ -113,17 +113,6 @@ function pluriel(n: number, mot: string): string {
   return `${n} ${mot}${n > 1 ? 's' : ''}`
 }
 
-function IconeNote() {
-  return (
-    <span className="inline-flex shrink-0 text-ink-faint">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM19.5 13.5V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18V6.75A2.25 2.25 0 016 4.5h4.5" />
-      </svg>
-      <span className="sr-only">Note enregistrée</span>
-    </span>
-  )
-}
-
 // Historique : une colonne par information, rôle en carte sous 768 px (DESIGN.md › Listes en mobile).
 const HISTORIQUE_COLONNES: ColonneListe<Campagne, HistoriqueSortField>[] = [
   {
@@ -139,18 +128,8 @@ const HISTORIQUE_COLONNES: ColonneListe<Campagne, HistoriqueSortField>[] = [
     label: 'Sujet',
     role: 'titre',
     sortField: 'sujet',
-    cell: (c) => (
-      <span className="flex min-w-0 items-center gap-1.5">
-        <span className="truncate font-medium text-ink">{c.sujet}</span>
-        {c.notes && <IconeNote />}
-      </span>
-    ),
-    carte: (c) => (
-      <span className="inline-flex items-baseline gap-1.5">
-        <span>{c.sujet}</span>
-        {c.notes && <span className="self-center"><IconeNote /></span>}
-      </span>
-    ),
+    cell: (c) => <span className="block truncate font-medium text-ink">{c.sujet}</span>,
+    carte: (c) => c.sujet,
     cellClassName: 'max-w-[13rem] xl:max-w-[18rem] 2xl:max-w-[24rem]',
   },
   {
