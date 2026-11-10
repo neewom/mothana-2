@@ -19,12 +19,22 @@ import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
-import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
 import { directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../components/ui/dialog'
 import { Link } from 'react-router-dom'
 import { StatusNotice } from '../components/ui/status-notice'
+import { ListeDonnees, type ColonneListe } from '../components/ui/liste-donnees'
+import { ListToolbar } from '../components/ui/list-toolbar'
+import { SidePanel } from '../components/ui/side-panel'
+import { useModeListe } from '../hooks/useModeListe'
+import { useNomsComptesOrganisation } from '../hooks/useNomsComptesOrganisation'
+import { cn } from '../lib/utils'
+import {
+  CampagneMailingApercuChamps,
+  CampagneMailingApercuTitre,
+  type CampagneHistorique,
+} from '../components/CampagneMailingApercu'
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
 const MAX_ATTACHMENTS = 3
@@ -39,14 +49,7 @@ function parseEnvoyerA(value: string): { filtreStatut: FiltreStatut; tagEnvoi: s
   return { filtreStatut: rest as FiltreStatut, tagEnvoi: null }
 }
 
-
-interface Campagne {
-  id: string
-  sujet: string
-  nombre_destinataires: number
-  nombre_exclus: number
-  created_at: string
-}
+type Campagne = CampagneHistorique
 
 type HistoriqueSortField = 'date' | 'sujet' | 'destinataires' | 'exclus'
 
@@ -104,6 +107,69 @@ const APERCU_COPY: Record<ApercuCategory, { title: string; description: string }
     description: "Ces adhérents ont refusé de recevoir les campagnes mailing.",
   },
 }
+
+const HISTORIQUE_COLUMNS = 'id, sujet, nombre_destinataires, nombre_exclus, created_at, envoye_par, selection_label, exclusion_label, nombre_pieces_jointes, pieces_jointes_noms, notes'
+
+function pluriel(n: number, mot: string): string {
+  return `${n} ${mot}${n > 1 ? 's' : ''}`
+}
+
+// Historique : une colonne par information, rôle en carte sous 768 px (DESIGN.md › Listes en mobile).
+const HISTORIQUE_COLONNES: ColonneListe<Campagne, HistoriqueSortField>[] = [
+  {
+    key: 'date',
+    label: 'Date',
+    role: 'secondaire',
+    sortField: 'date',
+    cell: (c) => formatDateTime(c.created_at),
+    cellClassName: 'whitespace-nowrap text-ink-muted',
+  },
+  {
+    key: 'sujet',
+    label: 'Sujet',
+    role: 'titre',
+    sortField: 'sujet',
+    cell: (c) => <span className="block truncate font-medium text-ink">{c.sujet}</span>,
+    carte: (c) => c.sujet,
+    cellClassName: 'max-w-[13rem] xl:max-w-[18rem] 2xl:max-w-[24rem]',
+  },
+  {
+    key: 'destinataires',
+    label: 'Destinataires',
+    role: 'secondaire',
+    sortField: 'destinataires',
+    cell: (c) => c.nombre_destinataires,
+    carte: (c) => pluriel(c.nombre_destinataires, 'destinataire'),
+    cellClassName: 'text-ink-muted',
+  },
+  {
+    key: 'exclus',
+    label: 'Exclus',
+    role: 'secondaire',
+    sortField: 'exclus',
+    cell: (c) => c.nombre_exclus,
+    carte: (c) => (c.nombre_exclus > 0 ? pluriel(c.nombre_exclus, 'exclu') : null),
+    cellClassName: 'text-ink-muted',
+  },
+  {
+    key: 'selection',
+    label: 'Sélection',
+    role: 'secondaire',
+    cell: (c) =>
+      c.selection_label === null ? (
+        <span className="whitespace-nowrap text-ink-faint">
+          <span aria-hidden>—</span>
+          <span className="sr-only">Non enregistré</span>
+        </span>
+      ) : (
+        <span className="block whitespace-nowrap">
+          <span className="block text-ink">{c.selection_label}</span>
+          {c.exclusion_label && <span className="block text-xs text-ink-muted">{c.exclusion_label}</span>}
+        </span>
+      ),
+    carte: (c) => (c.selection_label === null ? null : c.exclusion_label ? `${c.selection_label} (${c.exclusion_label.replace(/^Sauf/, 'sauf')})` : c.selection_label),
+  },
+]
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -212,6 +278,14 @@ export default function CampagneMailingPage() {
     initial: { field: 'date', direction: 'desc' },
     initialDirection: (field) => directionInitiale(HISTORIQUE_SORT_COLUMNS[field].type),
   })
+  const { mode: historiqueMode, selecteur: historiqueSelecteur } = useModeListe('campagnes-mailing')
+  const [campagneOuverte, setCampagneOuverte] = useState<Campagne | null>(null)
+  // Noms affichés des comptes de l'organisation, pour « Envoyée par ».
+  const auteurs = useNomsComptesOrganisation(organisationId)
+  const [reprendreEnAttente, setReprendreEnAttente] = useState<{ sujet: string; corpsHtml: string } | null>(null)
+  const [reprendreErreur, setReprendreErreur] = useState<string | null>(null)
+  const [reprenant, setReprenant] = useState(false)
+  const compositionRef = useRef<HTMLDivElement>(null)
   const historiqueTrie = useMemo(
     () => sortRows(historique, HISTORIQUE_SORT_COLUMNS, historiqueSort.sort, (a, b) => b.created_at.localeCompare(a.created_at)),
     [historique, historiqueSort.sort]
@@ -303,13 +377,55 @@ export default function CampagneMailingPage() {
     setHistoriqueLoading(true)
     const { data } = await supabase
       .from('campagnes_mailing')
-      .select('id, sujet, nombre_destinataires, nombre_exclus, created_at')
+      .select(HISTORIQUE_COLUMNS)
       .eq('organisation_id', organisationId)
       .order('created_at', { ascending: false })
       .limit(20)
     setHistorique((data ?? []) as Campagne[])
     setHistoriqueLoading(false)
   }, [organisationId])
+
+  function toggleCampagne(c: Campagne) {
+    setReprendreErreur(null)
+    setCampagneOuverte((prev) => (prev?.id === c.id ? null : c))
+  }
+
+  function handleNotesSaved(id: string, notes: string | null) {
+    setHistorique((prev) => prev.map((c) => (c.id === id ? { ...c, notes } : c)))
+    setCampagneOuverte((prev) => (prev?.id === id ? { ...prev, notes } : prev))
+  }
+
+  function appliquerContenu(contenu: { sujet: string; corpsHtml: string }) {
+    if (!editor) return
+    setSujet(contenu.sujet)
+    editor.commands.setContent(contenu.corpsHtml)
+    setCorpsHtml(contenu.corpsHtml)
+    setCorpsVide(editor.getText().trim() === '')
+    setSelectedTemplateId('')
+    setReprendreEnAttente(null)
+    setCampagneOuverte(null)
+    showToast('Contenu repris dans l’éditeur')
+    compositionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  // « Reprendre ce contenu » : sujet et message de la campagne dans l'éditeur (pièces jointes
+  // et sélection non repris) ; confirmation si un brouillon est en cours.
+  async function handleReprendre(c: Campagne) {
+    setReprendreErreur(null)
+    setReprenant(true)
+    const { data, error } = await supabase.from('campagnes_mailing').select('corps_html').eq('id', c.id).single()
+    setReprenant(false)
+    if (error || !data) {
+      setReprendreErreur('Impossible de charger le message. Réessayez.')
+      return
+    }
+    const contenu = { sujet: c.sujet, corpsHtml: (data as { corps_html: string }).corps_html }
+    if (sujet.trim() !== '' || !corpsVide) {
+      setReprendreEnAttente(contenu)
+      return
+    }
+    appliquerContenu(contenu)
+  }
 
   useEffect(() => {
     fetchHistorique()
@@ -599,6 +715,7 @@ export default function CampagneMailingPage() {
         </StatusNotice>
       )}
 
+      <div ref={compositionRef} className="scroll-mt-6">
       <SectionCard
         title="Nouvelle campagne"
         description="Composez le message envoyé à vos adhérents."
@@ -854,39 +971,73 @@ export default function CampagneMailingPage() {
           </div>
         </div>
       </SectionCard>
+      </div>
 
-      <SectionCard title="Historique" description="20 dernières campagnes envoyées." accent noPadding>
-        {historiqueLoading ? (
-          <div className="flex items-center justify-center px-6 py-8">
-            <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
+      <div className={cn('flex gap-6', campagneOuverte && 'items-start')}>
+        <div className="min-w-0 flex-1">
+          <SectionCard title="Historique" description="20 dernières campagnes envoyées. Ouvrez-en une pour voir son détail et ses notes." accent noPadding>
+            {historiqueLoading ? (
+              <div className="flex items-center justify-center px-6 py-8">
+                <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
+              </div>
+            ) : historique.length === 0 ? (
+              <p className="p-6 text-sm text-ink-faint">Aucune campagne envoyée pour le moment.</p>
+            ) : (
+              <>
+                {historiqueSelecteur && <ListToolbar mode={historiqueSelecteur} className="justify-end" />}
+                <ListeDonnees
+                  rows={historiqueTrie}
+                  rowKey={(c) => c.id}
+                  columns={HISTORIQUE_COLONNES}
+                  mode={historiqueMode}
+                  sort={{ field: historiqueSort.sortField, direction: historiqueSort.sortDirection, onSort: historiqueSort.toggleSort }}
+                  onRowClick={toggleCampagne}
+                  activeKey={campagneOuverte?.id}
+                  rowLabel={(c) => c.sujet}
+                />
+              </>
+            )}
+          </SectionCard>
+        </div>
+
+        <SidePanel
+          open={!!campagneOuverte}
+          onClose={() => setCampagneOuverte(null)}
+          title={campagneOuverte ? <CampagneMailingApercuTitre campagne={campagneOuverte} /> : 'Campagne'}
+          footer={campagneOuverte && (
+            <>
+              {reprendreErreur && <p role="alert" className="text-xs text-stamp">{reprendreErreur}</p>}
+              <Button type="button" className="w-full" onClick={() => void handleReprendre(campagneOuverte)} disabled={reprenant || !editor}>
+                {reprenant ? 'Chargement…' : 'Reprendre ce contenu'}
+              </Button>
+              <p className="text-xs text-ink-faint">Sujet et message repris dans l’éditeur, sans les pièces jointes ni la sélection.</p>
+            </>
+          )}
+        >
+          {campagneOuverte && (
+            <CampagneMailingApercuChamps campagne={campagneOuverte} auteurs={auteurs} onNotesSaved={handleNotesSaved} />
+          )}
+        </SidePanel>
+      </div>
+
+      <Dialog open={reprendreEnAttente !== null} onOpenChange={(next) => { if (!next) setReprendreEnAttente(null) }}>
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
+          <div className="p-6">
+            <DialogTitle>Remplacer le brouillon ?</DialogTitle>
+            <p className="mt-2 font-registre text-sm text-ink-muted">
+              L’éditeur contient déjà un sujet ou un message. Ils seront remplacés par ceux de la campagne « {reprendreEnAttente?.sujet} ».
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={() => setReprendreEnAttente(null)}>
+                Annuler
+              </Button>
+              <Button type="button" onClick={() => reprendreEnAttente && appliquerContenu(reprendreEnAttente)}>
+                Remplacer
+              </Button>
+            </div>
           </div>
-        ) : historique.length === 0 ? (
-          <p className="p-6 text-sm text-ink-faint">Aucune campagne envoyée pour le moment.</p>
-        ) : (
-          <ScrollShadowX>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <SortableTableHead field="date" label="Date" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
-                  <SortableTableHead field="sujet" label="Sujet" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
-                  <SortableTableHead field="destinataires" label="Destinataires" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
-                  <SortableTableHead field="exclus" label="Exclus" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {historiqueTrie.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="whitespace-nowrap text-ink-muted">{formatDateTime(c.created_at)}</TableCell>
-                    <TableCell className="max-w-[45vw] truncate font-medium text-ink sm:max-w-none" title={c.sujet}>{c.sujet}</TableCell>
-                    <TableCell className="text-ink-muted">{c.nombre_destinataires}</TableCell>
-                    <TableCell className="text-ink-muted">{c.nombre_exclus}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollShadowX>
-        )}
-      </SectionCard>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={saveTemplateOpen} onOpenChange={(next) => { if (!next && !savingTemplate) setSaveTemplateOpen(false) }}>
         <DialogContent className="max-w-sm" aria-describedby={undefined}>

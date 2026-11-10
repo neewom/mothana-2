@@ -10,6 +10,7 @@ import {
   origineSite,
   utiliseLienRenouvellement,
 } from './lienRenouvellement.ts'
+import { enLots, libelleExclusion, nomsPiecesJointes, libelleSelection, lignesDestinataires, raisonExclusion } from './detailCampagne.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,6 +32,8 @@ const BREVO_BATCH_SIZE = 1000
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 const MAX_ATTACHMENTS = 3
+// Insertion du détail des destinataires par lots (une campagne peut viser plusieurs milliers d'adhérents).
+const DETAIL_BATCH_SIZE = 500
 
 interface PieceJointe {
   nom: string
@@ -207,9 +210,7 @@ Deno.serve(async (req) => {
     )
     // Même classement que src/lib/mailingRecipients.ts : email manquant, format invalide ou
     // adresse rejetée lors d'un envoi précédent (email_invalide_at, rejet Brevo) → exclu.
-    const destinataires = tousAdherents.filter(
-      (a) => a.courriel && EMAIL_REGEX.test(a.courriel.trim()) && !a.email_invalide_at,
-    )
+    const destinataires = tousAdherents.filter((a) => raisonExclusion(a, EMAIL_REGEX) === null)
     const nombreExclus = tousAdherents.length - destinataires.length
 
     if (destinataires.length === 0) {
@@ -298,18 +299,54 @@ Deno.serve(async (req) => {
     // 4. Historique
     // ---------------------------------------------------------------------
 
-    const { error: historiqueError } = await adminClient.from('campagnes_mailing').insert({
-      organisation_id: organisationId,
-      sujet,
-      corps_html,
-      nombre_destinataires: destinataires.length,
-      nombre_exclus: nombreExclus,
-      envoye_par: user.id,
-    })
+    // Libellés figés construits ici (pas fournis par le client) : noms des listes relus en base.
+    const nomsListes = [tag_envoi, exclude_tag].filter((n): n is string => typeof n === 'string' && n !== '')
+    const listesConnues = new Set<string>()
+    if (nomsListes.length > 0) {
+      const { data: listes, error: listesError } = await adminClient
+        .from('listes_diffusion')
+        .select('nom')
+        .eq('organisation_id', organisationId)
+        .in('nom', nomsListes)
+      if (listesError) console.error('send-mailing-brevo: lecture des listes de diffusion', listesError.code, listesError.message)
+      for (const l of listes ?? []) listesConnues.add(l.nom as string)
+    }
+    const nomListe = (tag: string | null | undefined) => (tag && listesConnues.has(tag) ? tag : null)
 
-    if (historiqueError) {
+    const { data: campagne, error: historiqueError } = await adminClient
+      .from('campagnes_mailing')
+      .insert({
+        organisation_id: organisationId,
+        sujet,
+        corps_html,
+        nombre_destinataires: destinataires.length,
+        nombre_exclus: nombreExclus,
+        envoye_par: user.id,
+        selection_label: libelleSelection(filtre_statut, tag_envoi || null, nomListe(tag_envoi)),
+        exclusion_label: libelleExclusion(exclude_tag || null, nomListe(exclude_tag)),
+        nombre_pieces_jointes: attachments.length,
+        pieces_jointes_noms: nomsPiecesJointes(attachments, MAX_ATTACHMENTS),
+      })
+      .select('id')
+      .single()
+
+    if (historiqueError || !campagne) {
       console.error('Historique insert error:', historiqueError)
       // Non-bloquant : l'envoi a réussi, seul l'historique échoue
+    } else {
+      // Destinataires et exclus figés, par lots. Non bloquant comme l'historique : l'envoi est
+      // parti. Un lot en échec retire les lignes déjà insérées plutôt que de laisser une liste
+      // partielle (les compteurs de la campagne restent exacts).
+      const lignes = lignesDestinataires(tousAdherents, campagne.id as string, organisationId, EMAIL_REGEX)
+      for (const lot of enLots(lignes, DETAIL_BATCH_SIZE)) {
+        const { error: detailError } = await adminClient.from('campagnes_mailing_destinataires').insert(lot)
+        if (detailError) {
+          console.error('send-mailing-brevo: insertion du détail des destinataires', detailError.code, detailError.message)
+          const { error } = await adminClient.from('campagnes_mailing_destinataires').delete().eq('campagne_id', campagne.id)
+          if (error) console.error('send-mailing-brevo: retrait du détail partiel', error.code, error.message)
+          break
+        }
+      }
     }
 
     return jsonResponse({ nombre_destinataires: destinataires.length, nombre_exclus: nombreExclus })

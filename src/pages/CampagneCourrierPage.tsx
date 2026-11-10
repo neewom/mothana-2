@@ -14,11 +14,22 @@ import { Button } from '../components/ui/button'
 import { Label } from '../components/ui/label'
 import { Select } from '../components/ui/select'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
-import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
 import { directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import { StatusNotice } from '../components/ui/status-notice'
+import { ListeDonnees, type ColonneListe } from '../components/ui/liste-donnees'
+import { ListToolbar } from '../components/ui/list-toolbar'
+import { SidePanel } from '../components/ui/side-panel'
+import { useModeListe } from '../hooks/useModeListe'
+import { useNomsComptesOrganisation } from '../hooks/useNomsComptesOrganisation'
+import { cn } from '../lib/utils'
+import { libelleSelectionCarte } from '../lib/campagneCourrierDetail'
+import {
+  CampagneCourrierApercuChamps,
+  CampagneCourrierApercuTitre,
+  type CampagneCourrierHistorique,
+} from '../components/CampagneCourrierApercu'
 
 type FiltreStatut = 'actif' | 'archive' | 'tous'
 
@@ -37,15 +48,9 @@ function selectionLabel(filtreStatut: FiltreStatut, tagEnvoi: string | null): st
   return 'Tous sauf archivés'
 }
 
-interface CampagneCourrier {
-  id: string
-  activite_id: string
-  selection_label: string
-  nombre_destinataires: number
-  nombre_exclus: number
-  created_at: string
-  activites: { nom: string } | null
-}
+type CampagneCourrier = CampagneCourrierHistorique
+
+const HISTORIQUE_COLUMNS = 'id, activite_id, selection_label, exclusion_label, detail_enregistre, nombre_destinataires, nombre_exclus, created_at, genere_par, notes, activites(nom)'
 
 type HistoriqueSortField = 'date' | 'activite' | 'selection' | 'destinataires' | 'exclus'
 
@@ -61,6 +66,62 @@ const HISTORIQUE_SORT_COLUMNS: SortColumns<CampagneCourrier, HistoriqueSortField
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
+
+function pluriel(n: number, mot: string): string {
+  return `${n} ${mot}${n > 1 ? 's' : ''}`
+}
+
+// Historique : une colonne par information, rôle en carte sous 768 px (DESIGN.md › Listes en mobile).
+const HISTORIQUE_COLONNES: ColonneListe<CampagneCourrier, HistoriqueSortField>[] = [
+  {
+    key: 'date',
+    label: 'Date',
+    role: 'secondaire',
+    sortField: 'date',
+    cell: (c) => formatDateTime(c.created_at),
+    cellClassName: 'whitespace-nowrap text-ink-muted',
+  },
+  {
+    key: 'activite',
+    label: 'Activité',
+    role: 'titre',
+    sortField: 'activite',
+    cell: (c) => <span className="block truncate font-medium text-ink">{c.activites?.nom ?? '—'}</span>,
+    carte: (c) => c.activites?.nom ?? '—',
+    cellClassName: 'max-w-[13rem] xl:max-w-[18rem] 2xl:max-w-[24rem]',
+  },
+  {
+    key: 'destinataires',
+    label: 'Destinataires',
+    role: 'secondaire',
+    sortField: 'destinataires',
+    cell: (c) => c.nombre_destinataires,
+    carte: (c) => pluriel(c.nombre_destinataires, 'destinataire'),
+    cellClassName: 'text-ink-muted',
+  },
+  {
+    key: 'exclus',
+    label: 'Exclus',
+    role: 'secondaire',
+    sortField: 'exclus',
+    cell: (c) => c.nombre_exclus,
+    carte: (c) => (c.nombre_exclus > 0 ? pluriel(c.nombre_exclus, 'exclu') : null),
+    cellClassName: 'text-ink-muted',
+  },
+  {
+    key: 'selection',
+    label: 'Sélection',
+    role: 'secondaire',
+    sortField: 'selection',
+    cell: (c) => (
+      <span className="block whitespace-nowrap">
+        <span className="block text-ink">{c.selection_label}</span>
+        {c.exclusion_label && <span className="block text-xs text-ink-muted">{c.exclusion_label}</span>}
+      </span>
+    ),
+    carte: (c) => libelleSelectionCarte(c.selection_label, c.exclusion_label),
+  },
+]
 
 function SectionCard({
   title,
@@ -148,6 +209,10 @@ export default function CampagneCourrierPage() {
     initial: { field: 'date', direction: 'desc' },
     initialDirection: (field) => directionInitiale(HISTORIQUE_SORT_COLUMNS[field].type),
   })
+  const { mode: historiqueMode, selecteur: historiqueSelecteur } = useModeListe('campagnes-courrier')
+  const [campagneOuverte, setCampagneOuverte] = useState<CampagneCourrier | null>(null)
+  // Noms affichés des comptes de l'organisation, pour « Générée par ».
+  const auteurs = useNomsComptesOrganisation(organisationId)
   const historiqueTrie = useMemo(
     () => sortRows(historique, HISTORIQUE_SORT_COLUMNS, historiqueSort.sort, (a, b) => b.created_at.localeCompare(a.created_at)),
     [historique, historiqueSort.sort]
@@ -179,7 +244,7 @@ export default function CampagneCourrierPage() {
     setHistoriqueLoading(true)
     const { data } = await supabase
       .from('campagnes_courrier')
-      .select('id, activite_id, selection_label, nombre_destinataires, nombre_exclus, created_at, activites(nom)')
+      .select(HISTORIQUE_COLUMNS)
       .eq('organisation_id', organisationId)
       .order('created_at', { ascending: false })
       .limit(20)
@@ -190,6 +255,15 @@ export default function CampagneCourrierPage() {
   useEffect(() => {
     fetchHistorique()
   }, [fetchHistorique])
+
+  function toggleCampagne(c: CampagneCourrier) {
+    setCampagneOuverte((prev) => (prev?.id === c.id ? null : c))
+  }
+
+  function handleNotesSaved(id: string, notes: string | null) {
+    setHistorique((prev) => prev.map((c) => (c.id === id ? { ...c, notes } : c)))
+    setCampagneOuverte((prev) => (prev?.id === id ? { ...prev, notes } : prev))
+  }
 
   // Même garde-fou de séquencement que CampagneMailingPage : ignorer une
   // réponse arrivée après un fetch plus récent (changement rapide de filtre).
@@ -396,40 +470,43 @@ export default function CampagneCourrierPage() {
         </div>
       </SectionCard>
 
-      <SectionCard title="Historique" description="20 dernières campagnes courrier générées." accent noPadding>
-        {historiqueLoading ? (
-          <div className="flex items-center justify-center px-6 py-8">
-            <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
-          </div>
-        ) : historique.length === 0 ? (
-          <p className="p-6 text-sm text-ink-faint">Aucune campagne courrier générée pour le moment.</p>
-        ) : (
-          <ScrollShadowX>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <SortableTableHead field="date" label="Date" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
-                  <SortableTableHead field="activite" label="Activité" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
-                  <SortableTableHead field="selection" label="Sélection" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
-                  <SortableTableHead field="destinataires" label="Destinataires" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
-                  <SortableTableHead field="exclus" label="Exclus" sortField={historiqueSort.sortField} sortDirection={historiqueSort.sortDirection} onSort={historiqueSort.toggleSort} />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {historiqueTrie.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="whitespace-nowrap text-ink-muted">{formatDateTime(c.created_at)}</TableCell>
-                    <TableCell className="whitespace-nowrap font-medium text-ink">{c.activites?.nom ?? '—'}</TableCell>
-                    <TableCell className="whitespace-nowrap text-ink-muted">{c.selection_label}</TableCell>
-                    <TableCell className="text-ink-muted">{c.nombre_destinataires}</TableCell>
-                    <TableCell className="text-ink-muted">{c.nombre_exclus}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollShadowX>
-        )}
-      </SectionCard>
+      <div className={cn('flex gap-6', campagneOuverte && 'items-start')}>
+        <div className="min-w-0 flex-1">
+          <SectionCard title="Historique" description="20 dernières campagnes courrier générées. Ouvrez-en une pour voir son détail et ses notes." accent noPadding>
+            {historiqueLoading ? (
+              <div className="flex items-center justify-center px-6 py-8">
+                <div className="h-6 w-6 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
+              </div>
+            ) : historique.length === 0 ? (
+              <p className="p-6 text-sm text-ink-faint">Aucune campagne courrier générée pour le moment.</p>
+            ) : (
+              <>
+                {historiqueSelecteur && <ListToolbar mode={historiqueSelecteur} className="justify-end" />}
+                <ListeDonnees
+                  rows={historiqueTrie}
+                  rowKey={(c) => c.id}
+                  columns={HISTORIQUE_COLONNES}
+                  mode={historiqueMode}
+                  sort={{ field: historiqueSort.sortField, direction: historiqueSort.sortDirection, onSort: historiqueSort.toggleSort }}
+                  onRowClick={toggleCampagne}
+                  activeKey={campagneOuverte?.id}
+                  rowLabel={(c) => c.activites?.nom ?? 'Campagne courrier'}
+                />
+              </>
+            )}
+          </SectionCard>
+        </div>
+
+        <SidePanel
+          open={!!campagneOuverte}
+          onClose={() => setCampagneOuverte(null)}
+          title={campagneOuverte ? <CampagneCourrierApercuTitre campagne={campagneOuverte} /> : 'Campagne'}
+        >
+          {campagneOuverte && (
+            <CampagneCourrierApercuChamps campagne={campagneOuverte} auteurs={auteurs} onNotesSaved={handleNotesSaved} />
+          )}
+        </SidePanel>
+      </div>
 
       <Dialog open={confirmOpen} onOpenChange={(next) => { if (!next && !generating) setConfirmOpen(false) }}>
         <DialogContent className="max-w-sm" aria-describedby={undefined}>
