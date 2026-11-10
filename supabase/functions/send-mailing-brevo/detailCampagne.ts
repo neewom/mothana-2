@@ -1,31 +1,9 @@
 // Détail figé d'une campagne (carte « Emailing : détail figé et notes », 2026-11-09) :
-// libellés de la sélection et de l'exclusion, construits ici à partir des paramètres reçus
-// (jamais fournis tels quels par le client), et lignes destinataires / exclus avec leur raison.
+// lignes destinataires / exclus avec leur raison. Libellés de la sélection et de l'exclusion :
+// _shared/libellesCampagne.ts (communs avec le Courrier), réexportés ici.
 
-export type FiltreStatut = 'actif' | 'archive' | 'tous'
+export { enLots, libelleExclusion, libelleSelection, type FiltreStatut } from '../_shared/libellesCampagne.ts'
 export type RaisonExclusion = 'email_manquant' | 'email_invalide' | 'email_rejete'
-
-// Mêmes libellés que le sélecteur « Envoyer à » de CampagneMailingPage.
-const LIBELLES_STATUT: Record<FiltreStatut, string> = {
-  actif: 'Tous sauf archivés',
-  archive: 'Adhérents archivés',
-  tous: 'Tous les adhérents',
-}
-
-/**
- * Libellé de la sélection : une liste prime sur le statut (comme la requête des destinataires).
- * `nomListe` : nom relu dans listes_diffusion ; à défaut (liste renommée ou supprimée entre-temps),
- * l'étiquette réellement utilisée pour filtrer.
- */
-export function libelleSelection(filtreStatut: FiltreStatut, tagEnvoi: string | null, nomListe: string | null): string {
-  if (tagEnvoi) return `Liste : ${nomListe ?? tagEnvoi}`
-  return LIBELLES_STATUT[filtreStatut]
-}
-
-export function libelleExclusion(excludeTag: string | null, nomListe: string | null): string | null {
-  if (!excludeTag) return null
-  return `Sauf liste : ${nomListe ?? excludeTag}`
-}
 
 interface AdherentClasse {
   id: string
@@ -76,13 +54,6 @@ export function lignesDestinataires(
       raison_exclusion: raison,
     }
   })
-}
-
-/** Découpe en lots (insertion de plusieurs milliers de lignes sans requête géante). */
-export function enLots<T>(items: T[], taille: number): T[][] {
-  const lots: T[][] = []
-  for (let i = 0; i < items.length; i += taille) lots.push(items.slice(i, i + taille))
-  return lots
 }
 
 /** Noms des pièces jointes envoyées, figés sans les fichiers : bornés en nombre et en longueur. */
