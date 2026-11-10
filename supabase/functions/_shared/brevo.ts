@@ -9,14 +9,18 @@ export const DELAI_ENVOI_BREVO_MS = 20_000
 
 export type VerificationExpediteur = 'valide' | 'non_valide' | 'impossible'
 
-/** 'valide' | 'non_valide' (Brevo a répondu : expéditeur absent ou inactif) | 'impossible'. */
-export async function verifierExpediteurBrevo(
+// Statut détaillé (carte B4, page Intégrations) : 'actif' | 'inactif' (présent mais pas encore
+// validé) | 'introuvable' (absent du compte Brevo) | 'impossible' (Brevo n'a pas répondu
+// exploitablement : clé refusée, permissions restreintes, 5xx, réseau, délai).
+export type StatutExpediteurBrevo = 'actif' | 'inactif' | 'introuvable' | 'impossible'
+
+export async function statutExpediteurBrevo(
   apiKey: string,
   email: string,
   contexte: string,
   fetchFn: typeof fetch = fetch,
   delaiMs: number = DELAI_VERIFICATION_BREVO_MS,
-): Promise<VerificationExpediteur> {
+): Promise<StatutExpediteurBrevo> {
   try {
     const res = await fetchFn('https://api.brevo.com/v3/senders', {
       headers: { 'api-key': apiKey, Accept: 'application/json' },
@@ -28,13 +32,27 @@ export async function verifierExpediteurBrevo(
     }
     const { senders } = (await res.json()) as { senders?: { email?: string; active?: boolean }[] }
     const cible = email.trim().toLowerCase()
-    return (senders ?? []).some((s) => s.email?.trim().toLowerCase() === cible && s.active === true)
-      ? 'valide'
-      : 'non_valide'
+    const correspondants = (senders ?? []).filter((s) => s.email?.trim().toLowerCase() === cible)
+    if (correspondants.length === 0) return 'introuvable'
+    return correspondants.some((s) => s.active === true) ? 'actif' : 'inactif'
   } catch (err) {
     console.warn(`${contexte}: GET /v3/senders failed`, String(err))
     return 'impossible'
   }
+}
+
+/** 'valide' | 'non_valide' (Brevo a répondu : expéditeur absent ou inactif) | 'impossible'. */
+export async function verifierExpediteurBrevo(
+  apiKey: string,
+  email: string,
+  contexte: string,
+  fetchFn: typeof fetch = fetch,
+  delaiMs: number = DELAI_VERIFICATION_BREVO_MS,
+): Promise<VerificationExpediteur> {
+  const statut = await statutExpediteurBrevo(apiKey, email, contexte, fetchFn, delaiMs)
+  if (statut === 'actif') return 'valide'
+  if (statut === 'impossible') return 'impossible'
+  return 'non_valide'
 }
 
 // Tags posés sur un email de reçu : renvoyés par Brevo dans les événements du webhook

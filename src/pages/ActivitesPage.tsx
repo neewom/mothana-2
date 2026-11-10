@@ -54,11 +54,15 @@ function postmarkParts(iso: string): { day: string; month: string } {
 
 function Postmark({ statut, dateIso }: { statut: ActiviteStatut; dateIso: string | null }) {
   if (statut === 'sans_date' || !dateIso) {
+    // Cachet « s. d. » (« sans date », abréviation des registres et catalogues pour une pièce non datée) : même
+    // gabarit que les cachets datés, en encre neutre, au lieu d'un cercle vide qui semblait manquant.
     return (
       <div
-        className="h-[52px] w-[52px] shrink-0 animate-in zoom-in-75 fade-in duration-300 rounded-full border-[1.5px] border-dashed border-paper-border"
+        className="flex h-[52px] w-[52px] shrink-0 -rotate-3 items-center justify-center animate-in zoom-in-75 fade-in duration-300 rounded-full border-[1.5px] border-dashed border-ink-faint/60 font-registre-mono text-[11px] font-medium uppercase tracking-wide text-ink-faint"
         aria-hidden
-      />
+      >
+        s.&nbsp;d.
+      </div>
     )
   }
 
@@ -526,7 +530,7 @@ export default function ActivitesPage() {
         <div className="rounded-sm border border-paper-border bg-white">
           <ListToolbar
             className="border-b-0"
-            search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Rechercher par nom…', label: 'Rechercher une activité' }}
+            search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Nom…', label: 'Rechercher une activité' }}
           />
         </div>
 

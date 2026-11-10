@@ -9,10 +9,12 @@ Rôle : lead tech (checkout principal). Deux sous-agents dev en parallèle (clau
 - **Règles posées** (AGENTS.md, PR #373 et PR doc de cette session) : super-admin = accès à tout sans distinction de rôle (modules désactivés masqués) ; passe `impeccable` sur toute carte d'interface (étape 7 du gabarit dev) ; serveur de test relancé automatiquement tant qu'on travaille, laissé arrêté après 2 h sans message (convention transmise aux TL Job finder et Panda Scoring, version initiale).
 - Staging : « Noël 2026 » corrigé (fin au 27/12, décision utilisateur).
 - **#375 retouches post-batch** mergée après « ok » : confirmation de renouvellement « examinée par l'association », FAQ (Renouvellements, « Validez »), titre « Nouveau compte » en super-admin, menu latéral défilant, **recherche de l'aide insensible à la ponctuation** (apostrophes droites/typographiques) et aux mots dans le désordre, étapes incluses (`src/lib/faqSearch.ts`, tests). `soumettre-renouvellement-adhesion` redéployée sur staging.
-- État vérifié en fin de session : aucune PR ouverte, aucun sous-agent actif, serveur 5175 arrêté, worktrees review / claude-dev / claude-dev2 en HEAD détaché propres, tableau de bord des revues vide.
+- **Promotion #377 en prod** (hors mode auto) : `pg_dump`, 0 activité incohérente, 4 migrations, 6 Edge Functions, merge `dev → main` (`dev` préservée) ; **TNR prod OK** (journal #378).
+- **Rattrapage Brevo en prod** : webhooks réenregistrés par l'utilisateur ; script en lecture seule (clé secrète prod via la CLI, non enregistrée) → 3 adresses `@hotmail.co` corrigées en `.com` (décision utilisateur, avec entrée au journal des adhérents) et 1 fiche marquée (`blocked`) ; plus rien à marquer (journal #379).
+- État vérifié en fin de session : aucune PR ouverte, aucun sous-agent actif, serveur 5175 arrêté, `main` = `dev` à la doc près, worktrees review / claude-dev / claude-dev2 en HEAD détaché propres, tableau de bord des revues vide.
 
 ## Reste à faire
-- **Promotion** de ce batch : voir l'entrée du journal (migrations, 6 Edge Functions, contrôle des activités incohérentes en prod, comptage des adhérents sans adhésion chez Wat avec accord, réenregistrement webhooks Brevo par l'utilisateur, script de rattrapage CSV → relecture → `--appliquer`, TNR).
+- ~~Promotion~~ : **faite** (voir Réalisé).
 - **2ᵉ batch UX à cadrer** : 90hjaq3V (listes mobile tableau/cartes, composant commun), RNTb4Fjk (panneau latéral Adhérents), 1GdrePjr (évolution stats même période), 9Z0WvHeB (reliquat : relance en un geste avec statuts d'Adhérents dans Emailing/Courrier, ⌘K pages, page Reçus fiscaux, visuels, état expéditeur Brevo, finitions).
 - Cartes Todo restantes : carte 2 « Campagne mailing : inclure les donateurs » à recadrer (inclut la factorisation `FiltreStatut` / `parseEnvoyerA` / listes de diffusion) ; multi-organisation (reporté).
 - Backlog à cadrer : landing (première mouture), déconnexion après inactivité, ratification concurrente, paiement des cotisations, reçu rectificatif, data router ; `/aide` à mettre à jour (onboarding des admins de Wat) — carte à créer.
@@ -26,3 +28,31 @@ Rôle : lead tech (checkout principal). Deux sous-agents dev en parallèle (clau
 - `impeccable` : utile comme grille de critique (cohérence, données clés hors écran, aide) ; son détecteur n'apporte rien de plus que `lint:ds` ; protocole complet trop lourd pour un lot, utilisé en mode critique.
 - Mobile : en cartes, `impeccable` recommande la transformation des tableaux ; décision utilisateur : composant commun avec choix tableau / cartes en mobile (2ᵉ batch), bord à bord retiré de ce batch.
 - Conflits entre chaînes empilées résolus au merge (`action-menu.tsx` : version dev ; `DemandesAdhesionPage.tsx` : version #371/#372).
+
+---
+
+# Suite 2026-11-09 — Lead tech — Batch « UX 2 »
+
+## Réalisé
+- **Cadrage du 2ᵉ batch UX** : 9 cartes (reliquat découpé), liste « Batch — UX 2 (A empilé, B parallèle) » ; critique `impeccable` ciblée de la page Reçus fiscaux pour retrouver le sens de « actions à droite ».
+- **Batch UX 2 mergé sur `dev`** après « ok » : #381-#389 (détail dans `docs/journal-avancement.md`). Cartes en Done, liste archivée, branches supprimées, tableau de bord vidé, Edge Functions déployées sur staging depuis `dev`, serveur 5175 arrêté.
+- **Cadré** : historique Emailing détaillé + notes ([oRptwoyy](https://trello.com/c/oRptwoyy), [M]) et Courrier ([SxdypAs1](https://trello.com/c/SxdypAs1), [S]), en tête de Todo ; décisions utilisateur : liste des destinataires figée par campagne (ligne retirée à la suppression de l'adhérent, compteurs inchangés), « Reprendre ce contenu » (Emailing), Courrier inclus, à faire après le batch.
+
+## Reste à faire
+- Go utilisateur pour les cartes Emailing puis Courrier (historique détaillé + notes), puis recadrage de « Campagne mailing : inclure les donateurs » (+ relance en un geste).
+- Promotion du batch UX 2 en prod quand l'utilisateur le décide (aucune migration, 6 Edge Functions, TNR).
+- Reportés hors batch (cf. journal) : badge « Configuré » d'Intégrations, focus après modale Radix, `aria-describedby`, colonne Activité de Dons, bulle de « Gérer les listes ».
+- Backlog à cadrer inchangé (landing, déconnexion après inactivité, ratification concurrente, paiement des cotisations, reçu rectificatif, data router) ; carte `/aide` (onboarding Wat) toujours à créer.
+
+## Blockers
+- Aucun.
+
+## Décisions / constats
+- Deux sous-agents en parallèle (pistes A empilée / B indépendante) : 9 PR en une session, boucle de relecture efficace (6 bloquants arrêtés avant revue, 0 après).
+- Correctifs mécaniques faits par le lead tech sur les PR (sélection clavier ⌘K, bouton copie en lecture seule, relance de vérification Brevo, impression depuis la modale, test ⌘K découplé du libellé du menu).
+- Une intégration locale de toutes les PR (branche `integ/ux2`, non poussée) a servi au test utilisateur et à détecter un test cassé entre deux PR parallèles.
+
+## État vérifié en fin de session (2026-11-09, après #390)
+- Aucune PR ouverte, aucun sous-agent actif, aucun serveur sur 5174/5175/5176 ; `dev` = `dc90e19` ; worktrees review / claude-dev / claude-dev2 en HEAD détaché propres ; tableau de bord des revues vide.
+- Todo : Emailing historique + notes (oRptwoyy), Courrier historique + notes (SxdypAs1), « inclure les donateurs » (GqVqTkKB), multi-organisation (reporté). Rien en In progress / To review.
+- Attend l'utilisateur : go pour oRptwoyy puis SxdypAs1 ; décision de promotion du batch UX 2 (et des batchs précédents déjà promus : rien d'autre en attente).

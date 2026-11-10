@@ -17,7 +17,6 @@ import AdhesionModal from '../components/AdhesionModal'
 import ImportWizard from '../components/import/ImportWizard'
 import { adherentsImportConfig } from '../lib/import/configs'
 import CartesAdherentPdfPreviewModal from '../components/CartesAdherentPdfPreviewModal'
-import ScrollShadowX from '../components/ScrollShadowX'
 import { logModification } from '../lib/journalModifications'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -26,18 +25,22 @@ import { downloadCsv } from '../lib/csvExport'
 import { chargerDernieresAdhesions } from '../lib/dernieresAdhesions'
 import { lignesExportAdherents, nomFichierExportAdherents } from '../lib/adherentsExport'
 import { Badge } from '../components/ui/badge'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import { Label } from '../components/ui/label'
 import { PageHeader } from '../components/ui/page-header'
 import { TablePagination } from '../components/ui/table-pagination'
-import SortableTableHead from '../components/SortableTableHead'
+import { ListeConteneur, ListeDonnees, type ColonneListe } from '../components/ui/liste-donnees'
+import { useModeListe } from '../hooks/useModeListe'
 import { useTableSort } from '../hooks/useTableSort'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { ADHERENT_SORT_DEFAUT, directionInitialeAdherent, paramsTriAdherents, type AdherentSortField } from '../lib/adherentsTri'
 import { ListToolbar, FilterChips, type FilterChip } from '../components/ui/list-toolbar'
 import { FilterSheet } from '../components/ui/filter-sheet'
 import { ActionMenu } from '../components/ui/action-menu'
+import { SidePanel } from '../components/ui/side-panel'
+import { AdherentApercuActions, AdherentApercuChamps, AdherentApercuTitre } from '../components/AdherentApercu'
+import { useAdherentApercu } from '../hooks/useAdherentApercu'
+import { cn } from '../lib/utils'
 import {
   ADHERENTS_FILTRES_VIDES, libelleAdhesion, libelleAdhesionCourt, nombreFiltresAdherents, normaliserFiltresAdherents,
   EMAIL_FILTRE_LABELS, type AdherentsFiltres, type EmailFilter,
@@ -128,13 +131,22 @@ export default function AdherentsPage() {
   const [archiveConfirm, setArchiveConfirm] = useState<Adherent | null>(null)
   const [archiving, setArchiving] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  // Panneau d'aperçu (clic sur une ligne, ou lien ?id=) ; relu à chaque changement de la fiche.
+  const [apercuAdherent, setApercuAdherent] = useState<Adherent | null>(null)
+  const [apercuRefresh, setApercuRefresh] = useState(0)
+  const apercu = useAdherentApercu(apercuAdherent, apercuRefresh, organisationId)
+  const rafraichirApercu = () => setApercuRefresh((n) => n + 1)
 
   // Sur mobile, la colonne checkbox reste masquée tant que ce mode n'est pas activé
   // (action secondaire, coûteuse en largeur) — toujours visible sur desktop.
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [printing, setPrinting] = useState(false)
+  // Erreur d'impression de la fiche ouverte (affichée dans le panneau) / des autres impressions
+  // (sélection, modale : bannière de page) — une erreur de la sélection ne doit pas apparaître
+  // dans le panneau d'une autre personne.
   const [printError, setPrintError] = useState<string | null>(null)
+  const [panelPrintError, setPanelPrintError] = useState<string | null>(null)
   const [pdfPreview, setPdfPreview] = useState<{ url: string; filename: string; count: number } | null>(null)
   const [assignListeOpen, setAssignListeOpen] = useState(false)
   const [retirerListeOpen, setRetirerListeOpen] = useState(false)
@@ -308,8 +320,20 @@ export default function AdherentsPage() {
     setAdherentModalOpen(true)
   }
 
+  // Clic sur une ligne : ouvre l'aperçu, un second clic sur la même ligne le referme.
+  function toggleApercu(a: Adherent) {
+    // Une erreur d'impression concerne la fiche précédente : on ne la reporte pas sur la suivante.
+    setPanelPrintError(null)
+    setApercuAdherent((current) => (current?.id === a.id ? null : a))
+  }
+
+  // Fiche ouverte introuvable à la relecture (supprimée entre-temps) : l'aperçu se referme.
+  useEffect(() => {
+    if (apercu.introuvable) setApercuAdherent(null)
+  }, [apercu.introuvable])
+
   // Lien profond depuis la recherche globale : ?id=<adherent_id>. La liste étant paginée côté
-  // serveur, la fiche est chargée directement (dans l'organisation courante) puis ouverte.
+  // serveur, la fiche est chargée directement (dans l'organisation courante) puis ouverte en aperçu.
   const [searchParams, setSearchParams] = useSearchParams()
   const linkedAdherentId = searchParams.get('id')
   useEffect(() => {
@@ -323,10 +347,7 @@ export default function AdherentsPage() {
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled) return
-        if (data) {
-          setEditingAdherent(data as Adherent)
-          setAdherentModalOpen(true)
-        }
+        if (data) setApercuAdherent(data as Adherent)
         setSearchParams((current) => {
           const next = new URLSearchParams(current)
           next.delete('id')
@@ -354,6 +375,7 @@ export default function AdherentsPage() {
     showToast(`${adherentFullName(saved)} ${wasEdit ? 'modifié' : 'ajouté'}`)
     fetchAdherents()
     fetchAvailableTags()
+    if (wasEdit) rafraichirApercu()
   }
 
   function handleListesChanged() {
@@ -383,6 +405,7 @@ export default function AdherentsPage() {
     if (renewingAdherent) showToast(`Adhésion renouvelée pour ${adherentFullName(renewingAdherent)}`)
     setRenewingAdherent(undefined)
     fetchAdherents()
+    rafraichirApercu()
   }
 
   async function handleArchive() {
@@ -413,6 +436,7 @@ export default function AdherentsPage() {
     }
     setArchiveConfirm(null)
     fetchAdherents()
+    rafraichirApercu()
   }
 
   async function handleReactivate(a: Adherent) {
@@ -432,6 +456,7 @@ export default function AdherentsPage() {
       })
     }
     fetchAdherents()
+    rafraichirApercu()
   }
 
   function toggleSelected(id: string) {
@@ -456,13 +481,15 @@ export default function AdherentsPage() {
     })
   }
 
-  async function printCards(ids: string[], filename: string) {
+  async function printCards(ids: string[], filename: string, target: 'page' | 'panel' = 'page') {
     setPrinting(true)
     setPrintError(null)
+    setPanelPrintError(null)
+    const fail = target === 'panel' ? setPanelPrintError : setPrintError
 
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
-      setPrintError('Session expirée')
+      fail('Session expirée')
       setPrinting(false)
       return
     }
@@ -480,7 +507,7 @@ export default function AdherentsPage() {
 
     if (!res.ok) {
       const json = await res.json().catch(() => ({}))
-      setPrintError(json.error ?? 'Erreur inconnue')
+      fail(json.error ?? 'Erreur inconnue')
       setPrinting(false)
       return
     }
@@ -497,9 +524,9 @@ export default function AdherentsPage() {
     setSelectedIds(new Set())
   }
 
-  async function handlePrintSingleCard(a: Adherent) {
+  async function handlePrintSingleCard(a: Adherent, target: 'page' | 'panel' = 'page') {
     const slug = adherentFullName(a).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()
-    await printCards([a.id], `carte-${slug}.pdf`)
+    await printCards([a.id], `carte-${slug}.pdf`, target)
   }
 
   function closePdfPreview() {
@@ -507,12 +534,140 @@ export default function AdherentsPage() {
     setPdfPreview(null)
   }
 
-  // Menu « Sélection et listes » de la barre d'outils, sous xl (voir la barre d'outils).
+  // Panneau d'aperçu ouvert (il réduit le tableau en desktop) : la civilité et les colonnes
+  // facultatives ne restent qu'en très grand écran ; toutes figurent dans l'aperçu (motif de Dons).
+  const colCivilite = apercuAdherent ? 'hidden 2xl:table-cell' : 'hidden xl:table-cell'
+  const colSecondaire = apercuAdherent ? 'hidden 2xl:table-cell' : undefined
+  // Le prénom rejoint alors la cellule du nom (comme en mobile), pour laisser la place à l'adhésion.
+  const colPrenom = apercuAdherent ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
+  const prenomDansNom = apercuAdherent ? '2xl:hidden' : 'md:hidden'
+
+  // Sous 768 px : cartes par défaut, ou tableau au choix (mémorisé sur l'appareil).
+  const { mode, selecteur } = useModeListe('adherents')
+
+  // Colonnes affichées (choix « Colonnes », Nom et Prénom fixes) et place de chacune dans une
+  // carte : « NOM Prénom » en titre, adhésion et fiche en pastilles, le reste en méta.
+  const colonneVisible = (key: ColonneAdherent) => colonnesVisibles.includes(key)
+  const toutesColonnes: (ColonneListe<Adherent, AdherentSortField> | false)[] = [
+    colonneVisible('civilite') && {
+      key: 'civilite', label: 'Civilité', role: 'masquee',
+      headClassName: colCivilite, cellClassName: cn(colCivilite, 'whitespace-nowrap text-ink-faint'),
+      cell: (a) => CIVILITE_ADHERENT_LABELS[a.civilite],
+    },
+    {
+      key: 'nom', label: 'Nom', sortField: 'nom', role: 'titre',
+      cellClassName: 'whitespace-nowrap font-medium text-ink',
+      // Tableau mobile : « NOM Prénom » et la pastille Adhésion (libellé sans date) dans cette
+      // cellule ; les colonnes Prénom et Adhésion sont masquées.
+      cell: (a) => (
+        <>
+          {a.nom}
+          {a.prenom && <span className={cn('font-normal text-ink-muted', prenomDansNom)}> {a.prenom}</span>}
+          {colonneVisible('adhesion') && (
+            <div className="mt-1 md:hidden">
+              <Badge variant={libelleAdhesion(latestAdhesions.get(a.id), todayIso).variant}>{libelleAdhesionCourt(latestAdhesions.get(a.id), todayIso)}</Badge>
+            </div>
+          )}
+        </>
+      ),
+      carte: (a) => (
+        <>
+          {a.nom}
+          {a.prenom && <span className="font-normal text-ink-muted"> {a.prenom}</span>}
+        </>
+      ),
+    },
+    colonneVisible('adhesion') && {
+      key: 'adhesion', label: 'Adhésion', sortField: 'date_fin', role: 'pastille',
+      headClassName: 'hidden md:table-cell', cellClassName: 'hidden md:table-cell',
+      cell: (a) => {
+        const adhesion = libelleAdhesion(latestAdhesions.get(a.id), todayIso)
+        return (
+          <>
+            {/* Panneau ouvert : libellé court sous 2xl (la date est dans l'aperçu). */}
+            <Badge variant={adhesion.variant} className={apercuAdherent ? 'hidden 2xl:inline-flex' : undefined}>{adhesion.label}</Badge>
+            {apercuAdherent && (
+              <Badge variant={adhesion.variant} className="2xl:hidden">{libelleAdhesionCourt(latestAdhesions.get(a.id), todayIso)}</Badge>
+            )}
+          </>
+        )
+      },
+      carte: (a) => (
+        <Badge variant={libelleAdhesion(latestAdhesions.get(a.id), todayIso).variant}>{libelleAdhesionCourt(latestAdhesions.get(a.id), todayIso)}</Badge>
+      ),
+    },
+    {
+      key: 'prenom', label: 'Prénom', sortField: 'prenom', role: 'masquee',
+      headClassName: colPrenom, cellClassName: cn(colPrenom, 'whitespace-nowrap text-ink-muted'),
+      cell: (a) => a.prenom ?? '—',
+    },
+    colonneVisible('statut') && {
+      key: 'statut', label: 'Fiche', sortField: 'statut', role: 'pastille',
+      headClassName: colSecondaire, cellClassName: colSecondaire,
+      cell: (a) => <Badge variant="neutral">{a.statut === 'actif' ? 'Active' : 'Archivée'}</Badge>,
+    },
+    colonneVisible('date_adhesion') && {
+      key: 'date_adhesion', label: "Date d'adhésion", sortField: 'date_adhesion', role: 'secondaire',
+      headClassName: colSecondaire, cellClassName: cn(colSecondaire, 'whitespace-nowrap text-ink-muted'),
+      cell: (a) => {
+        const debut = latestAdhesions.get(a.id)?.date_debut
+        return debut ? formatDate(debut) : '—'
+      },
+      carte: (a) => {
+        const debut = latestAdhesions.get(a.id)?.date_debut
+        return debut ? `Adhésion du ${formatDate(debut)}` : null
+      },
+    },
+    colonneVisible('email') && {
+      key: 'email', label: 'Email', role: 'secondaire',
+      headClassName: colSecondaire, cellClassName: cn(colSecondaire, 'text-ink-muted'),
+      cell: (a) => a.courriel ?? '—',
+      carte: (a) => a.courriel,
+    },
+    colonneVisible('telephone') && {
+      key: 'telephone', label: 'Téléphone', role: 'secondaire',
+      headClassName: colSecondaire, cellClassName: cn(colSecondaire, 'text-ink-muted'),
+      cell: (a) => a.telephone ?? '—',
+      carte: (a) => a.telephone,
+    },
+    colonneVisible('adresse') && {
+      key: 'adresse', label: 'Adresse', role: 'secondaire',
+      headClassName: colSecondaire, cellClassName: cn(colSecondaire, 'text-ink-muted'),
+      cell: (a) => a.adresse ?? '—',
+      carte: (a) => a.adresse,
+    },
+    colonneVisible('localisation') && {
+      key: 'localisation', label: 'Localisation', sortField: 'code_postal', role: 'secondaire',
+      headClassName: colSecondaire, cellClassName: cn(colSecondaire, 'text-ink-muted'),
+      cell: formatLocalisation,
+      carte: (a) => {
+        const loc = formatLocalisation(a)
+        return loc === '—' ? null : loc
+      },
+    },
+    colonneVisible('date_naissance') && {
+      key: 'date_naissance', label: 'Date de naissance', role: 'secondaire',
+      headClassName: colSecondaire, cellClassName: cn(colSecondaire, 'text-ink-muted'),
+      cell: (a) => (a.date_naissance ? formatDate(a.date_naissance) : '—'),
+      carte: (a) => (a.date_naissance ? `Né(e) le ${formatDate(a.date_naissance)}` : null),
+    },
+    colonneVisible('listes') && {
+      key: 'listes', label: 'Listes', role: 'secondaire',
+      headClassName: colSecondaire, cellClassName: cn(colSecondaire, 'text-ink-muted'),
+      cell: (a) => (a.tags.length > 0 ? a.tags.join(', ') : '—'),
+      carte: (a) => (a.tags.length > 0 ? a.tags.join(', ') : null),
+    },
+  ]
+  const colonnes = toutesColonnes.filter((c): c is ColonneListe<Adherent, AdherentSortField> => c !== false)
+
+  // Menu « Sélection et listes » de la barre d'outils (sous xl, ou 2xl panneau ouvert). « Sélectionner »
+  // n'y figure pas à partir de xl : la colonne des cases y est toujours affichée.
+  const casesToujoursVisibles = useMediaQuery('(min-width: 1280px)')
   const optionsMenuItems = [
-    { label: selectionMode ? 'Terminer la sélection' : 'Sélectionner', onSelect: toggleSelectionMode },
+    ...(casesToujoursVisibles ? [] : [{ label: selectionMode ? 'Terminer la sélection' : 'Sélectionner', onSelect: toggleSelectionMode }]),
     { label: 'Colonnes', onSelect: () => setColonnesModalOpen(true) },
     { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
-    { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
+    { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0, disabledReason: "Aucune liste pour l'instant" },
   ]
 
   return (
@@ -533,7 +688,7 @@ export default function AdherentsPage() {
         FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
         review, the verdict, and DESIGN.md.
       */}
-      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
+      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper px-4 py-6 font-registre md:px-6">
         <PageHeader
           title="Adhérents"
           subtitle={
@@ -555,23 +710,29 @@ export default function AdherentsPage() {
                 </svg>
                 {exporting ? 'Export…' : 'Exporter'}
               </Button>
-              <Button onClick={openAdd}>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Ajouter un adhérent
-              </Button>
-              {/* Mobile : Importer / Exporter regroupés derrière un bouton « ⋯ » après l'action principale. */}
+              {/* Mobile : Importer / Exporter regroupés derrière un bouton « ⋯ », avant l'action principale
+                  (en dernier, comme sur Dons et Donateurs). */}
               <div className="sm:hidden">
                 <ActionMenu
                   label="Importer ou exporter"
                   iconOnly
                   items={[
                     { label: 'Importer', onSelect: () => setImportOpen(true) },
-                    { label: exporting ? 'Export…' : 'Exporter', onSelect: () => void handleExport(), disabled: exporting || totalCount === 0 },
+                    {
+                      label: exporting ? 'Export…' : 'Exporter',
+                      onSelect: () => void handleExport(),
+                      disabled: exporting || totalCount === 0,
+                      disabledReason: !exporting && totalCount === 0 ? 'Aucun adhérent à exporter' : undefined,
+                    },
                   ]}
                 />
               </div>
+              <Button onClick={openAdd}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Ajouter un adhérent
+              </Button>
             </>
           }
         />
@@ -579,207 +740,156 @@ export default function AdherentsPage() {
         {error && (
           <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur : {error}</div>
         )}
+        {/* L'erreur d'impression de la fiche ouverte s'affiche dans le panneau (en mobile, il recouvre la page). */}
         {printError && (
           <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">Erreur d'impression : {printError}</div>
         )}
 
-        <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
-          <ListToolbar
-            search={{ value: searchInput, onChange: setSearchInput, placeholder: 'Nom, prénom, email…', label: 'Rechercher un adhérent' }}
-            filterCount={nombreFiltresAdherents(filtres) + (statutEnPastille ? 1 : 0)}
-            onOpenFilters={openFiltres}
-            end={
-              <>
-                <Button variant="secondary" onClick={() => setColonnesModalOpen(true)} className="hidden xl:inline-flex">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6zM9.75 4.5v15m4.5-15v15" />
-                  </svg>
-                  Colonnes
-                </Button>
-                <div className="hidden xl:block">
-                  <ActionMenu
-                    label="Listes"
-                    items={[
-                      { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
-                      { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0 },
-                    ]}
-                  />
-                </div>
-                {/* Sous xl : sélection, Colonnes et Listes regroupés dans un seul menu (la colonne des
-                    cases à cocher n'apparaît alors qu'en mode sélection). Mobile : bouton libellé, sur la
-                    2e ligne de la barre ; de sm à xl (sidebar comprise à 1024) : bouton icône, pour que la
-                    barre tienne sur une ligne à côté d'une recherche de 288 px. */}
-                <div className="sm:hidden">
-                  {/* Marge du bouton réduite (px-3) : tient à côté de « Filtres · n » à 375 px. */}
-                  <ActionMenu label="Sélection et listes" items={optionsMenuItems} className="[&>button]:px-3" />
-                </div>
-                <div className="hidden sm:block xl:hidden">
-                  <ActionMenu label="Sélection et listes" iconOnly items={optionsMenuItems} />
-                </div>
-              </>
-            }
-          >
-            {/* Mobile : le statut passe dans le tiroir de filtres (barre d'outils sur deux lignes). */}
-            <div className="hidden sm:block">
-              <Select
-                aria-label="Statut"
-                value={statutFilter}
-                onChange={(e) => { setStatutFilter(e.target.value as StatutFilter); setCurrentPage(1) }}
-              >
-                {STATUTS_FILTRE.map((s) => <option key={s} value={s}>{STATUT_LIBELLES[s]}</option>)}
-              </Select>
-            </div>
-          </ListToolbar>
-          <FilterChips chips={chips} onClearAll={effacerFiltres} />
-
-          {/* Barre d'actions groupées : apparaît dès qu'un adhérent est coché. */}
-          {selectedIds.size > 0 && (
-            <div className="border-b border-paper-border bg-paper px-4 py-3 md:px-6" role="region" aria-label="Actions sur la sélection">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="mr-2 text-sm font-medium text-ink">
-                  {selectedIds.size} adhérent{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
-                </span>
-                <Button size="sm" onClick={handlePrintCards} disabled={printing}>
-                  {printing ? 'Génération…' : 'Imprimer les cartes'}
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => setAssignListeOpen(true)}>
-                  Ajouter à une liste
-                </Button>
-                {availableTags.length > 0 && (
-                  <Button variant="secondary" size="sm" onClick={() => setRetirerListeOpen(true)}>
-                    Retirer d'une liste
+        {/* Liste + panneau d'aperçu (gabarit de liste, comme Dons). */}
+        <div className={cn('flex gap-6', apercuAdherent && 'items-start')}>
+          <ListeConteneur>
+            <ListToolbar
+              search={{ value: searchInput, onChange: setSearchInput, placeholder: 'Nom, prénom, email…', label: 'Rechercher un adhérent' }}
+              filterCount={nombreFiltresAdherents(filtres) + (statutEnPastille ? 1 : 0)}
+              onOpenFilters={openFiltres}
+              mode={selecteur}
+              end={
+                <>
+                  {/* Colonnes et Listes en boutons à partir de xl (2xl panneau ouvert, pour que la barre
+                      tienne sur une ligne à côté du tableau réduit). */}
+                  <Button variant="secondary" onClick={() => setColonnesModalOpen(true)} className={cn('hidden', apercuAdherent ? '2xl:inline-flex' : 'xl:inline-flex')}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h12A2.25 2.25 0 0120.25 6v12A2.25 2.25 0 0118 20.25H6A2.25 2.25 0 013.75 18V6zM9.75 4.5v15m4.5-15v15" />
+                    </svg>
+                    Colonnes
                   </Button>
-                )}
-                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
-                  Désélectionner
-                </Button>
+                  <div className={cn('hidden', apercuAdherent ? '2xl:block' : 'xl:block')}>
+                    <ActionMenu
+                      label="Listes"
+                      items={[
+                        { label: 'Nouvelle liste', onSelect: () => { setSelectedIds(new Set()); setAssignListeOpen(true) } },
+                        { label: 'Gérer les listes', onSelect: () => setGererListesOpen(true), disabled: availableTags.length === 0, disabledReason: "Aucune liste pour l'instant" },
+                      ]}
+                    />
+                  </div>
+                  {/* En dessous : sélection, Colonnes et Listes dans un seul menu icône (la colonne des
+                      cases à cocher n'apparaît alors qu'en mode sélection). En mobile, il tient à côté
+                      de « Filtres · n » et du sélecteur tableau / cartes. */}
+                  <ActionMenu
+                    label="Sélection et listes"
+                    iconOnly
+                    // Icône distincte du « ⋯ » d'Importer / Exporter de l'en-tête, voisin en mobile.
+                    icon={
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                      </svg>
+                    }
+                    items={optionsMenuItems}
+                    className={apercuAdherent ? '2xl:hidden' : 'xl:hidden'}
+                  />
+                </>
+              }
+            >
+              {/* Mobile : le statut passe dans le tiroir de filtres (barre d'outils sur deux lignes). */}
+              <div className="hidden sm:block">
+                <Select
+                  aria-label="Statut"
+                  value={statutFilter}
+                  onChange={(e) => { setStatutFilter(e.target.value as StatutFilter); setCurrentPage(1) }}
+                >
+                  {STATUTS_FILTRE.map((s) => <option key={s} value={s}>{STATUT_LIBELLES[s]}</option>)}
+                </Select>
               </div>
-              <p className="mt-1.5 text-xs text-ink-faint">{PRINT_HELP_TEXT}</p>
-            </div>
-          )}
+            </ListToolbar>
+            <FilterChips chips={chips} onClearAll={effacerFiltres} />
 
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
-            </div>
-          ) : adherents.length === 0 ? (
-            <div className="flex items-center justify-center py-16">
-              <p className="font-registre text-sm text-ink-faint">Aucun adhérent trouvé</p>
-            </div>
-          ) : (
-            <ScrollShadowX>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className={selectionMode ? '' : 'hidden xl:table-cell'}>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.size > 0 && selectedIds.size === adherents.length}
-                        onChange={toggleSelectAll}
-                        className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
-                        aria-label="Tout sélectionner"
-                      />
-                    </TableHead>
-                    {colonnesVisibles.includes('civilite') && <TableHead className="hidden xl:table-cell">Civilité</TableHead>}
-                    <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                    {colonnesVisibles.includes('adhesion') && <SortableTableHead field="date_fin" label="Adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />}
-                    <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
-                    {colonnesVisibles.includes('statut') && <SortableTableHead field="statut" label="Fiche" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
-                    {colonnesVisibles.includes('date_adhesion') && <SortableTableHead field="date_adhesion" label="Date d'adhésion" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
-                    {colonnesVisibles.includes('email') && <TableHead>Email</TableHead>}
-                    {colonnesVisibles.includes('telephone') && <TableHead>Téléphone</TableHead>}
-                    {colonnesVisibles.includes('adresse') && <TableHead>Adresse</TableHead>}
-                    {colonnesVisibles.includes('localisation') && <SortableTableHead field="code_postal" label="Localisation" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />}
-                    {colonnesVisibles.includes('date_naissance') && <TableHead>Date de naissance</TableHead>}
-                    {colonnesVisibles.includes('listes') && <TableHead>Listes</TableHead>}
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {adherents.map((a) => {
-                    const adhesion = libelleAdhesion(latestAdhesions.get(a.id), todayIso)
-                    return (
-                      <TableRow key={a.id} onClick={() => openEdit(a)} className="cursor-pointer hover:bg-paper-border/20">
-                        <TableCell className={selectionMode ? '' : 'hidden xl:table-cell'} onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(a.id)}
-                            onChange={() => toggleSelected(a.id)}
-                            className="h-4 w-4 rounded-sm border-paper-border accent-stamp focus-visible:ring-2 focus-visible:ring-stamp/70"
-                            aria-label={`Sélectionner ${adherentFullName(a)}`}
-                          />
-                        </TableCell>
-                        {colonnesVisibles.includes('civilite') && (
-                          <TableCell className="hidden whitespace-nowrap text-ink-faint xl:table-cell">{CIVILITE_ADHERENT_LABELS[a.civilite]}</TableCell>
-                        )}
-                        {/* Mobile : « NOM Prénom » et la pastille Adhésion (libellé sans date) dans une seule
-                            cellule, sous le nom ; les colonnes Prénom et Adhésion sont masquées. */}
-                        <TableCell className="whitespace-nowrap font-medium text-ink">
-                          {a.nom}
-                          {a.prenom && <span className="font-normal text-ink-muted md:hidden"> {a.prenom}</span>}
-                          {colonnesVisibles.includes('adhesion') && (
-                            <div className="mt-1 md:hidden">
-                              <Badge variant={adhesion.variant}>{libelleAdhesionCourt(latestAdhesions.get(a.id), todayIso)}</Badge>
-                            </div>
-                          )}
-                        </TableCell>
-                        {colonnesVisibles.includes('adhesion') && (
-                          <TableCell className="hidden md:table-cell">
-                            <Badge variant={adhesion.variant}>{adhesion.label}</Badge>
-                          </TableCell>
-                        )}
-                        <TableCell className="hidden whitespace-nowrap text-ink-muted md:table-cell">{a.prenom ?? '—'}</TableCell>
-                        {colonnesVisibles.includes('statut') && (
-                          <TableCell>
-                            <Badge variant="neutral">{a.statut === 'actif' ? 'Active' : 'Archivée'}</Badge>
-                          </TableCell>
-                        )}
-                        {colonnesVisibles.includes('date_adhesion') && (
-                          <TableCell className="whitespace-nowrap text-ink-muted">
-                            {latestAdhesions.get(a.id)?.date_debut ? formatDate(latestAdhesions.get(a.id)!.date_debut) : '—'}
-                          </TableCell>
-                        )}
-                        {colonnesVisibles.includes('email') && (
-                          <TableCell className="text-ink-muted">{a.courriel ?? '—'}</TableCell>
-                        )}
-                        {colonnesVisibles.includes('telephone') && (
-                          <TableCell className="text-ink-muted">{a.telephone ?? '—'}</TableCell>
-                        )}
-                        {colonnesVisibles.includes('adresse') && (
-                          <TableCell className="text-ink-muted">{a.adresse ?? '—'}</TableCell>
-                        )}
-                        {colonnesVisibles.includes('localisation') && (
-                          <TableCell className="text-ink-muted">{formatLocalisation(a)}</TableCell>
-                        )}
-                        {colonnesVisibles.includes('date_naissance') && (
-                          <TableCell className="text-ink-muted">{a.date_naissance ? formatDate(a.date_naissance) : '—'}</TableCell>
-                        )}
-                        {colonnesVisibles.includes('listes') && (
-                          <TableCell className="text-ink-muted">{a.tags.length > 0 ? a.tags.join(', ') : '—'}</TableCell>
-                        )}
-                        <TableCell className="text-right text-ink-faint">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </ScrollShadowX>
-          )}
+            {/* Barre d'actions groupées : apparaît dès qu'un adhérent est coché. */}
+            {selectedIds.size > 0 && (
+              <div className="border-b border-paper-border bg-paper px-4 py-3 md:px-6" role="region" aria-label="Actions sur la sélection">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="mr-2 text-sm font-medium text-ink">
+                    {selectedIds.size} adhérent{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
+                  </span>
+                  <Button size="sm" onClick={handlePrintCards} disabled={printing}>
+                    {printing ? 'Génération…' : 'Imprimer les cartes'}
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setAssignListeOpen(true)}>
+                    Ajouter à une liste
+                  </Button>
+                  {availableTags.length > 0 && (
+                    <Button variant="secondary" size="sm" onClick={() => setRetirerListeOpen(true)}>
+                      Retirer d'une liste
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                    Désélectionner
+                  </Button>
+                </div>
+                <p className="mt-1.5 text-xs text-ink-faint">{PRINT_HELP_TEXT}</p>
+              </div>
+            )}
 
-          {!loading && adherents.length > 0 && (
-            <TablePagination
-              page={Math.min(currentPage, pageCount)}
-              pageCount={pageCount}
-              totalCount={totalCount}
-              pageSize={pageSize}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
-            />
-          )}
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
+              </div>
+            ) : adherents.length === 0 ? (
+              <div className="flex items-center justify-center py-16">
+                <p className="font-registre text-sm text-ink-faint">Aucun adhérent trouvé</p>
+              </div>
+            ) : (
+              <ListeDonnees
+                rows={adherents}
+                rowKey={(a) => a.id}
+                columns={colonnes}
+                mode={mode}
+                sort={{ field: sortField, direction: sortDirection, onSort: toggleSort }}
+                onRowClick={toggleApercu}
+                activeKey={apercuAdherent?.id}
+                rowLabel={adherentFullName}
+                selection={{
+                  selected: selectedIds,
+                  onToggle: toggleSelected,
+                  onToggleAll: toggleSelectAll,
+                  // Sous xl, la colonne des cases n'apparaît qu'en mode sélection (menu de la barre).
+                  tableClassName: selectionMode ? undefined : 'hidden xl:table-cell',
+                  showInCards: selectionMode,
+                }}
+              />
+            )}
+
+            {!loading && adherents.length > 0 && (
+              <TablePagination
+                page={Math.min(currentPage, pageCount)}
+                pageCount={pageCount}
+                totalCount={totalCount}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+              />
+            )}
+          </ListeConteneur>
+
+          <SidePanel
+            open={!!apercuAdherent}
+            onClose={() => { setPanelPrintError(null); setApercuAdherent(null) }}
+            title={apercu.fiche ? <AdherentApercuTitre adherent={apercu.fiche} /> : 'Adhérent'}
+            footer={apercu.fiche && (
+              <AdherentApercuActions
+                fiche={apercu.fiche}
+                printing={printing}
+                printHelpText={PRINT_HELP_TEXT}
+                onEdit={() => apercu.fiche && openEdit(apercu.fiche)}
+                onRenew={() => apercu.fiche && setRenewingAdherent(apercu.fiche)}
+                onPrintCard={() => apercu.fiche && void handlePrintSingleCard(apercu.fiche, 'panel')}
+              />
+            )}
+          >
+            {panelPrintError && (
+              <p role="alert" className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-3 py-2 text-sm text-stamp">Erreur d'impression : {panelPrintError}</p>
+            )}
+            {apercu.fiche && <AdherentApercuChamps fiche={apercu.fiche} adhesion={apercu.adhesion} todayIso={todayIso} erreur={apercu.erreur} />}
+          </SidePanel>
         </div>
       </div>
 
@@ -854,7 +964,8 @@ export default function AdherentsPage() {
         onPrintCard={editingAdherent && (() => {
           const a = editingAdherent
           setAdherentModalOpen(false)
-          handlePrintSingleCard(a)
+          // Panneau ouvert sur cette fiche : l'erreur doit s'y afficher (en mobile il recouvre la bannière).
+          handlePrintSingleCard(a, apercuAdherent?.id === a.id ? 'panel' : 'page')
         })}
         onRenew={editingAdherent && (() => {
           const a = editingAdherent

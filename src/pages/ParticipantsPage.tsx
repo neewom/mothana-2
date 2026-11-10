@@ -23,11 +23,10 @@ import { TablePagination } from '../components/ui/table-pagination'
 import { ListToolbar } from '../components/ui/list-toolbar'
 import { Badge } from '../components/ui/badge'
 import { SidePanelMobile } from '../components/ui/side-panel'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import { ListeConteneur, ListeDonnees, type ColonneListe } from '../components/ui/liste-donnees'
 import { Dialog, DialogContent } from '../components/ui/dialog'
-import ScrollShadowX from '../components/ScrollShadowX'
-import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
+import { useModeListe } from '../hooks/useModeListe'
 import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { useDeepLinkSelection } from '../hooks/useDeepLinkSelection'
 import { MESSAGE_DONATEUR_AVEC_RECUS, estRefusConservationRecus } from '../lib/recusConservation'
@@ -460,6 +459,45 @@ export default function ParticipantsPage() {
     return sortedParticipants.slice(start, start + pageSize)
   }, [sortedParticipants, safePage, pageSize])
 
+  // Sous 768 px : cartes par défaut, ou tableau au choix (mémorisé sur l'appareil).
+  const { mode, selecteur } = useModeListe('donateurs')
+
+  // Colonnes du tableau et place de chacune dans une carte : nom et prénom en titre, total à droite.
+  const colonnes: ColonneListe<ProfilParticipant, SortField>[] = [
+    {
+      key: 'civilite', label: 'Civilité', sortField: 'civilite', role: 'masquee',
+      headClassName: 'hidden xl:table-cell', cellClassName: 'hidden text-ink-faint xl:table-cell',
+      cell: (p) => (p.personnes.civilite ? CIVILITE_LABELS[p.personnes.civilite] : '—'),
+    },
+    {
+      // Sous `md`, la colonne Prénom est masquée : le prénom suit le nom.
+      key: 'nom', label: 'Nom', sortField: 'nom', role: 'titre',
+      cellClassName: 'max-w-[16rem] truncate whitespace-nowrap font-medium text-ink md:max-w-none',
+      cell: (p) => (
+        <>
+          {p.personnes.nom}
+          {p.personnes.prenom && <span className="font-normal text-ink-muted md:hidden"> {p.personnes.prenom}</span>}
+        </>
+      ),
+      carte: (p) => (
+        <>
+          {p.personnes.nom}
+          {p.personnes.prenom && <span className="font-normal text-ink-muted"> {p.personnes.prenom}</span>}
+        </>
+      ),
+    },
+    {
+      key: 'prenom', label: 'Prénom', sortField: 'prenom', role: 'masquee',
+      headClassName: 'hidden md:table-cell', cellClassName: 'hidden whitespace-nowrap text-ink-muted md:table-cell',
+      cell: (p) => p.personnes.prenom ?? '—',
+    },
+    {
+      key: 'total', label: 'Total dons', sortField: 'total', role: 'montant', align: 'right',
+      headClassName: 'hidden md:table-cell', cellClassName: 'hidden whitespace-nowrap font-registre-mono font-medium text-ink md:table-cell',
+      cell: (p) => formatEur(totalDonsByParticipant.get(p.id) ?? 0),
+    },
+  ]
+
   function openAdd() {
     setEditingParticipant(undefined)
     setParticipantModalOpen(true)
@@ -568,7 +606,7 @@ export default function ParticipantsPage() {
         FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
         review, the verdict, and DESIGN.md.
       */}
-      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
+      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper px-4 py-6 font-registre md:px-6">
         <PageHeader
           title="Donateurs"
           subtitle={
@@ -585,7 +623,7 @@ export default function ParticipantsPage() {
                 className="md:hidden"
                 items={[
                   { label: 'Importer', onSelect: () => setImportOpen(true) },
-                  { label: 'Exporter', onSelect: handleExport, disabled: loading || sortedParticipants.length === 0 },
+                  { label: 'Exporter', onSelect: handleExport, disabled: loading || sortedParticipants.length === 0, disabledReason: !loading && sortedParticipants.length === 0 ? 'Aucun donateur à exporter' : undefined },
                 ]}
               />
               <Button variant="secondary" onClick={() => setImportOpen(true)} className="hidden md:inline-flex">
@@ -619,10 +657,11 @@ export default function ParticipantsPage() {
 
         {/* Table + Detail panel */}
         <div className={cn('flex gap-6', selectedParticipant && 'items-start')}>
-          {/* Table card */}
-          <div className="min-w-0 flex-1 rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+          {/* Carte de la liste (bord à bord en mobile) */}
+          <ListeConteneur>
             <ListToolbar
-              search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Rechercher par nom et prénom…', label: 'Rechercher un donateur' }}
+              search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Nom, prénom…', label: 'Rechercher un donateur' }}
+              mode={selecteur}
             />
 
             {loading ? (
@@ -634,51 +673,16 @@ export default function ParticipantsPage() {
                 <p className="font-registre text-sm text-ink-faint">Aucun donateur trouvé</p>
               </div>
             ) : (
-              <ScrollShadowX>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <SortableTableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden xl:table-cell" />
-                      <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden md:table-cell" />
-                      <SortableTableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="hidden md:table-cell" />
-                      <TableHead />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedParticipants.map((p) => (
-                      <TableRow
-                        key={p.id}
-                        onClick={() => setSelectedParticipant(p.id === selectedParticipant?.id ? null : p)}
-                        className={cn(
-                          'cursor-pointer hover:bg-paper-border/20',
-                          p.id === selectedParticipant?.id && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]'
-                        )}
-                      >
-                        <TableCell className="hidden text-ink-faint xl:table-cell">
-                          {p.personnes.civilite ? CIVILITE_LABELS[p.personnes.civilite] : '—'}
-                        </TableCell>
-                        {/* Sous `md`, la colonne Prénom est masquée : le prénom suit le nom. */}
-                        <TableCell className="max-w-[16rem] truncate whitespace-nowrap font-medium text-ink md:max-w-none">
-                          {p.personnes.nom}
-                          {p.personnes.prenom && <span className="font-normal text-ink-muted md:hidden"> {p.personnes.prenom}</span>}
-                        </TableCell>
-                        <TableCell className="hidden whitespace-nowrap text-ink-muted md:table-cell">
-                          {p.personnes.prenom ?? '—'}
-                        </TableCell>
-                        <TableCell className="hidden whitespace-nowrap text-right font-registre-mono font-medium text-ink md:table-cell">
-                          {formatEur(totalDonsByParticipant.get(p.id) ?? 0)}
-                        </TableCell>
-                        <TableCell className="text-right text-ink-faint">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollShadowX>
+              <ListeDonnees
+                rows={paginatedParticipants}
+                rowKey={(p) => p.id}
+                columns={colonnes}
+                mode={mode}
+                sort={{ field: sortField, direction: sortDirection, onSort: toggleSort }}
+                onRowClick={(p) => setSelectedParticipant(p.id === selectedParticipant?.id ? null : p)}
+                activeKey={selectedParticipant?.id}
+                rowLabel={participantFullName}
+              />
             )}
 
             {/* Pagination */}
@@ -692,7 +696,7 @@ export default function ParticipantsPage() {
                 onPageSizeChange={setPageSize}
               />
             )}
-          </div>
+          </ListeConteneur>
 
           {/* Detail panel (desktop) */}
           {selectedParticipant && (

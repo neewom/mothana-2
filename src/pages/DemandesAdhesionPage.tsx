@@ -23,8 +23,9 @@ import { Button } from '../components/ui/button'
 import { Textarea } from '../components/ui/textarea'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { TablePagination } from '../components/ui/table-pagination'
-import SortableTableHead from '../components/SortableTableHead'
+import { ListeConteneur, ListeDonnees, type ColonneListe } from '../components/ui/liste-donnees'
 import { useTableSort } from '../hooks/useTableSort'
+import { useModeListe } from '../hooks/useModeListe'
 import { useClientPagination } from '../hooks/useClientPagination'
 import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { Dialog, DialogContent } from '../components/ui/dialog'
@@ -296,6 +297,101 @@ export default function DemandesAdhesionPage() {
     refreshNavCounters()
   }
 
+  // Sous 768 px : cartes par défaut, ou tableau au choix (mémorisé sur l'appareil).
+  const { mode, selecteur } = useModeListe('demandes-adhesion')
+
+  const aDoublon = (d: DemandeAdhesion) => (duplicatesMap[d.id]?.length ?? 0) > 0
+  const libelleDate = tab === 'en_attente' ? 'Soumise le' : 'Décidée le'
+
+  const badgeDoublon = (d: DemandeAdhesion) => (
+    <span
+      title={duplicatesMap[d.id].map((m) => `${adherentFullName(m.adherent)} (${m.raisons.join(', ')})`).join(' · ')}
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-warning-border bg-white px-2 py-0.5 font-registre-mono text-[11px] font-medium text-warning"
+    >
+      Doublon possible
+    </span>
+  )
+  const badgeEmailInvalide = (
+    <span
+      title="L'email de confirmation envoyé à cette adresse n'a pas pu être délivré"
+      className="inline-flex items-center whitespace-nowrap rounded-full border border-warning-border bg-white px-2 py-0.5 font-registre-mono text-[11px] font-medium text-warning"
+    >
+      Email invalide
+    </span>
+  )
+
+  // Colonnes du tableau et place de chacune dans une carte : nom et prénom en titre, date et
+  // email dessous, signalements (ancienne demande, doublon, email invalide) en pastilles.
+  const colonnes: ColonneListe<DemandeAdhesion, SortField>[] = [
+    {
+      key: 'civilite', label: 'Civilité', sortField: 'civilite', role: 'masquee',
+      headClassName: 'hidden xl:table-cell', cellClassName: 'hidden text-ink-faint xl:table-cell',
+      cell: (d) => CIVILITE_ADHERENT_LABELS[d.civilite],
+    },
+    {
+      key: 'nom', label: 'Nom', sortField: 'nom', role: 'titre',
+      cellClassName: 'font-medium text-ink',
+      cell: (d) => (
+        <>
+          <span className="whitespace-nowrap">{d.nom}</span>
+          {/* Pastilles sous le nom (pas à côté) : la colonne Nom reste étroite, pour garder
+              « Soumise le » visible sans défilement avec des noms usuels. */}
+          {(!estRenouvellement(d) || aDoublon(d)) && (
+            <div className="mt-1 flex items-center gap-1.5">
+              {!estRenouvellement(d) && <Badge>{TAG_ANCIENNE_ADHESION}</Badge>}
+              {aDoublon(d) && badgeDoublon(d)}
+            </div>
+          )}
+        </>
+      ),
+      carte: (d) => (
+        <>
+          {d.nom}
+          {d.prenom && <span className="font-normal text-ink-muted"> {d.prenom}</span>}
+        </>
+      ),
+    },
+    {
+      key: 'prenom', label: 'Prénom', sortField: 'prenom', role: 'masquee',
+      cellClassName: 'whitespace-nowrap text-ink-muted',
+      cell: (d) => d.prenom ?? '—',
+    },
+    {
+      key: 'date', label: libelleDate, sortField: 'date', role: 'secondaire',
+      cellClassName: 'font-registre-mono text-xs whitespace-nowrap text-ink-faint',
+      cell: (d) => formatDateTime(dateAffichee(d, tab)),
+      carte: (d) => `${libelleDate} ${formatDateTime(dateAffichee(d, tab))}`,
+    },
+    {
+      key: 'contact', label: 'Contact', role: 'secondaire',
+      headClassName: 'hidden md:table-cell', cellClassName: 'hidden text-ink-faint md:table-cell',
+      cell: (d) => (
+        <>
+          <div className="flex items-center gap-1.5">
+            {d.courriel ?? '—'}
+            {d.email_bounced_at && badgeEmailInvalide}
+          </div>
+          {d.telephone && <p className="font-registre-mono text-xs text-ink-faint">{d.telephone}</p>}
+        </>
+      ),
+      carte: (d) => d.courriel ?? d.telephone,
+    },
+    {
+      // Réservée aux cartes : dans le tableau, ces pastilles vivent sous le nom et dans Contact.
+      key: 'signalements', label: 'Signalements', role: 'pastille',
+      headClassName: 'hidden', cellClassName: 'hidden',
+      cell: () => null,
+      carte: (d) =>
+        !estRenouvellement(d) || aDoublon(d) || d.email_bounced_at ? (
+          <>
+            {!estRenouvellement(d) && <Badge>{TAG_ANCIENNE_ADHESION}</Badge>}
+            {aDoublon(d) && badgeDoublon(d)}
+            {d.email_bounced_at && badgeEmailInvalide}
+          </>
+        ) : null,
+    },
+  ]
+
   return (
     <>
       {/*
@@ -315,7 +411,7 @@ export default function DemandesAdhesionPage() {
         FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
         review, the verdict, and DESIGN.md.
       */}
-      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
+      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper px-4 py-6 font-registre md:px-6">
         <PageHeader
           title="Renouvellements"
           subtitle={loading ? 'Chargement…' : sousTitreDemandes(demandes, tab)}
@@ -327,7 +423,7 @@ export default function DemandesAdhesionPage() {
           </div>
         )}
 
-        <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+        <ListeConteneur>
           <div className="flex gap-1 border-b border-paper-border px-4 pt-4 md:px-6">
             {TABS.map((t) => (
               <button
@@ -348,6 +444,7 @@ export default function DemandesAdhesionPage() {
           {!loading && demandes.length > 0 && (
             <ListToolbar
               search={{ value: recherche, onChange: (v) => { setRecherche(v); setCurrentPage(1) }, placeholder: 'Nom, prénom, email…', label: 'Rechercher une demande' }}
+              mode={selecteur}
             />
           )}
 
@@ -366,84 +463,22 @@ export default function DemandesAdhesionPage() {
               <p className="font-registre text-sm text-ink-faint">Aucune demande ne correspond à cette recherche</p>
             </div>
           ) : (
-            <ScrollShadowX>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <SortableTableHead field="civilite" label="Civilité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden xl:table-cell" />
-                    <SortableTableHead field="nom" label="Nom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                    <SortableTableHead field="prenom" label="Prénom" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                    <SortableTableHead field="date" label={tab === 'en_attente' ? 'Soumise le' : 'Décidée le'} sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                    <TableHead className="hidden md:table-cell">Contact</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {demandesPage.map((d) => {
-                    const hasDuplicate = (duplicatesMap[d.id]?.length ?? 0) > 0
-                    return (
-                      <TableRow
-                        key={d.id}
-                        onClick={() => ouvrirDetail(d)}
-                        className={cn(
-                          'cursor-pointer',
-                          hasDuplicate ? 'bg-warning-tint hover:bg-warning-tint/70' : 'hover:bg-paper-border/20'
-                        )}
-                      >
-                        <TableCell className="hidden text-ink-faint xl:table-cell">{CIVILITE_ADHERENT_LABELS[d.civilite]}</TableCell>
-                        <TableCell className="font-medium text-ink">
-                          <span className="whitespace-nowrap">{d.nom}</span>
-                          {/* Pastilles sous le nom (pas à côté) : la colonne Nom reste étroite, pour garder
-                              « Soumise le » visible sans défilement avec des noms usuels. */}
-                          {(!estRenouvellement(d) || hasDuplicate) && (
-                            <div className="mt-1 flex items-center gap-1.5">
-                              {!estRenouvellement(d) && <Badge>{TAG_ANCIENNE_ADHESION}</Badge>}
-                              {hasDuplicate && (
-                                <span
-                                  title={duplicatesMap[d.id].map((m) => `${adherentFullName(m.adherent)} (${m.raisons.join(', ')})`).join(' · ')}
-                                  className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-warning-border bg-white px-2 py-0.5 font-registre-mono text-[11px] font-medium text-warning"
-                                >
-                                  Doublon possible
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-ink-muted">{d.prenom ?? '—'}</TableCell>
-                        <TableCell className="font-registre-mono text-xs whitespace-nowrap text-ink-faint">
-                          {formatDateTime(dateAffichee(d, tab))}
-                        </TableCell>
-                        <TableCell className="hidden text-ink-faint md:table-cell">
-                          <div className="flex items-center gap-1.5">
-                            {d.courriel ?? '—'}
-                            {d.email_bounced_at && (
-                              <span
-                                title="L'email de confirmation envoyé à cette adresse n'a pas pu être délivré"
-                                className="inline-flex items-center whitespace-nowrap rounded-full border border-warning-border bg-white px-2 py-0.5 font-registre-mono text-[11px] font-medium text-warning"
-                              >
-                                Email invalide
-                              </span>
-                            )}
-                          </div>
-                          {d.telephone && <p className="font-registre-mono text-xs text-ink-faint">{d.telephone}</p>}
-                        </TableCell>
-                        <TableCell className="text-right text-ink-faint">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </ScrollShadowX>
+            <ListeDonnees
+              rows={demandesPage}
+              rowKey={(d) => d.id}
+              columns={colonnes}
+              mode={mode}
+              sort={{ field: sortField, direction: sortDirection, onSort: toggleSort }}
+              onRowClick={ouvrirDetail}
+              rowLabel={(d) => [d.prenom, d.nom].filter(Boolean).join(' ')}
+              rowClassName={(d) => (aDoublon(d) ? 'bg-warning-tint hover:bg-warning-tint/70' : undefined)}
+            />
           )}
 
           {!loading && demandesFiltrees.length > 0 && (
             <TablePagination {...paginationProps} />
           )}
-        </div>
+        </ListeConteneur>
       </div>
 
       {ratifyingDemande && organisationId && (

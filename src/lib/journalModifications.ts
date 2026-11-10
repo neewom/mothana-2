@@ -72,9 +72,10 @@ export function describeJournalEntry(entry: JournalModification): string {
 }
 
 /** Auteur affiché : le compte bénévole partagé n'a pas de nom (pas de profil d'organisation). */
-export function libelleAuteurJournal(entry: Pick<JournalModification, 'auteur_nom' | 'details'>): string {
+/** Auteur d'une entrée du journal ; `null` s'il est inconnu (la ligne « Par … » est alors masquée). */
+export function libelleAuteurJournal(entry: Pick<JournalModification, 'auteur_nom' | 'details'>): string | null {
   if (entry.auteur_nom) return entry.auteur_nom
-  return entry.details?.origine === 'benevole' ? 'Espace bénévole' : '—'
+  return entry.details?.origine === 'benevole' ? 'Espace bénévole' : null
 }
 
 export const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']

@@ -78,7 +78,7 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
 
         <ListToolbar
           className="shrink-0"
-          search={{ value: recherche, onChange: setRecherche, placeholder: 'Nom de la personne ou de l’auteur…', label: 'Rechercher dans le journal' }}
+          search={{ value: recherche, onChange: setRecherche, placeholder: 'Personne, auteur…', label: 'Rechercher dans le journal' }}
         />
 
         <div className="flex-1 overflow-y-auto p-6">
@@ -105,7 +105,7 @@ export default function HistoriqueModificationsModal({ open, onClose, organisati
                   {entry.action === 'refus' && typeof entry.details?.motif_refus === 'string' && entry.details.motif_refus && (
                     <p className="mt-1 text-xs text-ink-faint">Motif : {entry.details.motif_refus}</p>
                   )}
-                  <p className="mt-0.5 text-xs text-ink-faint">Par {libelleAuteurJournal(entry)}</p>
+                  {libelleAuteurJournal(entry) && <p className="mt-0.5 text-xs text-ink-faint">Par {libelleAuteurJournal(entry)}</p>}
                 </li>
               ))}
             </ul>

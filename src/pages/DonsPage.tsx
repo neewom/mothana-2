@@ -7,7 +7,6 @@ import DonModal from '../components/DonModal'
 import ParticipantAutocomplete from '../components/ParticipantAutocomplete'
 import ActiviteAutocomplete from '../components/ActiviteAutocomplete'
 import DonFichiers from '../components/DonFichiers'
-import ScrollShadowX from '../components/ScrollShadowX'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { fetchAllRows } from '../lib/fetchAllRows'
@@ -28,8 +27,8 @@ import { Label } from '../components/ui/label'
 import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { ActionMenu } from '../components/ui/action-menu'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
-import SortableTableHead from '../components/SortableTableHead'
+import { ListeConteneur, ListeDonnees, type ColonneListe } from '../components/ui/liste-donnees'
+import { useModeListe } from '../hooks/useModeListe'
 import { DON_SORT_DEFAUT, directionInitialeDon, nomDonateur, trierDons, type DonSortField } from '../lib/donsSort'
 import { useTableSort } from '../hooks/useTableSort'
 
@@ -295,6 +294,53 @@ export default function DonsPage() {
   // restent dans le panneau. En mobile, le montant passe avant le donateur.
   const activiteCol = selectedDon ? 'hidden 2xl:table-cell' : 'hidden xl:table-cell'
 
+  // Sous 768 px : cartes par défaut, ou tableau au choix (mémorisé sur l'appareil).
+  const { mode, selecteur } = useModeListe('dons')
+
+  // Colonnes du tableau et place de chacune dans une carte (titre, montant, méta, pastille).
+  // En tableau mobile, un montant dupliqué passe avant le donateur ; masqué en carte.
+  const colonnes: ColonneListe<Don, DonSortField>[] = [
+    {
+      key: 'date', label: 'Date', sortField: 'date', role: 'secondaire',
+      headClassName: 'pl-4 pr-2 sm:px-6', cellClassName: 'whitespace-nowrap pl-4 pr-2 text-ink-muted sm:px-6',
+      cell: (don) => (
+        <>
+          <span className="md:hidden">{formatDateShort(don.date)}</span>
+          <span className="hidden md:inline">{formatDate(don.date)}</span>
+        </>
+      ),
+      carte: (don) => formatDate(don.date),
+    },
+    {
+      key: 'montant-mobile', label: 'Montant', sortField: 'montant', role: 'masquee', align: 'right',
+      headClassName: 'px-2 md:hidden', cellClassName: 'whitespace-nowrap px-2 font-registre-mono font-medium text-ink md:hidden',
+      cell: (don) => formatEur(don.montant),
+    },
+    {
+      key: 'donateur', label: 'Donateur', sortField: 'donateur', role: 'titre',
+      headClassName: 'pl-2 pr-4 sm:px-6',
+      // Donnée identifiante : jamais tronquée, le tableau défile horizontalement (DESIGN.md, Tables).
+      cellClassName: 'whitespace-nowrap pl-2 pr-4 font-medium text-ink sm:px-6',
+      cell: nomDonateur,
+    },
+    {
+      key: 'activite', label: 'Activité', role: 'secondaire',
+      headClassName: activiteCol, cellClassName: cn(activiteCol, 'max-w-[14rem] truncate whitespace-nowrap text-ink-faint'),
+      cell: (don) => don.activites?.nom ?? '—',
+      carte: (don) => don.activites?.nom,
+    },
+    {
+      key: 'montant', label: 'Montant', sortField: 'montant', role: 'montant', align: 'right',
+      headClassName: 'hidden md:table-cell', cellClassName: 'hidden whitespace-nowrap font-registre-mono font-medium text-ink md:table-cell',
+      cell: (don) => formatEur(don.montant),
+    },
+    {
+      key: 'mode', label: 'Mode', sortField: 'mode', role: 'pastille',
+      headClassName: 'hidden 2xl:table-cell', cellClassName: 'hidden 2xl:table-cell',
+      cell: (don) => <Badge variant="neutral">{MODE_PAIEMENT_LABELS[don.mode_paiement]}</Badge>,
+    },
+  ]
+
   // Tri appliqué après les filtres et avant la pagination (le chargement suit l'ordre des id).
   const { sortField, sortDirection, toggleSort } = useTableSort<DonSortField>({
     initial: DON_SORT_DEFAUT,
@@ -351,6 +397,20 @@ export default function DonsPage() {
     }, { replace: true })
   }, [searchParams, setSearchParams])
 
+  // Raccourci « Dons de X » de la recherche globale (?q=<nom>) : recherche préremplie, paramètre
+  // retiré de l'URL comme ?nouveau=1 (la recherche reste modifiable ensuite).
+  useEffect(() => {
+    const q = searchParams.get('q')
+    if (q === null) return
+    setRecherche(q)
+    setCurrentPage(1)
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current)
+      next.delete('q')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
+
   function handleSaved() {
     refetch()
     setSelectedDon(null)
@@ -401,7 +461,7 @@ export default function DonsPage() {
         FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
         review, the verdict, and DESIGN.md.
       */}
-      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
+      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper px-4 py-6 font-registre md:px-6">
         <PageHeader
           title="Dons"
           subtitle={
@@ -418,7 +478,7 @@ export default function DonsPage() {
                 className="md:hidden"
                 items={[
                   { label: 'Importer', onSelect: () => setImportOpen(true) },
-                  { label: 'Exporter', onSelect: handleExport, disabled: filteredDons.length === 0 },
+                  { label: 'Exporter', onSelect: handleExport, disabled: loading || filteredDons.length === 0, disabledReason: !loading && filteredDons.length === 0 ? 'Aucun don à exporter' : undefined },
                 ]}
               />
               <Button variant="secondary" onClick={() => setImportOpen(true)} className="hidden md:inline-flex">
@@ -452,12 +512,13 @@ export default function DonsPage() {
 
         {/* Table + Detail panel */}
         <div className={cn('flex gap-6', selectedDon && 'items-start')}>
-          {/* Table card */}
-          <div className="min-w-0 flex-1 rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+          {/* Carte de la liste (bord à bord en mobile) */}
+          <ListeConteneur>
             <ListToolbar
               search={{ value: recherche, onChange: (v) => { setRecherche(v); setCurrentPage(1) }, placeholder: 'Donateur, activité…', label: 'Rechercher un don' }}
               filterCount={nombreFiltres}
               onOpenFilters={openFiltres}
+              mode={selecteur}
             />
             <FilterChips chips={chips} onClearAll={() => appliquerFiltres(DONS_FILTRES_VIDES)} />
 
@@ -470,58 +531,17 @@ export default function DonsPage() {
                 <p className="font-registre text-sm text-ink-faint">Aucun don trouvé</p>
               </div>
             ) : (
-              <ScrollShadowX>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <SortableTableHead field="date" label="Date" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="pl-4 pr-2 sm:px-6" />
-                      <SortableTableHead field="montant" label="Montant" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="px-2 md:hidden" />
-                      <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="pl-2 pr-4 sm:px-6" />
-                      <TableHead className={activiteCol}>Activité</TableHead>
-                      <SortableTableHead field="montant" label="Montant" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" className="hidden md:table-cell" />
-                      <SortableTableHead field="mode" label="Mode" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className="hidden 2xl:table-cell" />
-                      <TableHead className="hidden md:table-cell" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedDons.map((don) => (
-                      <TableRow
-                        key={don.id}
-                        onClick={() => setSelectedDon(don.id === selectedDon?.id ? null : don)}
-                        className={cn(
-                          'cursor-pointer hover:bg-paper-border/20',
-                          don.id === selectedDon?.id && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]'
-                        )}
-                      >
-                        <TableCell className="whitespace-nowrap pl-4 pr-2 text-ink-muted sm:px-6">
-                          <span className="md:hidden">{formatDateShort(don.date)}</span>
-                          <span className="hidden md:inline">{formatDate(don.date)}</span>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap px-2 text-right font-registre-mono font-medium text-ink md:hidden">
-                          {formatEur(don.montant)}
-                        </TableCell>
-                        <TableCell className="max-w-[8.5rem] truncate whitespace-nowrap pl-2 pr-4 font-medium text-ink sm:max-w-[14rem] sm:px-6 md:max-w-[18rem]">
-                          {nomDonateur(don)}
-                        </TableCell>
-                        <TableCell className={cn(activiteCol, 'max-w-[14rem] truncate whitespace-nowrap text-ink-faint')}>
-                          {don.activites?.nom ?? '—'}
-                        </TableCell>
-                        <TableCell className="hidden whitespace-nowrap text-right font-registre-mono font-medium text-ink md:table-cell">
-                          {formatEur(don.montant)}
-                        </TableCell>
-                        <TableCell className="hidden 2xl:table-cell">
-                          <Badge variant="neutral">{MODE_PAIEMENT_LABELS[don.mode_paiement]}</Badge>
-                        </TableCell>
-                        <TableCell className="hidden text-right text-ink-faint md:table-cell">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollShadowX>
+              <ListeDonnees
+                rows={paginatedDons}
+                rowKey={(don) => don.id}
+                columns={colonnes}
+                mode={mode}
+                sort={{ field: sortField, direction: sortDirection, onSort: toggleSort }}
+                onRowClick={(don) => setSelectedDon(don.id === selectedDon?.id ? null : don)}
+                activeKey={selectedDon?.id}
+                rowLabel={nomDonateur}
+                chevronClassName="hidden md:table-cell"
+              />
             )}
 
             {/* Pagination */}
@@ -535,7 +555,7 @@ export default function DonsPage() {
                 onPageSizeChange={setPageSize}
               />
             )}
-          </div>
+          </ListeConteneur>
 
           <SidePanel
             open={!!selectedDon}

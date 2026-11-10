@@ -16,11 +16,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/
 import { Badge } from '../components/ui/badge'
 import { PageHeader } from '../components/ui/page-header'
 import { SidePanel, DetailField } from '../components/ui/side-panel'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
-import ScrollShadowX from '../components/ScrollShadowX'
+import { ListeConteneur, ListeDonnees, type ColonneListe } from '../components/ui/liste-donnees'
 import { TablePagination } from '../components/ui/table-pagination'
-import SortableTableHead from '../components/SortableTableHead'
 import { useTableSort } from '../hooks/useTableSort'
+import { useModeListe } from '../hooks/useModeListe'
 import { useClientPagination } from '../hooks/useClientPagination'
 import { directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
 import { ListToolbar } from '../components/ui/list-toolbar'
@@ -426,6 +425,44 @@ export default function DonsReguliersPage() {
   // Période et activité restent dans le panneau quand il réduit le tableau (rien hors écran à 1 400 px).
   const secondaryCol = selected ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
 
+  // Sous 768 px : cartes par défaut, ou tableau au choix (mémorisé sur l'appareil).
+  const { mode, selecteur } = useModeListe('dons-reguliers')
+
+  // Colonnes du tableau et place de chacune dans une carte : donateur et montant mensuel en
+  // première ligne, période et activité dessous, statut en pastille.
+  const colonnes: ColonneListe<DonRegulier, SortField>[] = [
+    {
+      key: 'donateur', label: 'Donateur', sortField: 'donateur', role: 'titre',
+      cellClassName: 'whitespace-nowrap font-medium text-ink',
+      cell: (e) => participantFullName(e.profils_participant),
+    },
+    {
+      key: 'montant', label: 'Montant', sortField: 'montant', role: 'montant', align: 'right',
+      cellClassName: 'whitespace-nowrap font-registre-mono font-medium text-ink',
+      cell: (e) => (
+        <>
+          {formatEur(e.montant)}
+          <span className="ml-1 font-registre text-xs font-normal text-ink-faint">/ mois</span>
+        </>
+      ),
+    },
+    {
+      key: 'statut', label: 'Statut', sortField: 'statut', role: 'pastille',
+      cell: (e) => <StatutBadge statut={e.statut} />,
+    },
+    {
+      key: 'periode', label: 'Période', sortField: 'periode', role: 'secondaire',
+      headClassName: secondaryCol, cellClassName: cn(secondaryCol, 'whitespace-nowrap text-ink-muted'),
+      cell: (e) => periodeEngagement(e.date_debut, e.date_fin),
+    },
+    {
+      key: 'activite', label: 'Activité', sortField: 'activite', role: 'secondaire',
+      headClassName: secondaryCol, cellClassName: cn(secondaryCol, 'whitespace-nowrap text-ink-faint'),
+      cell: (e) => e.activites?.nom ?? '—',
+      carte: (e) => e.activites?.nom,
+    },
+  ]
+
   async function handleToggleStatut(e: DonRegulier) {
     const payload = e.statut === 'actif'
       ? { statut: 'arrete' as const, date_fin: e.date_fin ?? todayISO() }
@@ -515,7 +552,7 @@ export default function DonsReguliersPage() {
         FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
         review, the verdict, and DESIGN.md.
       */}
-      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
+      <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper px-4 py-6 font-registre md:px-6">
         <PageHeader
           title="Dons réguliers"
           subtitle={
@@ -540,8 +577,8 @@ export default function DonsReguliersPage() {
           }
         />
 
-        {/* Dons à confirmer */}
-        <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+        {/* Dons à confirmer : même conteneur que la liste des engagements (bord à bord en mobile). */}
+        <ListeConteneur>
           <div className="flex flex-col gap-3 border-b border-paper-border-muted px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold text-ink">Dons à confirmer</h2>
@@ -603,11 +640,11 @@ export default function DonsReguliersPage() {
               ))}
             </ul>
           )}
-        </div>
+        </ListeConteneur>
 
         {/* Engagements : liste + panneau de détail */}
         <div className={cn('flex gap-6', selected && 'items-start')}>
-          <div className="min-w-0 flex-1 rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+          <ListeConteneur>
             <div className="border-b border-paper-border-muted px-4 py-4 md:px-6">
               <h2 className="text-lg font-semibold text-ink">Engagements</h2>
               <p className="mt-0.5 text-xs text-ink-faint">
@@ -617,6 +654,7 @@ export default function DonsReguliersPage() {
             {!loading && engagements.length > 0 && (
               <ListToolbar
                 search={{ value: recherche, onChange: (v) => { setRecherche(v); setCurrentPage(1) }, placeholder: 'Donateur, activité…', label: 'Rechercher un engagement' }}
+                mode={selecteur}
               />
             )}
             {loading ? (
@@ -630,51 +668,22 @@ export default function DonsReguliersPage() {
                 Aucun engagement ne correspond à cette recherche.
               </div>
             ) : (
-              <ScrollShadowX>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <SortableTableHead field="montant" label="Montant" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
-                      <SortableTableHead field="statut" label="Statut" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                      <SortableTableHead field="periode" label="Période" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={secondaryCol} />
-                      <SortableTableHead field="activite" label="Activité" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={secondaryCol} />
-                      <TableHead className="hidden md:table-cell" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {engagementsPage.map((e) => (
-                      <TableRow
-                        key={e.id}
-                        onClick={() => setSelectedId(e.id === selectedId ? null : e.id)}
-                        className={cn(
-                          'cursor-pointer hover:bg-paper-border/20',
-                          e.id === selectedId && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]'
-                        )}
-                      >
-                        <TableCell className="whitespace-nowrap font-medium text-ink">{participantFullName(e.profils_participant)}</TableCell>
-                        <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
-                          {formatEur(e.montant)}
-                          <span className="ml-1 font-registre text-xs font-normal text-ink-faint">/ mois</span>
-                        </TableCell>
-                        <TableCell><StatutBadge statut={e.statut} /></TableCell>
-                        <TableCell className={cn(secondaryCol, 'whitespace-nowrap text-ink-muted')}>{periodeEngagement(e.date_debut, e.date_fin)}</TableCell>
-                        <TableCell className={cn(secondaryCol, 'whitespace-nowrap text-ink-faint')}>{e.activites?.nom ?? '—'}</TableCell>
-                        <TableCell className="hidden text-right text-ink-faint md:table-cell">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollShadowX>
+              <ListeDonnees
+                rows={engagementsPage}
+                rowKey={(e) => e.id}
+                columns={colonnes}
+                mode={mode}
+                sort={{ field: sortField, direction: sortDirection, onSort: toggleSort }}
+                onRowClick={(e) => setSelectedId(e.id === selectedId ? null : e.id)}
+                activeKey={selectedId}
+                rowLabel={(e) => participantFullName(e.profils_participant)}
+                chevronClassName="hidden md:table-cell"
+              />
             )}
             {!loading && engagementsFiltres.length > 0 && (
               <TablePagination {...paginationProps} />
             )}
-          </div>
+          </ListeConteneur>
 
           <SidePanel
             open={!!selected}

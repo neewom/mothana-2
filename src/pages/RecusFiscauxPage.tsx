@@ -17,15 +17,17 @@ import ParticipantModal from '../components/ParticipantModal'
 import DeclarationCerfaCard from '../components/DeclarationCerfaCard'
 import { useRecapitulatif222Bis } from '../hooks/useRecapitulatif222Bis'
 import Toast from '../components/Toast'
-import ScrollShadowX from '../components/ScrollShadowX'
 import { Button } from '../components/ui/button'
 import { Select } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import ButtonHint from '../components/ButtonHint'
+import Tooltip from '../components/Tooltip'
 import { Dialog, DialogContent } from '../components/ui/dialog'
 import { PageHeader } from '../components/ui/page-header'
 import { TablePagination } from '../components/ui/table-pagination'
-import { ListToolbar } from '../components/ui/list-toolbar'
+import { ListToolbar, FilterChips, type FilterChip } from '../components/ui/list-toolbar'
+import { FilterSheet } from '../components/ui/filter-sheet'
+import { ActionMenu } from '../components/ui/action-menu'
 import { SidePanel, DetailField } from '../components/ui/side-panel'
 import { cn } from '../lib/utils'
 import { comparerOrdreAttribution, raisonExclusion, recusAGenerer, recusExclus } from '../lib/recusAGenerer'
@@ -36,9 +38,14 @@ import RecusLotBandeau from '../components/RecusLotBandeau'
 import RecusLotRecapitulatifDialog from '../components/RecusLotRecapitulatifDialog'
 import EmailInvalideIndicateur from '../components/EmailInvalideIndicateur'
 import type { RecapitulatifEnvoi } from '../types/recusLot'
-import SortableTableHead from '../components/SortableTableHead'
+import { ListeConteneur, ListeDonnees, type ColonneListe } from '../components/ui/liste-donnees'
 import { useTableSort } from '../hooks/useTableSort'
+import { useModeListe } from '../hooks/useModeListe'
 import { compareText, directionInitiale, sortRows, type SortColumns } from '../lib/tableSort'
+import {
+  ENVOI_OPTIONS, GENERATION_OPTIONS, RECUS_FILTRES_VIDES, envoiLigne, envoiVersionActuelle, exclusEnvoiParDonateur, filtrerRecus, nombreFiltresRecus,
+  type RecusFiltres,
+} from '../lib/recusFiltres'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -77,6 +84,11 @@ function formatDateHeure(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+// Pastille d'envoi : jour et mois suffisent (l'année est celle de la page, à quelques semaines près).
+function formatJourMois(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+}
+
 // Date et heure : plusieurs versions d'un même reçu peuvent être générées le même jour.
 function formatDateEtHeure(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -103,6 +115,39 @@ function bilanDejaFerme(lotId: string): boolean {
 const TYPE_CERFA_LABELS: Record<string, string> = {
   '11580': '11580 · Particuliers',
   '16216': '16216 · Entreprises',
+}
+
+// Choix unique d'un filtre du tiroir, en pastilles (« Tous » + options), comme la période des Dons.
+function ChoixFiltre<V extends string>({ legend, aide, options, value, onChange }: {
+  legend: string
+  aide: string
+  options: { value: V; label: string }[]
+  value: V | ''
+  onChange: (value: V | '') => void
+}) {
+  const choix: { value: V | ''; label: string }[] = [{ value: '', label: 'Tous' }, ...options]
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium text-ink">{legend}</legend>
+      <div className="flex flex-wrap gap-2">
+        {choix.map((o) => (
+          <button
+            key={o.value || 'tous'}
+            type="button"
+            onClick={() => onChange(o.value)}
+            aria-pressed={value === o.value}
+            className={cn(
+              'rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70',
+              value === o.value ? 'border-stamp bg-stamp/[0.06] text-stamp' : 'border-paper-border bg-white text-ink-muted hover:bg-paper',
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-ink-faint">{aide}</p>
+    </fieldset>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +193,7 @@ export default function RecusFiscauxPage() {
   const [recapEnvoiError, setRecapEnvoiError] = useState<string | null>(null)
   const [recapEnvoiLoading, setRecapEnvoiLoading] = useState(false)
 
-  // Regénération (confirmation) et édition participant
+  // Régénération (confirmation) et édition participant
   const [regenerateConfirm, setRegenerateConfirm] = useState<ParticipantRow | null>(null)
   const [editingProfil, setEditingProfil] = useState<ProfilParticipant | undefined>(undefined)
   const [participantModalOpen, setParticipantModalOpen] = useState(false)
@@ -410,7 +455,7 @@ export default function RecusFiscauxPage() {
 
   // ---------------------------------------------------------------------------
   // Générer les reçus manquants : seulement les reçus pas encore générés (une
-  // régénération crée une nouvelle version conservée, elle passe par « Regénérer »)
+  // régénération crée une nouvelle version conservée, elle passe par « Régénérer »)
   // ---------------------------------------------------------------------------
 
   const manquants = useMemo(() => recusAGenerer(rows, orgMissing.length > 0), [rows, orgMissing])
@@ -529,6 +574,25 @@ export default function RecusFiscauxPage() {
     if (!res.ok) showToast(res.message)
   }
 
+  const envoiDesactive = recusEnvoi.actif || recusEnvoi.loading || recusLot.actif || !recapEnvoi || nbAEnvoyer === 0 || brevoLot === false
+  // Raison d'un envoi en lot impossible : infobulle du bouton (à partir de md), ligne sous l'élément du menu « ⋯ ».
+  const raisonEnvoiDesactive = !envoiDesactive
+    ? undefined
+    : lotEnvoiEnCours
+      ? `Un envoi des reçus ${annee} est déjà en cours`
+      : brevoLot === false
+        ? 'Configurez Brevo dans Paramètres › Intégrations pour envoyer les reçus en lot'
+        : recusLot.actif
+          ? 'Une génération en lot est en cours : attendez sa fin pour envoyer les reçus'
+          : recapEnvoi && nbAEnvoyer === 0
+            ? 'Aucun reçu à envoyer (reçus déjà envoyés, ou donateurs sans email valide)'
+            : undefined
+  const libelleEnvoi = lotEnvoiEnCours
+    ? 'Envoi en cours…'
+    : !recapEnvoi || nbAEnvoyer === 0
+      ? 'Envoyer les reçus non envoyés'
+      : `Envoyer ${nbAEnvoyer === 1 ? 'le reçu non envoyé' : `les ${nbAEnvoyer} reçus non envoyés`}`
+
   const exclusEnvoi = useMemo(
     () => (recapEnvoi?.exclus ?? []).map((e) => ({
       id: e.profil_participant_id,
@@ -597,8 +661,14 @@ export default function RecusFiscauxPage() {
       })
     return () => { cancelled = true }
   }, [selectedRecuId, selectedRecuStamp])
-  // N° de reçu laissé au panneau quand celui-ci réduit le tableau (rien hors écran à 1 400 px).
-  const secondaryCol = selectedRow ? 'hidden 2xl:table-cell' : 'hidden md:table-cell'
+  // Colonnes du tableau selon la place (rien hors écran de 768 à 1 440 px, panneau ouvert ou non) :
+  // les pastilles (statut, envoi) ont leurs colonnes à partir de 1 280 px sans panneau ; en dessous,
+  // ou panneau ouvert (liste réduite à ~370 px à 1 024 px), elles passent sous le nom du donateur.
+  // Les colonnes secondaires (n° de reçu, total : repris dans le panneau) cèdent la place d'abord.
+  const pastillesCol = selectedRow ? 'hidden' : 'hidden xl:table-cell'
+  const pastillesSousNom = selectedRow ? '' : 'xl:hidden'
+  const numeroCol = selectedRow ? 'hidden' : 'hidden md:table-cell xl:hidden min-[1400px]:table-cell'
+  const totalCol = selectedRow ? 'hidden xl:table-cell' : ''
 
   // ---------------------------------------------------------------------------
   // Recherche
@@ -607,9 +677,43 @@ export default function RecusFiscauxPage() {
   // ?q=<nom> pré-remplit la recherche.
   const [search, setSearch] = useState(() => searchParams.get('q') ?? '')
 
+  // Filtres du tiroir (génération, envoi) : appliqués + brouillon en cours d'édition.
+  const [filtres, setFiltres] = useState<RecusFiltres>(RECUS_FILTRES_VIDES)
+  const [brouillon, setBrouillon] = useState<RecusFiltres>(RECUS_FILTRES_VIDES)
+  const [filtresOpen, setFiltresOpen] = useState(false)
+  const nombreFiltres = nombreFiltresRecus(filtres)
+
+  function appliquerFiltres(next: RecusFiltres) {
+    setFiltres(next)
+    setCurrentPage(1)
+  }
+
+  function openFiltres() {
+    setBrouillon(filtres)
+    setFiltresOpen(true)
+  }
+
+  const chips: FilterChip[] = []
+  if (filtres.generation) {
+    chips.push({
+      key: 'generation', label: 'Reçu', value: GENERATION_OPTIONS.find((o) => o.value === filtres.generation)?.label ?? '',
+      onRemove: () => appliquerFiltres({ ...filtres, generation: '' }),
+    })
+  }
+  if (filtres.envoi) {
+    chips.push({
+      key: 'envoi', label: 'Envoi', value: ENVOI_OPTIONS.find((o) => o.value === filtres.envoi)?.label ?? '',
+      onRemove: () => appliquerFiltres({ ...filtres, envoi: '' }),
+    })
+  }
+
+  // Exclus du lot d'envoi (serveur) : « Non envoyé » = reçus que le bouton d'envoi traite ; repli sur
+  // l'adresse vide tant que le récapitulatif n'est pas chargé.
+  const exclusEnvoiMap = useMemo(() => exclusEnvoiParDonateur(recapEnvoi?.exclus), [recapEnvoi])
+
   const filteredRows = useMemo(
-    () => rows.filter((r) => matchesParticipantSearch(r.profil, search)),
-    [rows, search]
+    () => filtrerRecus(rows.filter((r) => matchesParticipantSearch(r.profil, search)), filtres, exclusEnvoiMap),
+    [rows, search, filtres, exclusEnvoiMap]
   )
 
   // ---------------------------------------------------------------------------
@@ -646,18 +750,115 @@ export default function RecusFiscauxPage() {
     return sortedRows.slice(start, start + pageSize)
   }, [sortedRows, safePage, pageSize])
 
+  // Sous 768 px : cartes par défaut, ou tableau au choix (mémorisé sur l'appareil).
+  const { mode, selecteur } = useModeListe('recus-fiscaux')
+
+  // Statut du reçu (pastilles) : généré ou non, blocage de validation, erreur d'une action.
+  const statutRecu = (row: ParticipantRow) => {
+    const resume = resumeValidationParticipant(row.validation)
+    const profilId = row.profil.id
+    return (
+      <>
+        {/* Un reçu bloqué n'est pas généré : la pastille d'avertissement suffit. */}
+        {(row.recu || !resume) && (
+          <Badge variant={row.recu ? 'success' : 'neutral'}>{row.recu ? 'Généré' : 'Non généré'}</Badge>
+        )}
+        {resume && <Badge variant="warning">{resume}</Badge>}
+        {(genError[profilId] || dlError[profilId] || sendError[profilId]) && <Badge variant="stamp">Erreur</Badge>}
+      </>
+    )
+  }
+
+  // Envoi par email de la version actuelle (même règle que le panneau et le lot d'envoi, lib/recusFiltres) ;
+  // rien pour un donateur sans reçu.
+  // Non envoyable : écarté par le lot d'envoi, raison du serveur en infobulle (clic sans ouvrir la fiche).
+  // En carte, la ligne entière est déjà un bouton : déclencheur `bare` (pas de bouton imbriqué).
+  const pastilleEnvoi = (row: ParticipantRow, dansCarte = false, alignFin = false) => {
+    const envoi = envoiLigne(row, exclusEnvoiMap)
+    if (!envoi || !row.recu) return null
+    if (envoi.statut === 'envoye') return <Badge variant="success">Envoyé le {formatJourMois(envoiVersionActuelle(row.recu)!)}</Badge>
+    if (envoi.statut === 'non_envoye') return <Badge variant="neutral">Non envoyé</Badge>
+    return (
+      <span onClick={(e) => e.stopPropagation()}>
+        <Tooltip content={envoi.raison} bare={dansCarte} fixed={!dansCarte} align={alignFin ? 'end' : 'start'}
+          maxWidthClassName={dansCarte ? 'max-w-60' : undefined} triggerClassName={dansCarte ? undefined : 'no-underline'}>
+          <Badge variant="warning">Non envoyable</Badge>
+        </Tooltip>
+      </span>
+    )
+  }
+
+  // Colonnes du tableau et place de chacune dans une carte : donateur et total en première
+  // ligne, n° de reçu et email dessous, statut en pastilles (tout l'essentiel sans ouvrir la fiche).
+  const colonnes: ColonneListe<ParticipantRow, RecuSortField>[] = [
+    {
+      key: 'donateur', label: 'Donateur', sortField: 'donateur', role: 'titre',
+      cellClassName: 'whitespace-nowrap',
+      cell: (row) => (
+        <>
+          <span className="font-medium text-ink">{participantFullName(row.profil)}</span>
+          {row.profil.personnes.email && <div className={cn('text-xs text-ink-faint', selectedRow && 'hidden 2xl:block')}>{row.profil.personnes.email}</div>}
+          {row.profil.email_invalide_at && (
+            <div className="mt-1"><EmailInvalideIndicateur invalideLe={row.profil.email_invalide_at} /></div>
+          )}
+          <div className={cn('mt-1 flex flex-wrap items-center gap-1.5', pastillesSousNom)}>
+            {statutRecu(row)}
+            {pastilleEnvoi(row)}
+          </div>
+        </>
+      ),
+      carte: (row) => participantFullName(row.profil),
+    },
+    {
+      key: 'total', label: 'Total dons', sortField: 'total', role: 'montant', align: 'right',
+      headClassName: totalCol, cellClassName: cn(totalCol, 'whitespace-nowrap font-registre-mono font-medium text-ink'),
+      cell: (row) => formatMontant(row.total_dons),
+    },
+    {
+      key: 'numero', label: 'N° reçu', sortField: 'numero', role: 'secondaire',
+      headClassName: numeroCol, cellClassName: cn(numeroCol, 'whitespace-nowrap font-registre-mono text-ink-muted'),
+      cell: (row) => row.recu?.numero_ordre ?? '—',
+      carte: (row) => row.recu?.numero_ordre && <span className="font-registre-mono">N° {row.recu.numero_ordre}</span>,
+    },
+    {
+      // Réservée aux cartes : dans le tableau, l'email vit sous le nom du donateur.
+      key: 'email', label: 'Email', role: 'secondaire',
+      headClassName: 'hidden', cellClassName: 'hidden',
+      cell: () => null,
+      carte: (row) => row.profil.personnes.email,
+    },
+    {
+      key: 'statut', label: 'Statut', role: 'pastille',
+      headClassName: pastillesCol, cellClassName: pastillesCol,
+      cell: (row) => <div className="flex items-center gap-1.5">{statutRecu(row)}</div>,
+      carte: (row) => (
+        <>
+          {statutRecu(row)}
+          <EmailInvalideIndicateur invalideLe={row.profil.email_invalide_at} />
+        </>
+      ),
+    },
+    {
+      key: 'envoi', label: 'Envoi', role: 'pastille',
+      headClassName: pastillesCol, cellClassName: cn(pastillesCol, 'whitespace-nowrap'),
+      cell: (row) => pastilleEnvoi(row, false, true) ?? <span className="text-ink-faint">—</span>,
+      carte: (row) => pastilleEnvoi(row, true),
+    },
+  ]
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper p-6 font-registre">
+    <div className="-m-6 min-h-[calc(100%+3rem)] space-y-6 bg-paper px-4 py-6 font-registre md:px-6">
       <PageHeader
         title="Reçus fiscaux"
         subtitle={
           <>
             {rows.length} donateur{rows.length !== 1 ? 's' : ''} avec des dons en {annee}
             {totalGeneres > 0 && ` · ${totalGeneres} reçu${totalGeneres !== 1 ? 's' : ''} généré${totalGeneres !== 1 ? 's' : ''}`}
+            {nombreFiltres > 0 && ` · ${filteredRows.length} affiché${filteredRows.length !== 1 ? 's' : ''}`}
           </>
         }
         actions={
@@ -671,65 +872,89 @@ export default function RecusFiscauxPage() {
                 <option key={y} value={y}>{y}</option>
               ))}
             </Select>
+            {/* Sous `md` : l'envoi passe dans le menu « ⋯ » (même modèle que Dons, Donateurs, Adhérents). */}
             {rows.length > 0 && (
-              <Button
-                variant="secondary"
-                onClick={ouvrirRecapEnvoi}
-                disabled={recusEnvoi.actif || recusEnvoi.loading || recusLot.actif || !recapEnvoi || nbAEnvoyer === 0 || brevoLot === false}
-                title={
-                  lotEnvoiEnCours
-                    ? `Un envoi des reçus ${annee} est déjà en cours`
-                    : brevoLot === false
-                      ? 'Configurez Brevo dans Paramètres › Intégrations pour envoyer les reçus en lot'
-                      : recusLot.actif
-                      ? 'Une génération en lot est en cours : attendez sa fin pour envoyer les reçus'
-                      : recapEnvoi && nbAEnvoyer === 0
-                        ? 'Aucun reçu à envoyer (reçus déjà envoyés, ou donateurs sans email valide)'
-                        : undefined
-                }
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                </svg>
-                {lotEnvoiEnCours
-                  ? 'Envoi en cours…'
-                  : !recapEnvoi || nbAEnvoyer === 0
-                    ? 'Envoyer les reçus non envoyés'
-                    : `Envoyer ${nbAEnvoyer === 1 ? 'le reçu non envoyé' : `les ${nbAEnvoyer} reçus non envoyés`}`}
-              </Button>
+              <ActionMenu
+                iconOnly
+                label="Autres actions"
+                className="md:hidden"
+                items={[{
+                  label: libelleEnvoi,
+                  onSelect: ouvrirRecapEnvoi,
+                  disabled: envoiDesactive,
+                  // « Envoi en cours… » se suffit à lui-même.
+                  disabledReason: lotEnvoiEnCours ? undefined : raisonEnvoiDesactive,
+                }]}
+              />
             )}
             {rows.length > 0 && (
-              <Button
-                onClick={ouvrirRecapitulatif}
-                disabled={recusLot.actif || recusLot.loading || manquants.length === 0}
-                title={
-                  lotEnCours
-                    ? `Une génération des reçus ${annee} est déjà en cours`
-                    : orgMissing.length > 0
-                      ? "Complétez les paramètres de l'organisation pour générer des reçus"
-                      : manquants.length === 0
-                        ? 'Aucun reçu manquant prêt à générer (un reçu existant se régénère depuis son détail)'
-                        : undefined
+              <ButtonHint hint={raisonEnvoiDesactive} placement="bottom" className="hidden md:inline-block">
+                <Button
+                  variant="secondary"
+                  className="hidden md:inline-flex"
+                  onClick={ouvrirRecapEnvoi}
+                  disabled={envoiDesactive}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                  </svg>
+                  {libelleEnvoi}
+                </Button>
+              </ButtonHint>
+            )}
+            {rows.length > 0 && (
+              <ButtonHint
+                align="end"
+                placement="bottom"
+                // En mobile, le bouton n'est pas collé au bord droit : bulle plus étroite pour ne pas sortir à gauche.
+                maxWidthClassName="max-w-60 md:max-w-xs"
+                hint={
+                  !(recusLot.actif || recusLot.loading || manquants.length === 0)
+                    ? undefined
+                    : lotEnCours
+                      ? `Une génération des reçus ${annee} est déjà en cours`
+                      : orgMissing.length > 0
+                        ? "Complétez les paramètres de l'organisation pour générer des reçus"
+                        : manquants.length === 0
+                          ? 'Aucun reçu manquant prêt à générer (un reçu existant se régénère depuis son détail)'
+                          : undefined
                 }
               >
-                {lotEnCours ? (
-                  <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                <Button
+                  onClick={ouvrirRecapitulatif}
+                  disabled={recusLot.actif || recusLot.loading || manquants.length === 0}
+                >
+                  {lotEnCours ? (
+                    <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
-                )}
-                {lotEnCours
-                  ? 'Génération en cours…'
-                  : orgMissing.length > 0
-                  ? 'Générer les reçus manquants'
-                  : manquants.length === 0
-                    ? 'Aucun reçu à générer'
-                    : `Générer ${manquants.length === 1 ? 'le reçu manquant' : `les ${manquants.length} reçus manquants`}`}
-              </Button>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                  )}
+                  {/* Sous `md`, libellé court : année, menu ⋯ et action principale tiennent sur une ligne. */}
+                  <span className="hidden md:inline">
+                    {lotEnCours
+                      ? 'Génération en cours…'
+                      : orgMissing.length > 0
+                      ? 'Générer les reçus manquants'
+                      : manquants.length === 0
+                        ? 'Aucun reçu à générer'
+                        : `Générer ${manquants.length === 1 ? 'le reçu manquant' : `les ${manquants.length} reçus manquants`}`}
+                  </span>
+                  <span className="md:hidden">
+                    {lotEnCours
+                      ? 'En cours…'
+                      : orgMissing.length > 0
+                        ? 'Générer'
+                        : manquants.length === 0
+                          ? 'Rien à générer'
+                          : `Générer ${manquants.length} reçu${manquants.length > 1 ? 's' : ''}`}
+                  </span>
+                </Button>
+              </ButtonHint>
             )}
           </>
         }
@@ -809,11 +1034,17 @@ export default function RecusFiscauxPage() {
 
       {/* Liste + panneau de détail */}
       <div className={cn('flex gap-6', selectedRow && 'items-start')}>
-      <div className="min-w-0 flex-1 rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
+      <ListeConteneur>
         {!loading && rows.length > 0 && (
           <ListToolbar
-            search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Rechercher par nom…', label: 'Rechercher un donateur' }}
+            search={{ value: search, onChange: (v) => { setSearch(v); setCurrentPage(1) }, placeholder: 'Nom, prénom…', label: 'Rechercher un donateur' }}
+            filterCount={nombreFiltres}
+            onOpenFilters={openFiltres}
+            mode={selecteur}
           />
+        )}
+        {!loading && rows.length > 0 && (
+          <FilterChips chips={chips} onClearAll={() => appliquerFiltres(RECUS_FILTRES_VIDES)} />
         )}
         {loading ? (
           <div className="flex items-center justify-center py-16 font-registre text-sm text-ink-faint">
@@ -829,65 +1060,22 @@ export default function RecusFiscauxPage() {
           </div>
         ) : filteredRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="font-registre text-sm font-medium text-ink-faint">Aucun résultat pour votre recherche</p>
+            <p className="font-registre text-sm font-medium text-ink-faint">
+              {nombreFiltres > 0 ? 'Aucun donateur ne correspond à la recherche et aux filtres' : 'Aucun résultat pour votre recherche'}
+            </p>
           </div>
         ) : (
-          <ScrollShadowX>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <SortableTableHead field="donateur" label="Donateur" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-                  <SortableTableHead field="total" label="Total dons" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} align="right" />
-                  <SortableTableHead field="numero" label="N° reçu" sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} className={secondaryCol} />
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="hidden md:table-cell" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedRows.map((row) => {
-                  const profilId = row.profil.id
-                  const resume = resumeValidationParticipant(row.validation)
-                  return (
-                    <TableRow
-                      key={profilId}
-                      onClick={() => setSelectedId(profilId === selectedId ? null : profilId)}
-                      className={cn(
-                        'cursor-pointer hover:bg-paper-border/20',
-                        profilId === selectedId && 'bg-stamp/[0.05] hover:bg-stamp/[0.05]'
-                      )}
-                    >
-                      <TableCell className="whitespace-nowrap">
-                        <span className="font-medium text-ink">{participantFullName(row.profil)}</span>
-                        {row.profil.personnes.email && <div className={cn('text-xs text-ink-faint', selectedRow && 'hidden 2xl:block')}>{row.profil.personnes.email}</div>}
-                        {row.profil.email_invalide_at && (
-                          <div className="mt-1"><EmailInvalideIndicateur invalideLe={row.profil.email_invalide_at} /></div>
-                        )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-right font-registre-mono font-medium text-ink">
-                        {formatMontant(row.total_dons)}
-                      </TableCell>
-                      <TableCell className={cn(secondaryCol, 'whitespace-nowrap font-registre-mono text-ink-muted')}>{row.recu?.numero_ordre ?? '—'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          {/* Un reçu bloqué n'est pas généré : la pastille d'avertissement suffit. */}
-                          {(row.recu || !resume) && (
-                            <Badge variant={row.recu ? 'success' : 'neutral'}>{row.recu ? 'Généré' : 'Non généré'}</Badge>
-                          )}
-                          {resume && <Badge variant="warning">{resume}</Badge>}
-                          {(genError[profilId] || dlError[profilId] || sendError[profilId]) && <Badge variant="stamp">Erreur</Badge>}
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden text-right text-ink-faint md:table-cell">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </ScrollShadowX>
+          <ListeDonnees
+            rows={paginatedRows}
+            rowKey={(row) => row.profil.id}
+            columns={colonnes}
+            mode={mode}
+            sort={{ field: sortField, direction: sortDirection, onSort: toggleSort }}
+            onRowClick={(row) => setSelectedId(row.profil.id === selectedId ? null : row.profil.id)}
+            activeKey={selectedId}
+            rowLabel={(row) => participantFullName(row.profil)}
+            chevronClassName={selectedRow ? 'hidden xl:table-cell' : 'hidden md:table-cell'}
+          />
         )}
 
         {/* Pagination */}
@@ -901,7 +1089,7 @@ export default function RecusFiscauxPage() {
             onPageSizeChange={setPageSize}
           />
         )}
-      </div>
+      </ListeConteneur>
 
       <SidePanel
         open={!!selectedRow}
@@ -914,14 +1102,19 @@ export default function RecusFiscauxPage() {
           if (!selectedRow.recu) {
             // Pendant un lot, un nouveau reçu généré à la main prendrait un numéro hors de l'ordre du lot.
             return (
-              <Button
-                className="w-full"
-                onClick={() => generateRecu(selectedRow)}
-                disabled={genLoading[id] || recusLot.actif || isBlocked}
-                title={recusLot.actif ? 'Une génération en lot est en cours : attendez sa fin pour générer ce reçu' : blockedTitle}
+              <ButtonHint
+                className="block w-full"
+                triggerClassName="block"
+                hint={recusLot.actif ? 'Une génération en lot est en cours : attendez sa fin pour générer ce reçu' : blockedTitle}
               >
-                {genLoading[id] ? 'Génération…' : 'Générer le reçu'}
-              </Button>
+                <Button
+                  className="w-full"
+                  onClick={() => generateRecu(selectedRow)}
+                  disabled={genLoading[id] || recusLot.actif || isBlocked}
+                >
+                  {genLoading[id] ? 'Génération…' : 'Générer le reçu'}
+                </Button>
+              </ButtonHint>
             )
           }
           return (
@@ -935,15 +1128,16 @@ export default function RecusFiscauxPage() {
                   {sendLoading[id] ? 'Envoi…' : 'Envoyer par email'}
                 </Button>
               )}
-              <Button
-                variant="secondary"
-                className="w-full"
-                onClick={() => handleGenerateClick(selectedRow)}
-                disabled={genLoading[id] || isBlocked}
-                title={blockedTitle}
-              >
-                {genLoading[id] ? 'Génération…' : 'Regénérer'}
-              </Button>
+              <ButtonHint className="block w-full" triggerClassName="block" hint={blockedTitle}>
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => handleGenerateClick(selectedRow)}
+                  disabled={genLoading[id] || isBlocked}
+                >
+                  {genLoading[id] ? 'Génération…' : 'Régénérer'}
+                </Button>
+              </ButtonHint>
             </>
           )
         })()}
@@ -974,7 +1168,11 @@ export default function RecusFiscauxPage() {
                   <p className="font-registre-mono text-xl font-bold">{formatMontant(selectedRow.total_dons)}</p>
                 </DetailField>
                 <DetailField label="Statut">
-                  <Badge variant={selectedRow.recu ? 'success' : 'neutral'}>{selectedRow.recu ? 'Généré' : 'Non généré'}</Badge>
+                  {/* Mêmes pastilles que la liste (génération, avertissement, erreur, envoi) ; colonne de droite : bulle alignée à droite. */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {statutRecu(selectedRow)}
+                    {pastilleEnvoi(selectedRow, false, true)}
+                  </div>
                 </DetailField>
               </div>
               {selectedRow.recu && (
@@ -987,7 +1185,11 @@ export default function RecusFiscauxPage() {
               )}
               {selectedRow.recu && (
                 <DetailField label="Envoi par email">
-                  {selectedRow.recu.email_envoye_at ? `Envoyé le ${formatDateHeure(selectedRow.recu.email_envoye_at)}` : 'Pas encore envoyé'}
+                  {envoiVersionActuelle(selectedRow.recu)
+                    ? `Envoyé le ${formatDateHeure(selectedRow.recu.email_envoye_at!)}`
+                    : selectedRow.recu.email_envoye_at
+                      ? `Version actuelle pas encore envoyée (version précédente envoyée le ${formatDateHeure(selectedRow.recu.email_envoye_at)})`
+                      : 'Pas encore envoyé'}
                 </DetailField>
               )}
               {selectedRow.recu && (
@@ -1054,6 +1256,29 @@ export default function RecusFiscauxPage() {
 
       <DeclarationCerfaCard rows={recapitulatif.rows} loading={recapitulatif.loading} />
 
+      <FilterSheet
+        open={filtresOpen}
+        onOpenChange={setFiltresOpen}
+        description={`Donateurs avec des dons en ${annee}.`}
+        onReset={() => setBrouillon(RECUS_FILTRES_VIDES)}
+        onApply={() => { appliquerFiltres(brouillon); setFiltresOpen(false) }}
+      >
+        <ChoixFiltre
+          legend="Reçu"
+          aide="À compléter : pas encore de reçu, fiche du donateur incomplète."
+          options={GENERATION_OPTIONS}
+          value={brouillon.generation}
+          onChange={(generation) => setBrouillon((b) => ({ ...b, generation }))}
+        />
+        <ChoixFiltre
+          legend="Envoi par email"
+          aide="Version actuelle des reçus générés : un reçu régénéré depuis son envoi redevient « Non envoyé ». Non envoyable : écarté de l'envoi en lot (pas d'adresse, adresse invalide ou rejetée, envoi précédent incertain) ; la raison s'affiche sur la pastille."
+          options={ENVOI_OPTIONS}
+          value={brouillon.envoi}
+          onChange={(envoi) => setBrouillon((b) => ({ ...b, envoi }))}
+        />
+      </FilterSheet>
+
       <RecusLotRecapitulatifDialog
         open={recapOpen}
         onClose={() => setRecapOpen(false)}
@@ -1086,7 +1311,7 @@ export default function RecusFiscauxPage() {
         <DialogContent className="max-w-sm" aria-describedby={undefined}>
           {regenerateConfirm && (
             <div className="p-6">
-              <h2 className="font-registre text-lg font-semibold text-ink">Regénérer le reçu</h2>
+              <h2 className="font-registre text-lg font-semibold text-ink">Régénérer le reçu</h2>
               <p className="mt-2 font-registre text-sm text-ink-muted">
                 Un reçu a déjà été généré pour{' '}
                 <span className="font-medium text-ink">« {participantFullName(regenerateConfirm.profil)} »</span> en {annee}
@@ -1106,7 +1331,7 @@ export default function RecusFiscauxPage() {
                     generateRecu(row)
                   }}
                 >
-                  Regénérer
+                  Régénérer
                 </Button>
               </div>
             </div>

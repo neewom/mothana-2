@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { buildSearchItems, SEARCH_MIN_LENGTH, type GlobalSearchResponse, type SearchItem } from '../lib/globalSearch'
+import { buildSearchItems, searchPages, SEARCH_MIN_LENGTH, type GlobalSearchResponse, type SearchItem, type SearchPage } from '../lib/globalSearch'
 import { supabase } from '../lib/supabaseClient'
 import { cn } from '../lib/utils'
 import { Sheet } from './ui/sheet'
@@ -15,19 +15,21 @@ function SearchIcon({ className }: { className?: string }) {
   )
 }
 
+const EMPTY_RESPONSE: GlobalSearchResponse = { personnes: [], portefeuilles: [], activites: [] }
+
 /**
- * Recherche globale de la barre du haut (RPC rechercher_global) : personnes, portefeuilles,
- * activités et raccourcis. Combobox ARIA : ↑ ↓ pour parcourir, Entrée pour ouvrir, Échap pour
+ * Recherche globale de la barre du haut : pages du menu (côté client, `pages` déjà filtrées comme
+ * le menu latéral), puis personnes, portefeuilles, activités et raccourcis (RPC rechercher_global). Combobox ARIA : ↑ ↓ pour parcourir, Entrée pour ouvrir, Échap pour
  * fermer ; Ctrl/Cmd + K pour y accéder. Champ sur desktop, icône + panneau sur mobile.
  */
-export default function GlobalSearch({ organisationId }: { organisationId: string }) {
+export default function GlobalSearch({ organisationId, pages }: { organisationId: string; pages: SearchPage[] }) {
   const navigate = useNavigate()
   const listboxId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const requestRef = useRef(0)
   const [terme, setTerme] = useState('')
-  const [results, setResults] = useState<SearchItem[] | null>(null)
+  const [response, setResponse] = useState<GlobalSearchResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const [open, setOpen] = useState(false)
@@ -39,7 +41,7 @@ export default function GlobalSearch({ organisationId }: { organisationId: strin
   useEffect(() => {
     const value = terme.trim()
     if (value.length < SEARCH_MIN_LENGTH || !organisationId) {
-      setResults(null)
+      setResponse(null)
       setLoading(false)
       setError(false)
       return
@@ -55,12 +57,13 @@ export default function GlobalSearch({ organisationId }: { organisationId: strin
       setLoading(false)
       if (rpcError || !data) {
         setError(true)
-        setResults([])
+        setResponse(null)
         return
       }
       setError(false)
-      setResults(buildSearchItems(data as GlobalSearchResponse))
-      setActive(0)
+      setResponse(data as GlobalSearchResponse)
+      // Pas de setActive(0) ici : les pages, en tête, sont déjà affichées et peuvent être en cours
+      // de parcours au clavier ; la frappe remet déjà la sélection à 0 (onChange).
     }, DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [terme, organisationId])
@@ -95,6 +98,14 @@ export default function GlobalSearch({ organisationId }: { organisationId: strin
     return () => document.removeEventListener('pointerdown', handlePointerDown)
   }, [open])
 
+  // Pages : immédiates, sans attendre la RPC ; null tant qu'il n'y a rien à montrer (« Recherche… »).
+  const pageItems = useMemo(() => searchPages(pages, terme), [pages, terme])
+  const results = useMemo<SearchItem[] | null>(() => {
+    if (terme.trim().length < SEARCH_MIN_LENGTH) return null
+    if (!response && !error && pageItems.length === 0) return null
+    return buildSearchItems(response ?? EMPTY_RESPONSE, pageItems)
+  }, [terme, response, error, pageItems])
+
   function close() {
     setOpen(false)
     setMobileOpen(false)
@@ -103,7 +114,7 @@ export default function GlobalSearch({ organisationId }: { organisationId: strin
   function go(item: SearchItem) {
     close()
     setTerme('')
-    setResults(null)
+    setResponse(null)
     inputRef.current?.blur()
     navigate(item.to)
   }
@@ -156,9 +167,9 @@ export default function GlobalSearch({ organisationId }: { organisationId: strin
         mobileOpen ? 'mt-2' : 'absolute left-0 right-0 top-full mt-1'
       )}
     >
-      {loading && !results && <p className="px-4 py-3 text-sm text-ink-faint">Recherche…</p>}
+      {loading && !results?.length && <p className="px-4 py-3 text-sm text-ink-faint">Recherche…</p>}
       {error && <p className="px-4 py-3 text-sm text-stamp">La recherche est indisponible pour le moment.</p>}
-      {!error && results && results.length === 0 && <p className="px-4 py-3 text-sm text-ink-faint">Aucun résultat pour « {terme.trim()} ».</p>}
+      {!error && !loading && results && results.length === 0 && <p className="px-4 py-3 text-sm text-ink-faint">Aucun résultat pour « {terme.trim()} ».</p>}
       {groups.map(({ group, items }) => (
         <div key={group} role="presentation">
           <p role="presentation" className="px-4 pb-1 pt-2 font-registre-mono text-[11px] uppercase tracking-wide text-ink-faint">{group}</p>
@@ -189,7 +200,7 @@ export default function GlobalSearch({ organisationId }: { organisationId: strin
         ref={inputRef}
         type="search"
         role="combobox"
-        aria-label="Rechercher une personne, un portefeuille, une activité"
+        aria-label="Rechercher une page, une personne, un portefeuille, une activité"
         aria-expanded={showPanel}
         aria-controls={listboxId}
         aria-autocomplete="list"
@@ -199,6 +210,7 @@ export default function GlobalSearch({ organisationId }: { organisationId: strin
         onChange={(event) => {
           setTerme(event.target.value)
           setOpen(true)
+          setActive(0)
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
