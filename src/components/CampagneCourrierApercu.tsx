@@ -57,12 +57,11 @@ export function CampagneCourrierApercuChamps({
   onNotesSaved: (id: string, notes: string | null) => void
 }) {
   const anterieure = estCampagneCourrierAnterieure(campagne)
+  // L'activité est le titre du panneau (CampagneCourrierApercuTitre) : pas de champ en double.
 
   return (
     <>
       <DetailField label="Générée par">{libelleAuteur(campagne.genere_par, auteurs)}</DetailField>
-
-      <DetailField label="Activité">{campagne.activites?.nom ?? '—'}</DetailField>
 
       <DetailField label="Sélection">
         <p className="break-words">{campagne.selection_label}</p>
@@ -74,7 +73,7 @@ export function CampagneCourrierApercuChamps({
       </DetailField>
 
       <div className="grid grid-cols-2 gap-4">
-        <DetailField label="Étiquettes"><span className="font-registre-mono">{campagne.nombre_destinataires}</span></DetailField>
+        <DetailField label="Destinataires"><span className="font-registre-mono">{campagne.nombre_destinataires}</span></DetailField>
         <DetailField label="Exclus"><span className="font-registre-mono">{campagne.nombre_exclus}</span></DetailField>
       </div>
 
