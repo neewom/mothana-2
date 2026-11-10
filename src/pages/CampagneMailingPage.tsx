@@ -28,6 +28,7 @@ import { ListeDonnees, type ColonneListe } from '../components/ui/liste-donnees'
 import { ListToolbar } from '../components/ui/list-toolbar'
 import { SidePanel } from '../components/ui/side-panel'
 import { useModeListe } from '../hooks/useModeListe'
+import { useNomsComptesOrganisation } from '../hooks/useNomsComptesOrganisation'
 import { cn } from '../lib/utils'
 import {
   CampagneMailingApercuChamps,
@@ -279,7 +280,8 @@ export default function CampagneMailingPage() {
   })
   const { mode: historiqueMode, selecteur: historiqueSelecteur } = useModeListe('campagnes-mailing')
   const [campagneOuverte, setCampagneOuverte] = useState<Campagne | null>(null)
-  const [auteurs, setAuteurs] = useState<Map<string, string>>(new Map())
+  // Noms affichés des comptes de l'organisation, pour « Envoyée par ».
+  const auteurs = useNomsComptesOrganisation(organisationId)
   const [reprendreEnAttente, setReprendreEnAttente] = useState<{ sujet: string; corpsHtml: string } | null>(null)
   const [reprendreErreur, setReprendreErreur] = useState<string | null>(null)
   const [reprenant, setReprenant] = useState(false)
@@ -381,19 +383,6 @@ export default function CampagneMailingPage() {
       .limit(20)
     setHistorique((data ?? []) as Campagne[])
     setHistoriqueLoading(false)
-  }, [organisationId])
-
-  // Noms affichés des comptes de l'organisation (RLS scopée), pour « Envoyée par » — sans lire auth.users.
-  useEffect(() => {
-    if (!organisationId) return
-    supabase
-      .from('profils_organisation')
-      .select('utilisateur_id, nom_affiche')
-      .eq('organisation_id', organisationId)
-      .then(({ data }) => {
-        const rows = (data ?? []) as { utilisateur_id: string; nom_affiche: string | null }[]
-        setAuteurs(new Map(rows.filter((r) => r.nom_affiche).map((r) => [r.utilisateur_id, r.nom_affiche as string])))
-      })
   }, [organisationId])
 
   function toggleCampagne(c: Campagne) {
