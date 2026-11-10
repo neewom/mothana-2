@@ -95,7 +95,7 @@ export function CampagneMailingApercuChamps({
         <DetailField label="Exclus"><span className="font-registre-mono">{campagne.nombre_exclus}</span></DetailField>
       </div>
 
-      <NotesCampagne key={campagne.id} campagne={campagne} onSaved={onNotesSaved} />
+      <NotesCampagne key={`notes-${campagne.id}`} campagne={campagne} onSaved={onNotesSaved} />
 
       <ApercuMessage campagneId={campagne.id} sujet={campagne.sujet} />
 
@@ -115,7 +115,7 @@ export function CampagneMailingApercuChamps({
         </DetailField>
       ) : (
         <DestinatairesCampagne
-          key={campagne.id}
+          key={`destinataires-${campagne.id}`}
           campagneId={campagne.id}
           attendus={campagne.nombre_destinataires + campagne.nombre_exclus}
         />
