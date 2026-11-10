@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils'
 export interface TabItem<T extends string> {
   value: T
   label: string
-  count?: number
+  /** Compteur affiché après le libellé (texte possible, ex. « — » si le comptage a échoué). */
+  count?: number | string
 }
 
 interface TabsProps<T extends string> {
