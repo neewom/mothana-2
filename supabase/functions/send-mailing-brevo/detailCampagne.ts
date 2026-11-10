@@ -87,5 +87,6 @@ export function enLots<T>(items: T[], taille: number): T[][] {
 
 /** Noms des pièces jointes envoyées, figés sans les fichiers : bornés en nombre et en longueur. */
 export function nomsPiecesJointes(pieces: { nom: string }[], max: number, longueurMax = 255): string[] {
-  return pieces.slice(0, max).map((p) => p.nom.slice(0, longueurMax))
+  // Coupe par caractère (Array.from) : un slice UTF-16 pourrait couper un emoji en deux (JSON refusé par Postgres).
+  return pieces.slice(0, max).map((p) => Array.from(p.nom).slice(0, longueurMax).join(''))
 }

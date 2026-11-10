@@ -51,4 +51,6 @@ Deno.test('nomsPiecesJointes : noms tels que reçus, 3 au plus, 255 caractères 
   assertEquals(nomsPiecesJointes([{ nom: 'convocation.pdf' }, { nom: 'plan.png' }], 3), ['convocation.pdf', 'plan.png'])
   assertEquals(nomsPiecesJointes([{ nom: 'a' }, { nom: 'b' }, { nom: 'c' }, { nom: 'd' }], 3), ['a', 'b', 'c'])
   assertEquals(nomsPiecesJointes([{ nom: 'x'.repeat(300) }], 3)[0].length, 255)
+  // Emoji à la 255e position : jamais coupé en deux.
+  assertEquals(nomsPiecesJointes([{ nom: 'x'.repeat(254) + '📎' + 'y'.repeat(10) }], 3)[0], 'x'.repeat(254) + '📎')
 })
