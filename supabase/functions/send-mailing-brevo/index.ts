@@ -10,7 +10,7 @@ import {
   origineSite,
   utiliseLienRenouvellement,
 } from './lienRenouvellement.ts'
-import { enLots, libelleExclusion, libelleSelection, lignesDestinataires, raisonExclusion } from './detailCampagne.ts'
+import { enLots, libelleExclusion, nomsPiecesJointes, libelleSelection, lignesDestinataires, raisonExclusion } from './detailCampagne.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -325,6 +325,7 @@ Deno.serve(async (req) => {
         selection_label: libelleSelection(filtre_statut, tag_envoi || null, nomListe(tag_envoi)),
         exclusion_label: libelleExclusion(exclude_tag || null, nomListe(exclude_tag)),
         nombre_pieces_jointes: attachments.length,
+        pieces_jointes_noms: nomsPiecesJointes(attachments, MAX_ATTACHMENTS),
       })
       .select('id')
       .single()

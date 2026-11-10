@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert@1'
-import { enLots, libelleExclusion, libelleSelection, lignesDestinataires, raisonExclusion } from './detailCampagne.ts'
+import { enLots, nomsPiecesJointes, libelleExclusion, libelleSelection, lignesDestinataires, raisonExclusion } from './detailCampagne.ts'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -44,4 +44,11 @@ Deno.test('lignesDestinataires : nom et email figés, statut et raison', () => {
 Deno.test('enLots', () => {
   assertEquals(enLots([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]])
   assertEquals(enLots([], 2), [])
+})
+
+Deno.test('nomsPiecesJointes : noms tels que reçus, 3 au plus, 255 caractères chacun, vide si aucune', () => {
+  assertEquals(nomsPiecesJointes([], 3), [])
+  assertEquals(nomsPiecesJointes([{ nom: 'convocation.pdf' }, { nom: 'plan.png' }], 3), ['convocation.pdf', 'plan.png'])
+  assertEquals(nomsPiecesJointes([{ nom: 'a' }, { nom: 'b' }, { nom: 'c' }, { nom: 'd' }], 3), ['a', 'b', 'c'])
+  assertEquals(nomsPiecesJointes([{ nom: 'x'.repeat(300) }], 3)[0].length, 255)
 })

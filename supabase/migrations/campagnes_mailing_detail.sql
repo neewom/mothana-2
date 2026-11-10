@@ -21,11 +21,13 @@ alter table public.campagnes_mailing
   add column if not exists selection_label text,
   add column if not exists exclusion_label text,
   add column if not exists nombre_pieces_jointes int,
-  add column if not exists notes text;
+  add column if not exists notes text,
+  add column if not exists pieces_jointes_noms text[];
 
 comment on column public.campagnes_mailing.selection_label is 'Libellé figé de la sélection « Envoyer à » (ex. « Tous sauf archivés », « Liste : X ») — null pour une campagne antérieure à la carte détail';
 comment on column public.campagnes_mailing.exclusion_label is 'Libellé figé de la liste exclue (« Sauf liste : X »), null si aucune exclusion ou campagne antérieure';
 comment on column public.campagnes_mailing.nombre_pieces_jointes is 'Nombre de pièces jointes envoyées — null pour une campagne antérieure';
+comment on column public.campagnes_mailing.pieces_jointes_noms is 'Noms des pièces jointes envoyées (3 au plus, 255 caractères chacun), sans les fichiers — tableau vide si aucune, null pour une campagne antérieure';
 comment on column public.campagnes_mailing.notes is 'Notes libres de l''organisation sur la campagne — modifiées par la RPC modifier_note_campagne_mailing';
 comment on column public.campagnes_mailing.nombre_exclus is 'Nombre d''adhérents exclus de l''envoi (email manquant, format invalide ou adresse rejetée)';
 

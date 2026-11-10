@@ -107,7 +107,7 @@ const APERCU_COPY: Record<ApercuCategory, { title: string; description: string }
   },
 }
 
-const HISTORIQUE_COLUMNS = 'id, sujet, nombre_destinataires, nombre_exclus, created_at, envoye_par, selection_label, exclusion_label, nombre_pieces_jointes, notes'
+const HISTORIQUE_COLUMNS = 'id, sujet, nombre_destinataires, nombre_exclus, created_at, envoye_par, selection_label, exclusion_label, nombre_pieces_jointes, pieces_jointes_noms, notes'
 
 function pluriel(n: number, mot: string): string {
   return `${n} ${mot}${n > 1 ? 's' : ''}`

@@ -84,3 +84,8 @@ export function enLots<T>(items: T[], taille: number): T[][] {
   for (let i = 0; i < items.length; i += taille) lots.push(items.slice(i, i + taille))
   return lots
 }
+
+/** Noms des pièces jointes envoyées, figés sans les fichiers : bornés en nombre et en longueur. */
+export function nomsPiecesJointes(pieces: { nom: string }[], max: number, longueurMax = 255): string[] {
+  return pieces.slice(0, max).map((p) => p.nom.slice(0, longueurMax))
+}

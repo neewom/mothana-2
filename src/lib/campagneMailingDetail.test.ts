@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { documentApercuMessage, estCampagneAnterieure, libelleAuteur } from './campagneMailingDetail'
+import { affichagePiecesJointes, documentApercuMessage, estCampagneAnterieure, libelleAuteur } from './campagneMailingDetail'
 
 describe('libelleAuteur', () => {
   const auteurs = new Map([['u1', 'Claire Martin'], ['u2', '  ']])
@@ -24,5 +24,21 @@ describe('documentApercuMessage', () => {
     expect(doc).toContain('<body><p>Bonjour</p></body>')
     expect(doc).not.toContain('<script')
     expect(doc).toContain('<base target="_blank">')
+  })
+})
+
+describe('affichagePiecesJointes', () => {
+  it('noms enregistrés, un par pièce jointe', () => {
+    expect(affichagePiecesJointes(['convocation.pdf', 'plan.png'], 2)).toEqual({ kind: 'noms', noms: ['convocation.pdf', 'plan.png'] })
+  })
+  it('tableau vide : aucune', () => {
+    expect(affichagePiecesJointes([], 0)).toEqual({ kind: 'aucune' })
+  })
+  it('noms absents mais nombre enregistré (campagne entre les deux versions)', () => {
+    expect(affichagePiecesJointes(null, 2)).toEqual({ kind: 'nombre', nombre: 2 })
+    expect(affichagePiecesJointes(null, 0)).toEqual({ kind: 'aucune' })
+  })
+  it('rien d’enregistré : campagne antérieure', () => {
+    expect(affichagePiecesJointes(null, null)).toEqual({ kind: 'non_enregistre' })
   })
 })

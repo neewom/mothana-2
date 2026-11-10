@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import {
   NON_ENREGISTRE,
+  affichagePiecesJointes,
   RAISON_EXCLUSION_LABELS,
   documentApercuMessage,
   estCampagneAnterieure,
@@ -29,6 +30,7 @@ export interface CampagneHistorique {
   selection_label: string | null
   exclusion_label: string | null
   nombre_pieces_jointes: number | null
+  pieces_jointes_noms: string[] | null
   notes: string | null
 }
 
@@ -99,15 +101,7 @@ export function CampagneMailingApercuChamps({
 
       <ApercuMessage campagneId={campagne.id} sujet={campagne.sujet} />
 
-      <DetailField label="Pièces jointes">
-        {campagne.nombre_pieces_jointes === null ? (
-          <span className="text-ink-faint">{NON_ENREGISTRE}</span>
-        ) : campagne.nombre_pieces_jointes === 0 ? (
-          'Aucune'
-        ) : (
-          pluriel(campagne.nombre_pieces_jointes, 'fichier')
-        )}
-      </DetailField>
+      <PiecesJointes campagne={campagne} />
 
       {anterieure ? (
         <DetailField label="Destinataires">
@@ -121,6 +115,28 @@ export function CampagneMailingApercuChamps({
         />
       )}
     </>
+  )
+}
+
+/** Noms seuls, en texte simple : les fichiers ne sont pas conservés. */
+function PiecesJointes({ campagne }: { campagne: CampagneHistorique }) {
+  const affichage = affichagePiecesJointes(campagne.pieces_jointes_noms, campagne.nombre_pieces_jointes)
+  return (
+    <DetailField label="Pièces jointes">
+      {affichage.kind === 'non_enregistre' ? (
+        <span className="text-ink-faint">{NON_ENREGISTRE}</span>
+      ) : affichage.kind === 'aucune' ? (
+        'Aucune'
+      ) : affichage.kind === 'nombre' ? (
+        pluriel(affichage.nombre, 'fichier')
+      ) : (
+        <ul className="space-y-0.5">
+          {affichage.noms.map((nom, i) => (
+            <li key={`${i}-${nom}`} className="break-all">{nom}</li>
+          ))}
+        </ul>
+      )}
+    </DetailField>
   )
 }
 

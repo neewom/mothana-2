@@ -36,3 +36,19 @@ body{margin:12px;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-
 img{max-width:100%;height:auto}p{margin:0 0 .75em}
 </style></head><body>${corpsHtml}</body></html>`
 }
+
+export type AffichagePiecesJointes =
+  | { kind: 'noms'; noms: string[] }
+  | { kind: 'aucune' }
+  | { kind: 'nombre'; nombre: number }
+  | { kind: 'non_enregistre' }
+
+/**
+ * Pièces jointes d'une campagne : noms (fichiers non conservés), « Aucune », nombre seul pour une
+ * campagne envoyée avant l'enregistrement des noms, ou non enregistré (campagne antérieure).
+ */
+export function affichagePiecesJointes(noms: string[] | null, nombre: number | null): AffichagePiecesJointes {
+  if (noms !== null) return noms.length === 0 ? { kind: 'aucune' } : { kind: 'noms', noms }
+  if (nombre === null) return { kind: 'non_enregistre' }
+  return nombre === 0 ? { kind: 'aucune' } : { kind: 'nombre', nombre }
+}
