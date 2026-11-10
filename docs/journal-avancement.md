@@ -686,3 +686,17 @@ Go donné pour tout le batch en une fois (liste Trello "Batch — Campagnes mail
   - **Staging** : migration appliquée, `generate-campagne-courrier` et `send-mailing-brevo` redéployées depuis `dev` ; une génération Gotenberg de test (adhérents « ZZTEST Détail », adresses fictives marquées TEST).
   - **À la promotion** (avec #394) : migrations `campagnes_mailing_detail.sql` puis `campagnes_courrier_detail.sql` ; déployer `send-mailing-brevo` et `generate-campagne-courrier` ; TNR (historiques Emailing et Courrier sur l'asso de test).
   - **Proposé, non fait** : masquer la colonne Sélection quand le panneau est ouvert (Emailing et Courrier), elle passe sous le défilement horizontal.
+
+- **Promotion `dev` → `main` (prod)** (2026-11-10, PR #398, merge `fe99621`, `dev` préservée) : détail figé et notes des campagnes Emailing (#394) et Courrier (#396), plus docs (#393, #395, #397). Depuis le checkout principal, `psql` / `pg_dump` 18 locaux via le pooler de session eu-west-1 :
+  1. `pg_dump` du schéma `public` prod (5,4 Mo, scratchpad de session `prod_public_2026-11-10_avant_detail_campagnes.sql`) ;
+  2. vérifications : nouvelles tables absentes, `unaccent` présent dans `extensions` ; 7 campagnes mailing et 2 courrier existantes, qui restent en « Non enregistré (campagne antérieure) » ;
+  3. migrations `campagnes_mailing_detail.sql` puis `campagnes_courrier_detail.sql` (`-1`, `ON_ERROR_STOP`), sans erreur. Vérifié : 2 tables sous RLS sans aucun droit `anon` ; 4 RPC non exécutables par `anon`, `search_path` fixé (`definer` pour les notes, `invoker` pour la recherche) ; 9 colonnes présentes ;
+  4. Edge Functions `send-mailing-brevo` (v16) et `generate-campagne-courrier` (v11), JWT vérifié ;
+  5. merge, Vercel `main` en succès.
+  - **TNR prod** :
+    - **Pages** : 47 vues sur 47 sans erreur console, réponse en erreur, alerte ni débordement. Sans connexion, à 375 et 1280 px, 9 pages dont Emailing et Courrier, redirigées vers la connexion. Connecté sur l'asso de test « ZZ Test TNR » (écritures bloquées par un intercepteur, aucune tentée), 13 pages admin à 1280 et 375 px, avec la section Historique d'Emailing et de Courrier affichée.
+    - **Bénévole** : connexion par PIN, puis `/benevole`.
+    - **Accès `anon`** : les 4 nouvelles RPC appelées avec de vrais paramètres renvoient `42501` / 401 ; les 2 nouvelles tables aussi en lecture.
+    - **Edge Functions** : 401 sans session, préflight CORS 200.
+    - **Cron** : `traiter-lots-recus` en succès.
+    - **Non couvert** : panneau de détail et notes avec des données (l'asso de test n'a ni campagne mailing ni campagne courrier), envoi réel Brevo et génération Gotenberg (payante).
