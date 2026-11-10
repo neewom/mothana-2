@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Sheet } from './sheet'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 // Panneau de détail d'une page de liste (gabarit, DESIGN.md › Page de liste) : colonne à droite
 // du tableau en desktop (lg), panneau glissant plein écran par-dessus en mobile — même
@@ -37,17 +38,20 @@ function PanelContent({ title, onClose, footer, children }: Omit<SidePanelProps,
 }
 
 export function SidePanel({ open, onClose, title, footer, children }: SidePanelProps) {
+  // Une seule instance du contenu selon le palier (lg) : sinon colonne et tiroir montent chacun
+  // le contenu (requêtes en double, états de formulaire indépendants).
+  const desktop = useMediaQuery('(min-width: 1024px)')
   const content = open ? <PanelContent title={title} onClose={onClose} footer={footer}>{children}</PanelContent> : null
 
   return (
     <>
-      {open && (
+      {open && desktop && (
         <aside className="hidden min-h-[400px] w-80 flex-shrink-0 rounded-sm border border-paper-border bg-white lg:flex lg:flex-col">
           {content}
         </aside>
       )}
-      <SidePanelMobile open={open} onClose={onClose}>
-        {content}
+      <SidePanelMobile open={open && !desktop} onClose={onClose}>
+        {desktop ? null : content}
       </SidePanelMobile>
     </>
   )

@@ -109,3 +109,49 @@ $$;
 
 revoke execute on function public.modifier_note_campagne_mailing(uuid, text) from public, anon;
 grant execute on function public.modifier_note_campagne_mailing(uuid, text) to authenticated, service_role;
+
+-- Recherche paginée des destinataires d'une campagne (panneau de l'historique) : gabarit de
+-- liste (DESIGN.md), recherche serveur sans accents ni casse, chaque mot doit figurer dans le
+-- nom ou l'email, ignorée sous 2 caractères. SECURITY INVOKER : la RLS de la table
+-- (organisation + bypass super-admin, bénévole exclu) reste la garde.
+create or replace function public.rechercher_destinataires_campagne(
+  p_campagne_id uuid,
+  p_statut text,
+  p_recherche text default null,
+  p_limit int default 50,
+  p_offset int default 0
+)
+returns table (
+  id uuid,
+  nom text,
+  courriel text,
+  raison_exclusion text,
+  total_count bigint
+)
+language sql
+stable
+security invoker
+set search_path = public, extensions
+as $$
+  select d.id, d.nom, d.courriel, d.raison_exclusion, count(*) over () as total_count
+  from public.campagnes_mailing_destinataires d
+  where d.campagne_id = p_campagne_id
+    and d.statut = p_statut
+    and (
+      p_recherche is null
+      or length(trim(p_recherche)) < 2
+      or not exists (
+        select 1
+        from unnest(string_to_array(unaccent(lower(trim(p_recherche))), ' ')) as tok
+        where tok <> ''
+          and unaccent(lower(concat_ws(' ', d.nom, d.courriel)))
+              not like '%' || replace(replace(replace(tok, '\', '\\'), '%', '\%'), '_', '\_') || '%'
+      )
+    )
+  order by d.nom, d.id
+  limit least(greatest(coalesce(p_limit, 50), 1), 200)
+  offset greatest(coalesce(p_offset, 0), 0);
+$$;
+
+revoke execute on function public.rechercher_destinataires_campagne(uuid, text, text, int, int) from public, anon;
+grant execute on function public.rechercher_destinataires_campagne(uuid, text, text, int, int) to authenticated, service_role;

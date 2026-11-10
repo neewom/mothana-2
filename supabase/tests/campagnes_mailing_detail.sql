@@ -36,6 +36,7 @@ begin
   -- 1. anon : ni exécution de la RPC ni lecture de la table
   r := r || ' | 1.anon_execute=' || has_function_privilege('anon', 'public.modifier_note_campagne_mailing(uuid, text)', 'execute')
          || ' anon_select=' || has_table_privilege('anon', 'public.campagnes_mailing_destinataires', 'select')
+         || ' anon_recherche=' || has_function_privilege('anon', 'public.rechercher_destinataires_campagne(uuid, text, text, int, int)', 'execute')
          || ' auth_insert=' || has_table_privilege('authenticated', 'public.campagnes_mailing_destinataires', 'insert');
 
   -- 2. Session bénévole (aucun profil d'organisation) : RPC refusée, table invisible
@@ -49,6 +50,8 @@ begin
   end;
   select count(*) into v_n from public.campagnes_mailing_destinataires where campagne_id = v_campagne;
   r := r || ' benevole_lignes_visibles=' || v_n;
+  select count(*) into v_n from public.rechercher_destinataires_campagne(v_campagne, 'envoye');
+  r := r || ' benevole_recherche=' || v_n;
 
   -- 3. Session vendeur (compte technique, sans profil) : refusée
   perform set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'role', 'authenticated',
@@ -68,6 +71,8 @@ begin
   end;
   select count(*) into v_n from public.campagnes_mailing_destinataires where campagne_id = v_campagne;
   r := r || ' autre_org_lignes_visibles=' || v_n;
+  select count(*) into v_n from public.rechercher_destinataires_campagne(v_campagne, 'envoye', 'detail');
+  r := r || ' autre_org_recherche=' || v_n;
 
   -- 5. Admin de l'organisation : note enregistrée (espaces retirés), lignes visibles
   perform set_config('request.jwt.claims', json_build_object('sub', v_admin, 'role', 'authenticated', 'app_metadata', json_build_object())::text, true);
@@ -75,6 +80,13 @@ begin
   select notes into v_notes from public.campagnes_mailing where id = v_campagne;
   select count(*) into v_n from public.campagnes_mailing_destinataires where campagne_id = v_campagne;
   r := r || ' | 5.admin_note=' || coalesce(v_notes, 'NULL') || ' admin_lignes_visibles=' || v_n;
+  -- Recherche sans accents ni casse, chaque mot doit figurer, ignorée sous 2 caractères
+  r := r || ' recherche_detail_zz=' || (select count(*) from public.rechercher_destinataires_campagne(v_campagne, 'envoye', 'detail ZZ'))
+         || ' recherche_absent=' || (select count(*) from public.rechercher_destinataires_campagne(v_campagne, 'envoye', 'detail absent'))
+         || ' recherche_1car=' || (select count(*) from public.rechercher_destinataires_campagne(v_campagne, 'envoye', 'q'))
+         || ' recherche_joker=' || (select count(*) from public.rechercher_destinataires_campagne(v_campagne, 'envoye', '%_'))
+         || ' total=' || (select max(total_count) from public.rechercher_destinataires_campagne(v_campagne, 'envoye'))
+         || ' onglet_exclu=' || (select count(*) from public.rechercher_destinataires_campagne(v_campagne, 'exclu'));
   begin
     update public.campagnes_mailing set notes = 'direct' where id = v_campagne;
     get diagnostics v_n = row_count;

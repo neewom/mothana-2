@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import {
@@ -6,7 +6,6 @@ import {
   RAISON_EXCLUSION_LABELS,
   documentApercuMessage,
   estCampagneAnterieure,
-  filtreRechercheDestinataires,
   libelleAuteur,
   type RaisonExclusionCampagne,
 } from '../lib/campagneMailingDetail'
@@ -157,10 +156,11 @@ function ApercuMessage({ campagneId, sujet }: { campagneId: string; sujet: strin
         <>
           <iframe
             title={`Aperçu du message « ${sujet} »`}
-            sandbox=""
+            sandbox="allow-popups allow-popups-to-escape-sandbox"
             srcDoc={doc}
             className="h-48 w-full rounded-sm border border-paper-border bg-white"
           />
+          <p className="mt-1 text-xs text-ink-faint">Les images externes peuvent ne pas s'afficher dans cet aperçu.</p>
           <button
             type="button"
             onClick={() => setAgrandi(true)}
@@ -174,7 +174,7 @@ function ApercuMessage({ campagneId, sujet }: { campagneId: string; sujet: strin
                 <DialogTitle className="break-words pr-8">{sujet}</DialogTitle>
                 <iframe
                   title={`Message « ${sujet} »`}
-                  sandbox=""
+                  sandbox="allow-popups allow-popups-to-escape-sandbox"
                   srcDoc={doc}
                   className="mt-4 h-[65vh] w-full rounded-sm border border-paper-border bg-white"
                 />
@@ -243,13 +243,16 @@ function NotesCampagne({ campagne, onSaved }: { campagne: CampagneHistorique; on
 function DestinatairesCampagne({ campagneId, attendus }: { campagneId: string; attendus: number }) {
   const idPrefix = useId()
   const [onglet, setOnglet] = useState<Onglet>('envoye')
-  const [compteurs, setCompteurs] = useState<Record<Onglet, number> | null>(null)
+  // null : en cours ; 'erreur' : comptage impossible (affiché « — », jamais 0).
+  const [compteurs, setCompteurs] = useState<Record<Onglet, number> | 'erreur' | null>(null)
   const [recherche, setRecherche] = useState('')
   const rechercheDiffere = useDebouncedValue(recherche, 300)
   const [lignes, setLignes] = useState<Destinataire[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [erreur, setErreur] = useState(false)
+  // Seule la dernière requête lancée s'applique (onglet ou recherche changés pendant un chargement).
+  const requeteRef = useRef(0)
 
   // Compteurs par onglet (lignes encore présentes : un adhérent supprimé emporte la sienne).
   useEffect(() => {
@@ -258,40 +261,63 @@ function DestinatairesCampagne({ campagneId, attendus }: { campagneId: string; a
       supabase.from('campagnes_mailing_destinataires').select('id', { count: 'exact', head: true }).eq('campagne_id', campagneId).eq('statut', statut)
     Promise.all([compter('envoye'), compter('exclu')]).then(([envoye, exclu]) => {
       if (annule) return
-      setCompteurs({ envoye: envoye.count ?? 0, exclu: exclu.count ?? 0 })
+      if (envoye.error || exclu.error || envoye.count === null || exclu.count === null) {
+        setCompteurs('erreur')
+        return
+      }
+      setCompteurs({ envoye: envoye.count, exclu: exclu.count })
     })
     return () => { annule = true }
   }, [campagneId])
 
-  const filtre = filtreRechercheDestinataires(rechercheDiffere)
+  // Recherche serveur (RPC, sans accents ni casse), ignorée sous 2 caractères.
+  const termeRecherche = rechercheDiffere.trim().length >= 2 ? rechercheDiffere.trim() : null
 
   const charger = useCallback(async (depuis: number) => {
+    const requete = ++requeteRef.current
     setLoading(true)
     setErreur(false)
-    let query = supabase
-      .from('campagnes_mailing_destinataires')
-      .select('id, nom, courriel, raison_exclusion', { count: 'exact' })
-      .eq('campagne_id', campagneId)
-      .eq('statut', onglet)
-    if (filtre) query = query.or(filtre)
-    const { data, error, count } = await query.order('nom').order('id').range(depuis, depuis + PAGE_DESTINATAIRES - 1)
+    const { data, error } = await supabase.rpc('rechercher_destinataires_campagne', {
+      p_campagne_id: campagneId,
+      p_statut: onglet,
+      p_recherche: termeRecherche,
+      p_limit: PAGE_DESTINATAIRES,
+      p_offset: depuis,
+    })
+    if (requete !== requeteRef.current) return
     setLoading(false)
     if (error) {
       setErreur(true)
       return
     }
-    const page = (data ?? []) as Destinataire[]
+    const page = (data ?? []) as (Destinataire & { total_count: number })[]
     setLignes((prev) => (depuis === 0 ? page : [...prev, ...page]))
-    setTotal(count ?? 0)
-  }, [campagneId, onglet, filtre])
+    if (page.length > 0) setTotal(Number(page[0].total_count))
+    else if (depuis === 0) setTotal(0)
+  }, [campagneId, onglet, termeRecherche])
 
   useEffect(() => {
-    // Nouvelle recherche ou nouvel onglet : on repart de la première page.
+    // Nouvel onglet ou nouvelle recherche : on vide la liste et on repart de la première page.
+    setLignes([])
+    setTotal(0)
     void charger(0)
   }, [charger])
 
-  const totalOnglet = compteurs?.[onglet] ?? 0
+  const compteursOk = compteurs !== null && compteurs !== 'erreur' ? compteurs : null
+  const totalOnglet = compteursOk?.[onglet] ?? 0
   const restants = total - lignes.length
+  const compteAffiche = (statut: Onglet) => (compteurs === 'erreur' ? '—' : compteursOk?.[statut])
+
+  // Campagne enregistrée sans aucune ligne : adhérents tous supprimés, ou détail non écrit à l'envoi.
+  if (compteursOk && compteursOk.envoye + compteursOk.exclu === 0) {
+    return (
+      <DetailField label="Destinataires">
+        <span className="text-ink-faint">
+          Aucun destinataire à afficher : adhérents supprimés depuis l'envoi, ou détail non enregistré lors de l'envoi.
+        </span>
+      </DetailField>
+    )
+  }
 
   return (
     <div>
@@ -303,12 +329,15 @@ function DestinatairesCampagne({ campagneId, attendus }: { campagneId: string; a
         value={onglet}
         onChange={(v) => setOnglet(v)}
         items={[
-          { value: 'envoye', label: 'Envoyés', count: compteurs?.envoye },
-          { value: 'exclu', label: 'Exclus', count: compteurs?.exclu },
+          { value: 'envoye', label: 'Envoyés', count: compteAffiche('envoye') },
+          { value: 'exclu', label: 'Exclus', count: compteAffiche('exclu') },
         ]}
       />
       <div role="tabpanel" id={`${idPrefix}-panel-${onglet}`} aria-labelledby={`${idPrefix}-tab-${onglet}`} className="pt-3">
-        {totalOnglet > 10 && (
+        {compteurs === 'erreur' && (
+          <p role="alert" className="mb-2 text-xs text-stamp">Impossible de compter les destinataires.</p>
+        )}
+        {(totalOnglet > 10 || compteurs === 'erreur' || recherche !== '') && (
           <Input
             type="search"
             value={recherche}
@@ -322,7 +351,7 @@ function DestinatairesCampagne({ campagneId, attendus }: { campagneId: string; a
           <p role="alert" className="text-sm text-stamp">Impossible de charger les destinataires.</p>
         ) : !loading && lignes.length === 0 ? (
           <p className="text-sm text-ink-faint">
-            {filtre ? 'Aucun résultat.' : onglet === 'envoye' ? 'Aucun destinataire à afficher.' : 'Aucun exclu.'}
+            {termeRecherche ? 'Aucun résultat.' : onglet === 'envoye' ? 'Aucun destinataire à afficher.' : 'Aucun exclu.'}
           </p>
         ) : (
           <ul className="divide-y divide-paper-border-muted">
@@ -341,7 +370,7 @@ function DestinatairesCampagne({ campagneId, attendus }: { campagneId: string; a
             Afficher plus ({pluriel(restants, 'restant')})
           </Button>
         )}
-        {compteurs && compteurs.envoye + compteurs.exclu < attendus && (
+        {compteursOk && compteursOk.envoye + compteursOk.exclu < attendus && (
           <p className="mt-2 text-xs text-ink-faint">
             Les adhérents supprimés depuis l'envoi n'apparaissent plus ; les compteurs restent ceux de l'envoi.
           </p>

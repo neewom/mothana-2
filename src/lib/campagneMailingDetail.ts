@@ -27,20 +27,11 @@ export function libelleAuteur(envoyePar: string | null, auteurs: ReadonlyMap<str
 }
 
 /**
- * Filtre PostgREST `or` (nom ou email contient la recherche), ou null sous 2 caractères.
- * Valeur entre guillemets (virgules et parenthèses sans effet), sans les caractères
- * qui casseraient le filtre (`"`, `\`) ni les jokers (`*`, `%`, `_`).
+ * Document de l'aperçu du message (iframe `sandbox` sans scripts ni même origine) : styles
+ * minimaux, images contenues, liens ouverts dans un nouvel onglet (`allow-popups`).
  */
-export function filtreRechercheDestinataires(recherche: string): string | null {
-  const terme = recherche.replace(/["\\*%_]/g, ' ').trim().replace(/\s+/g, ' ')
-  if (terme.length < 2) return null
-  const motif = `"*${terme.replace(/ /g, '*')}*"`
-  return `nom.ilike.${motif},courriel.ilike.${motif}`
-}
-
-/** Document de l'aperçu du message (iframe `sandbox` sans scripts) : styles minimaux, images contenues. */
 export function documentApercuMessage(corpsHtml: string): string {
-  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><base target="_blank"><style>
 body{margin:12px;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
 img{max-width:100%;height:auto}p{margin:0 0 .75em}
 </style></head><body>${corpsHtml}</body></html>`
