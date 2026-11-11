@@ -79,7 +79,7 @@ export default function ResetPasswordPage() {
             Ce lien est invalide ou a expiré. Demandez un nouveau lien ou contactez votre administrateur.
           </div>
           <Link
-            to="/"
+            to="/login"
             className="mt-4 inline-block text-sm font-medium text-stamp hover:underline"
           >
             Retour à la connexion

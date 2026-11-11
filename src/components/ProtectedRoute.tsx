@@ -17,11 +17,11 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   }
 
   if (auth.type === 'unauthenticated') {
-    return <Navigate to="/" replace />
+    return <Navigate to="/login" replace />
   }
 
   if (!allowedRoles.includes(auth.type as 'super_admin' | 'admin' | 'benevole' | 'vendeur')) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/login" replace />
   }
 
   return <Outlet />
