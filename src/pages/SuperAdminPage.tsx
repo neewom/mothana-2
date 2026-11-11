@@ -4,8 +4,6 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../hooks/useAuth'
 import type { FonctionnalitesActivees } from '../hooks/useFonctionnalitesActivees'
 import { fetchAllRows } from '../lib/fetchAllRows'
-import { DEFAULT_CERFA_TEMPLATES } from '../lib/defaultCerfaTemplates'
-import { CARTE_ADHERENT_HTML, CARTE_ADHERENT_CSS, DEFAULT_CARTE_ADHERENT_NOM } from '../lib/defaultCarteAdherentTemplate'
 import { slugifyUrl } from '../lib/organisationAssets'
 import { isRecette, isStagingSupabaseProject } from '../lib/environment'
 import { seedDemoOrganisationData } from '../lib/demoOrgSeed'
@@ -148,42 +146,32 @@ function OrgModal({ open, onClose, onSaved, onArchiveRequest, onAdminAdded, onCo
         .eq('id', org.id)
       if (err) { setError(err.message); setSaving(false); return }
     } else {
-      const slug = slugifyUrl(nom)
-      if (!slug) { setError('Nom invalide pour générer un identifiant'); setSaving(false); return }
-
-      const { data: newOrg, error: err } = await supabase
-        .from('organisations')
-        .insert({ nom, slug })
-        .select('id')
-        .single()
-      if (err) {
-        setError(err.code === '23505' ? 'Une organisation avec un nom équivalent existe déjà' : err.message)
+      // Création côté serveur, en une opération atomique (organisation + modèles par défaut) :
+      // Edge Function creer-organisation, réservée au super-admin.
+      const { data: sessionData } = await supabase.auth.getSession()
+      let res: Response
+      try {
+        res = await fetch(`${SUPABASE_URL}/functions/v1/creer-organisation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${sessionData.session?.access_token ?? ''}`,
+            apikey: SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ nom }),
+        })
+      } catch {
+        setError('Serveur injoignable, réessayez dans un instant')
         setSaving(false)
         return
       }
-
-      const { error: templatesErr } = await supabase
-        .from('templates_recu')
-        .insert(
-          DEFAULT_CERFA_TEMPLATES.map((t) => ({
-            organisation_id: newOrg.id,
-            nom: t.nom,
-            type_cerfa: t.type_cerfa,
-            html_template: t.html_template,
-            css: t.css,
-            is_active: true,
-          }))
-        )
-      if (templatesErr) { setError(templatesErr.message); setSaving(false); return }
-
-      const { error: carteErr } = await supabase.from('templates_carte_adherent').insert({
-        organisation_id: newOrg.id,
-        nom: DEFAULT_CARTE_ADHERENT_NOM,
-        html_template: CARTE_ADHERENT_HTML,
-        css: CARTE_ADHERENT_CSS,
-        is_active: true,
-      })
-      if (carteErr) { setError(carteErr.message); setSaving(false); return }
+      const json = (await res.json().catch(() => ({}))) as { organisation_id?: string; error?: string }
+      if (!res.ok || !json.organisation_id) {
+        setError(json.error ?? `Erreur lors de la création (${res.status})`)
+        setSaving(false)
+        return
+      }
+      const newOrg = { id: json.organisation_id }
 
       if (isRecette() && isStagingSupabaseProject()) {
         try {
