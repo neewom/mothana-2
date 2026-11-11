@@ -29,7 +29,7 @@ function ShieldIcon() {
   )
 }
 
-export default function HomePage() {
+export default function LoginPage() {
   const { auth, loginAdmin } = useAuth()
   const navigate = useNavigate()
 
