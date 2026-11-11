@@ -11,6 +11,7 @@ import CguPage from './pages/legal/CguPage'
 import LegacyRedirect from './components/LegacyRedirect'
 import NotFoundPage from './pages/NotFoundPage'
 import PageLoader from './components/PageLoader'
+import { LoadErrorBoundary } from './components/LoadErrorBoundary'
 import { lazyWithReload } from './lib/lazyWithReload'
 
 // Pages différées (un fichier JS par page, chargé à la première visite) : voir lazyWithReload.
@@ -55,6 +56,8 @@ function App() {
       {/* Pages différées : la landing, la connexion, les pages légales et la page introuvable
           restent dans le bundle d'entrée ; les layouts protégés ont leur propre Suspense autour
           de l'Outlet pour garder la navigation affichée pendant le chargement d'une page. */}
+      {/* Filet : une page qui ne se charge pas (même après le rechargement unique) affiche un message, pas une page blanche. */}
+      <LoadErrorBoundary message="Impossible de charger cette page.">
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public */}
@@ -153,6 +156,7 @@ function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
+      </LoadErrorBoundary>
     </AuthProvider>
   )
 }

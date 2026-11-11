@@ -20,6 +20,7 @@ import { useLoadNavCounters } from '../hooks/useNavCounters'
 import { useOrganisationLogoUrl } from '../hooks/useOrganisationLogoUrl'
 import OrganisationLogo from '../components/OrganisationLogo'
 import PageLoader from '../components/PageLoader'
+import { LoadErrorBoundary } from '../components/LoadErrorBoundary'
 
 
 function HomeIcon() {
@@ -451,9 +452,12 @@ export default function AdminLayout() {
         <main className="flex-1 overflow-y-auto p-6">
           <NavCountersContext.Provider value={navCounters}>
             {/* Page différée : le menu reste affiché pendant son chargement. */}
-            <Suspense fallback={<PageLoader variant="content" />}>
-              <Outlet context={{ fonctionnalitesActivees }} />
-            </Suspense>
+            {/* key : l'erreur d'une page ne bloque pas la navigation vers les autres. */}
+            <LoadErrorBoundary key={location.pathname} message="Impossible de charger cette page.">
+              <Suspense fallback={<PageLoader variant="content" />}>
+                <Outlet context={{ fonctionnalitesActivees }} />
+              </Suspense>
+            </LoadErrorBoundary>
           </NavCountersContext.Provider>
         </main>
       </div>

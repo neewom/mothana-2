@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Outlet } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import type { User } from '@supabase/supabase-js'
@@ -7,10 +7,12 @@ import RecetteBanner from '../components/RecetteBanner'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import PageLoader from '../components/PageLoader'
+import { LoadErrorBoundary } from '../components/LoadErrorBoundary'
 
 export default function SuperAdminLayout() {
   const { auth, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const user = auth.type === 'super_admin' ? (auth.user as User) : null
 
@@ -40,9 +42,11 @@ export default function SuperAdminLayout() {
       </header>
 
       <main className="mx-auto max-w-6xl p-6">
-        <Suspense fallback={<PageLoader variant="content" />}>
-          <Outlet />
-        </Suspense>
+        <LoadErrorBoundary key={location.pathname} message="Impossible de charger cette page.">
+          <Suspense fallback={<PageLoader variant="content" />}>
+            <Outlet />
+          </Suspense>
+        </LoadErrorBoundary>
       </main>
     </div>
   )
