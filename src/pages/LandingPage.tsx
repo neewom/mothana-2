@@ -39,10 +39,6 @@ const IMG_STATS = srcSet({ 640: stats640, 1080: stats1080, 1600: stats1600 })
 const REVEAL =
   'transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-safe:translate-y-6 motion-safe:opacity-0 data-[visible=true]:translate-y-0 data-[visible=true]:opacity-100'
 
-/** Lignes de registre en fond (filet papier tous les 2 rem). */
-const LIGNES_REGISTRE =
-  'bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_calc(2rem-1px),theme(colors.paper.border)_calc(2rem-1px),theme(colors.paper.border)_2rem)]'
-
 const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70 focus-visible:ring-offset-2'
 
 // ---------------------------------------------------------------------------
@@ -479,13 +475,6 @@ function Landing() {
 
       {/* ------------------------------------------------------------------ Hero */}
       <div className="relative">
-        <div
-          aria-hidden="true"
-          className={cn(
-            'pointer-events-none absolute inset-x-0 top-0 h-[44rem] opacity-60 [mask-image:linear-gradient(to_bottom,black,transparent)]',
-            LIGNES_REGISTRE,
-          )}
-        />
         <SiteHeader />
 
         <main>
@@ -768,13 +757,6 @@ function Landing() {
           {/* -------------------------------------------------------- Appel final */}
           {/* Emplacement réservé à l'offre gratuite : y ajouter son contenu (sans prix) une fois l'offre définie. */}
           <section className="relative overflow-hidden px-4 py-20 sm:px-6 sm:py-28">
-            <div
-              aria-hidden="true"
-              className={cn(
-                'pointer-events-none absolute inset-0 opacity-60 [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]',
-                LIGNES_REGISTRE,
-              )}
-            />
             <div data-reveal className={cn(REVEAL, 'relative mx-auto flex max-w-3xl flex-col items-center text-center')}>
               <h2 className="text-balance text-[2.25rem] font-bold leading-[1.05] tracking-[-0.035em] text-ink sm:text-[3.5rem]">
                 Ta prochaine saison associative commence ici.
