@@ -359,7 +359,7 @@ export default function AdminLayout() {
 
   async function handleLogout() {
     await logout()
-    navigate('/', { replace: true })
+    navigate('/login', { replace: true })
   }
 
   function handleBackToSuperAdmin() {

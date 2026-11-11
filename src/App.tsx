@@ -1,9 +1,9 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import FeatureGuard from './components/FeatureGuard'
 
-import HomePage from './pages/HomePage'
+import LoginPage from './pages/LoginPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import BenevoleLoginPage from './pages/BenevoleLoginPage'
 import VendeurLoginPage from './pages/VendeurLoginPage'
@@ -48,7 +48,9 @@ function App() {
     <AuthProvider>
       <Routes>
         {/* Public */}
-        <Route path="/" element={<HomePage />} />
+        {/* Provisoire : `/` mènera à la landing ; d'ici là, renvoi vers la connexion. */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/mot-de-passe/nouveau" element={<ResetPasswordPage />} />
         <Route path="/login/benevole" element={<BenevoleLoginPage />} />
         <Route path="/login/vendeur" element={<VendeurLoginPage />} />

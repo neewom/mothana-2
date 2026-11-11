@@ -29,7 +29,7 @@ export default function BenevoleLoginPage() {
       <div className="w-full max-w-sm">
         {/* Back link */}
         <Link
-          to="/"
+          to="/login"
           className="mb-8 inline-flex items-center gap-1 text-sm text-ink-faint hover:text-ink-muted"
         >
           <svg
