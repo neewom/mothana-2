@@ -398,7 +398,7 @@ const ANNEE: { mois: string; moment: string; titre: string; texte: string; vigne
   {
     mois: 'Septembre',
     moment: 'La rentrée',
-    titre: "Les adhésions se renouvellent d'elles-mêmes",
+    titre: 'Chaque adhérent renouvelle en un clic',
     texte:
       "Chaque adhérent reçoit son lien personnel pour renouveler. Ceux qui n'ont pas d'email reçoivent un courrier, étiquettes prêtes à imprimer.",
     vignette: <VignetteRenouvellements />,
@@ -500,11 +500,12 @@ function Landing() {
                 <span className="block text-ink-muted">Sans la complexité.</span>
               </h1>
               <p className="mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-ink-muted sm:text-xl">
-                Dons, reçus fiscaux, adhésions, emailing, bénévoles : un seul outil, que toute ton équipe sait
-                utiliser dès le premier jour.
+                Dons, reçus fiscaux, adhésions, emailing, bénévoles : un seul outil pour le bureau et les
+                bénévoles.
               </p>
               <BoutonEssai className="mt-9 w-full sm:w-auto" />
-              <p className="mt-4 text-sm text-ink-faint">
+              <p className="mt-3 text-sm font-medium text-ink-muted">Gratuit, sans carte bancaire.</p>
+              <p className="mt-2 text-sm text-ink-faint">
                 Culte, culture, sport, solidarité, quartier : Samakan s'adapte à ton association.
               </p>
             </div>
@@ -616,8 +617,8 @@ function Landing() {
                   <div className="min-w-0 flex-1">
                     <h3 className="text-xl font-bold tracking-[-0.015em] text-ink sm:text-[1.4rem]">Le terrain, dans la poche</h3>
                     <p className="mt-2 text-pretty text-sm leading-relaxed text-ink-muted sm:text-[15px]">
-                      Un code PIN et un téléphone : saisir un don, vérifier ou inscrire un adhérent pendant
-                      l'événement.
+                      Un code PIN et un téléphone : saisir un don, ajouter un donateur ou vérifier une adhésion
+                      pendant l'événement.
                     </p>
                   </div>
                   <Telephone className="w-[6.5rem] flex-shrink-0 rotate-3 sm:w-[7.5rem]">
@@ -689,11 +690,11 @@ function Landing() {
             </div>
           </section>
 
-          {/* -------------------------------------------------------- Tout est inclus */}
+          {/* -------------------------------------------------------- Tout ce que contient Samakan */}
           <section id="inclus" className="px-4 py-16 sm:px-6 sm:py-24">
             <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] lg:gap-16">
               <TitreSection
-                titre="Tout est inclus."
+                titre="Tout ce que contient Samakan."
                 sousTitre="Ce que ton association gérait entre tableurs, cahiers et boîtes mail, réuni dans un seul outil."
               />
               <ul
@@ -782,6 +783,7 @@ function Landing() {
                 Essaie Samakan gratuitement, avec toute ton équipe.
               </p>
               <BoutonEssai className="mt-9 w-full sm:w-auto" />
+              <p className="mt-3 text-sm font-medium text-ink-muted">Gratuit, sans carte bancaire.</p>
             </div>
           </section>
         </main>
