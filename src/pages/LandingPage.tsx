@@ -450,8 +450,17 @@ export default function LandingPage() {
   return <Landing />
 }
 
+const TITRE_LANDING = 'Samakan — Toute la gestion de ton association, sans la complexité'
+
 function Landing() {
   const racine = useRef<HTMLDivElement>(null)
+
+  // Titre propre à la landing ; le reste de l'app garde le titre court d'index.html.
+  useEffect(() => {
+    const titrePrecedent = document.title
+    document.title = TITRE_LANDING
+    return () => { document.title = titrePrecedent }
+  }, [])
   useReveal(racine)
 
   // Les captures du haut se « posent » à l'arrivée (inclinaison qui s'aplanit), sauf si l'utilisateur

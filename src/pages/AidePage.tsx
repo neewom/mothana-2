@@ -142,7 +142,7 @@ export default function AidePage() {
             Nous contacter
           </a>
           <p className="mt-6 text-xs text-ink-faint">
-            <Link to="/decouvrir" className="underline hover:no-underline">
+            <Link to="/" className="underline hover:no-underline">
               Découvrir Samakan
             </Link>
           </p>
