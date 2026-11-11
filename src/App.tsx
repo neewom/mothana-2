@@ -9,7 +9,10 @@ import BenevoleLoginPage from './pages/BenevoleLoginPage'
 import VendeurLoginPage from './pages/VendeurLoginPage'
 import RenouvellementAdhesionPage from './pages/RenouvellementAdhesionPage'
 import DesinscriptionMailingPage from './pages/DesinscriptionMailingPage'
-import DecouvrirPage from './pages/DecouvrirPage'
+import LandingPage from './pages/LandingPage'
+import MentionsLegalesPage from './pages/legal/MentionsLegalesPage'
+import ConfidentialitePage from './pages/legal/ConfidentialitePage'
+import CguPage from './pages/legal/CguPage'
 import AidePage from './pages/AidePage'
 import PortefeuillePage from './pages/PortefeuillePage'
 import EvenementAchatPage from './pages/EvenementAchatPage'
@@ -48,8 +51,8 @@ function App() {
     <AuthProvider>
       <Routes>
         {/* Public */}
-        {/* Provisoire : `/` mènera à la landing ; d'ici là, renvoi vers la connexion. */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* Landing page publique (un utilisateur connecté est renvoyé vers son espace). */}
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/mot-de-passe/nouveau" element={<ResetPasswordPage />} />
         <Route path="/login/benevole" element={<BenevoleLoginPage />} />
@@ -57,7 +60,12 @@ function App() {
         {/* /adhesion/<slug> seul (ancien formulaire public, retiré) : aucune route, traité par la page introuvable. */}
         <Route path="/adhesion/:slug/renouveler" element={<RenouvellementAdhesionPage />} />
         <Route path="/desinscription" element={<DesinscriptionMailingPage />} />
-        <Route path="/decouvrir" element={<DecouvrirPage />} />
+        {/* Ancienne page de présentation, remplacée par la landing. */}
+        <Route path="/decouvrir" element={<Navigate to="/" replace />} />
+        {/* Pages légales (gabarits à compléter, voir pages/legal/pagesLegales.ts). */}
+        <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
+        <Route path="/confidentialite" element={<ConfidentialitePage />} />
+        <Route path="/cgu" element={<CguPage />} />
         <Route path="/aide" element={<AidePage />} />
         <Route path="/p" element={<PortefeuillePage />} />
         <Route path="/e/:organisationSlug/:evenementSlug" element={<EvenementAchatPage />} />
