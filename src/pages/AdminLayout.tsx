@@ -1,5 +1,5 @@
 import GlobalSearch from '../components/GlobalSearch'
-import { useState, useEffect, type ReactElement } from 'react'
+import { Suspense, useState, useEffect, type ReactElement } from 'react'
 import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useOrganisationId } from '../hooks/useOrganisationId'
@@ -19,6 +19,8 @@ import { buildNavItems, buildQuickActions, type NavEntry, type NavGroup, type Na
 import { useLoadNavCounters } from '../hooks/useNavCounters'
 import { useOrganisationLogoUrl } from '../hooks/useOrganisationLogoUrl'
 import OrganisationLogo from '../components/OrganisationLogo'
+import PageLoader from '../components/PageLoader'
+import { LoadErrorBoundary } from '../components/LoadErrorBoundary'
 
 
 function HomeIcon() {
@@ -449,7 +451,13 @@ export default function AdminLayout() {
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-6">
           <NavCountersContext.Provider value={navCounters}>
-            <Outlet context={{ fonctionnalitesActivees }} />
+            {/* Page différée : le menu reste affiché pendant son chargement. */}
+            {/* key : l'erreur d'une page ne bloque pas la navigation vers les autres. */}
+            <LoadErrorBoundary key={location.pathname} message="Impossible de charger cette page.">
+              <Suspense fallback={<PageLoader variant="content" />}>
+                <Outlet context={{ fonctionnalitesActivees }} />
+              </Suspense>
+            </LoadErrorBoundary>
           </NavCountersContext.Provider>
         </main>
       </div>

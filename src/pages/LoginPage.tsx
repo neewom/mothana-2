@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { getCanonicalSiteUrl } from '../lib/environment'
+import { cheminEspaceConnecte } from '../lib/espaceUtilisateur'
 import RecetteBanner from '../components/RecetteBanner'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -44,12 +45,11 @@ export default function LoginPage() {
   const [forgotMessage, setForgotMessage] = useState<string | null>(null)
   const [forgotIsError, setForgotIsError] = useState(false)
 
+  const espaceConnecte = cheminEspaceConnecte(auth.type)
+
   useEffect(() => {
-    if (auth.type === 'super_admin') navigate('/super-admin', { replace: true })
-    else if (auth.type === 'admin') navigate('/admin', { replace: true })
-    else if (auth.type === 'benevole') navigate('/benevole', { replace: true })
-    else if (auth.type === 'vendeur') navigate('/vendeur', { replace: true })
-  }, [auth.type, navigate])
+    if (espaceConnecte) navigate(espaceConnecte, { replace: true })
+  }, [espaceConnecte, navigate])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -94,7 +94,7 @@ export default function LoginPage() {
     setForgotMessage(null)
   }
 
-  if (auth.type === 'loading' || auth.type === 'super_admin' || auth.type === 'admin' || auth.type === 'benevole' || auth.type === 'vendeur') {
+  if (auth.type === 'loading' || espaceConnecte) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-paper">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-stamp border-t-transparent" />
