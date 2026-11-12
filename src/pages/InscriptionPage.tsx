@@ -201,7 +201,7 @@ export default function InscriptionPage() {
                   >
                     {i === 0 ? <IconeCoche className="h-3.5 w-3.5" /> : i + 1}
                   </span>
-                  <span className={i === 0 ? 'text-ink-muted line-through decoration-ink-faint/60' : 'text-ink-muted'}>
+                  <span className="text-ink-muted">
                     <span className="font-medium text-ink">{etape.titre}</span> — {etape.texte}
                   </span>
                 </li>
@@ -219,10 +219,10 @@ export default function InscriptionPage() {
                 Demande ton espace Samakan
               </h1>
               <p className="mt-4 max-w-xl text-pretty text-base leading-relaxed text-ink-muted sm:text-lg">
-                On vérifie chaque association avant d’ouvrir son espace : c’est ce qui garantit des reçus fiscaux fiables.
+                On vérifie chaque association avant d’ouvrir son espace{'\u00a0'}: c’est ce qui garantit des reçus fiscaux fiables.
               </p>
 
-              <ol className="mt-8 space-y-5">
+              <ol className="mt-6 space-y-3 sm:mt-8 sm:space-y-5">
                 {ETAPES.map((etape, i) => (
                   <li key={etape.titre} className="flex gap-4">
                     <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-paper-border bg-white font-registre-mono text-sm font-medium text-ink">
@@ -230,7 +230,7 @@ export default function InscriptionPage() {
                     </span>
                     <div className="pt-1">
                       <p className="font-semibold text-ink">{etape.titre}</p>
-                      <p className="mt-0.5 text-sm leading-relaxed text-ink-muted">{etape.texte}</p>
+                      <p className="mt-0.5 hidden text-sm leading-relaxed text-ink-muted sm:block">{etape.texte}</p>
                     </div>
                   </li>
                 ))}
