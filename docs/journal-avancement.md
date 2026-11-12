@@ -710,3 +710,19 @@ Go donné pour tout le batch en une fois (liste Trello "Batch — Campagnes mail
   - **Reporté sur la carte inscription** : filtrer côté serveur les fonctionnalités à `dons` / `adherents` (la fonction fusionne sans filtre), distinguer le message d'un slug invalide.
   - **Staging** : migration appliquée, `creer-organisation` déployée ; organisations de test « ZZ Test création serveur » et « ZZ Test PR 402 » laissées en place.
   - **À la promotion — ordre impératif** : migration `creer_organisation.sql` puis `supabase functions deploy creer-organisation` en prod **avant** le merge `dev → main`. TNR : 401 / 403 seulement (pas de super-admin prod pour l'agent) ; la création réussie en prod est à faire par l'utilisateur.
+
+- **Landing page sur `/`** (2026-11-12, PR #405, [Trello](https://trello.com/c/472Mp1PN)) : la landing publique remplace `/decouvrir` (redirigée vers `/`). Un utilisateur connecté est renvoyé vers son espace sans flash (helper `cheminEspaceConnecte`, partagé avec `LoginPage`). Le bouton « Essayer gratuitement » pointe sur une constante unique `ESSAI_GRATUIT_HREF`, un `mailto` provisoire jusqu'à l'inscription freemium. Les pages légales (mentions, CGU, confidentialité) sont regroupées dans `src/pages/legal/`, avec des textes modèles. Les écarts à `DESIGN.md` sont assumés pour cette surface marketing (bouton plein, ombres, arrondi du téléphone, grands titres), dans la ligne de l'exception de la PR #135.
+  - **Bloquant de revue, LCP** : 5,5 s en 4G lente, parce que toute l'app tenait dans un seul bundle de 3,1 Mo. Un sous-agent a découpé l'app par route : `lazyWithReload`, qui recharge la page une seule fois si un module ne se charge pas (fenêtre de 30 s, sans boucle), et `PageLoader`. Le chunk d'entrée passe à 487 Ko (140 Ko gzip), le LCP à **1,76 s** en 4G lente (remesuré par le lead tech). En cas d'échec répété, `LoadErrorBoundary` affiche « Impossible de charger cette page » au lieu d'une page blanche, menu conservé.
+  - **Corrections du lead tech** :
+    - titre d'onglet court « Samakan », la landing posant le sien ;
+    - `canonical` et `og:url` statiques retirés ;
+    - lien Aide vers `/`.
+  - **Passe marketing** :
+    - contexte produit `.agents/product-marketing.md` (PR #407) ;
+    - textes alignés sur ce que l'app et l'offre gratuite tiennent : renouvellement en un clic, mention « Gratuit, sans carte bancaire » sous les deux boutons, tuile bénévole ;
+    - fond ligné retiré ;
+    - « Simple, vraiment » illustrée par des captures réelles (correspondance des colonnes à l'import, éditeur du modèle de reçu, page Équipe avec l'espace bénévole sur téléphone).
+  - **Téléphone de l'en-tête** : il montre le même tableau de bord que l'écran ordinateur, et le bandeau ambre « À traiter » est retiré des deux captures. Les captures viennent de l'organisation de démo staging. Avant chaque capture, la page affichée a été modifiée sans rien changer en base : noms d'exemple, bandeau « Environnement de test » retiré, aucune mention de l'association d'origine. `CadreNavigateur` a désormais une variante `compact`.
+  - Relecture « prête » ; revue lead tech en deux passages, sans bloquant restant ; « ok » utilisateur.
+  - **Suites** : carte Landing v2 ([Trello](https://trello.com/c/hFBSZ5eC) : FAQ, appel au milieu de la page, encart offre gratuite, ligne de preuve anonymisée en attente de décision) ; mesure d'audience ([Trello](https://trello.com/c/rvXQSmUv)) ; phrases clients provisoires à remplacer ([Trello](https://trello.com/c/aq1YCEmX)). La tuile bénévole ne mentionne pas encore l'inscription d'un adhérent, possible quand le réglage est activé : à trancher par l'utilisateur.
+  - **À la promotion** : front seul, rien de particulier. À promouvoir avec #401 et #402 (ordre impératif de #402 : migration `creer_organisation.sql` et déploiement de `creer-organisation` en prod avant le merge `dev → main`), puis TNR.
