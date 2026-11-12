@@ -8,3 +8,10 @@ export const PAGES_LEGALES = [
   { path: '/confidentialite', label: 'Confidentialité' },
   { path: '/cgu', label: 'CGU' },
 ] as const
+
+/**
+ * Vrai une fois les CGU rédigées et publiées : le formulaire d'inscription affiche alors la case
+ * « J'accepte les CGU » (obligatoire, date d'acceptation enregistrée). En attendant, une mention
+ * renvoie à la page Confidentialité.
+ */
+export const CGU_PUBLIEES = false

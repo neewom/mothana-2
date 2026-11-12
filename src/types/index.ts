@@ -242,3 +242,25 @@ export interface DonRegulier {
   profils_participant: ProfilParticipant
   activites: Activite | null
 }
+
+/** Demande d'espace déposée sur /inscription (table demandes_inscription, super-admin seul). */
+export interface DemandeInscription {
+  id: string
+  nom_association: string
+  ville: string
+  rna: string | null
+  siren: string | null
+  prenom: string
+  nom: string
+  email: string
+  message: string | null
+  cgu_acceptees_le: string | null
+  statut: 'en_attente' | 'acceptee' | 'refusee'
+  organisation_id: string | null
+  traitee_par: string | null
+  traitee_le: string | null
+  admin_utilisateur_id: string | null
+  invitation_envoyee_le: string | null
+  erreur_invitation: string | null
+  created_at: string
+}
