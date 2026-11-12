@@ -11,6 +11,7 @@ import { createBackend, type BackendConfig, type TinbaseBackend } from 'tinbase'
 import schemaSql from './schema.sql?raw'
 import { seedDemo, DEMO_ADMIN, DEMO_PIN } from './seed'
 import { demoFunctions } from './functionStubs'
+import { fastIntrospection } from './introspection'
 
 export const DEMO_DB_NAME = 'samakan-demo'
 const SCHEMA_VERSION = '2026-11-13'
@@ -21,7 +22,7 @@ type Queryable = Pick<PGlite, 'query' | 'exec'>
 function wrap(q: Queryable) {
   return {
     async query(sql: string, params?: unknown[]) {
-      const r = await q.query(sql, params)
+      const r = await q.query(fastIntrospection(sql), params)
       return { rows: r.rows as Record<string, unknown>[], affectedRows: r.affectedRows }
     },
     async exec(sql: string) {

@@ -9,7 +9,7 @@ const say = (msg: string) => {
 
 declare global {
   interface Window {
-    __demo?: { timings: Record<string, number>; firstBoot: boolean; reset: () => Promise<void>; blocked: string[] }
+    __demo?: { timings: Record<string, number>; firstBoot: boolean; reset: () => Promise<void>; blocked: string[]; backend: unknown }
   }
 }
 
@@ -17,12 +17,13 @@ async function boot() {
   const t0 = performance.now()
   say('Préparation de la démo…')
   const { startDemoBackend, resetDemo, DEMO_ADMIN } = await import('./backend')
-  const demo = await startDemoBackend()
+  const demo = await startDemoBackend({ persist: !new URLSearchParams(location.search).has('mem') })
   const blocked = installDemoFetch(demo.backend)
   window.__demo = {
     timings: { ...demo.timings, sinceNavStart: 0 },
     firstBoot: demo.firstBoot,
     blocked,
+    backend: demo.backend,
     reset: async () => {
       await resetDemo()
       location.href = '/admin'
