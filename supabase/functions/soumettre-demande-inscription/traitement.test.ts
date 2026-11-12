@@ -21,7 +21,7 @@ const CORPS_VALIDE = {
   site_web: '',
 }
 
-function deps(resultat: ResultatRpc | null, options: { notif?: string | null; hashKo?: boolean } = {}) {
+function deps(resultat: ResultatRpc | null, options: { notif?: string | null; hashKo?: boolean; cgu?: boolean } = {}) {
   const appelsRpc: unknown[] = []
   const envois: { a: string; email: EmailInscription }[] = []
   const taches: Promise<unknown>[] = []
@@ -38,6 +38,7 @@ function deps(resultat: ResultatRpc | null, options: { notif?: string | null; ha
     },
     emailNotification: options.notif === undefined ? 'notif@exemple.fr' : options.notif,
     arrierePlan: (t) => { taches.push(t) },
+    cguPubliees: options.cgu ?? false,
   }
   return { d, appelsRpc, envois, attendre: () => Promise.all(taches) }
 }
@@ -122,4 +123,16 @@ Deno.test('clé de limitation absente : 503 ; notification non configurée : acc
   await traiterSoumission(corps(), sansNotif.d)
   await sansNotif.attendre()
   vrai(sansNotif.envois.length === 1, 'accusé seul')
+})
+
+Deno.test('CGU publiées : cgu_acceptees exigé côté serveur, transmis quand coché', async () => {
+  const sans = deps({ ok: true, cas: 'nouvelle', envoyer_accuse: true }, { cgu: true })
+  const r = await traiterSoumission(corps(), sans.d)
+  vrai(r.status === 400 && sans.appelsRpc.length === 0, 'refusé sans case cochée')
+  const avec = deps({ ok: true, cas: 'nouvelle', envoyer_accuse: true }, { cgu: true })
+  const ok = await traiterSoumission(corps({ cgu_acceptees: true }), avec.d)
+  vrai(ok.status === 200, 'accepté case cochée')
+  vrai((avec.appelsRpc[0] as { demande: { cgu_acceptees: boolean } }).demande.cgu_acceptees === true, 'acceptation transmise')
+  const nonPubliees = deps({ ok: true, cas: 'nouvelle', envoyer_accuse: true })
+  vrai((await traiterSoumission(corps(), nonPubliees.d)).status === 200, 'CGU non publiées : non exigées')
 })

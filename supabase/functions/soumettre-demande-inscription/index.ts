@@ -10,6 +10,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { hashClientIp, hashValeur } from '../_shared/rateLimit.ts'
 import { sendViaResend } from '../_shared/resend.ts'
+import { CGU_PUBLIEES } from '../_shared/cgu.ts'
 import { traiterSoumission, type ResultatRpc } from './traitement.ts'
 
 // Tâches poursuivies après la réponse (runtime Supabase Edge) ; absent en local → attendues.
@@ -60,6 +61,7 @@ Deno.serve(async (req) => {
         if (!envoi.ok) console.error('soumettre-demande-inscription : envoi en échec', envoi.status)
       },
       emailNotification: notif,
+      cguPubliees: CGU_PUBLIEES,
       arrierePlan: (tache) => {
         if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(tache)
       },

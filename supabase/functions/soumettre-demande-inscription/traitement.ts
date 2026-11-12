@@ -32,6 +32,8 @@ export interface DependancesSoumission {
   emailNotification: string | null
   /** Poursuit les envois après la réponse : son délai ne dépend pas du cas (anti-énumération). */
   arrierePlan(tache: Promise<unknown>): void
+  /** CGU publiées (constante CGU_PUBLIEES) : `cgu_acceptees` est alors exigé. */
+  cguPubliees: boolean
 }
 
 export interface ReponseSoumission {
@@ -57,8 +59,8 @@ export async function traiterSoumission(raw: string, deps: DependancesSoumission
   if (typeof corps[CHAMP_PIEGE] === 'string' && (corps[CHAMP_PIEGE] as string).trim() !== '') return REPONSE_OK
 
   const siteUrl = normaliseSiteUrl(corps.site_url)
-  // La case CGU n'est exigée que côté formulaire, quand elle est affichée (CGU_PUBLIEES).
-  const validation = validerDemandeInscription(saisieDepuisCorps(corps), false)
+  // CGU publiées : la case est exigée ici aussi, comme sur le formulaire.
+  const validation = validerDemandeInscription(saisieDepuisCorps(corps), deps.cguPubliees)
   if (!siteUrl || !validation.ok) return { status: 400, body: { error: 'DEMANDE_INVALIDE' } }
   const demande = validation.demande
 

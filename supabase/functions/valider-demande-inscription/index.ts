@@ -12,7 +12,7 @@
 //      un nouvel appel relance l'invitation seule (jamais de seconde organisation).
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { creerOrganisation } from '../_shared/creerOrganisation.ts'
-import { creerCompteEtInviter, relancerInvitation } from '../_shared/inviterAdmin.ts'
+import { inviterAdminDemande } from './invitation.ts'
 import { normaliseSiteUrl } from '../_shared/siteUrl.ts'
 import { slugDisponible, slugifyUrl } from '../_shared/slug.ts'
 import { LONGUEURS_INSCRIPTION } from '../_shared/inscription.ts'
@@ -48,9 +48,21 @@ async function slugLibre(client: SupabaseClient, base: string): Promise<string> 
   return slugDisponible(base, ((data ?? []) as { slug: string | null }[]).map((o) => o.slug ?? ''))
 }
 
+async function remettreEnAttente(client: SupabaseClient, id: string): Promise<void> {
+  const { error } = await client
+    .from('demandes_inscription')
+    .update({ statut: 'en_attente', traitee_par: null, traitee_le: null })
+    .eq('id', id)
+  if (error) console.error('valider-demande-inscription : remise en attente impossible', id, error.message)
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'Méthode non autorisée' }, 405)
+
+  // Demande réservée par cet appel et pas encore d'organisation : à remettre en attente si une
+  // erreur imprévue interrompt le traitement.
+  let reserveeSansOrganisation: { client: SupabaseClient; id: string } | null = null
 
   try {
     const token = (req.headers.get('Authorization') ?? '').replace('Bearer ', '')
@@ -99,6 +111,7 @@ Deno.serve(async (req) => {
         .eq('statut', 'en_attente')
         .select('id')
       if (!reservee || reservee.length === 0) return json({ error: 'Cette demande est déjà en cours de traitement.' }, 409)
+      reserveeSansOrganisation = { client: adminClient, id: demande.id }
 
       const modeleRecuPdf: Record<string, string> = {}
       if (demande.rna) modeleRecuPdf.rna = demande.rna
@@ -121,15 +134,26 @@ Deno.serve(async (req) => {
       }
 
       if (!resultat.ok) {
-        await adminClient
-          .from('demandes_inscription')
-          .update({ statut: 'en_attente', traitee_par: null, traitee_le: null })
-          .eq('id', demande.id)
+        await remettreEnAttente(adminClient, demande.id)
+        reserveeSansOrganisation = null
         console.error('valider-demande-inscription : création refusée', resultat.code, resultat.message)
         return json({ error: resultat.message, code: resultat.code }, resultat.code === 'ERREUR' ? 500 : 400)
       }
+      reserveeSansOrganisation = null
 
-      await adminClient.from('demandes_inscription').update({ organisation_id: resultat.organisationId }).eq('id', demande.id)
+      // Rattachement de l'organisation à la demande (retenté : sans lui, l'organisation serait
+      // orpheline et la demande bloquée).
+      let rattachement = await adminClient.from('demandes_inscription').update({ organisation_id: resultat.organisationId }).eq('id', demande.id)
+      for (let essai = 0; rattachement.error && essai < 2; essai++) {
+        rattachement = await adminClient.from('demandes_inscription').update({ organisation_id: resultat.organisationId }).eq('id', demande.id)
+      }
+      if (rattachement.error) {
+        console.error('valider-demande-inscription : rattachement en échec', resultat.organisationId, rattachement.error.message)
+        return json({
+          error: `Organisation créée (${resultat.organisationId}) mais non rattachée à la demande : invite l'admin depuis la fiche de l'organisation.`,
+          organisation_id: resultat.organisationId,
+        }, 500)
+      }
       demande = { ...demande, statut: 'acceptee', organisation_id: resultat.organisationId }
     }
 
@@ -137,46 +161,14 @@ Deno.serve(async (req) => {
     if (!demande.organisation_id) {
       return json({ error: "L'organisation de cette demande n'existe plus : traite-la à la main." }, 409)
     }
-    const nomAffiche = `${demande.prenom} ${demande.nom}`
-    const modele = { type: 'inscription' as const, prenom: demande.prenom }
-    let erreurInvitation: string | null = null
-
-    if (!demande.admin_utilisateur_id) {
-      const invitation = await creerCompteEtInviter(adminClient, {
-        nom: nomAffiche,
-        email: demande.email,
-        organisationId: demande.organisation_id,
-        role: 'admin',
-        siteUrl,
-        modele,
-      })
-      if (invitation.ok) {
-        await adminClient
-          .from('demandes_inscription')
-          .update({ admin_utilisateur_id: invitation.profil.utilisateur_id })
-          .eq('id', demande.id)
-        if (!invitation.emailEnvoye) erreurInvitation = "Compte créé, mais l'envoi de l'email d'invitation a échoué."
-      } else {
-        erreurInvitation = invitation.error
-      }
-    } else {
-      const relance = await relancerInvitation(adminClient, {
-        email: demande.email,
-        nom: nomAffiche,
-        organisationId: demande.organisation_id,
-        role: 'admin',
-        siteUrl,
-        modele,
-      })
-      if (!relance.ok) erreurInvitation = relance.error
-    }
-
-    await adminClient
-      .from('demandes_inscription')
-      .update(erreurInvitation
-        ? { erreur_invitation: erreurInvitation.slice(0, 500) }
-        : { erreur_invitation: null, invitation_envoyee_le: new Date().toISOString() })
-      .eq('id', demande.id)
+    const erreurInvitation = await inviterAdminDemande(adminClient, {
+      id: demande.id,
+      prenom: demande.prenom,
+      nom: demande.nom,
+      email: demande.email,
+      organisation_id: demande.organisation_id,
+      admin_utilisateur_id: demande.admin_utilisateur_id,
+    }, siteUrl)
 
     return json({
       organisation_id: demande.organisation_id,
@@ -185,6 +177,7 @@ Deno.serve(async (req) => {
     }, 200)
   } catch (err) {
     console.error('valider-demande-inscription :', err)
+    if (reserveeSansOrganisation) await remettreEnAttente(reserveeSansOrganisation.client, reserveeSansOrganisation.id).catch(() => {})
     return json({ error: 'Erreur interne' }, 500)
   }
 })
