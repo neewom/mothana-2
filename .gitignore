@@ -34,3 +34,4 @@ graphify-out/
 
 # Fichiers locaux de la CLI Supabase (version, projet lié) : propres à chaque poste/worktree
 supabase/.temp/
+dist-demo
