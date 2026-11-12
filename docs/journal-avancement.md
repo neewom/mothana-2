@@ -726,3 +726,18 @@ Go donné pour tout le batch en une fois (liste Trello "Batch — Campagnes mail
   - Relecture « prête » ; revue lead tech en deux passages, sans bloquant restant ; « ok » utilisateur.
   - **Suites** : carte Landing v2 ([Trello](https://trello.com/c/hFBSZ5eC) : FAQ, appel au milieu de la page, encart offre gratuite, ligne de preuve anonymisée en attente de décision) ; mesure d'audience ([Trello](https://trello.com/c/rvXQSmUv)) ; phrases clients provisoires à remplacer ([Trello](https://trello.com/c/aq1YCEmX)). La tuile bénévole ne mentionne pas encore l'inscription d'un adhérent, possible quand le réglage est activé : à trancher par l'utilisateur.
   - **À la promotion** : front seul, rien de particulier. À promouvoir avec #401 et #402 (ordre impératif de #402 : migration `creer_organisation.sql` et déploiement de `creer-organisation` en prod avant le merge `dev → main`), puis TNR.
+
+- **Promotion `dev` → `main` (prod)** (2026-11-12, PR #410, merge `baea63c`, `dev` préservée) : connexion sur `/login` (#401), création d'organisation côté serveur (#402), landing page sur `/` (#405), plus docs (#399, #400, #403, #404, #406, #407, #408). Opérations faites depuis le checkout principal, avec `psql` / `pg_dump` 18 locaux via le pooler de session eu-west-1 :
+  1. `pg_dump` du schéma `public` prod (5,7 Mo, scratchpad de session `prod_public_2026-11-12_avant_creer_organisation.sql`) ;
+  2. vérifications en lecture seule : fonction absente, contrainte `organisations_slug_unique` et tables des modèles présentes, 2 organisations ;
+  3. migration `creer_organisation.sql` (`-1`, `ON_ERROR_STOP`), **avant le merge** comme l'impose la #402. Vérifié : `security definer`, `search_path` fixé, exécutable par `service_role` seulement (`anon` et `authenticated` refusés) ;
+  4. Edge Function `creer-organisation` déployée (JWT vérifié), **avant le merge** ;
+  5. merge, Vercel `main` en succès.
+  - **TNR prod** :
+    - **Pages publiques** (sans connexion, 375 et 1280 px) : `/`, `/login`, `/login/benevole`, `/aide`, mentions légales, CGU, confidentialité, page 404, sans erreur console, réponse en erreur ni débordement. `/decouvrir` renvoie vers `/`. `/admin`, `/admin/dons` et `/super-admin` renvoient vers `/login`.
+    - **Landing** : un seul `h1`, 8 images sans aucune cassée (après défilement complet), bouton « Essayer gratuitement » en `mailto` provisoire.
+    - **Admin de l'asso de test « ZZ Test TNR »** (écritures bloquées par un intercepteur, aucune tentée), à 1280 et 375 px : connexion par `/login`, puis 13 pages admin chargées par le découpage par route, avec le bon titre. `/` en étant connecté renvoie vers `/admin`. Seul signal : la requête `HEAD` du compteur du menu (`useNavCounters`) est notée `ERR_ABORTED` par Chromium après une réponse 200, ce qui est normal pour une réponse sans corps, sans erreur fonctionnelle.
+    - **Bénévole** : connexion par PIN, puis `/benevole`.
+    - **Accès** : RPC `creer_organisation` en `anon` → 401 / `42501` ; avec la session de l'admin de test → 403. Edge Function `creer-organisation` : 401 sans session et avec la clé `anon` seule, 403 pour l'admin de test (« réservé au super-admin »), préflight CORS 200. Nombre d'organisations inchangé (2).
+    - **Crons** : `traiter-lots-recus`, `purger-donnees-evenements` et `purger-historique-cron` en succès.
+    - **Non couvert** : création réussie d'une organisation en prod par le super-admin (l'agent n'a pas d'accès super-admin prod), à faire par l'utilisateur depuis `/super-admin`.
