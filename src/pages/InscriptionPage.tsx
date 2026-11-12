@@ -9,7 +9,7 @@ import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
 import { getCanonicalSiteUrl } from '../lib/environment'
 import { cn } from '../lib/utils'
-import { CGU_PUBLIEES } from './legal/pagesLegales'
+import { CGU_PUBLIEES } from '../../supabase/functions/_shared/cgu.ts'
 import {
   CHAMP_PIEGE,
   corpsDemandeInscription,

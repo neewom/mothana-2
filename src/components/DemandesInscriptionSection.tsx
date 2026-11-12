@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { getCanonicalSiteUrl } from '../lib/environment'
 import { correspondRecherche } from '../lib/textSearch'
+import { doublonsDemande, type DemandeComparable } from '../lib/inscription'
 import type { DemandeInscription } from '../types'
 import ScrollShadowX from './ScrollShadowX'
 import { Badge } from './ui/badge'
@@ -40,6 +41,8 @@ interface Props {
  */
 export default function DemandesInscriptionSection({ onOrganisationCreee, onMessage }: Props) {
   const [demandes, setDemandes] = useState<DemandeInscription[]>([])
+  // Demandes en attente ou acceptées (toutes), pour signaler les doublons possibles.
+  const [comparables, setComparables] = useState<DemandeComparable[]>([])
   const [loading, setLoading] = useState(true)
   const [erreurChargement, setErreurChargement] = useState<string | null>(null)
   const [recherche, setRecherche] = useState('')
@@ -56,8 +59,13 @@ export default function DemandesInscriptionSection({ onOrganisationCreee, onMess
       .select(COLONNES)
       .or('statut.eq.en_attente,and(statut.eq.acceptee,invitation_envoyee_le.is.null)')
       .order('created_at', { ascending: true })
+    const { data: autres } = await supabase
+      .from('demandes_inscription')
+      .select('id, nom_association, email, statut')
+      .in('statut', ['en_attente', 'acceptee'])
     if (error) setErreurChargement(error.message)
     else setDemandes((data ?? []) as DemandeInscription[])
+    setComparables((autres ?? []) as DemandeComparable[])
     setLoading(false)
   }, [])
 
@@ -196,6 +204,7 @@ export default function DemandesInscriptionSection({ onOrganisationCreee, onMess
                     <div className="flex items-center gap-2 text-xs text-ink-faint">
                       {d.ville}
                       {invitationARelancer(d) && <Badge variant="warning">Invitation à relancer</Badge>}
+                      {doublonsDemande(d, comparables).length > 0 && <Badge variant="warning">Doublon possible</Badge>}
                     </div>
                   </TableCell>
                   <TableCell className="hidden whitespace-nowrap md:table-cell">
@@ -228,6 +237,19 @@ export default function DemandesInscriptionSection({ onOrganisationCreee, onMess
                     <p className="font-medium">Organisation créée, invitation non envoyée.</p>
                     {ouverte.erreur_invitation && <p className="mt-1 break-words">{ouverte.erreur_invitation}</p>}
                     <p className="mt-1">Tu peux relancer l’invitation ici, ou ajouter un compte depuis la fiche de l’organisation.</p>
+                  </div>
+                )}
+
+                {doublonsDemande(ouverte, comparables).length > 0 && (
+                  <div className="rounded-sm border border-warning-border bg-warning-tint px-4 py-3 text-sm text-warning">
+                    <p className="font-medium">Doublon possible</p>
+                    <ul className="mt-1 space-y-0.5">
+                      {doublonsDemande(ouverte, comparables).map((a) => (
+                        <li key={a.id} className="break-words">
+                          {a.nom_association} · {a.email} ({a.statut === 'acceptee' ? 'acceptée' : 'en attente'})
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 

@@ -58,3 +58,33 @@ export function corpsDemandeInscription(
     [CHAMP_PIEGE]: piege,
   }
 }
+
+/** Nom d'association comparable : sans casse, accents ni ponctuation, espaces resserrés. */
+export function cleNomAssociation(nom: string): string {
+  return nom
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+export interface DemandeComparable {
+  id: string
+  nom_association: string
+  email: string
+  statut: 'en_attente' | 'acceptee' | 'refusee'
+}
+
+/**
+ * Autres demandes en attente ou acceptées qui portent le même nom d'association (sans casse ni
+ * accents) ou le même email — cas typique : « Ce n'est pas la bonne ? » crée une 2e demande.
+ */
+export function doublonsDemande<T extends DemandeComparable>(demande: DemandeComparable, autres: T[]): T[] {
+  const nom = cleNomAssociation(demande.nom_association)
+  const email = demande.email.trim().toLowerCase()
+  return autres.filter((a) =>
+    a.id !== demande.id
+    && (a.statut === 'en_attente' || a.statut === 'acceptee')
+    && ((nom !== '' && cleNomAssociation(a.nom_association) === nom) || a.email.trim().toLowerCase() === email))
+}

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   CHAMP_PIEGE,
+  cleNomAssociation,
+  doublonsDemande,
   corpsDemandeInscription,
   erreurChampInscription,
   erreursInscription,
@@ -72,5 +74,20 @@ describe('suggestion de domaine', () => {
     expect(suggestionDomaineEmail('Camille@HOTMIAL.FR')).toBe('Camille@hotmail.fr')
     expect(suggestionDomaineEmail('camille@gmail.com')).toBeNull()
     expect(suggestionDomaineEmail('camille')).toBeNull()
+  })
+})
+
+describe('doublons de demandes', () => {
+  const base = { id: '1', nom_association: 'Les Amis du Quartier', email: 'a@exemple.fr', statut: 'en_attente' as const }
+  it('même nom sans casse ni accents, ou même email ; en attente ou acceptée seulement', () => {
+    const autres = [
+      { id: '2', nom_association: 'les amis du  quartier !', email: 'b@exemple.fr', statut: 'en_attente' as const },
+      { id: '3', nom_association: 'Autre asso', email: 'A@Exemple.fr', statut: 'acceptee' as const },
+      { id: '4', nom_association: 'Lés Amis du Quartier', email: 'c@exemple.fr', statut: 'refusee' as const },
+      { id: '5', nom_association: 'Autre', email: 'd@exemple.fr', statut: 'en_attente' as const },
+      base,
+    ]
+    expect(doublonsDemande(base, autres).map((d) => d.id)).toEqual(['2', '3'])
+    expect(cleNomAssociation('Élan  Solidaire-Lyon')).toBe('elan solidaire lyon')
   })
 })
