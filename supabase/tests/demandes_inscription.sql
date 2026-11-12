@@ -100,6 +100,13 @@ begin
   v_org := public.creer_organisation('ZZ Test inscription filtre', 'zz-test-inscription-filtre', v_recus, v_carte,
     '{"dons": true, "adherents": true, "evenements": true, "credit_manuel": true}'::jsonb, '{"rna": "W751234567"}'::jsonb);
   r := r || ' | 8.fonctionnalites=' || (select fonctionnalites_activees::text from public.organisations where id = v_org);
+  -- 8b. Ville de la demande (p_ville) ; sans ville (création super-admin) : NULL ; une seule signature
+  v_org := public.creer_organisation('ZZ Test inscription ville', 'zz-test-inscription-ville', v_recus, v_carte,
+    null, null, '  Lyon ');
+  r := r || ' | 8b.ville=' || coalesce((select ville from public.organisations where id = v_org), 'NULL');
+  v_org := public.creer_organisation('ZZ Test inscription sans ville', 'zz-test-inscription-sans-ville', v_recus, v_carte);
+  r := r || ' sans_ville=' || coalesce((select ville from public.organisations where id = v_org), 'NULL')
+    || ' signatures=' || (select count(*) from pg_proc where proname = 'creer_organisation' and pronamespace = 'public'::regnamespace);
   execute 'reset role';
 
   -- 9. anon : ni lecture, ni écriture, ni exécution
@@ -123,6 +130,11 @@ begin
     perform public.purger_demandes_inscription_refusees();
     r := r || ' anon_purge=ACCEPTE(KO)';
   exception when insufficient_privilege then r := r || ' anon_purge=refuse';
+  end;
+  begin
+    perform public.creer_organisation('ZZ x', 'zz-x', v_recus, v_carte, null, null, 'Lyon');
+    r := r || ' anon_creer_org=ACCEPTE(KO)';
+  exception when insufficient_privilege then r := r || ' anon_creer_org=refuse';
   end;
   execute 'reset role';
 
@@ -152,6 +164,11 @@ begin
     perform public.purger_demandes_inscription_refusees();
     r := r || ' purge=ACCEPTE(KO)';
   exception when insufficient_privilege then r := r || ' purge=refuse';
+  end;
+  begin
+    perform public.creer_organisation('ZZ x', 'zz-x', v_recus, v_carte, null, null, 'Lyon');
+    r := r || ' creer_org=ACCEPTE(KO)';
+  exception when insufficient_privilege then r := r || ' creer_org=refuse';
   end;
   execute 'reset role';
 

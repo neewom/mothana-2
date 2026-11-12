@@ -3,7 +3,16 @@
 -- creer_organisation (migration creer_organisation.sql) fusionnait p_fonctionnalites_activees sans
 -- filtre. L'inscription publique s'en sert désormais : seules les clés `dons` et `adherents`
 -- (booléennes) sont retenues, `evenements` et `credit_manuel` restant à la main du super-admin.
--- Même signature, même droits (service_role seulement) ; corps identique par ailleurs.
+-- La ville saisie à l'inscription est aussi posée dans organisations.ville, dans la même
+-- transaction : paramètre optionnel p_ville (défaut NULL, le super-admin n'en fournit pas).
+-- Ajouter un paramètre change la signature : l'ancienne (6 paramètres) est supprimée pour ne pas
+-- laisser de surcharge ambiguë, puis les droits sont reposés (service_role seulement).
+-- Corps identique par ailleurs. Rejouable.
+
+begin;
+
+drop function if exists public.creer_organisation(text, text, jsonb, jsonb, jsonb, jsonb);
+
 
 create or replace function public.creer_organisation(
   p_nom text,
@@ -11,7 +20,8 @@ create or replace function public.creer_organisation(
   p_templates_recu jsonb,
   p_template_carte jsonb,
   p_fonctionnalites_activees jsonb default null,
-  p_modele_recu_pdf jsonb default null
+  p_modele_recu_pdf jsonb default null,
+  p_ville text default null
 )
 returns uuid
 language plpgsql
@@ -40,8 +50,8 @@ begin
     raise exception 'MODELE_RECU_PDF_INVALIDE' using errcode = '22023';
   end if;
 
-  insert into public.organisations (nom, slug)
-  values (p_nom, p_slug)
+  insert into public.organisations (nom, slug, ville)
+  values (p_nom, p_slug, nullif(btrim(coalesce(p_ville, '')), ''))
   returning id into v_id;
 
   -- Mises à jour dans la même transaction (le trigger des fonctionnalités ne bloque pas :
@@ -80,8 +90,10 @@ begin
 end;
 $$;
 
-revoke execute on function public.creer_organisation(text, text, jsonb, jsonb, jsonb, jsonb) from public, anon, authenticated;
-grant execute on function public.creer_organisation(text, text, jsonb, jsonb, jsonb, jsonb) to service_role;
+revoke execute on function public.creer_organisation(text, text, jsonb, jsonb, jsonb, jsonb, text) from public, anon, authenticated;
+grant execute on function public.creer_organisation(text, text, jsonb, jsonb, jsonb, jsonb, text) to service_role;
 
-comment on function public.creer_organisation(text, text, jsonb, jsonb, jsonb, jsonb) is
-  'Crée une organisation et ses modèles par défaut (reçus, carte) en une transaction. service_role seulement (Edge Function creer-organisation).';
+comment on function public.creer_organisation(text, text, jsonb, jsonb, jsonb, jsonb, text) is
+  'Crée une organisation et ses modèles par défaut (reçus, carte) en une transaction. service_role seulement (Edge Functions creer-organisation et valider-demande-inscription).';
+
+commit;

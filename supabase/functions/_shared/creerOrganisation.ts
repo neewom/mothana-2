@@ -43,6 +43,8 @@ export interface CreerOrganisationParams {
   fonctionnalitesActivees?: Record<string, boolean>
   /** Fusionné dans `modele_recu_pdf` (rna, siren…) ; absent = valeur par défaut. */
   modeleRecuPdf?: Record<string, unknown>
+  /** organisations.ville (inscription) ; absente ou vide = NULL. */
+  ville?: string
 }
 
 export type CreerOrganisationResultat =
@@ -78,6 +80,7 @@ export function argumentsCreation(
       p_template_carte: { nom: DEFAULT_CARTE_ADHERENT_NOM, html_template: CARTE_ADHERENT_HTML, css: CARTE_ADHERENT_CSS },
       p_fonctionnalites_activees: filtrerFonctionnalitesCreation(params.fonctionnalitesActivees),
       p_modele_recu_pdf: params.modeleRecuPdf ?? null,
+      p_ville: params.ville?.trim() || null,
     },
   }
 }

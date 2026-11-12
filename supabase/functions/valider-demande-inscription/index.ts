@@ -31,6 +31,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 interface Demande {
   id: string
   nom_association: string
+  ville: string
   rna: string | null
   siren: string | null
   prenom: string
@@ -83,7 +84,7 @@ Deno.serve(async (req) => {
 
     const { data: lue, error: lectureError } = await adminClient
       .from('demandes_inscription')
-      .select('id, nom_association, rna, siren, prenom, nom, email, statut, organisation_id, admin_utilisateur_id, invitation_envoyee_le')
+      .select('id, nom_association, ville, rna, siren, prenom, nom, email, statut, organisation_id, admin_utilisateur_id, invitation_envoyee_le')
       .eq('id', demandeId)
       .maybeSingle()
     if (lectureError) return json({ error: lectureError.message }, 500)
@@ -118,19 +119,15 @@ Deno.serve(async (req) => {
       if (demande.siren) modeleRecuPdf.siren = demande.siren
 
       // Slug libre au moment de la lecture ; une création concurrente homonyme → on retente.
-      let resultat = await creerOrganisation(adminClient, {
+      const parametres = {
         nom,
-        slug: await slugLibre(adminClient, base),
         fonctionnalitesActivees: { dons: true, adherents: true },
         modeleRecuPdf: Object.keys(modeleRecuPdf).length > 0 ? modeleRecuPdf : undefined,
-      })
+        ville: demande.ville,
+      }
+      let resultat = await creerOrganisation(adminClient, { ...parametres, slug: await slugLibre(adminClient, base) })
       for (let essai = 0; !resultat.ok && resultat.code === 'DOUBLON' && essai < 2; essai++) {
-        resultat = await creerOrganisation(adminClient, {
-          nom,
-          slug: await slugLibre(adminClient, base),
-          fonctionnalitesActivees: { dons: true, adherents: true },
-          modeleRecuPdf: Object.keys(modeleRecuPdf).length > 0 ? modeleRecuPdf : undefined,
-        })
+        resultat = await creerOrganisation(adminClient, { ...parametres, slug: await slugLibre(adminClient, base) })
       }
 
       if (!resultat.ok) {

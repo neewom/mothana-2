@@ -27,7 +27,7 @@ Deno.test('arguments : slug dérivé du nom, modèles par défaut, options nulle
   vrai(recus.length === DEFAULT_CERFA_TEMPLATES.length, 'tous les modèles de reçus')
   vrai(recus.map((t) => t.type_cerfa).join(',') === '11580,16216', 'types Cerfa')
   vrai((r.args.p_template_carte as { nom: string }).nom === DEFAULT_CARTE_ADHERENT_NOM, 'modèle de carte')
-  vrai(r.args.p_fonctionnalites_activees === null && r.args.p_modele_recu_pdf === null, 'options nulles')
+  vrai(r.args.p_fonctionnalites_activees === null && r.args.p_modele_recu_pdf === null && r.args.p_ville === null, 'options nulles')
 })
 
 Deno.test('arguments : slug et options fournis (inscription)', () => {
@@ -83,4 +83,11 @@ Deno.test('slug invalide renvoyé par la fonction SQL : code et message propres'
   vrai(!r.ok && r.code === 'SLUG_INVALIDE' && r.message === MESSAGE_SLUG_INVALIDE, 'slug invalide')
   const nom = await creerOrganisation(clientFactice({ data: null, error: { code: '22023', message: 'NOM_INVALIDE' } }).client, { nom: 'Asso' })
   vrai(!nom.ok && nom.code === 'NOM_INVALIDE', 'nom invalide')
+})
+
+Deno.test('ville (inscription) : transmise nettoyée, vide ou absente = null', () => {
+  const r = argumentsCreation({ nom: 'Asso', ville: '  Lyon ' })
+  vrai(r.ok && r.args.p_ville === 'Lyon', 'ville transmise')
+  const vide = argumentsCreation({ nom: 'Asso', ville: '   ' })
+  vrai(vide.ok && vide.args.p_ville === null, 'ville vide')
 })
