@@ -17,7 +17,6 @@ import {
   LONGUEURS_INSCRIPTION,
   ORDRE_CHAMPS_INSCRIPTION,
   SAISIE_VIDE,
-  suggestionDomaineEmail,
   type ChampInscription,
   type SaisieInscription,
 } from '../lib/inscription'
@@ -106,7 +105,6 @@ export default function InscriptionPage() {
 
   const erreurs = erreursInscription(saisie, CGU_PUBLIEES)
   const erreurAffichee = (champ: ChampInscription) => (touches[champ] ? erreurs[champ] : undefined)
-  const suggestion = suggestionDomaineEmail(saisie.email)
 
   function maj<K extends keyof SaisieInscription>(cle: K, valeur: SaisieInscription[K], champ: ChampInscription) {
     setSaisie((s) => ({ ...s, [cle]: valeur }))
@@ -346,15 +344,6 @@ export default function InscriptionPage() {
                     onChange={(e) => maj('email', e.target.value, 'email')}
                     placeholder="prenom@exemple.fr"
                   />
-                  {suggestion && (
-                    <p className="text-xs text-ink-muted" aria-live="polite">
-                      Tu voulais dire{' '}
-                      <button type="button" className={LIEN} onClick={() => maj('email', suggestion, 'email')}>
-                        {suggestion}
-                      </button>{' '}
-                      ?
-                    </p>
-                  )}
                 </Champ>
                 <Champ champ="message" label="Un mot sur ton association" facultatif erreur={erreurAffichee('message')} className="sm:col-span-2">
                   <Textarea

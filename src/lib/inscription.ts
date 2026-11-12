@@ -11,7 +11,6 @@ export {
   normaliserRna,
   normaliserSiren,
   ORDRE_CHAMPS_INSCRIPTION,
-  suggestionDomaineEmail,
   LONGUEURS_INSCRIPTION,
   type ChampInscription,
   type SaisieInscription,
