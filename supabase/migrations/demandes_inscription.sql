@@ -31,7 +31,9 @@ create table if not exists public.demandes_inscription (
   organisation_id uuid references public.organisations(id) on delete set null,
   traitee_par uuid references auth.users(id) on delete set null,
   traitee_le timestamptz,
-  -- Invitation de l'admin à la validation : date d'envoi, ou dernière erreur (relance possible).
+  -- Admin créé à la validation, et son invitation : date d'envoi, ou dernière erreur (relance
+  -- possible depuis la demande, sans seconde organisation).
+  admin_utilisateur_id uuid references auth.users(id) on delete set null,
   invitation_envoyee_le timestamptz,
   erreur_invitation text,
   created_at timestamptz not null default now()

@@ -1,5 +1,5 @@
 // deno test --no-lock supabase/functions/_shared/creerOrganisation.test.ts
-import { argumentsCreation, creerOrganisation, MESSAGE_DOUBLON, MESSAGE_NOM_INVALIDE, type ClientRpc } from './creerOrganisation.ts'
+import { argumentsCreation, creerOrganisation, MESSAGE_DOUBLON, MESSAGE_NOM_INVALIDE, MESSAGE_SLUG_INVALIDE, type ClientRpc } from './creerOrganisation.ts'
 import { DEFAULT_CERFA_TEMPLATES } from './defaultCerfaTemplates.ts'
 import { DEFAULT_CARTE_ADHERENT_NOM } from './defaultCarteAdherentTemplate.ts'
 
@@ -65,4 +65,22 @@ Deno.test('autre erreur : remontée telle quelle', async () => {
   const { client } = clientFactice({ data: null, error: { code: '23514', message: 'check violation' } })
   const r = await creerOrganisation(client, { nom: 'Asso' })
   vrai(!r.ok && r.code === 'ERREUR' && r.message === 'check violation', 'erreur')
+})
+
+Deno.test('fonctionnalités : seules dons et adherents passent (jamais evenements ni credit_manuel)', () => {
+  const r = argumentsCreation({
+    nom: 'Asso',
+    fonctionnalitesActivees: { dons: true, adherents: true, evenements: true, credit_manuel: true },
+  })
+  vrai(r.ok && JSON.stringify(r.args.p_fonctionnalites_activees) === '{"dons":true,"adherents":true}', 'filtrées')
+  const seules = argumentsCreation({ nom: 'Asso', fonctionnalitesActivees: { evenements: true } })
+  vrai(seules.ok && seules.args.p_fonctionnalites_activees === null, 'rien d’autorisé : valeur par défaut')
+})
+
+Deno.test('slug invalide renvoyé par la fonction SQL : code et message propres', async () => {
+  const { client } = clientFactice({ data: null, error: { code: '22023', message: 'SLUG_INVALIDE' } })
+  const r = await creerOrganisation(client, { nom: 'Asso', slug: 'Pas Un Slug' })
+  vrai(!r.ok && r.code === 'SLUG_INVALIDE' && r.message === MESSAGE_SLUG_INVALIDE, 'slug invalide')
+  const nom = await creerOrganisation(clientFactice({ data: null, error: { code: '22023', message: 'NOM_INVALIDE' } }).client, { nom: 'Asso' })
+  vrai(!nom.ok && nom.code === 'NOM_INVALIDE', 'nom invalide')
 })
