@@ -6,7 +6,7 @@
 do $$
 declare
   v_demo uuid; v_benevole uuid; v_admin uuid; v_contrib uuid; v_admin_email text;
-  v_id uuid; v_ref uuid; v_n int; v_res jsonb; v_org uuid;
+  v_id uuid; v_ref uuid; v_acc uuid; v_n int; v_res jsonb; v_org uuid;
   v_ip text := repeat('1', 64); v_ip2 text := repeat('2', 64);
   v_mail text := repeat('e', 64); v_mail2 text := repeat('f', 64);
   v_demande jsonb := jsonb_build_object(
@@ -72,6 +72,22 @@ begin
     r := r || ' | 7.rna_invalide=ACCEPTE(KO)';
   exception when check_violation then r := r || ' | 7.rna_invalide=refuse';
   end;
+
+  -- 7b. Une IP qui insiste (200 appels) ne bloque pas les autres : ses tentatives refusées ne
+  --     sont pas enregistrées, donc le plafond global reste disponible.
+  for i in 1..200 loop
+    perform public.soumettre_demande_inscription(repeat('a', 64), repeat('b', 64), v_demande);
+  end loop;
+  r := r || ' | 7b.lignes_ip_insistante=' || (select count(*) from public.acces_portefeuille_rate_limits
+    where scope = 'inscription_ip' and ip_hash = repeat('a', 64));
+  v_res := public.soumettre_demande_inscription(repeat('c', 64), repeat('d', 64),
+    v_demande || '{"email":"boulom.nicolas+samakan-inscription-legitime@gmail.com"}'::jsonb);
+  r := r || ' autre_ip=' || coalesce(v_res ->> 'cas', v_res ->> 'reason');
+
+  -- Demande acceptée (pour les transitions interdites au super-admin)
+  insert into public.demandes_inscription (nom_association, ville, prenom, nom, email, statut, traitee_le)
+  values ('ZZ Test inscription acceptée', 'Lyon', 'A', 'B', 'boulom.nicolas+samakan-inscription-acc@gmail.com', 'acceptee', now())
+  returning id into v_acc;
 
   -- Demandes refusées pour la purge (date simulée)
   insert into public.demandes_inscription (nom_association, ville, prenom, nom, email, statut, traitee_le)
@@ -173,6 +189,18 @@ begin
     r := r || ' sa_insert=ACCEPTE(KO)';
   exception when insufficient_privilege then r := r || ' sa_insert=refuse';
   end;
+  -- 12b. Transitions réservées à service_role : acceptée → en attente, en attente → acceptée
+  update public.demandes_inscription set statut = 'en_attente' where id = v_acc;
+  get diagnostics v_n = row_count;
+  r := r || ' sa_acceptee_vers_attente=' || v_n;
+  begin
+    update public.demandes_inscription set statut = 'acceptee'
+      where email = 'boulom.nicolas+samakan-inscription-legitime@gmail.com';
+    get diagnostics v_n = row_count;
+    r := r || ' sa_attente_vers_acceptee=' || v_n || '(KO)';
+  exception when insufficient_privilege then r := r || ' sa_attente_vers_acceptee=refuse';
+  end;
+  r := r || ' statut_acc=' || (select statut from public.demandes_inscription where id = v_acc);
   delete from public.demandes_inscription where email = 'boulom.nicolas+samakan-inscription-new@gmail.com';
   get diagnostics v_n = row_count;
   r := r || ' sa_delete=' || v_n;

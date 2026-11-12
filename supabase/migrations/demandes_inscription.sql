@@ -6,7 +6,8 @@
 --    section seulement. RLS : aucun accès anon ; authenticated limité au super-admin
 --    (select / update / delete), aucune insertion hors service_role.
 -- 2. Limitation de débit sur la table partagée acces_portefeuille_rate_limits (scopes dédiés) :
---    par IP (5 / heure, puis 429), plafond global (200 tentatives / 24 h, puis 429) et par
+--    par IP (5 / heure, puis 429, sans enregistrer la tentative refusée), plafond global
+--    (200 tentatives enregistrées / 24 h, puis 429) et par
 --    adresse (3 accusés de réception / 24 h, au-delà la demande est traitée sans email).
 -- 3. soumettre_demande_inscription : limite + cas (nouvelle demande, compte existant, demande
 --    déjà en attente) + insertion, en une transaction. service_role seulement.
@@ -61,11 +62,13 @@ drop policy if exists demandes_inscription_select_super_admin on public.demandes
 create policy demandes_inscription_select_super_admin on public.demandes_inscription
   for select to authenticated using (coalesce(is_current_user_super_admin(), false));
 
+-- Super-admin : seul le refus d'une demande en attente (en_attente → refusee). Toute autre
+-- transition (acceptation, remise en attente) passe par l'Edge Function (service_role).
 drop policy if exists demandes_inscription_update_super_admin on public.demandes_inscription;
 create policy demandes_inscription_update_super_admin on public.demandes_inscription
   for update to authenticated
-  using (coalesce(is_current_user_super_admin(), false))
-  with check (coalesce(is_current_user_super_admin(), false));
+  using (coalesce(is_current_user_super_admin(), false) and statut = 'en_attente')
+  with check (coalesce(is_current_user_super_admin(), false) and statut = 'refusee');
 
 drop policy if exists demandes_inscription_delete_super_admin on public.demandes_inscription;
 create policy demandes_inscription_delete_super_admin on public.demandes_inscription
@@ -124,7 +127,18 @@ begin
     and ip_hash in (p_ip_hash, p_email_hash)
     and created_at < clock_timestamp() - interval '1 day';
 
-  -- Plafond global quotidien (toutes IP confondues), avant de compter cette tentative.
+  -- Débit par IP d'abord (5 / heure) : une IP au-delà est refusée sans rien enregistrer, pour
+  -- qu'elle ne puisse pas remplir à elle seule le plafond global.
+  select count(*) into v_nb
+  from public.acces_portefeuille_rate_limits
+  where scope = 'inscription_ip'
+    and ip_hash = p_ip_hash
+    and created_at > clock_timestamp() - interval '1 hour';
+  if v_nb >= 5 then
+    return jsonb_build_object('ok', false, 'reason', 'RATE_LIMIT');
+  end if;
+
+  -- Plafond global quotidien (tentatives enregistrées, toutes IP confondues).
   select count(*) into v_nb
   from public.acces_portefeuille_rate_limits
   where scope = 'inscription_ip'
@@ -135,15 +149,6 @@ begin
 
   insert into public.acces_portefeuille_rate_limits(ip_hash, portefeuille_id, scope)
   values (p_ip_hash, null, 'inscription_ip');
-
-  select count(*) into v_nb
-  from public.acces_portefeuille_rate_limits
-  where scope = 'inscription_ip'
-    and ip_hash = p_ip_hash
-    and created_at > clock_timestamp() - interval '1 hour';
-  if v_nb > 5 then
-    return jsonb_build_object('ok', false, 'reason', 'RATE_LIMIT');
-  end if;
 
   -- Accusés de réception par adresse : 3 / 24 h, au-delà la demande suit son cours sans email.
   select count(*) into v_nb
