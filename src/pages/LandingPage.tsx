@@ -15,9 +15,17 @@ import dashboard800 from '../assets/landing/dashboard-800.webp'
 import dashboard1280 from '../assets/landing/dashboard-1280.webp'
 import dashboard1920 from '../assets/landing/dashboard-1920.webp'
 import dashboard2880 from '../assets/landing/dashboard-2880.webp'
-import donsMobile320 from '../assets/landing/dons-mobile-320.webp'
-import donsMobile640 from '../assets/landing/dons-mobile-640.webp'
-import donsMobile960 from '../assets/landing/dons-mobile-960.webp'
+import dashboardMobile320 from '../assets/landing/dashboard-mobile-320.webp'
+import dashboardMobile640 from '../assets/landing/dashboard-mobile-640.webp'
+import dashboardMobile960 from '../assets/landing/dashboard-mobile-960.webp'
+import import640 from '../assets/landing/import-640.webp'
+import import1080 from '../assets/landing/import-1080.webp'
+import modeleRecu640 from '../assets/landing/modele-recu-640.webp'
+import modeleRecu1080 from '../assets/landing/modele-recu-1080.webp'
+import equipe640 from '../assets/landing/equipe-640.webp'
+import equipe1080 from '../assets/landing/equipe-1080.webp'
+import benevoleMobile320 from '../assets/landing/benevole-mobile-320.webp'
+import benevoleMobile640 from '../assets/landing/benevole-mobile-640.webp'
 import recus640 from '../assets/landing/recus-640.webp'
 import recus1080 from '../assets/landing/recus-1080.webp'
 import recus1600 from '../assets/landing/recus-1600.webp'
@@ -31,7 +39,11 @@ const srcSet = (variantes: Record<number, string>) =>
     .join(', ')
 
 const IMG_DASHBOARD = srcSet({ 800: dashboard800, 1280: dashboard1280, 1920: dashboard1920, 2880: dashboard2880 })
-const IMG_DONS_MOBILE = srcSet({ 320: donsMobile320, 640: donsMobile640, 960: donsMobile960 })
+const IMG_DASHBOARD_MOBILE = srcSet({ 320: dashboardMobile320, 640: dashboardMobile640, 960: dashboardMobile960 })
+const IMG_IMPORT = srcSet({ 640: import640, 1080: import1080 })
+const IMG_MODELE_RECU = srcSet({ 640: modeleRecu640, 1080: modeleRecu1080 })
+const IMG_EQUIPE = srcSet({ 640: equipe640, 1080: equipe1080 })
+const IMG_BENEVOLE_MOBILE = srcSet({ 320: benevoleMobile320, 640: benevoleMobile640 })
 const IMG_RECUS = srcSet({ 640: recus640, 1080: recus1080, 1600: recus1600 })
 const IMG_STATS = srcSet({ 640: stats640, 1080: stats1080, 1600: stats1600 })
 
@@ -82,29 +94,6 @@ const ICONES = {
       <rect x="3.75" y="5" width="16.5" height="15.25" rx="1.5" />
       <path d="M3.75 9.75h16.5M8.25 3v3.5M15.75 3v3.5" />
       <path d="M8 13.5h2.5M13.5 13.5H16M8 16.75h2.5" />
-    </>
-  ),
-  import: (
-    <>
-      <path d="M12 3.75v10.5M7.75 10l4.25 4.25L16.25 10" />
-      <path d="M4.5 15.75v3a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-3" />
-    </>
-  ),
-  palette: (
-    <>
-      <path d="M12 3.75a8.25 8.25 0 1 0 0 16.5c1.1 0 1.75-.75 1.75-1.6 0-.45-.2-.8-.45-1.1-.25-.3-.45-.65-.45-1.1 0-.9.7-1.6 1.6-1.6h1.9a3.9 3.9 0 0 0 3.9-3.9C20.25 7 16.55 3.75 12 3.75z" />
-      <circle cx="7.75" cy="11.25" r="1" />
-      <circle cx="10.5" cy="7.5" r="1" />
-      <circle cx="15" cy="7.75" r="1" />
-    </>
-  ),
-  equipe: (
-    <>
-      <circle cx="12" cy="7.5" r="3" />
-      <path d="M6.75 19.5c.6-3 2.7-4.75 5.25-4.75s4.65 1.75 5.25 4.75" />
-      <circle cx="5" cy="10" r="2" />
-      <circle cx="19" cy="10" r="2" />
-      <path d="M2.25 17.25c.3-1.6 1.3-2.6 2.75-2.6M21.75 17.25c-.3-1.6-1.3-2.6-2.75-2.6" />
     </>
   ),
   europe: (
@@ -172,15 +161,21 @@ function BoutonEssai({ className }: { className?: string }) {
   )
 }
 
-/** Cadre de navigateur autour d'une capture de l'app. */
-function CadreNavigateur({ children, adresse }: { children: ReactNode; adresse: string }) {
+/** Cadre de navigateur autour d'une capture de l'app (compact : barre réduite pour une petite vignette). */
+function CadreNavigateur({ children, adresse, compact = false }: { children: ReactNode; adresse: string; compact?: boolean }) {
+  const point = compact ? 'h-1.5 w-1.5 rounded-full bg-paper-border' : 'h-2 w-2 rounded-full bg-paper-border sm:h-2.5 sm:w-2.5'
   return (
     <div className="overflow-hidden rounded-sm border border-paper-border bg-white shadow-2xl shadow-ink/15">
-      <div className="flex h-7 items-center gap-1.5 border-b border-paper-border bg-paper px-3 sm:h-8">
-        <span className="h-2 w-2 rounded-full bg-paper-border sm:h-2.5 sm:w-2.5" />
-        <span className="h-2 w-2 rounded-full bg-paper-border sm:h-2.5 sm:w-2.5" />
-        <span className="h-2 w-2 rounded-full bg-paper-border sm:h-2.5 sm:w-2.5" />
-        <span className="ml-3 hidden rounded-sm border border-paper-border bg-white px-2 font-registre-mono text-[10px] leading-4 text-ink-faint sm:inline">
+      <div className={cn('flex items-center border-b border-paper-border bg-paper', compact ? 'h-5 gap-1 px-2' : 'h-7 gap-1.5 px-3 sm:h-8')}>
+        <span className={point} />
+        <span className={point} />
+        <span className={point} />
+        <span
+          className={cn(
+            'hidden rounded-sm border border-paper-border bg-white px-2 font-registre-mono text-[10px] leading-4 text-ink-faint',
+            compact ? 'ml-2 lg:inline' : 'ml-3 sm:inline',
+          )}
+        >
           {adresse}
         </span>
       </div>
@@ -224,6 +219,86 @@ function Tampon({ children, className }: { children: ReactNode; className?: stri
 }
 
 // ---------------------------------------------------------------------------
+// Simple, vraiment : captures de l'app (association de démo, noms d'exemple)
+
+type IllustrationSimpleType = 'import' | 'modele' | 'equipe'
+
+const TAILLES_COLONNE = '(min-width: 768px) 30vw, calc(100vw - 64px)'
+
+function IllustrationSimple({ type }: { type: IllustrationSimpleType }) {
+  return (
+    <div className="relative flex aspect-[4/3] items-center overflow-hidden rounded-sm bg-paper-border-muted/60 p-4">
+      {type === 'import' && (
+        <div className="w-full">
+          <CadreNavigateur compact adresse="samakan.fr/admin">
+            <img
+              src={import640}
+              srcSet={IMG_IMPORT}
+              sizes={TAILLES_COLONNE}
+              width={2208}
+              height={1380}
+              loading="lazy"
+              decoding="async"
+              alt="Import d'un fichier de donateurs : chaque colonne du fichier est associée à un champ de Samakan."
+              className="block h-auto w-full"
+            />
+          </CadreNavigateur>
+        </div>
+      )}
+      {type === 'modele' && (
+        <div className="w-full">
+          <CadreNavigateur compact adresse="samakan.fr/admin">
+            <img
+              src={modeleRecu640}
+              srcSet={IMG_MODELE_RECU}
+              sizes={TAILLES_COLONNE}
+              width={2201}
+              height={1190}
+              loading="lazy"
+              decoding="async"
+              alt="Éditeur du modèle de reçu fiscal : le code du modèle à gauche, l'aperçu du reçu à droite."
+              className="block h-auto w-full"
+            />
+          </CadreNavigateur>
+        </div>
+      )}
+      {type === 'equipe' && (
+        <>
+          <div className="absolute left-4 top-6 w-[78%]">
+            <CadreNavigateur compact adresse="samakan.fr/admin">
+              <img
+                src={equipe640}
+                srcSet={IMG_EQUIPE}
+                sizes="(min-width: 768px) 24vw, 72vw"
+                width={1723}
+                height={1077}
+                loading="lazy"
+                decoding="async"
+                alt="Page Équipe et accès : les comptes du bureau avec leur rôle, et le code PIN des bénévoles."
+                className="block h-auto w-full"
+              />
+            </CadreNavigateur>
+          </div>
+          <Telephone className="absolute right-4 top-[30%] w-[30%] rotate-2 rounded-[1.1rem] p-[3px] sm:p-[4px]">
+            <img
+              src={benevoleMobile320}
+              srcSet={IMG_BENEVOLE_MOBILE}
+              sizes="(min-width: 768px) 9vw, 28vw"
+              width={1170}
+              height={2532}
+              loading="lazy"
+              decoding="async"
+              alt="Espace bénévole sur téléphone : saisie d'un don de 20 € en espèces."
+              className="block h-auto w-full"
+            />
+          </Telephone>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Contenu
 
 const MODULES_SECONDAIRES: { icone: keyof typeof ICONES; titre: string; texte: string }[] = [
@@ -253,19 +328,19 @@ const INCLUS = [
   'Import de ton fichier existant',
 ]
 
-const SIMPLE: { icone: keyof typeof ICONES; titre: string; texte: string }[] = [
+const SIMPLE: { illustration: IllustrationSimpleType; titre: string; texte: string }[] = [
   {
-    icone: 'import',
+    illustration: 'import',
     titre: 'Tu repars de ton existant',
     texte: "Importe ton tableur de donateurs, d'adhérents et de dons. Rien à ressaisir.",
   },
   {
-    icone: 'palette',
+    illustration: 'modele',
     titre: 'À tes couleurs',
     texte: "Le logo et les couleurs de ton association, ton propre modèle de reçu fiscal.",
   },
   {
-    icone: 'equipe',
+    illustration: 'equipe',
     titre: "Toute l'équipe s'y met",
     texte: 'Admins et contributeurs au bureau, bénévoles sur le terrain avec un simple code PIN.',
   },
@@ -524,13 +599,13 @@ function Landing() {
               >
                 <Telephone>
                   <img
-                    src={donsMobile640}
-                    srcSet={IMG_DONS_MOBILE}
+                    src={dashboardMobile640}
+                    srcSet={IMG_DASHBOARD_MOBILE}
                     sizes="(min-width: 1024px) 240px, 36vw"
                     width={1170}
                     height={2532}
                     decoding="async"
-                    alt="Liste des dons de Samakan sur téléphone, en cartes."
+                    alt="Le même tableau de bord de Samakan sur téléphone."
                     className="block h-auto w-full"
                   />
                 </Telephone>
@@ -712,16 +787,16 @@ function Landing() {
           <section className="px-4 pb-16 sm:px-6 sm:pb-24">
             <div className="mx-auto max-w-6xl">
               <TitreSection titre="Simple, vraiment." />
-              <div className="mt-10 grid gap-8 sm:mt-12 md:grid-cols-3 md:gap-0">
+              <div className="mt-10 grid gap-10 sm:mt-12 md:grid-cols-3 md:gap-8">
                 {SIMPLE.map((s, i) => (
                   <div
                     key={s.titre}
                     data-reveal
                     style={{ transitionDelay: `${i * 90}ms` }}
-                    className={cn(REVEAL, 'md:border-l md:border-paper-border md:px-8 md:first:border-l-0 md:first:pl-0')}
+                    className={REVEAL}
                   >
-                    <Icone nom={s.icone} className="h-7 w-7 text-ink" />
-                    <h3 className="mt-4 text-lg font-bold tracking-[-0.01em] text-ink">{s.titre}</h3>
+                    <IllustrationSimple type={s.illustration} />
+                    <h3 className="mt-6 text-lg font-bold tracking-[-0.01em] text-ink">{s.titre}</h3>
                     <p className="mt-2 text-pretty text-[15px] leading-relaxed text-ink-muted">{s.texte}</p>
                   </div>
                 ))}
