@@ -75,6 +75,29 @@ describe('suggestion de domaine', () => {
     expect(suggestionDomaineEmail('camille@gmail.com')).toBeNull()
     expect(suggestionDomaineEmail('camille')).toBeNull()
   })
+
+  it('compare aux domaines courants, inversion comptée comme une seule faute', () => {
+    expect(suggestionDomaineEmail('boulom.nicolas@gmila.com')).toBe('boulom.nicolas@gmail.com')
+    expect(suggestionDomaineEmail('x@hotmal.fr')).toBe('x@hotmail.fr')
+    expect(suggestionDomaineEmail('x@yaoo.fr')).toBe('x@yahoo.fr')
+    expect(suggestionDomaineEmail('x@ornage.fr')).toBe('x@orange.fr')
+    expect(suggestionDomaineEmail('x@fre.fr')).toBe('x@free.fr')
+    expect(suggestionDomaineEmail('x@gmail.fr')).toBe('x@gmail.com')
+  })
+
+  it('corrige l’extension seulement si le nom correspond alors à un domaine courant', () => {
+    expect(suggestionDomaineEmail('x@gmail.cmo')).toBe('x@gmail.com')
+    expect(suggestionDomaineEmail('x@gmail.con')).toBe('x@gmail.com')
+    expect(suggestionDomaineEmail('x@hotmail.co')).toBe('x@hotmail.com')
+    expect(suggestionDomaineEmail('x@gmial.con')).toBe('x@gmail.com')
+    expect(suggestionDomaineEmail('x@monasso.co')).toBeNull()
+  })
+
+  it('ne propose rien pour un domaine connu ou sans proche voisin', () => {
+    for (const domaine of ['gmail.com', 'free.fr', 'asso-velo.org', 'mairie-lyon.fr', 'gmx.fr', 'sfr.fr', 'ymail.com', 'mail.com']) {
+      expect(suggestionDomaineEmail(`x@${domaine}`)).toBeNull()
+    }
+  })
 })
 
 describe('doublons de demandes', () => {
