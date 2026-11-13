@@ -9,6 +9,7 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { escapeHtml } from './echappementHtml.ts'
 import { sendViaResend } from './resend.ts'
 import { emailInvitationInscription } from './inscriptionEmails.ts'
+import { origineRedirectionAuth } from './siteUrl.ts'
 
 export type RoleCompte = 'admin' | 'contributeur'
 
@@ -42,6 +43,34 @@ export function emailInvitation(
   return { sujet: 'Votre accès Samakan', html: emailInvitationStandard(p.nom, p.organisationNom, p.actionLink, p.role) }
 }
 
+export const MESSAGE_SERVICE_COMPTES_INDISPONIBLE =
+  "Le service de comptes n'a pas répondu correctement. Réessaie dans un instant."
+
+/**
+ * Message à enregistrer et renvoyer pour une erreur d'un appel Auth. Une erreur Auth exploitable
+ * (ex. « adresse déjà utilisée ») reste telle quelle ; une réponse qui n'en est pas une (page HTML
+ * d'un pare-feu, réponse non JSON, statut 403 ou 5xx) donne un message lisible, le détail
+ * technique allant dans les logs.
+ */
+export function messageErreurAuth(
+  error: { message?: string; name?: string; status?: number } | null | undefined,
+  defaut: string,
+): string {
+  if (!error) return defaut
+  const status = typeof error.status === 'number' ? error.status : undefined
+  const message = error.message ?? ''
+  const nonExploitable = error.name === 'AuthUnknownError'
+    || error.name === 'AuthRetryableFetchError'
+    || status === 403
+    || (status !== undefined && status >= 500)
+    || /not valid JSON|Unexpected token|<!DOCTYPE/i.test(message)
+  if (nonExploitable) {
+    console.error('Auth : réponse inexploitable', { name: error.name, status, message })
+    return MESSAGE_SERVICE_COMPTES_INDISPONIBLE
+  }
+  return message || defaut
+}
+
 export interface ProfilCree {
   id: string
   utilisateur_id: string
@@ -69,11 +98,12 @@ export async function creerCompteEtInviter(
   const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
     type: 'invite',
     email: p.email,
-    options: { redirectTo: `${p.siteUrl}/mot-de-passe/nouveau` },
+    // Origine de repli si le client est sur une IP (pare-feu Cloudflare devant Supabase).
+    options: { redirectTo: `${origineRedirectionAuth(p.siteUrl)}/mot-de-passe/nouveau` },
   })
   if (linkError || !linkData?.user) {
     console.error('generateLink error:', linkError?.message)
-    return { ok: false, status: 400, error: linkError?.message ?? 'Erreur lors de la création du compte' }
+    return { ok: false, status: 400, error: messageErreurAuth(linkError, 'Erreur lors de la création du compte') }
   }
 
   const utilisateurId = linkData.user.id
@@ -120,10 +150,12 @@ export async function relancerInvitation(
   const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
     type: 'recovery',
     email: p.email,
-    options: { redirectTo: `${p.siteUrl}/mot-de-passe/nouveau` },
+    // Origine de repli si le client est sur une IP (pare-feu Cloudflare devant Supabase).
+    options: { redirectTo: `${origineRedirectionAuth(p.siteUrl)}/mot-de-passe/nouveau` },
   })
   if (linkError || !linkData?.properties?.action_link) {
-    return { ok: false, error: linkError?.message ?? 'Lien d’invitation impossible à générer' }
+    console.error('generateLink (relance) error:', linkError?.message)
+    return { ok: false, error: messageErreurAuth(linkError, 'Lien d’invitation impossible à générer') }
   }
   const { sujet, html } = emailInvitation(p.modele, {
     nom: p.nom,

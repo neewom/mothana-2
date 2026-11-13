@@ -1,13 +1,15 @@
 // deno test --no-lock supabase/functions/valider-demande-inscription/invitation.test.ts
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { inviterAdminDemande } from './invitation.ts'
+import { MESSAGE_SERVICE_COMPTES_INDISPONIBLE } from '../_shared/inviterAdmin.ts'
 
 function vrai(condition: boolean, message: string) {
   if (!condition) throw new Error(message)
 }
 
 /** Client factice : enregistre les écritures ; generateLink répond selon `lien`. */
-function clientFactice(lien: { data: unknown; error: { message: string } | null }) {
+function clientFactice(lien: { data: unknown; error: { message: string; name?: string; status?: number } | null }) {
+  const liens: { options?: { redirectTo?: string } }[] = []
   const majs: { table: string; valeurs: Record<string, unknown> }[] = []
   const suppressions: string[] = []
   const insertions: string[] = []
@@ -38,7 +40,10 @@ function clientFactice(lien: { data: unknown; error: { message: string } | null 
     },
     auth: {
       admin: {
-        generateLink: () => Promise.resolve(lien),
+        generateLink: (params: { options?: { redirectTo?: string } }) => {
+          liens.push(params)
+          return Promise.resolve(lien)
+        },
         deleteUser: (id: string) => {
           suppressions.push(`auth:${id}`)
           return Promise.resolve({ error: null })
@@ -46,7 +51,7 @@ function clientFactice(lien: { data: unknown; error: { message: string } | null 
       },
     },
   }
-  return { client: client as unknown as SupabaseClient, majs, suppressions, insertions }
+  return { client: client as unknown as SupabaseClient, majs, suppressions, insertions, liens }
 }
 
 const DEMANDE = {
@@ -78,4 +83,34 @@ Deno.test('relance (compte déjà créé pour la demande) : lien en échec → e
   const erreur = await inviterAdminDemande(client, { ...DEMANDE, admin_utilisateur_id: 'u-1' }, 'https://test.samakan.fr')
   vrai(erreur === 'User not found', 'erreur de relance')
   vrai(majs.some((m) => m.valeurs.erreur_invitation === 'User not found'), 'erreur enregistrée')
+})
+
+// Erreur levée par supabase-js quand le pare-feu devant Supabase répond une page HTML (403).
+const ERREUR_PARSE = {
+  data: { user: null, properties: null },
+  error: { name: 'AuthUnknownError', message: 'Unexpected token \'<\', "<!DOCTYPE "... is not valid JSON' },
+}
+
+Deno.test('réponse Auth non JSON : message lisible enregistré, pas le message du parseur', async () => {
+  const { client, majs } = clientFactice(ERREUR_PARSE)
+  const erreur = await inviterAdminDemande(client, DEMANDE, 'https://test.samakan.fr')
+  vrai(erreur === MESSAGE_SERVICE_COMPTES_INDISPONIBLE, `erreur renvoyée : ${erreur}`)
+  vrai(majs.some((m) => m.valeurs.erreur_invitation === MESSAGE_SERVICE_COMPTES_INDISPONIBLE), 'message lisible enregistré')
+})
+
+Deno.test('relance avec réponse Auth non JSON : message lisible', async () => {
+  const { client } = clientFactice(ERREUR_PARSE)
+  const erreur = await inviterAdminDemande(client, { ...DEMANDE, admin_utilisateur_id: 'u-1' }, 'https://test.samakan.fr')
+  vrai(erreur === MESSAGE_SERVICE_COMPTES_INDISPONIBLE, `erreur renvoyée : ${erreur}`)
+})
+
+Deno.test('origine IP : la redirection Auth de l\'invitation et de la relance pointe sur test.samakan.fr', async () => {
+  const echec = { data: { user: null, properties: null }, error: { message: 'x' } }
+  const creation = clientFactice(echec)
+  await inviterAdminDemande(creation.client, DEMANDE, 'http://100.107.87.80:5175')
+  const relance = clientFactice(echec)
+  await inviterAdminDemande(relance.client, { ...DEMANDE, admin_utilisateur_id: 'u-1' }, 'http://100.107.87.80:5175')
+  for (const { liens } of [creation, relance]) {
+    vrai(liens[0]?.options?.redirectTo === 'https://test.samakan.fr/mot-de-passe/nouveau', `redirectTo : ${liens[0]?.options?.redirectTo}`)
+  }
 })
