@@ -1,11 +1,11 @@
 // Bandeau permanent de la démo, en tête de chaque écran (à la place du bandeau « Environnement de
-// test », cf. RecetteBanner). Ligne sombre comme le bandeau du mode Consulter ; « Créer mon espace »
+// test », cf. RecetteBanner). Ligne sombre comme le bandeau du mode Consulter ; « Nous contacter »
 // est le seul élément au cachet. Cibles tactiles de 44 px sous 640 px (32 px au-delà, comme le
 // bandeau du mode Consulter).
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { INSCRIPTION_URL } from './messages'
+import { CONTACT_MAILTO } from '@/lib/contact'
 import { resetDemo } from './storage'
 
 export function DemoBanner() {
@@ -31,10 +31,10 @@ export function DemoBanner() {
           Remettre à zéro
         </button>
         <a
-          href={INSCRIPTION_URL}
+          href={CONTACT_MAILTO}
           className="inline-flex min-h-11 items-center rounded-sm bg-stamp px-3 font-medium text-white hover:bg-stamp/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper/70 sm:min-h-8"
         >
-          Créer mon espace
+          Nous contacter
         </a>
       </div>
 

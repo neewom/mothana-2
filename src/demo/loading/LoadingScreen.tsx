@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatMegabytes } from '../engineDownload'
-import { DEMO_PIN, INSCRIPTION_URL } from '../messages'
+import { CONTACT_MAILTO } from '@/lib/contact'
+import { DEMO_PIN } from '../messages'
 import { DemoCarousel } from './DemoCarousel'
 import { overallPercent, type BootState, type BootStore, type StartPoint } from './bootState'
 
@@ -155,7 +156,7 @@ export function LoadingScreen({ store, onDismiss }: LoadingScreenProps) {
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
               <Button variant="secondary" className="h-11 sm:h-9" asChild>
-                <a href={INSCRIPTION_URL}>Créer mon espace</a>
+                <a href={CONTACT_MAILTO}>Nous contacter</a>
               </Button>
             </div>
           </div>
@@ -183,7 +184,7 @@ export function LoadingScreen({ store, onDismiss }: LoadingScreenProps) {
           <div className="mt-4 flex flex-wrap gap-2">
             <Button className="h-11 sm:h-9" onClick={() => location.reload()}>Recharger la page</Button>
             <Button variant="secondary" className="h-11 sm:h-9" asChild>
-              <a href={INSCRIPTION_URL}>Créer mon espace</a>
+              <a href={CONTACT_MAILTO}>Nous contacter</a>
             </Button>
           </div>
         </div>
@@ -261,13 +262,12 @@ export function LoadingScreen({ store, onDismiss }: LoadingScreenProps) {
               <div className="rounded-sm border border-paper-border bg-white p-4">
                 <p className="text-sm font-semibold text-ink">Connexion lente ?</p>
                 <p className="mt-1 text-sm text-ink-muted">
-                  Le téléchargement continue. En attendant, fais la visite en images, ou crée directement l'espace de ton
-                  association.
+                  Le téléchargement continue. En attendant, fais la visite en images, ou écris-nous pour en parler.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button className="h-11 sm:h-9" onClick={() => setVisitOpen(true)}>Voir la visite en images</Button>
                   <Button variant="secondary" className="h-11 sm:h-9" asChild>
-                    <a href={INSCRIPTION_URL}>Créer mon espace</a>
+                    <a href={CONTACT_MAILTO}>Nous contacter</a>
                   </Button>
                 </div>
               </div>
@@ -305,7 +305,7 @@ export function LoadingScreen({ store, onDismiss }: LoadingScreenProps) {
               <Button className="h-11 sm:h-9" onClick={() => setVisitOpen(false)}>Ouvrir la démo</Button>
             ) : (
               <Button variant="secondary" className="h-11 sm:h-9" asChild>
-                <a href={INSCRIPTION_URL}>Créer mon espace</a>
+                <a href={CONTACT_MAILTO}>Nous contacter</a>
               </Button>
             )}
           </div>

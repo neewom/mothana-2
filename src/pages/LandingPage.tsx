@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useReveal } from '../hooks/useReveal'
 import { cheminEspaceConnecte } from '../lib/espaceUtilisateur'
-import { ESSAI_GRATUIT_HREF } from '../lib/essaiGratuit'
+import { CONTACT_EMAIL, CONTACT_MAILTO } from '../lib/contact'
 import { getDemoUrl } from '../lib/environment'
 import { cn } from '@/lib/utils'
 import RecetteBanner from '../components/RecetteBanner'
@@ -146,49 +146,54 @@ function Icone({ nom, className }: { nom: keyof typeof ICONES; className?: strin
 // ---------------------------------------------------------------------------
 // Éléments réutilisés
 
-function BoutonEssai({ className }: { className?: string }) {
-  return (
-    <Link
-      to={ESSAI_GRATUIT_HREF}
-      className={cn(
-        'group inline-flex h-12 items-center justify-center gap-2 rounded-sm bg-stamp px-6 text-base font-semibold text-white transition-colors hover:bg-stamp/90',
-        FOCUS,
-        className,
-      )}
-    >
-      Essayer gratuitement
-      <Icone nom="fleche" className="h-5 w-5 transition-transform duration-300 ease-out group-hover:translate-x-0.5" />
-    </Link>
-  )
-}
-
 /**
- * Lien secondaire vers la démo publique (autre domaine, sans compte). Simple lien sortant, même onglet :
- * la démo est lourde (une base embarquée se charge dans le navigateur) et son « Créer mon espace »
- * ramène vers samakan.fr, le retour arrière ramène à la landing. Aucun préchargement : rien de la démo
- * n'est demandé avant le clic.
+ * Appel principal : la démo publique (autre domaine, sans compte). Simple lien sortant, même onglet :
+ * la démo est lourde (une base embarquée se charge dans le navigateur) et son « Nous contacter » ouvre
+ * un email, le retour arrière ramène à la landing. Aucun préchargement : rien de la démo n'est demandé
+ * avant le clic.
  */
 function BoutonDemo({ className }: { className?: string }) {
   return (
     <a
       href={getDemoUrl()}
       className={cn(
-        'inline-flex h-12 items-center justify-center rounded-sm border border-paper-border bg-white px-6 text-base font-semibold text-ink-muted transition-colors hover:border-ink-faint hover:text-ink',
+        'group inline-flex h-12 items-center justify-center gap-2 rounded-sm bg-stamp px-6 text-base font-semibold text-white transition-colors hover:bg-stamp/90',
         FOCUS,
         className,
       )}
     >
       Voir la démo
+      <Icone nom="fleche" className="h-5 w-5 transition-transform duration-300 ease-out group-hover:translate-x-0.5" />
     </a>
   )
 }
 
-/** Les deux appels à l'action côte à côte (empilés en mobile), l'essai gratuit en premier. */
+/** Appel secondaire : un email à la boîte de contact (pas de formulaire côté serveur). */
+function BoutonContact({ className }: { className?: string }) {
+  return (
+    <a
+      href={CONTACT_MAILTO}
+      className={cn(
+        'inline-flex h-12 items-center justify-center rounded-sm border border-paper-border bg-white px-6 text-base font-semibold text-ink-muted transition-colors hover:border-ink-faint hover:text-ink',
+        FOCUS,
+        className,
+      )}
+    >
+      Nous contacter
+    </a>
+  )
+}
+
+/**
+ * Les deux appels à l'action côte à côte (empilés en mobile), la démo en premier.
+ * L'inscription en ligne (/inscription) n'a volontairement plus de lien public tant que l'offre n'est pas
+ * prête ; pour la réactiver, voir `src/lib/essaiGratuit.ts`.
+ */
 function BoutonsAppel({ className }: { className?: string }) {
   return (
     <div className={cn('flex w-full flex-col gap-3 sm:w-auto sm:flex-row', className)}>
-      <BoutonEssai />
       <BoutonDemo />
+      <BoutonContact />
     </div>
   )
 }
@@ -600,8 +605,7 @@ function Landing() {
                 bénévoles.
               </p>
               <BoutonsAppel className="mt-9" />
-              <p className="mt-3 text-sm font-medium text-ink-muted">Gratuit, sans carte bancaire.</p>
-              <p className="mt-2 text-sm text-ink-faint">
+              <p className="mt-4 text-sm text-ink-faint">
                 Culte, culture, sport, solidarité, quartier : Samakan s'adapte à ton association.
               </p>
             </div>
@@ -862,17 +866,18 @@ function Landing() {
           </section>
 
           {/* -------------------------------------------------------- Appel final */}
-          {/* Emplacement réservé à l'offre gratuite : y ajouter son contenu (sans prix) une fois l'offre définie. */}
+          {/* Appel final provisoire, autour de la démo : l'offre (essai gratuit, abonnements) n'y figure pas tant
+              qu'elle n'est pas prête. Réactivation de l'essai : voir `src/lib/essaiGratuit.ts`. */}
           <section className="relative overflow-hidden px-4 py-20 sm:px-6 sm:py-28">
             <div data-reveal className={cn(REVEAL, 'relative mx-auto flex max-w-3xl flex-col items-center text-center')}>
               <h2 className="text-balance text-[2.25rem] font-bold leading-[1.05] tracking-[-0.035em] text-ink sm:text-[3.5rem]">
                 Ta prochaine saison associative commence ici.
               </h2>
               <p className="mt-5 max-w-xl text-pretty text-lg leading-relaxed text-ink-muted">
-                Essaie Samakan gratuitement, avec toute ton équipe.
+                Parcours la démo en quelques minutes, sans créer de compte. Une question sur ton association ?
+                Écris-nous à <span className="whitespace-nowrap font-medium text-ink">{CONTACT_EMAIL}</span>.
               </p>
               <BoutonsAppel className="mt-9" />
-              <p className="mt-3 text-sm font-medium text-ink-muted">Gratuit, sans carte bancaire.</p>
             </div>
           </section>
         </main>
