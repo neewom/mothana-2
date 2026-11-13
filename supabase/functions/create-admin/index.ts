@@ -1,24 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { sendViaResend } from '../_shared/resend.ts'
+import { creerCompteEtInviter } from '../_shared/inviterAdmin.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-function inviteAdminEmailHtml(nom: string, organisationNom: string, actionLink: string, role: 'admin' | 'contributeur'): string {
-  const roleLabel = role === 'admin' ? 'administrateur' : 'membre'
-  return `<!doctype html><html><body style="font-family: ui-sans-serif, system-ui, sans-serif; background: #f8fafc; padding: 32px;">
-  <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e2e8f0;">
-    <h1 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">Bienvenue sur Samakan</h1>
-    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Bonjour ${nom},</p>
-    <p style="color: #475569; font-size: 14px; line-height: 1.5;">Un compte ${roleLabel} vient d'être créé pour vous, pour l'organisation <strong>${organisationNom}</strong>. Cliquez sur le bouton ci-dessous pour définir votre mot de passe et accéder à votre espace.</p>
-    <p style="margin: 24px 0;">
-      <a href="${actionLink}" style="background: #4f46e5; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">Définir mon mot de passe</a>
-    </p>
-    <p style="color: #94a3b8; font-size: 12px;">Si vous n'êtes pas à l'origine de cette invitation, vous pouvez ignorer cet email.</p>
-  </div>
-</body></html>`
 }
 
 Deno.serve(async (req) => {
@@ -109,65 +94,22 @@ Deno.serve(async (req) => {
       targetRole = 'contributeur'
     }
 
-    const { data: orgData, error: orgError } = await adminClient
-      .from('organisations')
-      .select('nom')
-      .eq('id', targetOrganisationId)
-      .single()
-
-    if (orgError || !orgData) {
-      return new Response(
-        JSON.stringify({ error: 'Organisation introuvable' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
-    // Create the Auth account and get an invite action link in one call
-    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-      type: 'invite',
+    // Compte, profil et invitation habituelle : logique partagée avec valider-demande-inscription.
+    const resultat = await creerCompteEtInviter(adminClient, {
+      nom,
       email,
-      options: { redirectTo: `${site_url}/mot-de-passe/nouveau` },
+      organisationId: targetOrganisationId,
+      role: targetRole,
+      siteUrl: site_url,
+      modele: { type: 'standard' },
     })
-
-    if (linkError || !linkData?.user) {
-      console.error('generateLink error:', linkError?.message)
+    if (!resultat.ok) {
       return new Response(
-        JSON.stringify({ error: linkError?.message ?? 'Erreur lors de la création du compte' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        JSON.stringify({ error: resultat.error }),
+        { status: resultat.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
-
-    const utilisateur_id = linkData.user.id
-    const actionLink = linkData.properties.action_link
-
-    // Insert the admin/contributeur profile linked to the organisation
-    const { data: profil, error: profilError } = await adminClient
-      .from('profils_organisation')
-      .insert({
-        utilisateur_id,
-        organisation_id: targetOrganisationId,
-        nom_affiche: nom,
-        role: targetRole,
-      })
-      .select('id, utilisateur_id, nom_affiche, organisation_id, role')
-      .single()
-
-    if (profilError || !profil) {
-      console.error('profils_organisation insert error:', profilError?.message)
-      // Roll back the Auth account to keep data consistent
-      await adminClient.auth.admin.deleteUser(utilisateur_id)
-      return new Response(
-        JSON.stringify({ error: profilError?.message ?? 'Erreur lors de la création du profil' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
-    const emailResult = await sendViaResend(email, 'Votre accès Samakan', inviteAdminEmailHtml(nom, orgData.nom, actionLink, targetRole))
-
-    if (!emailResult.ok) {
-      console.error('Resend error:', emailResult.detail)
-      // Non-bloquant : le compte est créé, seul l'email échoue
-    }
+    const { profil, emailEnvoye } = resultat
 
     return new Response(
       JSON.stringify({
@@ -177,7 +119,7 @@ Deno.serve(async (req) => {
         email,
         organisation_id: profil.organisation_id,
         role: profil.role,
-        email_envoye: emailResult.ok,
+        email_envoye: emailEnvoye,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )

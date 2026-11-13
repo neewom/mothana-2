@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useReveal } from '../hooks/useReveal'
 import { cheminEspaceConnecte } from '../lib/espaceUtilisateur'
@@ -147,8 +147,8 @@ function Icone({ nom, className }: { nom: keyof typeof ICONES; className?: strin
 
 function BoutonEssai({ className }: { className?: string }) {
   return (
-    <a
-      href={ESSAI_GRATUIT_HREF}
+    <Link
+      to={ESSAI_GRATUIT_HREF}
       className={cn(
         'group inline-flex h-12 items-center justify-center gap-2 rounded-sm bg-stamp px-6 text-base font-semibold text-white transition-colors hover:bg-stamp/90',
         FOCUS,
@@ -157,7 +157,7 @@ function BoutonEssai({ className }: { className?: string }) {
     >
       Essayer gratuitement
       <Icone nom="fleche" className="h-5 w-5 transition-transform duration-300 ease-out group-hover:translate-x-0.5" />
-    </a>
+    </Link>
   )
 }
 

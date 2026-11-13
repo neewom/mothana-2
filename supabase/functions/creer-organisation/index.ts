@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     // Le super-admin ne fournit que le nom : slug dérivé, modèles et fonctionnalités par défaut.
     const resultat = await creerOrganisation(adminClient, { nom })
     if (resultat.ok) return json({ organisation_id: resultat.organisationId }, 200)
-    if (resultat.code === 'NOM_INVALIDE') return json({ error: resultat.message, code: resultat.code }, 400)
+    if (resultat.code === 'NOM_INVALIDE' || resultat.code === 'SLUG_INVALIDE') return json({ error: resultat.message, code: resultat.code }, 400)
     if (resultat.code === 'DOUBLON') return json({ error: resultat.message, code: resultat.code }, 409)
     console.error('creer-organisation :', resultat.message)
     return json({ error: resultat.message, code: resultat.code }, 500)
