@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useReveal } from '../hooks/useReveal'
 import { cheminEspaceConnecte } from '../lib/espaceUtilisateur'
 import { ESSAI_GRATUIT_HREF } from '../lib/essaiGratuit'
+import { getDemoUrl } from '../lib/environment'
 import { cn } from '@/lib/utils'
 import RecetteBanner from '../components/RecetteBanner'
 import SiteHeader from '../components/site/SiteHeader'
@@ -158,6 +159,37 @@ function BoutonEssai({ className }: { className?: string }) {
       Essayer gratuitement
       <Icone nom="fleche" className="h-5 w-5 transition-transform duration-300 ease-out group-hover:translate-x-0.5" />
     </Link>
+  )
+}
+
+/**
+ * Lien secondaire vers la démo publique (autre domaine, sans compte). Simple lien sortant, même onglet :
+ * la démo est lourde (une base embarquée se charge dans le navigateur) et son « Créer mon espace »
+ * ramène vers samakan.fr, le retour arrière ramène à la landing. Aucun préchargement : rien de la démo
+ * n'est demandé avant le clic.
+ */
+function BoutonDemo({ className }: { className?: string }) {
+  return (
+    <a
+      href={getDemoUrl()}
+      className={cn(
+        'inline-flex h-12 items-center justify-center rounded-sm border border-paper-border bg-white px-6 text-base font-semibold text-ink-muted transition-colors hover:border-ink-faint hover:text-ink',
+        FOCUS,
+        className,
+      )}
+    >
+      Voir la démo
+    </a>
+  )
+}
+
+/** Les deux appels à l'action côte à côte (empilés en mobile), l'essai gratuit en premier. */
+function BoutonsAppel({ className }: { className?: string }) {
+  return (
+    <div className={cn('flex w-full flex-col gap-3 sm:w-auto sm:flex-row', className)}>
+      <BoutonEssai />
+      <BoutonDemo />
+    </div>
   )
 }
 
@@ -567,7 +599,7 @@ function Landing() {
                 Dons, reçus fiscaux, adhésions, emailing, bénévoles : un seul outil pour le bureau et les
                 bénévoles.
               </p>
-              <BoutonEssai className="mt-9 w-full sm:w-auto" />
+              <BoutonsAppel className="mt-9" />
               <p className="mt-3 text-sm font-medium text-ink-muted">Gratuit, sans carte bancaire.</p>
               <p className="mt-2 text-sm text-ink-faint">
                 Culte, culture, sport, solidarité, quartier : Samakan s'adapte à ton association.
@@ -839,7 +871,7 @@ function Landing() {
               <p className="mt-5 max-w-xl text-pretty text-lg leading-relaxed text-ink-muted">
                 Essaie Samakan gratuitement, avec toute ton équipe.
               </p>
-              <BoutonEssai className="mt-9 w-full sm:w-auto" />
+              <BoutonsAppel className="mt-9" />
               <p className="mt-3 text-sm font-medium text-ink-muted">Gratuit, sans carte bancaire.</p>
             </div>
           </section>
