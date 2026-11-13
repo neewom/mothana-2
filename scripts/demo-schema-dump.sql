@@ -1,6 +1,12 @@
--- Spike démo PGlite : reconstruit le DDL du schéma public depuis le catalogue (lecture seule).
--- Usage : npx supabase db query --linked -f scripts/demo-schema-dump.sql > /tmp/ddl.json
---         python3 scripts/demo-schema-build.py /tmp/ddl.json > src/demo/schema.sql
+-- Démo publique (demo.samakan.fr) : reconstruit le DDL du schéma public depuis le catalogue de
+-- staging. Une seule requête SELECT sur le catalogue : structure seulement, aucune ligne de donnée.
+-- Ne pas lancer à la main : `npm run demo:schema` (scripts/demo-schema.sh) vérifie le projet lié,
+-- puis scripts/demo-schema-build.py écrit src/demo/schema.sql.
+--
+-- Exclu : les objets propres à une organisation existante. Les séquences de numérotation
+-- (adherent_id_externe_seq_<org>, participant_id_externe_seq_<org>, recu_seq_<org>_<année>) portent
+-- l'identifiant de l'organisation dans leur nom ; les fonctions qui s'en servent les créent à la
+-- première demande (next_*_id_externe, next_numero_recu), y compris pour l'organisation de la démo.
 
 with ns as (select 'public'::regnamespace as oid),
 ext_objs as (select objid from pg_depend where deptype='e'),
@@ -19,6 +25,7 @@ comps as (
 seqs as (
   select 20, c.relname::text, format('create sequence if not exists public.%I;', c.relname)
   from pg_class c where c.relnamespace=(select oid from ns) and c.relkind='S'
+   and c.relname !~ '[0-9a-f]{8}_[0-9a-f]{4}_[0-9a-f]{4}_[0-9a-f]{4}_[0-9a-f]{12}'
    and not exists (select 1 from pg_depend d where d.objid=c.oid and d.deptype in ('a','i') and d.classid='pg_class'::regclass and d.refclassid='pg_class'::regclass)
 ),
 tabs as (
@@ -80,4 +87,4 @@ fgrants as (
        from aclexplode(p.proacl) a where a.privilege_type='EXECUTE' and (a.grantee=0 or a.grantee::regrole::text in ('anon','authenticated','service_role'))), ''))
   from pg_proc p where p.pronamespace=(select oid from ns) and p.prokind in ('f','p') and p.oid not in (select objid from ext_objs) and p.proacl is not null
 )
-select * from (select * from enums union all select * from comps union all select * from seqs union all select * from tabs union all select * from defaults union all select * from funcs union all select * from views union all select * from cons union all select * from idx union all select * from trg union all select * from rls union all select * from pols union all select * from fgrants) x order by 1, 2
+select * from (select * from enums union all select * from comps union all select * from seqs union all select * from tabs union all select * from defaults union all select * from funcs union all select * from views union all select * from cons union all select * from idx union all select * from trg union all select * from rls union all select * from pols union all select * from fgrants) x order by 1, 2, 3

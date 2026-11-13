@@ -16,7 +16,7 @@ import type { EngineAssets } from './engineDownload'
 
 // À changer à chaque nouvel instantané du schéma (schema.sql) ou du jeu de données (seed.ts) :
 // une base enregistrée sous une autre version est effacée et recréée au démarrage suivant.
-const DATA_VERSION = '2026-11-13e'
+const DATA_VERSION = '2026-11-13f'
 
 type DbEngine = NonNullable<BackendConfig['engine']>
 type Queryable = Pick<PGlite, 'query' | 'exec'>

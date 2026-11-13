@@ -10,7 +10,9 @@
     "lint:ds": "eslint -c eslint.ds.config.js --quiet src",
     "test": "vitest run",
     "test:edge": "deno test --no-lock supabase/functions",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "demo:schema": "bash scripts/demo-schema.sh",
+    "demo:smoke": "python3 scripts/demo-smoke.py"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.16",

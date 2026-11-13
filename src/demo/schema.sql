@@ -1,29 +1,8 @@
--- Généré par scripts/demo-schema-build.py (spike démo PGlite) — ne pas éditer à la main.
+-- Généré par `npm run demo:schema` (scripts/demo-schema-dump.sql + scripts/demo-schema-build.py)
+-- depuis le catalogue de staging — ne pas éditer à la main. Changer DATA_VERSION (backend.ts).
 set check_function_bodies = off;
 create extension if not exists unaccent with schema extensions;
 create or replace function extensions.gen_random_bytes(n integer) returns bytea language sql volatile as $$ select substring(decode(replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''), 'hex') from 1 for n) $$;
-create sequence if not exists public.adherent_id_externe_seq_00000000_0000_0000_0000_000000000001;
-create sequence if not exists public.adherent_id_externe_seq_21220e8f_6b92_407b_9ef0_3df1f7f605d2;
-create sequence if not exists public.adherent_id_externe_seq_6f8bd849_9543_44ea_965a_d127b35f545a;
-create sequence if not exists public.adherent_id_externe_seq_c12b8c16_daf2_40be_a37f_95bd072da1a6;
-create sequence if not exists public.adherent_id_externe_seq_f4b4c844_7bc4_4ccd_8b80_5bdbde67c220;
-create sequence if not exists public.participant_id_externe_seq_147e8f73_a6ac_44c6_9c2e_b9e97776e7f4;
-create sequence if not exists public.participant_id_externe_seq_395cc9e5_40a4_491c_a89e_817c02eeb193;
-create sequence if not exists public.participant_id_externe_seq_5dac0eca_8308_48b7_a8a5_0ab83506f793;
-create sequence if not exists public.participant_id_externe_seq_6f8bd849_9543_44ea_965a_d127b35f545a;
-create sequence if not exists public.participant_id_externe_seq_87213abf_c373_43ba_85d2_aa1cdb97e882;
-create sequence if not exists public.participant_id_externe_seq_f4b4c844_7bc4_4ccd_8b80_5bdbde67c220;
-create sequence if not exists public.participant_id_externe_seq_f94585e4_b3c8_4681_a42e_6672924ee452;
-create sequence if not exists public.recu_seq_00000000_0000_0000_0000_000000000001_2026;
-create sequence if not exists public.recu_seq_87213abf_c373_43ba_85d2_aa1cdb97e882_2021;
-create sequence if not exists public.recu_seq_87213abf_c373_43ba_85d2_aa1cdb97e882_2022;
-create sequence if not exists public.recu_seq_87213abf_c373_43ba_85d2_aa1cdb97e882_2023;
-create sequence if not exists public.recu_seq_87213abf_c373_43ba_85d2_aa1cdb97e882_2024;
-create sequence if not exists public.recu_seq_87213abf_c373_43ba_85d2_aa1cdb97e882_2025;
-create sequence if not exists public.recu_seq_87213abf_c373_43ba_85d2_aa1cdb97e882_2026;
-create sequence if not exists public.recu_seq_c12b8c16_daf2_40be_a37f_95bd072da1a6_2026;
-create sequence if not exists public.recu_seq_f4b4c844_7bc4_4ccd_8b80_5bdbde67c220_2025;
-create sequence if not exists public.recu_seq_f4b4c844_7bc4_4ccd_8b80_5bdbde67c220_2026;
 create table public.acces_portefeuille_rate_limits (id bigint generated always as identity not null, ip_hash text not null, portefeuille_id uuid, scope text not null, created_at timestamp with time zone not null);
 create table public.activites (id uuid not null, organisation_id uuid not null, nom text not null, created_at timestamp with time zone not null, id_externe text, date_debut date, date_fin date);
 create table public.adherents (id uuid not null, organisation_id uuid not null, id_externe text, civilite smallint not null, nom text not null, prenom text, date_naissance date, adresse text, code_postal text, ville text, telephone text, courriel text, statut text not null, statuts_acceptes boolean not null, consent_rgpd boolean not null, created_at timestamp with time zone not null, updated_at timestamp with time zone not null, pays text, mailing_opt_out boolean not null, mailing_opt_out_at timestamp with time zone, mailing_unsubscribe_token uuid not null, tags text[] not null, email_invalide_at timestamp with time zone, email_invalide_evenement text, email_invalide_raison text);
@@ -35,7 +14,7 @@ create table public.campagnes_mailing_destinataires (id uuid not null, campagne_
 create table public.commandes (id uuid not null, organisation_id uuid not null, evenement_id uuid not null, email text not null, montant_centimes integer not null, moyen_paiement text not null, statut text not null, reference_paiement text, cle_idempotence text, expire_le timestamp with time zone not null, payee_le timestamp with time zone, portefeuille_id uuid, created_at timestamp with time zone not null, updated_at timestamp with time zone not null);
 create table public.coupon_transport_spike (id uuid not null, seller_hash text not null, buyer_hash text not null, topic text not null, revision integer not null, status text not null, request_id uuid, changed_at timestamp with time zone not null, request_expires_at timestamp with time zone, expires_at timestamp with time zone not null);
 create table public.demandes_adhesion (id uuid not null, organisation_id uuid not null, civilite smallint not null, nom text not null, prenom text, date_naissance date, adresse text, code_postal text, ville text, telephone text, courriel text, signature_data_url text not null, accepte_statuts boolean not null, consent_rgpd boolean not null, statut text not null, decided_at timestamp with time zone, decided_by uuid, adherent_id uuid, created_at timestamp with time zone not null, pays text, motif_refus text, email_bounced_at timestamp with time zone, type text not null, adherent_vise_id uuid);
-create table public.demandes_inscription (id uuid not null, nom_association text not null, ville text not null, rna text, siren text, prenom text not null, nom text not null, email text not null, message text, cgu_acceptees_le timestamp with time zone, statut text not null, organisation_id uuid, traitee_par uuid, traitee_le timestamp with time zone, admin_utilisateur_id uuid, invitation_envoyee_le timestamp with time zone, erreur_invitation text, created_at timestamp with time zone not null);
+create table public.demandes_inscription (id uuid not null, nom_association text not null, ville text not null, rna text, siren text, prenom text not null, nom text not null, email text not null, message text, cgu_acceptees_le timestamp with time zone, statut text not null, organisation_id uuid, traitee_par uuid, traitee_le timestamp with time zone, admin_utilisateur_id uuid, invitation_envoyee_le timestamp with time zone, erreur_invitation text, created_at timestamp with time zone not null, confirmation_jeton_hash text, confirmation_expire_le timestamp with time zone, confirmee_le timestamp with time zone);
 create table public.demandes_paiement (id uuid not null, organisation_id uuid not null, portefeuille_id uuid not null, montant_centimes integer not null, statut text not null, expire_le timestamp with time zone not null, cree_par uuid not null, decidee_le timestamp with time zone, created_at timestamp with time zone not null, updated_at timestamp with time zone not null);
 create table public.dons (id uuid not null, profil_participant_id uuid not null, organisation_id uuid not null, activite_id uuid, montant numeric(10,2) not null, date date not null, mode_paiement smallint not null, created_by_role text not null, created_at timestamp with time zone not null, updated_at timestamp with time zone not null, id_externe text, don_regulier_id uuid);
 create table public.dons_fichiers (id uuid not null, don_id uuid not null, organisation_id uuid not null, chemin_storage text not null, nom_original text not null, type_mime text not null, taille bigint not null, uploaded_by uuid, created_at timestamp with time zone not null);
@@ -678,6 +657,69 @@ begin
     raise exception 'ACCES_REFUSE' using errcode = '42501';
   end if;
   return query select s.organisation_id, s.code_pin_benevole from public.organisation_secrets s;
+end;
+$function$
+;
+CREATE OR REPLACE FUNCTION public.confirmer_demande_inscription(p_ip_hash text, p_jeton_hash text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+declare
+  v_nb integer;
+  v_demande public.demandes_inscription%rowtype;
+begin
+  if p_ip_hash is null or p_ip_hash !~ '^[0-9a-f]{64}$' then
+    return jsonb_build_object('ok', false, 'reason', 'ACCES_INVALIDE');
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('inscription:confirmation:' || p_ip_hash, 0));
+  delete from public.acces_portefeuille_rate_limits
+  where scope = 'inscription_confirmation_ip'
+    and ip_hash = p_ip_hash
+    and created_at < clock_timestamp() - interval '1 day';
+  select count(*) into v_nb
+  from public.acces_portefeuille_rate_limits
+  where scope = 'inscription_confirmation_ip'
+    and ip_hash = p_ip_hash
+    and created_at > clock_timestamp() - interval '1 hour';
+  if v_nb >= 10 then
+    return jsonb_build_object('ok', false, 'reason', 'RATE_LIMIT');
+  end if;
+  insert into public.acces_portefeuille_rate_limits(ip_hash, portefeuille_id, scope)
+  values (p_ip_hash, null, 'inscription_confirmation_ip');
+
+  if p_jeton_hash is null or p_jeton_hash !~ '^[0-9a-f]{64}$' then
+    return jsonb_build_object('ok', true, 'cas', 'invalide');
+  end if;
+
+  select * into v_demande from public.demandes_inscription
+  where confirmation_jeton_hash = p_jeton_hash
+  for update;
+  if not found then
+    return jsonb_build_object('ok', true, 'cas', 'invalide');
+  end if;
+  if v_demande.statut <> 'a_confirmer' then
+    return jsonb_build_object('ok', true, 'cas', 'deja_confirmee');
+  end if;
+  if not coalesce(v_demande.confirmation_expire_le > now(), false) then
+    return jsonb_build_object('ok', true, 'cas', 'expiree');
+  end if;
+
+  update public.demandes_inscription
+  set statut = 'en_attente', confirmee_le = now(), confirmation_expire_le = null
+  where id = v_demande.id;
+
+  return jsonb_build_object('ok', true, 'cas', 'confirmee', 'demande', jsonb_build_object(
+    'nom_association', v_demande.nom_association,
+    'ville', v_demande.ville,
+    'rna', v_demande.rna,
+    'siren', v_demande.siren,
+    'prenom', v_demande.prenom,
+    'nom', v_demande.nom,
+    'email', v_demande.email,
+    'message', v_demande.message));
 end;
 $function$
 ;
@@ -2962,8 +3004,8 @@ declare
   v_nb integer;
 begin
   delete from public.demandes_inscription
-  where statut = 'refusee'
-    and coalesce(traitee_le, created_at) < now() - interval '30 days';
+  where (statut = 'refusee' and coalesce(traitee_le, created_at) < now() - interval '30 days')
+     or (statut = 'a_confirmer' and confirmation_expire_le < now() - interval '7 days');
   get diagnostics v_nb = row_count;
   return v_nb;
 end;
@@ -4044,7 +4086,7 @@ BEGIN
 END;
 $function$
 ;
-CREATE OR REPLACE FUNCTION public.soumettre_demande_inscription(p_ip_hash text, p_email_hash text, p_demande jsonb)
+CREATE OR REPLACE FUNCTION public.soumettre_demande_inscription(p_ip_hash text, p_email_hash text, p_jeton_hash text, p_demande jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -4058,6 +4100,7 @@ declare
 begin
   if p_ip_hash is null or p_ip_hash !~ '^[0-9a-f]{64}$'
      or p_email_hash is null or p_email_hash !~ '^[0-9a-f]{64}$'
+     or p_jeton_hash is null or p_jeton_hash !~ '^[0-9a-f]{64}$'
      or jsonb_typeof(p_demande) is distinct from 'object' or v_email = '' then
     return jsonb_build_object('ok', false, 'reason', 'ACCES_INVALIDE');
   end if;
@@ -4093,7 +4136,7 @@ begin
   insert into public.acces_portefeuille_rate_limits(ip_hash, portefeuille_id, scope)
   values (p_ip_hash, null, 'inscription_ip');
 
-  -- Accusés de réception par adresse : 3 / 24 h, au-delà la demande suit son cours sans email.
+  -- Emails par adresse : 3 / 24 h, au-delà rien n'est envoyé.
   select count(*) into v_nb
   from public.acces_portefeuille_rate_limits
   where scope = 'inscription_email'
@@ -4118,9 +4161,34 @@ begin
     return jsonb_build_object('ok', true, 'cas', 'en_attente', 'envoyer_accuse', v_envoyer);
   end if;
 
+  -- Demande pas encore confirmée : mise à jour (champs saisis, nouveau jeton, nouvelle
+  -- expiration) et nouvel email de confirmation. Plafond d'emails atteint : rien ne change, pour
+  -- que le dernier lien envoyé reste valable.
+  select id into v_id from public.demandes_inscription
+  where email = v_email and statut = 'a_confirmer'
+  for update;
+  if found then
+    if v_envoyer then
+      update public.demandes_inscription set
+        nom_association = btrim(p_demande ->> 'nom_association'),
+        ville = btrim(p_demande ->> 'ville'),
+        rna = nullif(btrim(coalesce(p_demande ->> 'rna', '')), ''),
+        siren = nullif(btrim(coalesce(p_demande ->> 'siren', '')), ''),
+        prenom = btrim(p_demande ->> 'prenom'),
+        nom = btrim(p_demande ->> 'nom'),
+        message = nullif(btrim(coalesce(p_demande ->> 'message', '')), ''),
+        cgu_acceptees_le = case when coalesce((p_demande ->> 'cgu_acceptees')::boolean, false) then now() end,
+        confirmation_jeton_hash = p_jeton_hash,
+        confirmation_expire_le = now() + interval '48 hours'
+      where id = v_id;
+    end if;
+    return jsonb_build_object('ok', true, 'cas', 'a_confirmer', 'envoyer_accuse', v_envoyer, 'demande_id', v_id);
+  end if;
+
   begin
     insert into public.demandes_inscription
-      (nom_association, ville, rna, siren, prenom, nom, email, message, cgu_acceptees_le)
+      (nom_association, ville, rna, siren, prenom, nom, email, message, cgu_acceptees_le,
+       statut, confirmation_jeton_hash, confirmation_expire_le)
     values (
       btrim(p_demande ->> 'nom_association'),
       btrim(p_demande ->> 'ville'),
@@ -4130,12 +4198,16 @@ begin
       btrim(p_demande ->> 'nom'),
       v_email,
       nullif(btrim(coalesce(p_demande ->> 'message', '')), ''),
-      case when coalesce((p_demande ->> 'cgu_acceptees')::boolean, false) then now() end
+      case when coalesce((p_demande ->> 'cgu_acceptees')::boolean, false) then now() end,
+      'a_confirmer',
+      p_jeton_hash,
+      now() + interval '48 hours'
     )
     returning id into v_id;
   exception when unique_violation then
-    -- Course entre deux soumissions de la même adresse : la première l'emporte.
-    return jsonb_build_object('ok', true, 'cas', 'en_attente', 'envoyer_accuse', v_envoyer);
+    -- Course entre deux soumissions de la même adresse (en principe exclue par le verrou sur
+    -- l'empreinte de l'adresse) : la première l'emporte, aucun email avec ce jeton non enregistré.
+    return jsonb_build_object('ok', true, 'cas', 'a_confirmer', 'envoyer_accuse', false);
   end;
 
   return jsonb_build_object('ok', true, 'cas', 'nouvelle', 'envoyer_accuse', v_envoyer, 'demande_id', v_id);
@@ -4680,7 +4752,7 @@ alter table public.demandes_adhesion alter column statut set default 'en_attente
 alter table public.demandes_adhesion alter column type set default 'adhesion'::text;
 alter table public.demandes_inscription alter column created_at set default now();
 alter table public.demandes_inscription alter column id set default gen_random_uuid();
-alter table public.demandes_inscription alter column statut set default 'en_attente'::text;
+alter table public.demandes_inscription alter column statut set default 'a_confirmer'::text;
 alter table public.demandes_paiement alter column created_at set default now();
 alter table public.demandes_paiement alter column expire_le set default (now() + '00:01:30'::interval);
 alter table public.demandes_paiement alter column id set default gen_random_uuid();
@@ -4776,7 +4848,7 @@ alter table public.templates_recu alter column is_archived set default false;
 alter table public.templates_recu alter column updated_at set default now();
 alter table public.acces_portefeuille_rate_limits add constraint acces_portefeuille_rate_limits_ip_hash_check CHECK ((ip_hash ~ '^[0-9a-f]{64}$'::text));
 alter table public.acces_portefeuille_rate_limits add constraint acces_portefeuille_rate_limits_pkey PRIMARY KEY (id);
-alter table public.acces_portefeuille_rate_limits add constraint acces_portefeuille_rate_limits_scope_check CHECK ((scope = ANY (ARRAY['etat'::text, 'pdf'::text, 'verify_pin'::text, 'demande_adhesion'::text, 'reset_mdp_ip'::text, 'reset_mdp_email'::text, 'simulation_achat_ip'::text, 'simulation_achat_email'::text, 'renouvellement_lecture_ip'::text, 'renouvellement_lecture_lien'::text, 'renouvellement_envoi_ip'::text, 'renouvellement_envoi_lien'::text, 'inscription_ip'::text, 'inscription_email'::text])));
+alter table public.acces_portefeuille_rate_limits add constraint acces_portefeuille_rate_limits_scope_check CHECK ((scope = ANY (ARRAY['etat'::text, 'pdf'::text, 'verify_pin'::text, 'demande_adhesion'::text, 'reset_mdp_ip'::text, 'reset_mdp_email'::text, 'simulation_achat_ip'::text, 'simulation_achat_email'::text, 'renouvellement_lecture_ip'::text, 'renouvellement_lecture_lien'::text, 'renouvellement_envoi_ip'::text, 'renouvellement_envoi_lien'::text, 'inscription_ip'::text, 'inscription_email'::text, 'inscription_confirmation_ip'::text])));
 alter table public.activites add constraint activites_dates_check CHECK (((date_fin IS NULL) OR (date_debut IS NULL) OR (date_fin >= date_debut))) NOT VALID;
 alter table public.activites add constraint activites_organisation_id_externe_unique UNIQUE (organisation_id, id_externe);
 alter table public.activites add constraint activites_pkey PRIMARY KEY (id);
@@ -4815,6 +4887,7 @@ alter table public.demandes_adhesion add constraint demandes_adhesion_consent_rg
 alter table public.demandes_adhesion add constraint demandes_adhesion_pkey PRIMARY KEY (id);
 alter table public.demandes_adhesion add constraint demandes_adhesion_statut_check CHECK ((statut = ANY (ARRAY['en_attente'::text, 'ratifiee'::text, 'refusee'::text])));
 alter table public.demandes_adhesion add constraint demandes_adhesion_type_check CHECK ((type = ANY (ARRAY['adhesion'::text, 'renouvellement'::text])));
+alter table public.demandes_inscription add constraint demandes_inscription_confirmation_check CHECK ((((confirmation_jeton_hash IS NULL) OR (confirmation_jeton_hash ~ '^[0-9a-f]{64}$'::text)) AND ((statut <> 'a_confirmer'::text) OR ((confirmation_jeton_hash IS NOT NULL) AND (confirmation_expire_le IS NOT NULL)))));
 alter table public.demandes_inscription add constraint demandes_inscription_email_check CHECK (((char_length(email) <= 254) AND (email = lower(email)) AND (email ~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'::text)));
 alter table public.demandes_inscription add constraint demandes_inscription_message_check CHECK (((message IS NULL) OR (char_length(message) <= 2000)));
 alter table public.demandes_inscription add constraint demandes_inscription_nom_association_check CHECK (((char_length(btrim(nom_association)) >= 2) AND (char_length(btrim(nom_association)) <= 150)));
@@ -4823,7 +4896,7 @@ alter table public.demandes_inscription add constraint demandes_inscription_pkey
 alter table public.demandes_inscription add constraint demandes_inscription_prenom_check CHECK (((char_length(btrim(prenom)) >= 1) AND (char_length(btrim(prenom)) <= 100)));
 alter table public.demandes_inscription add constraint demandes_inscription_rna_check CHECK (((rna IS NULL) OR (rna ~ '^W[0-9]{9}$'::text)));
 alter table public.demandes_inscription add constraint demandes_inscription_siren_check CHECK (((siren IS NULL) OR (siren ~ '^[0-9]{9}$'::text)));
-alter table public.demandes_inscription add constraint demandes_inscription_statut_check CHECK ((statut = ANY (ARRAY['en_attente'::text, 'acceptee'::text, 'refusee'::text])));
+alter table public.demandes_inscription add constraint demandes_inscription_statut_check CHECK ((statut = ANY (ARRAY['a_confirmer'::text, 'en_attente'::text, 'acceptee'::text, 'refusee'::text])));
 alter table public.demandes_inscription add constraint demandes_inscription_ville_check CHECK (((char_length(btrim(ville)) >= 1) AND (char_length(btrim(ville)) <= 100)));
 alter table public.demandes_paiement add constraint demandes_paiement_id_organisation_id_key UNIQUE (id, organisation_id);
 alter table public.demandes_paiement add constraint demandes_paiement_id_portefeuille_id_organisation_id_key UNIQUE (id, portefeuille_id, organisation_id);
@@ -4987,7 +5060,8 @@ alter table public.signatures_adhesion add constraint signatures_adhesion_adhesi
 alter table public.signatures_adhesion add constraint signatures_adhesion_organisation_id_fkey FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE CASCADE;
 alter table public.templates_carte_adherent add constraint templates_carte_adherent_organisation_id_fkey FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE CASCADE;
 alter table public.templates_recu add constraint templates_recu_organisation_id_fkey FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE CASCADE;
-CREATE UNIQUE INDEX demandes_inscription_email_en_attente ON public.demandes_inscription USING btree (email) WHERE (statut = 'en_attente'::text);
+CREATE UNIQUE INDEX demandes_inscription_confirmation_jeton ON public.demandes_inscription USING btree (confirmation_jeton_hash) WHERE (confirmation_jeton_hash IS NOT NULL);
+CREATE UNIQUE INDEX demandes_inscription_email_active ON public.demandes_inscription USING btree (email) WHERE (statut = ANY (ARRAY['a_confirmer'::text, 'en_attente'::text]));
 CREATE INDEX demandes_inscription_statut_created ON public.demandes_inscription USING btree (statut, created_at DESC);
 CREATE INDEX idx_acces_portefeuille_rate_limits_ip ON public.acces_portefeuille_rate_limits USING btree (scope, ip_hash, created_at DESC);
 CREATE INDEX idx_acces_portefeuille_rate_limits_wallet ON public.acces_portefeuille_rate_limits USING btree (scope, portefeuille_id, created_at DESC) WHERE (portefeuille_id IS NOT NULL);
@@ -5144,7 +5218,7 @@ create policy commandes_select on public.commandes as PERMISSIVE for SELECT to a
 create policy demandes_adhesion_select on public.demandes_adhesion as PERMISSIVE for SELECT to authenticated using (((organisation_id = ( SELECT current_user_organisation_id() AS current_user_organisation_id)) OR ((((( SELECT auth.jwt() AS jwt) -> 'app_metadata'::text) ->> 'is_super_admin'::text))::boolean = true)));
 create policy demandes_adhesion_update on public.demandes_adhesion as PERMISSIVE for UPDATE to authenticated using (((organisation_id = ( SELECT current_user_organisation_id() AS current_user_organisation_id)) OR ((((( SELECT auth.jwt() AS jwt) -> 'app_metadata'::text) ->> 'is_super_admin'::text))::boolean = true))) with check (((organisation_id = ( SELECT current_user_organisation_id() AS current_user_organisation_id)) OR ((((( SELECT auth.jwt() AS jwt) -> 'app_metadata'::text) ->> 'is_super_admin'::text))::boolean = true)));
 create policy demandes_inscription_delete_super_admin on public.demandes_inscription as PERMISSIVE for DELETE to authenticated using (COALESCE(is_current_user_super_admin(), false));
-create policy demandes_inscription_select_super_admin on public.demandes_inscription as PERMISSIVE for SELECT to authenticated using (COALESCE(is_current_user_super_admin(), false));
+create policy demandes_inscription_select_super_admin on public.demandes_inscription as PERMISSIVE for SELECT to authenticated using ((COALESCE(is_current_user_super_admin(), false) AND (statut <> 'a_confirmer'::text)));
 create policy demandes_inscription_update_super_admin on public.demandes_inscription as PERMISSIVE for UPDATE to authenticated using ((COALESCE(is_current_user_super_admin(), false) AND (statut = 'en_attente'::text))) with check ((COALESCE(is_current_user_super_admin(), false) AND (statut = 'refusee'::text)));
 create policy demandes_paiement_benevole_select on public.demandes_paiement as PERMISSIVE for SELECT to authenticated using ((((((( SELECT auth.jwt() AS jwt) -> 'app_metadata'::text) ->> 'is_super_admin'::text))::boolean = true) OR (organisation_id = ( SELECT current_benevole_organisation_id() AS current_benevole_organisation_id)) OR (organisation_id = ( SELECT current_vendeur_organisation_id() AS current_vendeur_organisation_id))));
 create policy demandes_paiement_select on public.demandes_paiement as PERMISSIVE for SELECT to authenticated using ((((((( SELECT auth.jwt() AS jwt) -> 'app_metadata'::text) ->> 'is_super_admin'::text))::boolean = true) OR (organisation_id = ( SELECT current_user_organisation_id() AS current_user_organisation_id))));
@@ -5240,6 +5314,7 @@ revoke execute on function changer_role_compte(uuid,text) from public, anon, aut
 revoke execute on function classer_ligne_envoi_interrompue(uuid) from public, anon, authenticated; grant execute on function classer_ligne_envoi_interrompue(uuid) to service_role;
 revoke execute on function codes_pin(uuid) from public, anon, authenticated; grant execute on function codes_pin(uuid) to authenticated; grant execute on function codes_pin(uuid) to service_role;
 revoke execute on function codes_pin_benevole_organisations() from public, anon, authenticated; grant execute on function codes_pin_benevole_organisations() to authenticated; grant execute on function codes_pin_benevole_organisations() to service_role;
+revoke execute on function confirmer_demande_inscription(text,text) from public, anon, authenticated; grant execute on function confirmer_demande_inscription(text,text) to service_role;
 revoke execute on function coupon_spike_step(uuid,text,text,uuid,boolean) from public, anon, authenticated; grant execute on function coupon_spike_step(uuid,text,text,uuid,boolean) to service_role;
 revoke execute on function creer_adhesion_benevole(uuid,jsonb,boolean,boolean,text,boolean,date,numeric,smallint) from public, anon, authenticated; grant execute on function creer_adhesion_benevole(uuid,jsonb,boolean,boolean,text,boolean,date,numeric,smallint) to authenticated; grant execute on function creer_adhesion_benevole(uuid,jsonb,boolean,boolean,text,boolean,date,numeric,smallint) to service_role;
 revoke execute on function creer_commande_en_attente(uuid,text,integer,text,uuid) from public, anon, authenticated; grant execute on function creer_commande_en_attente(uuid,text,integer,text,uuid) to service_role;
@@ -5332,7 +5407,7 @@ revoke execute on function search_adherents(uuid,text,text,integer,integer,text,
 revoke execute on function search_adherents_verification(uuid,text,integer) from public, anon, authenticated; grant execute on function search_adherents_verification(uuid,text,integer) to authenticated; grant execute on function search_adherents_verification(uuid,text,integer) to service_role;
 revoke execute on function set_updated_at() from public, anon, authenticated; grant execute on function set_updated_at() to public; grant execute on function set_updated_at() to anon; grant execute on function set_updated_at() to authenticated; grant execute on function set_updated_at() to service_role;
 revoke execute on function set_updated_at_adherents() from public, anon, authenticated; grant execute on function set_updated_at_adherents() to public; grant execute on function set_updated_at_adherents() to anon; grant execute on function set_updated_at_adherents() to authenticated; grant execute on function set_updated_at_adherents() to service_role;
-revoke execute on function soumettre_demande_inscription(text,text,jsonb) from public, anon, authenticated; grant execute on function soumettre_demande_inscription(text,text,jsonb) to service_role;
+revoke execute on function soumettre_demande_inscription(text,text,text,jsonb) from public, anon, authenticated; grant execute on function soumettre_demande_inscription(text,text,text,jsonb) to service_role;
 revoke execute on function soumettre_renouvellement(text,text,text,jsonb) from public, anon, authenticated; grant execute on function soumettre_renouvellement(text,text,text,jsonb) to service_role;
 revoke execute on function supprimer_liste_diffusion(uuid,text) from public, anon, authenticated; grant execute on function supprimer_liste_diffusion(uuid,text) to public; grant execute on function supprimer_liste_diffusion(uuid,text) to anon; grant execute on function supprimer_liste_diffusion(uuid,text) to authenticated; grant execute on function supprimer_liste_diffusion(uuid,text) to service_role;
 revoke execute on function sync_listes_diffusion_from_tags() from public, anon, authenticated; grant execute on function sync_listes_diffusion_from_tags() to public; grant execute on function sync_listes_diffusion_from_tags() to anon; grant execute on function sync_listes_diffusion_from_tags() to authenticated; grant execute on function sync_listes_diffusion_from_tags() to service_role;
