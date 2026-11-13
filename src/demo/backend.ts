@@ -12,6 +12,7 @@ export { DEMO_ADMIN } from './seed'
 import { demoFunctions } from './functionStubs'
 import { fastIntrospection } from './introspection'
 import { DEMO_DB_NAME, deleteDemoDatabase } from './storage'
+import type { EngineAssets } from './engineDownload'
 
 // À changer à chaque nouvel instantané du schéma (schema.sql) ou du jeu de données (seed.ts) :
 // une base enregistrée sous une autre version est effacée et recréée au démarrage suivant.
@@ -35,8 +36,10 @@ function wrap(q: Queryable) {
 // Même moteur que celui de tinbase, réduit aux extensions utilisées par le schéma (pgcrypto et
 // citext retirés : -1,1 Mo ; schema.sql fournit un équivalent de gen_random_bytes), plus unaccent
 // (utilisée par la recherche).
-async function openDatabase(persist: boolean): Promise<PGlite> {
-  const pg = new PGlite({ dataDir: persist ? `idb://${DEMO_DB_NAME}` : undefined, extensions: { uuid_ossp, pg_trgm, unaccent } })
+// `engine` : fichiers du moteur déjà téléchargés par l'écran d'attente (engineDownload.ts) ; sans
+// eux, PGlite les télécharge lui-même.
+async function openDatabase(persist: boolean, engine?: EngineAssets): Promise<PGlite> {
+  const pg = new PGlite({ dataDir: persist ? `idb://${DEMO_DB_NAME}` : undefined, extensions: { uuid_ossp, pg_trgm, unaccent }, ...engine })
   await pg.waitReady
   return pg
 }
@@ -71,20 +74,27 @@ export interface DemoBackend {
   timings: Record<string, number>
 }
 
-/**
- * Démarre la base de la démo. `persist: false` garde tout en mémoire (rien dans IndexedDB),
- * utile pour les tests automatisés.
- */
-export async function startDemoBackend({ persist = true }: { persist?: boolean } = {}): Promise<DemoBackend> {
+/** Étapes signalées à l'écran d'attente : base ouverte, puis (premier démarrage) schéma et jeu de données. */
+export type BackendStep = 'schema' | 'seed'
+
+export interface StartDemoBackendOptions {
+  /** `false` : tout reste en mémoire (rien dans IndexedDB), utile pour les tests automatisés. */
+  persist?: boolean
+  engine?: EngineAssets
+  onStep?: (step: BackendStep) => void
+}
+
+/** Démarre la base de la démo. */
+export async function startDemoBackend({ persist = true, engine, onStep }: StartDemoBackendOptions = {}): Promise<DemoBackend> {
   const timings: Record<string, number> = {}
   const t0 = performance.now()
-  let pg = await openDatabase(persist)
+  let pg = await openDatabase(persist, engine)
   let version = await storedVersion(pg)
   if (version !== undefined && version !== DATA_VERSION) {
     // Base d'une version précédente de la démo : on repart d'une base neuve.
     await pg.close()
     await deleteDemoDatabase()
-    pg = await openDatabase(persist)
+    pg = await openDatabase(persist, engine)
     version = await storedVersion(pg)
   }
   timings.pglite = performance.now() - t0
@@ -95,8 +105,10 @@ export async function startDemoBackend({ persist = true }: { persist?: boolean }
   const firstBoot = version === undefined
   if (firstBoot) {
     try {
+      onStep?.('schema')
       await pg.exec(schemaSql)
       timings.schema = performance.now() - t0
+      onStep?.('seed')
       await seedDemo(backend, pg)
       await pg.query("insert into public._demo_meta values ('schema', $1)", [DATA_VERSION])
       timings.seed = performance.now() - t0

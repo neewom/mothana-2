@@ -12,8 +12,20 @@
          les polices de repli de Tailwind (ui-sans-serif, ui-monospace) s'appliquent. -->
   </head>
   <body style="margin: 0; background: #fdfcfa">
-    <!-- Écran d'attente provisoire, remplacé par l'application au démarrage (carte Démo 2/4). -->
-    <div id="root"><p id="demo-status" role="status" style="margin: 0; padding: 2rem 1rem; font: 14px/1.5 system-ui, sans-serif; color: #5c5347; text-align: center">Chargement de la démo…</p></div>
+    <!-- Écran d'attente (src/demo/loading/LoadingScreen.tsx), par-dessus l'application pendant son
+         démarrage. Il n'apparaît qu'après un court délai : sur un démarrage rapide (visite suivante),
+         il ne se voit pas. Le texte ci-dessous ne sert qu'avant le chargement du script. -->
+    <style>
+      #demo-loading { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: #fdfcfa; opacity: 0; animation: demo-fade-in 200ms ease-out 350ms forwards; }
+      #demo-loading[data-state='closing'] { animation: demo-fade-out 200ms ease-out forwards; pointer-events: none; }
+      /* L'application se monte dessous, invisible, jusqu'au retrait de l'écran (sa fenêtre « visite en
+         images », rendue hors de cet écran, doit rester au-dessus : z-index 50 des fenêtres). */
+      body:has(#demo-loading:not([data-state='closing'])) #root { visibility: hidden; }
+      @keyframes demo-fade-in { from { opacity: 0 } to { opacity: 1 } }
+      @keyframes demo-fade-out { from { opacity: 1 } to { opacity: 0 } }
+    </style>
+    <div id="demo-loading"><p role="status" style="margin: 0; padding: 2rem 1rem; font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; color: #5c5347; text-align: center">Chargement de la démo…</p></div>
+    <div id="root"></div>
     <script type="module" src="/src/demo/main.tsx"></script>
   </body>
 </html>

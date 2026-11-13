@@ -6,7 +6,8 @@ import { creerOrganisation } from '../../supabase/functions/_shared/creerOrganis
 
 // Identifiants locaux au navigateur du visiteur : ils ne protègent rien et ne servent qu'à la démo.
 export const DEMO_ADMIN = { email: 'demo@samakan.invalid', password: 'demo-samakan-local' }
-export const DEMO_PIN = '123456'
+export { DEMO_PIN } from './messages'
+import { DEMO_PIN } from './messages'
 
 const PRENOMS = ['Jean', 'Marie', 'Pierre', 'Sophie', 'Lucas', 'Camille', 'Thomas', 'Léa', 'Nicolas', 'Chloé', 'Antoine', 'Emma', 'Hugo', 'Manon', 'Paul', 'Julie', 'Louis', 'Sarah', 'Kevin', 'Inès', 'Malik', 'Aïcha', 'Minh', 'Linh', 'Somchai', 'Noy']
 const NOMS = ['Martin', 'Bernard', 'Dubois', 'Thomas', 'Robert', 'Richard', 'Petit', 'Durand', 'Leroy', 'Moreau', 'Simon', 'Laurent', 'Lefebvre', 'Michel', 'Garcia', 'David', 'Bertrand', 'Roux', 'Vincent', 'Fournier', 'Nguyen', 'Tran', 'Phommachanh', 'Sisavath']
