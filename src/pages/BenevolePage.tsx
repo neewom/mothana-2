@@ -18,6 +18,7 @@ import { filterParticipants } from '../lib/participantSearch'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
+import ChampEmail from '../components/ChampEmail'
 import { Label } from '../components/ui/label'
 import OrganisationLogo from '../components/OrganisationLogo'
 import { useOrganisationLogoUrl } from '../hooks/useOrganisationLogoUrl'
@@ -693,10 +694,9 @@ export default function BenevolePage() {
                     </div>
                     <div>
                       <Label className="text-xs">Email (optionnel)</Label>
-                      <Input
-                        type="email"
+                      <ChampEmail
                         value={newEmail}
-                        onChange={(e) => setNewEmail(e.target.value)}
+                        onValueChange={setNewEmail}
                         placeholder="jean.dupont@exemple.fr"
                         className="mt-1"
                       />

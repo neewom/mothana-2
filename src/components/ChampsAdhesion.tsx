@@ -6,6 +6,7 @@ import { COUNTRIES } from '../lib/countries'
 import { maxDateNaissance, isAnneeNaissanceValide } from '../lib/dateNaissance'
 import { cn } from '../lib/utils'
 import { Input } from './ui/input'
+import ChampEmail from './ChampEmail'
 import { Label } from './ui/label'
 import { Select } from './ui/select'
 
@@ -169,11 +170,10 @@ export default function ChampsAdhesion({ valeurs, onChange, avecDateNaissance = 
 
       <div>
         <Label htmlFor="courriel">Courriel</Label>
-        <Input
+        <ChampEmail
           id="courriel"
-          type="email"
           value={courriel}
-          onChange={(e) => onChange({ courriel: e.target.value })}
+          onValueChange={(value) => onChange({ courriel: value })}
           placeholder="jean.dupont@exemple.fr"
           aria-invalid={courrielInvalid}
           className={cn('mt-1', courrielInvalid && 'border-stamp focus-visible:ring-stamp/70')}

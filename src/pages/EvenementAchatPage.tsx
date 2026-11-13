@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import MentionDonneesAcheteur from '../components/MentionDonneesAcheteur'
 import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
+import ChampEmail from '../components/ChampEmail'
 import { Label } from '../components/ui/label'
 import { StatusNotice } from '../components/ui/status-notice'
 import { dateFinConservation } from '../lib/couponRgpd'
@@ -196,14 +196,12 @@ export default function EvenementAchatPage() {
 
             <div>
               <Label htmlFor="email">Adresse email</Label>
-              <Input
+              <ChampEmail
                 id="email"
-                type="email"
-                inputMode="email"
                 autoComplete="email"
                 required
                 value={email}
-                onChange={(event_) => setEmail(event_.target.value)}
+                onValueChange={setEmail}
                 aria-invalid={emailInvalid}
                 aria-describedby="email-help"
                 placeholder="vous@exemple.fr"

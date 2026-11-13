@@ -19,6 +19,7 @@ import TagsInput from './TagsInput'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
+import ChampEmail from './ChampEmail'
 import { Label } from './ui/label'
 import { Select } from './ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
@@ -565,11 +566,10 @@ export default function AdherentModal({
 
             <div className="space-y-1.5">
               <Label htmlFor="am-email">Courriel</Label>
-              <Input
+              <ChampEmail
                 id="am-email"
-                type="email"
                 value={courriel}
-                onChange={(e) => setCourriel(e.target.value)}
+                onValueChange={setCourriel}
                 placeholder="jean.dupont@exemple.fr"
                 aria-invalid={courrielInvalid}
                 className={cn(courrielInvalid && 'border-stamp focus-visible:ring-stamp/70')}
