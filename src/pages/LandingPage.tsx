@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useReveal } from '../hooks/useReveal'
 import { cheminEspaceConnecte } from '../lib/espaceUtilisateur'
-import { CONTACT_MAILTO } from '../lib/contact'
+import { CONTACT_EMAIL, CONTACT_MAILTO } from '../lib/contact'
 import { getDemoUrl } from '../lib/environment'
 import { cn } from '@/lib/utils'
 import RecetteBanner from '../components/RecetteBanner'
@@ -875,7 +875,7 @@ function Landing() {
               </h2>
               <p className="mt-5 max-w-xl text-pretty text-lg leading-relaxed text-ink-muted">
                 Parcours la démo en quelques minutes, sans créer de compte. Une question sur ton association ?
-                Écris-nous.
+                Écris-nous à <span className="whitespace-nowrap font-medium text-ink">{CONTACT_EMAIL}</span>.
               </p>
               <BoutonsAppel className="mt-9" />
             </div>
