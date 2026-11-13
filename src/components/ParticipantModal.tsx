@@ -9,6 +9,7 @@ import EmailInvalideIndicateur from './EmailInvalideIndicateur'
 import { Button } from './ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Input } from './ui/input'
+import ChampEmail from './ChampEmail'
 import { Label } from './ui/label'
 import { Select } from './ui/select'
 import { Textarea } from './ui/textarea'
@@ -296,11 +297,10 @@ export default function ParticipantModal({
 
             <div className="space-y-1.5">
               <Label htmlFor="pm-email">Email</Label>
-              <Input
+              <ChampEmail
                 id="pm-email"
-                type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onValueChange={setEmail}
                 placeholder="jean.dupont@exemple.fr"
                 aria-invalid={emailInvalid}
                 className={cn(emailInvalid && 'border-stamp focus-visible:ring-stamp/70')}

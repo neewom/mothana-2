@@ -6,6 +6,7 @@ import SiteFooter from '../components/site/SiteFooter'
 import IconeCoche from '../components/site/IconeCoche'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
+import ChampEmail from '../components/ChampEmail'
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
 import { getCanonicalSiteUrl } from '../lib/environment'
@@ -336,15 +337,14 @@ export default function InscriptionPage() {
                   aide="Tu y recevras un lien pour confirmer ta demande, puis ton invitation."
                   className="sm:col-span-2"
                 >
-                  <Input
+                  <ChampEmail
                     {...aria('email', true)}
-                    type="email"
                     autoComplete="email"
                     autoCapitalize="none"
                     spellCheck={false}
                     maxLength={LONGUEURS_INSCRIPTION.email.max}
                     value={saisie.email}
-                    onChange={(e) => maj('email', e.target.value, 'email')}
+                    onValueChange={(value) => maj('email', value, 'email')}
                     placeholder="prenom@exemple.fr"
                   />
                 </Champ>
