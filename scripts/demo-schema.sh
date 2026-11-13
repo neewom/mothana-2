@@ -8,9 +8,15 @@ set -euo pipefail
 STAGING_REF="cxngcmvxktddhyxboyyx"
 cd "$(dirname "$0")/.."
 
-linked="$(python3 -I -c 'import json; print(json.load(open("supabase/.temp/linked-project.json"))["ref"])' 2>/dev/null || true)"
-if [ "$linked" != "$STAGING_REF" ]; then
-  echo "demo:schema : ce checkout doit être lié à staging ($STAGING_REF), il l'est à « ${linked:-aucun projet} »." >&2
+# `supabase db query --linked` choisit le projet d'après supabase/.temp/project-ref ;
+# linked-project.json est contrôlé aussi : les deux doivent désigner staging.
+ref_file="supabase/.temp/project-ref"
+json_file="supabase/.temp/linked-project.json"
+ref="$( { tr -d '[:space:]' <"$ref_file"; } 2>/dev/null || true)"
+linked="$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["ref"])' "$json_file" 2>/dev/null || true)"
+if [ "$ref" != "$STAGING_REF" ] || [ "$linked" != "$STAGING_REF" ]; then
+  echo "demo:schema : ce checkout doit être lié à staging ($STAGING_REF)." >&2
+  echo "             $ref_file : « ${ref:-absent ou vide} » ; $json_file : « ${linked:-absent ou illisible} »." >&2
   echo "             L'instantané ne se lit jamais en prod." >&2
   exit 1
 fi

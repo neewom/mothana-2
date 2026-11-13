@@ -48,7 +48,14 @@ const server = http.createServer((req, res) => {
   for (const rule of v.headers) if (hostOk(rule) && srcRe(rule.source).test(url.pathname)) for (const x of rule.headers) h[x.key] = x.value
 
   // Fichier existant du build, sinon réécriture vers demo.html (comme le rewrite de vercel.json).
-  let file = path.join(dist, decodeURIComponent(url.pathname))
+  let decoded
+  try {
+    decoded = decodeURIComponent(url.pathname)
+  } catch {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' })
+    return res.end('Bad Request')
+  }
+  let file = path.join(dist, decoded)
   if (!file.startsWith(dist + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(dist, 'demo.html')
   const ext = path.extname(file)
   const body = fs.readFileSync(file)
