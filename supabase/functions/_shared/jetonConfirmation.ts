@@ -10,6 +10,23 @@ export function jetonAleatoire(): string {
   return btoa(String.fromCharCode(...octets)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
+const ALPHABET_REFERENCE = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+
+/**
+ * Référence courte d'un envoi (4 caractères sans ambiguïté : ni 0/O ni 1/I/L), tirée à part et
+ * jamais dérivée du jeton. Placée dans l'objet de l'email, elle le rend unique : Gmail ne regroupe
+ * plus les envois successifs en conversation et ne replie plus le dernier lien sous l'ancien.
+ */
+export function referenceEnvoi(): string {
+  const limite = 256 - (256 % ALPHABET_REFERENCE.length)
+  let reference = ''
+  while (reference.length < 4) {
+    const [octet] = crypto.getRandomValues(new Uint8Array(1))
+    if (octet < limite) reference += ALPHABET_REFERENCE[octet % ALPHABET_REFERENCE.length]
+  }
+  return reference
+}
+
 /** Empreinte SHA-256 (hex) d'un jeton : ce qui est stocké et comparé en base. */
 export async function empreinteJeton(jeton: string): Promise<string> {
   const empreinte = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(jeton))

@@ -59,7 +59,7 @@ Deno.test('nouvelle demande : réponse générique, email de confirmation seul (
   const demande = appel.demande
   vrai(demande.email === 'camille@exemple.fr' && demande.rna === 'W751234567' && demande.siren === null, 'normalisation')
   vrai(envois.length === 1, `un seul envoi (${envois.length})`)
-  vrai(envois[0].a === 'camille@exemple.fr' && envois[0].email.sujet === 'Confirme ta demande d’espace Samakan', 'email de confirmation')
+  vrai(envois[0].a === 'camille@exemple.fr' && /^Confirme ta demande d’espace Samakan \(réf\. [A-Z2-9]{4}\)$/.test(envois[0].email.sujet), `email de confirmation (${envois[0].email.sujet})`)
   vrai(envois[0].email.html.includes(`https://test.samakan.fr/inscription/confirmer?jeton=${JETON}`), 'lien de confirmation')
   vrai(envois[0].email.html.includes('Les Amis &lt;b&gt;du&lt;/b&gt; Quartier'), 'nom échappé')
 })
@@ -70,6 +70,16 @@ Deno.test('demande encore à confirmer, soumise à nouveau : nouvel email de con
   await renvoi.attendre()
   vrai(r.status === 200 && JSON.stringify(r.body) === JSON.stringify(REPONSE_OK.body), 'réponse générique')
   vrai(renvoi.envois.length === 1 && renvoi.envois[0].email.html.includes(`/inscription/confirmer?jeton=${JETON}`), 'lien renvoyé')
+  // Objet différent à chaque envoi (Gmail ne regroupe pas les envois et ne replie pas le nouveau lien).
+  const sujets = new Set<string>()
+  for (let i = 0; i < 5; i++) {
+    const t = deps({ ok: true, cas: 'a_confirmer', envoyer_accuse: true, demande_id: 'x' })
+    await traiterSoumission(corps(), t.d)
+    await t.attendre()
+    sujets.add(t.envois[0].email.sujet)
+  }
+  vrai(sujets.size === 5, `objets distincts (${sujets.size})`)
+  vrai(![...sujets].some((s) => s.includes(JETON.slice(0, 4))), 'référence non dérivée du jeton')
   const plafond = deps({ ok: true, cas: 'a_confirmer', envoyer_accuse: false, demande_id: 'x' })
   vrai((await traiterSoumission(corps(), plafond.d)).status === 200, 'réponse générique (plafond)')
   await plafond.attendre()

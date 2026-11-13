@@ -17,7 +17,7 @@ const XSS = '<script>alert(1)</script>'
 
 Deno.test('accusés : contenu saisi échappé, rappel des spams, tutoiement', () => {
   for (const email of [
-    emailConfirmationDemande({ prenom: XSS, nomAssociation: XSS, lien: 'https://samakan.fr/inscription/confirmer?jeton="><script>' }),
+    emailConfirmationDemande({ prenom: XSS, nomAssociation: XSS, lien: 'https://samakan.fr/inscription/confirmer?jeton="><script>', reference: 'AB12' }),
     emailAccuseCompteExistant({ prenom: XSS, siteUrl: 'https://samakan.fr' }),
     emailAccuseDemandeEnCours({ prenom: XSS }),
   ]) {
@@ -26,7 +26,8 @@ Deno.test('accusés : contenu saisi échappé, rappel des spams, tutoiement', ()
   for (const email of [emailAccuseCompteExistant({ prenom: 'A', siteUrl: 'https://samakan.fr' }), emailAccuseDemandeEnCours({ prenom: 'A' })]) {
     vrai(email.html.includes('spams'), `spams : ${email.sujet}`)
   }
-  const confirmation = emailConfirmationDemande({ prenom: 'A', nomAssociation: 'B', lien: lienConfirmationInscription('https://samakan.fr', 'abc_-1') })
+  const confirmation = emailConfirmationDemande({ prenom: 'A', nomAssociation: 'B', lien: lienConfirmationInscription('https://samakan.fr', 'abc_-1'), reference: '4F7K' })
+  vrai(confirmation.sujet === 'Confirme ta demande d’espace Samakan (réf. 4F7K)', 'référence dans l’objet')
   vrai(confirmation.html.includes('href="https://samakan.fr/inscription/confirmer?jeton=abc_-1"'), 'bouton vers le lien de confirmation')
   vrai(confirmation.html.includes('48 h') && confirmation.html.includes('Confirmer ma demande'), 'validité et bouton')
 })

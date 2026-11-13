@@ -172,7 +172,8 @@ export default function InscriptionPage() {
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 pt-8 sm:px-6 sm:pb-24 sm:pt-14">
         {emailEnvoye ? (
-          <section className="mx-auto max-w-xl rounded-sm border border-paper-border bg-white p-6 sm:p-10" aria-live="polite">
+          // Le focus passe sur le titre (annonce) : pas d'aria-live en plus, sinon double annonce.
+          <section className="mx-auto max-w-xl rounded-sm border border-paper-border bg-white p-6 sm:p-10">
             <div className="flex h-11 w-11 items-center justify-center rounded-full border border-success-border bg-success-tint text-success">
               <IconeCoche />
             </div>

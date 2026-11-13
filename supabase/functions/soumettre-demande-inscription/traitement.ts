@@ -16,6 +16,7 @@ import {
   lienConfirmationInscription,
   type EmailInscription,
 } from '../_shared/inscriptionEmails.ts'
+import { referenceEnvoi } from '../_shared/jetonConfirmation.ts'
 import { normaliseSiteUrl } from '../_shared/siteUrl.ts'
 
 export const CHAMP_PIEGE = 'site_web'
@@ -97,6 +98,7 @@ export async function traiterSoumission(raw: string, deps: DependancesSoumission
         prenom: demande.prenom,
         nomAssociation: demande.nom_association,
         lien: lienConfirmationInscription(siteUrl, jeton),
+        reference: referenceEnvoi(),
       })
       : resultat.cas === 'compte_existant'
         ? emailAccuseCompteExistant({ prenom: demande.prenom, siteUrl })

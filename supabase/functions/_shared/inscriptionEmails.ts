@@ -48,9 +48,10 @@ export function lienConfirmationInscription(siteUrl: string, jeton: string): str
   return `${siteUrl}/inscription/confirmer?jeton=${encodeURIComponent(jeton)}`
 }
 
-export function emailConfirmationDemande(p: { prenom: string; nomAssociation: string; lien: string }): EmailInscription {
+/** `reference` : référence d'envoi unique (referenceEnvoi), pour un objet différent à chaque envoi. */
+export function emailConfirmationDemande(p: { prenom: string; nomAssociation: string; lien: string; reference: string }): EmailInscription {
   return {
-    sujet: 'Confirme ta demande d’espace Samakan',
+    sujet: sujetSur(`Confirme ta demande d’espace Samakan (réf. ${p.reference})`),
     html: gabarit(
       'Confirme ta demande',
       `<p style="${P}">Bonjour ${escapeHtml(p.prenom)},</p>

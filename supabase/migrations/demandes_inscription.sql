@@ -90,9 +90,13 @@ grant select, delete on table public.demandes_inscription to authenticated;
 grant update (statut, traitee_par, traitee_le) on table public.demandes_inscription to authenticated;
 grant all on table public.demandes_inscription to service_role;
 
+-- Super-admin : toutes les demandes sauf celles dont l'adresse n'est pas encore confirmée
+-- (a_confirmer : elles n'existent pas encore pour lui). Purge, soumission, confirmation et
+-- validation passent par service_role ou une fonction SECURITY DEFINER, hors RLS.
 drop policy if exists demandes_inscription_select_super_admin on public.demandes_inscription;
 create policy demandes_inscription_select_super_admin on public.demandes_inscription
-  for select to authenticated using (coalesce(is_current_user_super_admin(), false));
+  for select to authenticated
+  using (coalesce(is_current_user_super_admin(), false) and statut <> 'a_confirmer');
 
 -- Super-admin : seul le refus d'une demande en attente (en_attente → refusee). Toute autre
 -- transition (acceptation, remise en attente) passe par l'Edge Function (service_role).

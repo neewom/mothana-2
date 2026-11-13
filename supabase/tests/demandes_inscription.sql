@@ -281,7 +281,9 @@ begin
   exception when insufficient_privilege then r := r || ' sa_attente_vers_acceptee=refuse';
   end;
   r := r || ' statut_acc=' || (select statut from public.demandes_inscription where id = v_acc);
-  -- 12c. Une demande à confirmer ne peut pas être refusée (seule une demande en attente l'est)
+  -- 12c. Une demande à confirmer est invisible du super-admin, et ne peut pas être refusée
+  r := r || ' sa_select_a_confirmer=' || (select count(*) from public.demandes_inscription where id = v_exp2)
+         || ' sa_select_tous_a_confirmer=' || (select count(*) from public.demandes_inscription where statut = 'a_confirmer');
   update public.demandes_inscription set statut = 'refusee', traitee_le = now() where id = v_exp2;
   get diagnostics v_n = row_count;
   r := r || ' sa_refus_a_confirmer=' || v_n;

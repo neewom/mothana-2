@@ -22,9 +22,10 @@ const TEXTES: Record<Exclude<EtatConfirmation, 'erreur' | 'trop_d_essais'>, { ti
     succes: true,
     refaire: false,
   },
+  // Page publique : ne rien dire du statut de la demande depuis (en attente, acceptée, refusée).
   deja_confirmee: {
-    titre: 'Ta demande est déjà confirmée',
-    texte: 'Pas besoin de cliquer à nouveau : ta demande nous est bien transmise. Tu recevras un email quand ton espace sera prêt.',
+    titre: 'Cette adresse est déjà confirmée',
+    texte: 'Pas besoin de cliquer à nouveau.',
     succes: true,
     refaire: false,
   },
@@ -44,7 +45,8 @@ const TEXTES: Record<Exclude<EtatConfirmation, 'erreur' | 'trop_d_essais'>, { ti
 
 export default function InscriptionConfirmerPage() {
   const [params] = useSearchParams()
-  const jeton = params.get('jeton')?.trim() ?? ''
+  // Jeton lu une fois, puis retiré de l'URL pour qu'il ne reste pas dans l'historique.
+  const [jeton] = useState(() => params.get('jeton')?.trim() ?? '')
   // Pas de confirmation automatique au chargement : les anti-virus de messagerie ouvrent les liens
   // tout seuls. La demande n'est confirmée qu'au clic sur le bouton.
   const [etat, setEtat] = useState<EtatConfirmation | null>(jeton ? null : 'invalide')
@@ -53,6 +55,9 @@ export default function InscriptionConfirmerPage() {
 
   useEffect(() => {
     window.scrollTo(0, 0)
+    if (new URLSearchParams(window.location.search).has('jeton')) {
+      window.history.replaceState(window.history.state, '', window.location.pathname)
+    }
   }, [])
 
   useEffect(() => {
@@ -83,7 +88,8 @@ export default function InscriptionConfirmerPage() {
       <SiteHeader className="border-b border-paper-border bg-white" />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16 pt-8 sm:px-6 sm:pb-24 sm:pt-14">
-        <section className="mx-auto max-w-xl rounded-sm border border-paper-border bg-white p-6 sm:p-10" aria-live="polite">
+        {/* Annonce du résultat : le focus passe sur le titre (pas d'aria-live en plus, sinon double annonce) ; les erreurs ont role="alert". */}
+        <section className="mx-auto max-w-xl rounded-sm border border-paper-border bg-white p-6 sm:p-10">
           {final ? (
             <>
               {final.succes && (
@@ -95,7 +101,7 @@ export default function InscriptionConfirmerPage() {
                 {final.titre}
               </h1>
               <p className="mt-4 text-[0.9375rem] leading-relaxed text-ink-muted">{final.texte}</p>
-              {final.succes && (
+              {etat === 'confirmee' && (
                 <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-muted">
                   Pense à vérifier tes courriers indésirables (spams) : nos emails y arrivent parfois.
                 </p>
@@ -126,7 +132,7 @@ export default function InscriptionConfirmerPage() {
                   Trop d’essais en ce moment. Réessaie dans une heure.
                 </div>
               )}
-              <Button type="button" onClick={confirmer} disabled={envoi} className={cn(BOUTON_PRINCIPAL, 'mt-8')}>
+              <Button type="button" onClick={confirmer} disabled={envoi} aria-busy={envoi || undefined} className={cn(BOUTON_PRINCIPAL, 'mt-8')}>
                 {envoi ? 'Confirmation…' : 'Confirmer ma demande'}
               </Button>
             </>
