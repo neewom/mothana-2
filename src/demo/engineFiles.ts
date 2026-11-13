@@ -5,7 +5,7 @@
 //
 // Les tailles sont celles des fichiers non compressés (version de PGlite figée dans
 // package.json) : elles servent à calculer l'avancement quand le serveur compresse à la volée
-// (on lit alors des octets décompressés). Vérifiées par engineFiles.test.ts.
+// (on lit alors des octets décompressés). Vérifiées par engineDownload.test.ts.
 import pgliteWasmUrl from '../../node_modules/@electric-sql/pglite/dist/pglite.wasm?url'
 import pgliteDataUrl from '../../node_modules/@electric-sql/pglite/dist/pglite.data?url'
 import initdbWasmUrl from '../../node_modules/@electric-sql/pglite/dist/initdb.wasm?url'

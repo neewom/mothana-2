@@ -28,10 +28,30 @@ const store = createBootStore({ start: startFromPath(location.pathname) })
 const overlay = document.getElementById('demo-loading')
 const appRoot = document.getElementById('root')
 
+/**
+ * Place le focus sur le titre du premier écran, pour que clavier et lecteur d'écran repartent du
+ * début de l'application. Seulement si le focus est libre (page) ou dans l'écran d'attente qui
+ * disparaît : un focus déjà posé ailleurs par le visiteur est laissé où il est.
+ */
+function focusFirstScreen() {
+  const heading = appRoot?.querySelector<HTMLElement>('h1')
+  if (!heading) return
+  const active = document.activeElement
+  const focusIsFree = !active || active === document.body || !!overlay?.contains(active)
+  if (!focusIsFree) return
+  if (!heading.hasAttribute('tabindex')) {
+    heading.setAttribute('tabindex', '-1')
+    // Titre focalisé par programme, pas un contrôle : pas de contour.
+    heading.classList.add('outline-none')
+  }
+  heading.focus({ preventScroll: true })
+}
+
 function dismissOverlay() {
   if (!overlay || overlay.dataset.state === 'closing') return
   overlay.dataset.state = 'closing'
   if (appRoot) appRoot.inert = false
+  focusFirstScreen()
   // Fondu de sortie (cf. demo.html), puis retrait.
   window.setTimeout(() => overlay.remove(), 200)
 }
@@ -81,6 +101,10 @@ async function boot() {
   const enginePromise = downloadEngine((download) => store.set({ download }))
   const backendModule = import('./backend')
   const appModule = import('./mountApp')
+  // Attendues plus loin, après le moteur : si le moteur échoue d'abord, leur éventuel rejet ne doit
+  // pas finir en « unhandledrejection ». Les `await` ci-dessous voient toujours l'erreur.
+  backendModule.catch(() => undefined)
+  appModule.catch(() => undefined)
   // Pages du premier écran (chargées à la demande par l'application) : téléchargées dès
   // maintenant, elles sont prêtes au montage. Mêmes modules, donc mêmes fichiers, que ceux
   // de l'application.
