@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import RecetteBanner from '../components/RecetteBanner'
 import SiteHeader from '../components/site/SiteHeader'
 import SiteFooter from '../components/site/SiteFooter'
+import IconeCoche from '../components/site/IconeCoche'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
@@ -14,6 +15,7 @@ import {
   CHAMP_PIEGE,
   corpsDemandeInscription,
   erreursInscription,
+  LIEN_INSCRIPTION as LIEN,
   LONGUEURS_INSCRIPTION,
   ORDRE_CHAMPS_INSCRIPTION,
   SAISIE_VIDE,
@@ -36,21 +38,19 @@ const ID_CHAMP: Record<ChampInscription, string> = {
   cgu: 'inscription-cgu',
 }
 
-const LIEN = 'font-medium text-stamp underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70 rounded-sm'
-
 const ETAPES = [
-  { titre: 'Ta demande', texte: 'Deux minutes pour présenter ton association.' },
+  { titre: 'Ta demande', texte: 'Deux minutes pour présenter ton association, puis tu confirmes ton adresse email.' },
   { titre: 'On vérifie, sous 48 h', texte: 'Un membre de l’équipe Samakan examine chaque demande.' },
   { titre: 'Ton invitation', texte: 'Tu reçois un email pour choisir ton mot de passe et entrer dans ton espace.' },
 ]
 
-function IconeCoche({ className }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className={cn('h-5 w-5 flex-shrink-0', className)}>
-      <path d="m5.5 12.5 4.25 4.25 8.75-9.5" />
-    </svg>
-  )
-}
+/** Écran « Demande reçue » : l'adresse reste à confirmer avant que la demande soit transmise. */
+const ETAPES_ENVOI = [
+  { titre: 'Ta demande', texte: 'Envoyée.' },
+  { titre: 'Confirme ton adresse', texte: 'Clique sur le lien reçu par email, valable 48 h.' },
+  { titre: 'On vérifie, sous 48 h', texte: 'Un membre de l’équipe Samakan examine ta demande.' },
+  { titre: 'Ton invitation', texte: 'Tu reçois un email pour choisir ton mot de passe.' },
+]
 
 function Champ({
   champ,
@@ -177,24 +177,26 @@ export default function InscriptionPage() {
               <IconeCoche />
             </div>
             <h1 ref={titreFinRef} tabIndex={-1} className="mt-5 text-2xl font-bold tracking-tight text-ink focus:outline-none sm:text-3xl">
-              Demande reçue ! On revient vers toi sous 48 h.
+              Demande reçue ! Vérifie ta boîte mail.
             </h1>
             <p className="mt-4 text-[0.9375rem] leading-relaxed text-ink-muted">
-              On t’écrit à <span className="break-all font-medium text-ink">{emailEnvoye}</span>.{' '}
+              Clique sur le lien envoyé à <span className="break-all font-medium text-ink">{emailEnvoye}</span> pour confirmer ta demande : on ne la reçoit qu’après ce clic.{' '}
               <button type="button" onClick={corrigerEmail} className={LIEN}>
                 Ce n’est pas la bonne ?
               </button>
             </p>
             <p className="mt-3 text-[0.9375rem] leading-relaxed text-ink-muted">
-              Un email de confirmation part dans quelques minutes. Pense à vérifier tes courriers indésirables (spams).
+              Rien reçu d’ici quelques minutes ? Regarde dans tes courriers indésirables (spams).
             </p>
             <ol className="mt-6 space-y-3 border-t border-paper-border pt-6">
-              {ETAPES.map((etape, i) => (
-                <li key={etape.titre} className="flex gap-3 text-sm">
+              {ETAPES_ENVOI.map((etape, i) => (
+                <li key={etape.titre} className="flex gap-3 text-sm" aria-current={i === 1 ? 'step' : undefined}>
                   <span
                     className={cn(
                       'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full font-registre-mono text-xs',
-                      i === 0 ? 'bg-success-tint text-success' : 'border border-paper-border text-ink-faint',
+                      i === 0 && 'bg-success-tint text-success',
+                      i === 1 && 'border border-ink font-medium text-ink',
+                      i > 1 && 'border border-paper-border text-ink-faint',
                     )}
                   >
                     {i === 0 ? <IconeCoche className="h-3.5 w-3.5" /> : i + 1}
@@ -330,7 +332,7 @@ export default function InscriptionPage() {
                   champ="email"
                   label="Adresse email"
                   erreur={erreurAffichee('email')}
-                  aide="Ton invitation arrivera à cette adresse."
+                  aide="Tu y recevras un lien pour confirmer ta demande, puis ton invitation."
                   className="sm:col-span-2"
                 >
                   <Input

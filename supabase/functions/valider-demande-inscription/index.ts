@@ -2,7 +2,7 @@
 // « Créer l'organisation » dans /super-admin.
 //
 //   1. super-admin seul (401 sans session valide, 403 sinon) ;
-//   2. la demande en attente est réservée (passe en `acceptee`) avant toute création : deux clics
+//   2. seule une demande en attente (adresse confirmée) est traitée ; elle est réservée (passe en `acceptee`) avant toute création : deux clics
 //      simultanés ne créent pas deux organisations ;
 //   3. organisation créée par le cœur partagé (_shared/creerOrganisation.ts) : slug rendu unique,
 //      dons + adhérents activés, RNA / SIREN reportés dans modele_recu_pdf ; en cas d'échec, la
@@ -37,7 +37,7 @@ interface Demande {
   prenom: string
   nom: string
   email: string
-  statut: 'en_attente' | 'acceptee' | 'refusee'
+  statut: 'a_confirmer' | 'en_attente' | 'acceptee' | 'refusee'
   organisation_id: string | null
   admin_utilisateur_id: string | null
   invitation_envoyee_le: string | null
@@ -91,6 +91,8 @@ Deno.serve(async (req) => {
     if (!lue) return json({ error: 'Demande introuvable' }, 404)
     let demande = lue as Demande
 
+    // Adresse pas encore confirmée : la demande n'existe pas encore pour le super-admin.
+    if (demande.statut === 'a_confirmer') return json({ error: 'L’adresse de cette demande n’est pas encore confirmée.' }, 409)
     if (demande.statut === 'refusee') return json({ error: 'Cette demande a été refusée.' }, 409)
     if (demande.statut === 'acceptee' && demande.invitation_envoyee_le) {
       return json({ error: 'Cette demande a déjà été traitée.' }, 409)

@@ -255,7 +255,7 @@ export interface DemandeInscription {
   email: string
   message: string | null
   cgu_acceptees_le: string | null
-  statut: 'en_attente' | 'acceptee' | 'refusee'
+  statut: 'a_confirmer' | 'en_attente' | 'acceptee' | 'refusee'
   organisation_id: string | null
   traitee_par: string | null
   traitee_le: string | null

@@ -72,7 +72,7 @@ export interface DemandeComparable {
   id: string
   nom_association: string
   email: string
-  statut: 'en_attente' | 'acceptee' | 'refusee'
+  statut: 'a_confirmer' | 'en_attente' | 'acceptee' | 'refusee'
 }
 
 /**
@@ -86,4 +86,23 @@ export function doublonsDemande<T extends DemandeComparable>(demande: DemandeCom
     a.id !== demande.id
     && (a.statut === 'en_attente' || a.statut === 'acceptee')
     && ((nom !== '' && cleNomAssociation(a.nom_association) === nom) || a.email.trim().toLowerCase() === email))
+}
+
+/** Lien texte des pages publiques d'inscription (cachet, souligné au survol, anneau de focus). */
+export const LIEN_INSCRIPTION =
+  'font-medium text-stamp underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stamp/70 rounded-sm'
+
+/** États de la page /inscription/confirmer, après le clic sur « Confirmer ma demande ». */
+export type EtatConfirmation = 'confirmee' | 'deja_confirmee' | 'expiree' | 'invalide' | 'trop_d_essais' | 'erreur'
+
+/**
+ * Réponse de l'Edge Function confirmer-demande-inscription → état affiché. 429 : trop d'essais ;
+ * 400 : lien invalide (jeton absent ou abîmé) ; toute autre erreur : réessayer plus tard.
+ */
+export function etatConfirmation(status: number, corps: unknown): EtatConfirmation {
+  if (status === 429) return 'trop_d_essais'
+  if (status === 400) return 'invalide'
+  const cas = corps && typeof corps === 'object' ? (corps as { cas?: unknown }).cas : undefined
+  if (status === 200 && (cas === 'confirmee' || cas === 'deja_confirmee' || cas === 'expiree' || cas === 'invalide')) return cas
+  return 'erreur'
 }

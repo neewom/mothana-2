@@ -37,7 +37,10 @@ interface Props {
 /**
  * Demandes d'inscription (carte hNqpdZXL) : demandes en attente, et demandes acceptées dont
  * l'invitation a échoué. « Créer l'organisation » passe par l'Edge Function
- * valider-demande-inscription ; « Refuser » met la demande en `refusee`, sans email.
+ * valider-demande-inscription ; « Refuser » met la demande en `refusee`, sans email. Les demandes
+ * `a_confirmer` (adresse pas encore confirmée par le lien envoyé par email) n'apparaissent ni dans
+ * la liste, ni dans le compteur, ni dans les doublons : les requêtes ne lisent que les statuts
+ * en_attente et acceptee.
  */
 export default function DemandesInscriptionSection({ onOrganisationCreee, onMessage }: Props) {
   const [demandes, setDemandes] = useState<DemandeInscription[]>([])

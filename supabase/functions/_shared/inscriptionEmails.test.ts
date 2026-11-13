@@ -2,7 +2,8 @@
 import {
   emailAccuseCompteExistant,
   emailAccuseDemandeEnCours,
-  emailAccuseNouvelleDemande,
+  emailConfirmationDemande,
+  lienConfirmationInscription,
   emailNotificationSuperAdmin,
 } from './inscriptionEmails.ts'
 import { emailInvitation } from './inviterAdmin.ts'
@@ -16,14 +17,18 @@ const XSS = '<script>alert(1)</script>'
 
 Deno.test('accusés : contenu saisi échappé, rappel des spams, tutoiement', () => {
   for (const email of [
-    emailAccuseNouvelleDemande({ prenom: XSS, nomAssociation: XSS }),
+    emailConfirmationDemande({ prenom: XSS, nomAssociation: XSS, lien: 'https://samakan.fr/inscription/confirmer?jeton="><script>' }),
     emailAccuseCompteExistant({ prenom: XSS, siteUrl: 'https://samakan.fr' }),
     emailAccuseDemandeEnCours({ prenom: XSS }),
   ]) {
     vrai(!email.html.includes('<script>'), `échappé : ${email.sujet}`)
+  }
+  for (const email of [emailAccuseCompteExistant({ prenom: 'A', siteUrl: 'https://samakan.fr' }), emailAccuseDemandeEnCours({ prenom: 'A' })]) {
     vrai(email.html.includes('spams'), `spams : ${email.sujet}`)
   }
-  vrai(emailAccuseNouvelleDemande({ prenom: 'A', nomAssociation: 'B' }).html.includes('sous 48 h'), '3 étapes')
+  const confirmation = emailConfirmationDemande({ prenom: 'A', nomAssociation: 'B', lien: lienConfirmationInscription('https://samakan.fr', 'abc_-1') })
+  vrai(confirmation.html.includes('href="https://samakan.fr/inscription/confirmer?jeton=abc_-1"'), 'bouton vers le lien de confirmation')
+  vrai(confirmation.html.includes('48 h') && confirmation.html.includes('Confirmer ma demande'), 'validité et bouton')
 })
 
 Deno.test('notification super-admin : champs échappés, sujet sans retour à la ligne, valeurs absentes en tiret', () => {

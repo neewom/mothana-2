@@ -17,6 +17,7 @@ import { lazyWithReload } from './lib/lazyWithReload'
 // Pages différées (un fichier JS par page, chargé à la première visite) : voir lazyWithReload.
 const ResetPasswordPage = lazyWithReload(() => import('./pages/ResetPasswordPage'))
 const InscriptionPage = lazyWithReload(() => import('./pages/InscriptionPage'))
+const InscriptionConfirmerPage = lazyWithReload(() => import('./pages/InscriptionConfirmerPage'))
 const BenevoleLoginPage = lazyWithReload(() => import('./pages/BenevoleLoginPage'))
 const VendeurLoginPage = lazyWithReload(() => import('./pages/VendeurLoginPage'))
 const RenouvellementAdhesionPage = lazyWithReload(() => import('./pages/RenouvellementAdhesionPage'))
@@ -66,6 +67,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/inscription" element={<InscriptionPage />} />
+          <Route path="/inscription/confirmer" element={<InscriptionConfirmerPage />} />
           <Route path="/mot-de-passe/nouveau" element={<ResetPasswordPage />} />
           <Route path="/login/benevole" element={<BenevoleLoginPage />} />
           <Route path="/login/vendeur" element={<VendeurLoginPage />} />

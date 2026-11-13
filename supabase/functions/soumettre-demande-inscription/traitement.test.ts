@@ -21,22 +21,25 @@ const CORPS_VALIDE = {
   site_web: '',
 }
 
-function deps(resultat: ResultatRpc | null, options: { notif?: string | null; hashKo?: boolean; cgu?: boolean } = {}) {
+const JETON = 'jeton-secret_123'
+const EMPREINTE = 'b'.repeat(64)
+
+function deps(resultat: ResultatRpc | null, options: { hashKo?: boolean; cgu?: boolean } = {}) {
   const appelsRpc: unknown[] = []
   const envois: { a: string; email: EmailInscription }[] = []
   const taches: Promise<unknown>[] = []
   const d: DependancesSoumission = {
     hashIp: () => (options.hashKo ? Promise.reject(new Error('RATE_LIMIT_KEY_MISSING')) : Promise.resolve(H)),
     hashEmail: () => Promise.resolve(H),
-    soumettre: (ip, email, demande) => {
-      appelsRpc.push({ ip, email, demande })
+    jeton: () => Promise.resolve({ jeton: JETON, empreinte: EMPREINTE }),
+    soumettre: (ip, email, jetonHash, demande) => {
+      appelsRpc.push({ ip, email, jetonHash, demande })
       return Promise.resolve(resultat)
     },
     envoyer: (a, email) => {
       envois.push({ a, email })
       return Promise.resolve()
     },
-    emailNotification: options.notif === undefined ? 'notif@exemple.fr' : options.notif,
     arrierePlan: (t) => { taches.push(t) },
     cguPubliees: options.cgu ?? false,
   }
@@ -45,17 +48,32 @@ function deps(resultat: ResultatRpc | null, options: { notif?: string | null; ha
 
 const corps = (extra: Record<string, unknown> = {}) => JSON.stringify({ ...CORPS_VALIDE, ...extra })
 
-Deno.test('nouvelle demande : réponse générique, accusé + notification, champs normalisés', async () => {
+Deno.test('nouvelle demande : réponse générique, email de confirmation seul (pas de notification), empreinte transmise', async () => {
   const { d, appelsRpc, envois, attendre } = deps({ ok: true, cas: 'nouvelle', envoyer_accuse: true, demande_id: 'x' })
   const r = await traiterSoumission(corps(), d)
   await attendre()
   vrai(r.status === 200 && JSON.stringify(r.body) === JSON.stringify(REPONSE_OK.body), 'réponse générique')
-  const demande = (appelsRpc[0] as { demande: Record<string, unknown> }).demande
+  const appel = appelsRpc[0] as { jetonHash: string; demande: Record<string, unknown> }
+  vrai(appel.jetonHash === EMPREINTE, 'empreinte du jeton transmise, pas le jeton')
+  vrai(!JSON.stringify(appel).includes(JETON), 'jeton absent de l’appel RPC')
+  const demande = appel.demande
   vrai(demande.email === 'camille@exemple.fr' && demande.rna === 'W751234567' && demande.siren === null, 'normalisation')
-  vrai(envois.length === 2, `deux envois (${envois.length})`)
-  vrai(envois[0].a === 'camille@exemple.fr' && envois[0].email.sujet.includes('bien reçue'), 'accusé nouvelle demande')
-  vrai(envois[1].a === 'notif@exemple.fr' && envois[1].email.html.includes('&lt;b&gt;du&lt;/b&gt;'), 'notification échappée')
-  vrai(envois[1].email.html.includes('https://test.samakan.fr/super-admin'), 'lien super-admin')
+  vrai(envois.length === 1, `un seul envoi (${envois.length})`)
+  vrai(envois[0].a === 'camille@exemple.fr' && envois[0].email.sujet === 'Confirme ta demande d’espace Samakan', 'email de confirmation')
+  vrai(envois[0].email.html.includes(`https://test.samakan.fr/inscription/confirmer?jeton=${JETON}`), 'lien de confirmation')
+  vrai(envois[0].email.html.includes('Les Amis &lt;b&gt;du&lt;/b&gt; Quartier'), 'nom échappé')
+})
+
+Deno.test('demande encore à confirmer, soumise à nouveau : nouvel email de confirmation ; plafond atteint : rien', async () => {
+  const renvoi = deps({ ok: true, cas: 'a_confirmer', envoyer_accuse: true, demande_id: 'x' })
+  const r = await traiterSoumission(corps(), renvoi.d)
+  await renvoi.attendre()
+  vrai(r.status === 200 && JSON.stringify(r.body) === JSON.stringify(REPONSE_OK.body), 'réponse générique')
+  vrai(renvoi.envois.length === 1 && renvoi.envois[0].email.html.includes(`/inscription/confirmer?jeton=${JETON}`), 'lien renvoyé')
+  const plafond = deps({ ok: true, cas: 'a_confirmer', envoyer_accuse: false, demande_id: 'x' })
+  vrai((await traiterSoumission(corps(), plafond.d)).status === 200, 'réponse générique (plafond)')
+  await plafond.attendre()
+  vrai(plafond.envois.length === 0, 'aucun envoi')
 })
 
 Deno.test('compte existant : même réponse, email « déjà un espace », pas de notification', async () => {
@@ -75,15 +93,13 @@ Deno.test('demande déjà en attente : même réponse, rappel « en cours », pa
   vrai(envois.length === 1 && envois[0].email.sujet.includes('en cours'), 'email en cours')
 })
 
-Deno.test('plafond d’accusés atteint : même réponse, aucun accusé (notification seule si nouvelle)', async () => {
-  const enAttente = deps({ ok: true, cas: 'en_attente', envoyer_accuse: false })
-  await traiterSoumission(corps(), enAttente.d)
-  await enAttente.attendre()
-  vrai(enAttente.envois.length === 0, 'aucun envoi')
-  const nouvelle = deps({ ok: true, cas: 'nouvelle', envoyer_accuse: false })
-  await traiterSoumission(corps(), nouvelle.d)
-  await nouvelle.attendre()
-  vrai(nouvelle.envois.length === 1 && nouvelle.envois[0].a === 'notif@exemple.fr', 'notification seule')
+Deno.test('plafond d’emails atteint : même réponse, aucun email', async () => {
+  for (const cas of ['en_attente', 'nouvelle', 'compte_existant'] as const) {
+    const t = deps({ ok: true, cas, envoyer_accuse: false })
+    vrai((await traiterSoumission(corps(), t.d)).status === 200, `réponse générique (${cas})`)
+    await t.attendre()
+    vrai(t.envois.length === 0, `aucun envoi (${cas})`)
+  }
 })
 
 Deno.test('champ piège rempli : même réponse, ni RPC ni email', async () => {
@@ -116,13 +132,9 @@ Deno.test('champs invalides, site non autorisé, JSON cassé : 400 sans RPC', as
   }
 })
 
-Deno.test('clé de limitation absente : 503 ; notification non configurée : accusé seul', async () => {
+Deno.test('clé de limitation absente : 503 sans RPC', async () => {
   const ko = deps({ ok: true, cas: 'nouvelle', envoyer_accuse: true }, { hashKo: true })
-  vrai((await traiterSoumission(corps(), ko.d)).status === 503, '503')
-  const sansNotif = deps({ ok: true, cas: 'nouvelle', envoyer_accuse: true }, { notif: null })
-  await traiterSoumission(corps(), sansNotif.d)
-  await sansNotif.attendre()
-  vrai(sansNotif.envois.length === 1, 'accusé seul')
+  vrai((await traiterSoumission(corps(), ko.d)).status === 503 && ko.appelsRpc.length === 0, '503')
 })
 
 Deno.test('CGU publiées : cgu_acceptees exigé côté serveur, transmis quand coché', async () => {

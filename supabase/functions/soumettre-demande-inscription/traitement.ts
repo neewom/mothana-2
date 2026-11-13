@@ -1,16 +1,19 @@
 // Traitement d'une demande d'inscription publique (carte https://trello.com/c/hNqpdZXL), séparé de
 // index.ts pour être testé cas par cas avec des dépendances factices.
 //
-// Réponse publique identique dans tous les cas acceptés (nouvelle demande, compte existant,
-// demande déjà en attente, champ piège rempli) : seul l'email envoyé diffère, et seul le
-// propriétaire de la boîte le lit. Exceptions : corps invalide (400), débit dépassé (429, message
-// neutre), service mal configuré (503).
+// Réponse publique identique dans tous les cas acceptés (nouvelle demande, demande à confirmer
+// renvoyée, compte existant, demande déjà en attente, champ piège rempli) : seul l'email envoyé
+// diffère, et seul le propriétaire de la boîte le lit. Une nouvelle demande (ou une demande pas
+// encore confirmée, soumise à nouveau) reçoit le lien de confirmation de l'adresse ; le
+// super-admin n'est notifié qu'à la confirmation (confirmer-demande-inscription).
+// Exceptions : corps invalide (400), débit dépassé (429, message neutre), service mal configuré
+// (503).
 import { saisieDepuisCorps, validerDemandeInscription, type DemandeInscriptionNormalisee } from '../_shared/inscription.ts'
 import {
   emailAccuseCompteExistant,
   emailAccuseDemandeEnCours,
-  emailAccuseNouvelleDemande,
-  emailNotificationSuperAdmin,
+  emailConfirmationDemande,
+  lienConfirmationInscription,
   type EmailInscription,
 } from '../_shared/inscriptionEmails.ts'
 import { normaliseSiteUrl } from '../_shared/siteUrl.ts'
@@ -21,15 +24,15 @@ export const RETRY_AFTER_SECONDS = '3600'
 
 export type ResultatRpc =
   | { ok: false; reason: 'ACCES_INVALIDE' | 'RATE_LIMIT' | string }
-  | { ok: true; cas: 'nouvelle' | 'compte_existant' | 'en_attente'; envoyer_accuse: boolean; demande_id?: string }
+  | { ok: true; cas: 'nouvelle' | 'a_confirmer' | 'compte_existant' | 'en_attente'; envoyer_accuse: boolean; demande_id?: string }
 
 export interface DependancesSoumission {
   hashIp(): Promise<string>
   hashEmail(email: string): Promise<string>
-  soumettre(ipHash: string, emailHash: string, demande: DemandeInscriptionNormalisee): Promise<ResultatRpc | null>
+  /** Jeton de confirmation (envoyé par email) et son empreinte SHA-256 (seule enregistrée). */
+  jeton(): Promise<{ jeton: string; empreinte: string }>
+  soumettre(ipHash: string, emailHash: string, jetonHash: string, demande: DemandeInscriptionNormalisee): Promise<ResultatRpc | null>
   envoyer(destinataire: string, email: EmailInscription): Promise<void>
-  /** Adresse de notification du super-admin (secret INSCRIPTION_NOTIF_EMAIL), absente = pas de notification. */
-  emailNotification: string | null
   /** Poursuit les envois après la réponse : son délai ne dépend pas du cas (anti-énumération). */
   arrierePlan(tache: Promise<unknown>): void
   /** CGU publiées (constante CGU_PUBLIEES) : `cgu_acceptees` est alors exigé. */
@@ -74,7 +77,8 @@ export async function traiterSoumission(raw: string, deps: DependancesSoumission
     return { status: 503, body: { error: 'SERVICE_INDISPONIBLE' } }
   }
 
-  const resultat = await deps.soumettre(ipHash, emailHash, demande)
+  const { jeton, empreinte } = await deps.jeton()
+  const resultat = await deps.soumettre(ipHash, emailHash, empreinte, demande)
   if (!resultat || !resultat.ok) {
     if (resultat?.reason === 'RATE_LIMIT') {
       return {
@@ -87,20 +91,20 @@ export async function traiterSoumission(raw: string, deps: DependancesSoumission
     return { status: 503, body: { error: 'SERVICE_INDISPONIBLE' } }
   }
 
-  const envois: Promise<void>[] = []
   if (resultat.envoyer_accuse) {
-    const accuse = resultat.cas === 'nouvelle'
-      ? emailAccuseNouvelleDemande({ prenom: demande.prenom, nomAssociation: demande.nom_association })
+    const email = resultat.cas === 'nouvelle' || resultat.cas === 'a_confirmer'
+      ? emailConfirmationDemande({
+        prenom: demande.prenom,
+        nomAssociation: demande.nom_association,
+        lien: lienConfirmationInscription(siteUrl, jeton),
+      })
       : resultat.cas === 'compte_existant'
         ? emailAccuseCompteExistant({ prenom: demande.prenom, siteUrl })
         : emailAccuseDemandeEnCours({ prenom: demande.prenom })
-    envois.push(deps.envoyer(demande.email, accuse))
+    // Un envoi en échec ne change pas la réponse (la demande est enregistrée ; une nouvelle
+    // soumission renvoie le lien).
+    deps.arrierePlan(Promise.allSettled([deps.envoyer(demande.email, email)]))
   }
-  if (resultat.cas === 'nouvelle' && deps.emailNotification) {
-    envois.push(deps.envoyer(deps.emailNotification, emailNotificationSuperAdmin(demande, `${siteUrl}/super-admin`)))
-  }
-  // Un envoi en échec ne change pas la réponse (la demande est enregistrée).
-  if (envois.length > 0) deps.arrierePlan(Promise.allSettled(envois))
 
   return REPONSE_OK
 }

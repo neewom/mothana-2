@@ -1,6 +1,7 @@
-// Emails du parcours d'inscription (carte https://trello.com/c/hNqpdZXL) : accusés de réception
-// (un par cas, l'écran public restant identique pour tous), notification du super-admin et
-// invitation dédiée à la validation. Tout contenu saisi est échappé. Module pur (aucune API Deno).
+// Emails du parcours d'inscription (carte https://trello.com/c/hNqpdZXL) : un email par cas de
+// soumission (confirmation de l'adresse, compte existant, demande déjà en cours ; l'écran public
+// reste identique pour tous), notification du super-admin à la confirmation, et invitation
+// dédiée à la validation. Tout contenu saisi est échappé. Module pur (aucune API Deno).
 import { escapeHtml, escapeHtmlTexte } from './echappementHtml.ts'
 
 export interface EmailInscription {
@@ -29,7 +30,7 @@ function sujetSur(valeur: string): string {
 
 function etapes(etapeCourante: 1 | 2): string {
   const libelles = [
-    'Ta demande : reçue.',
+    'Tu confirmes ton adresse email.',
     'On vérifie ton association, sous 48 h.',
     'Tu reçois ton invitation pour choisir ton mot de passe.',
   ]
@@ -42,16 +43,23 @@ function etapes(etapeCourante: 1 | 2): string {
 const RAPPEL_SPAMS = `<p style="${P}">Pense à vérifier tes courriers indésirables (spams) : nos emails y arrivent parfois.</p>`
 const PAS_TOI = `<p style="${PETIT}">Tu n'es pas à l'origine de cette demande ? Ignore simplement cet email.</p>`
 
-export function emailAccuseNouvelleDemande(p: { prenom: string; nomAssociation: string }): EmailInscription {
+/** Lien de confirmation : `<origine>/inscription/confirmer?jeton=<jeton>`. */
+export function lienConfirmationInscription(siteUrl: string, jeton: string): string {
+  return `${siteUrl}/inscription/confirmer?jeton=${encodeURIComponent(jeton)}`
+}
+
+export function emailConfirmationDemande(p: { prenom: string; nomAssociation: string; lien: string }): EmailInscription {
   return {
-    sujet: 'Ta demande d’espace Samakan est bien reçue',
+    sujet: 'Confirme ta demande d’espace Samakan',
     html: gabarit(
-      'Demande bien reçue',
+      'Confirme ta demande',
       `<p style="${P}">Bonjour ${escapeHtml(p.prenom)},</p>
-    <p style="${P}">On a bien reçu ta demande d'espace Samakan pour <strong>${escapeHtml(p.nomAssociation)}</strong>. On vérifie chaque association avant d'ouvrir son espace : c'est ce qui garantit des reçus fiscaux fiables.</p>
+    <p style="${P}">Pour transmettre ta demande d'espace Samakan pour <strong>${escapeHtml(p.nomAssociation)}</strong>, confirme d'abord ton adresse email.</p>
+    <p style="margin: 20px 0;"><a href="${escapeHtml(p.lien)}" style="${BOUTON}">Confirmer ma demande</a></p>
+    <p style="${P}">Ce lien est valable 48 h. Ensuite, on vérifie ton association avant d'ouvrir son espace : c'est ce qui garantit des reçus fiscaux fiables.</p>
     ${etapes(1)}
-    ${RAPPEL_SPAMS}
-    ${PAS_TOI}`,
+    <p style="${PETIT}">Le bouton ne marche pas ? Copie ce lien dans ton navigateur : <span style="word-break: break-all;">${escapeHtml(p.lien)}</span></p>
+    <p style="${PETIT}">Tu n'es pas à l'origine de cette demande ? Ignore simplement cet email : sans confirmation, elle est supprimée.</p>`,
     ),
   }
 }
@@ -80,7 +88,7 @@ export function emailAccuseDemandeEnCours(p: { prenom: string }): EmailInscripti
       'Ta demande est déjà en cours',
       `<p style="${P}">Bonjour ${escapeHtml(p.prenom)},</p>
     <p style="${P}">On a déjà une demande d'espace en cours pour cette adresse : pas besoin de la refaire. On la vérifie et on revient vers toi sous 48 h.</p>
-    ${etapes(1)}
+    ${etapes(2)}
     ${RAPPEL_SPAMS}
     ${PAS_TOI}`,
     ),
