@@ -106,7 +106,7 @@ export function DemoCarousel({ variant = 'inline', headingId }: DemoCarouselProp
             sizes={full ? '(min-width: 1024px) 960px, 100vw' : '(min-width: 1024px) 520px, 100vw'}
             alt={slide.alt}
             decoding="async"
-            fetchPriority="high"
+            fetchPriority="low"
             className={cn('h-full w-full', slide.portrait ? 'object-contain' : 'object-cover object-left-top')}
           />
         </div>
