@@ -32,7 +32,7 @@ function isoDaysAgo(n: number): string {
 export async function seedDemo(backend: TinbaseBackend, pg: PGlite): Promise<void> {
   const service = createClient('http://demo.local', backend.serviceRoleKey, {
     global: { fetch: (input, init) => backend.fetch(new Request(input, init)) },
-    auth: { persistSession: false, autoRefreshToken: false },
+    auth: { persistSession: false, autoRefreshToken: false, storageKey: 'samakan-demo-seed' },
   })
 
   const org = await creerOrganisation(service, {

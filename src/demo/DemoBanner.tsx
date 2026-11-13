@@ -1,6 +1,7 @@
 // Bandeau permanent de la démo, en tête de chaque écran (à la place du bandeau « Environnement de
 // test », cf. RecetteBanner). Ligne sombre comme le bandeau du mode Consulter ; « Créer mon espace »
-// est le seul élément au cachet.
+// est le seul élément au cachet. Cibles tactiles de 44 px sous 640 px (32 px au-delà, comme le
+// bandeau du mode Consulter).
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -25,13 +26,13 @@ export function DemoBanner() {
         <button
           type="button"
           onClick={() => setConfirmOpen(true)}
-          className="min-h-8 rounded-sm px-2.5 font-medium text-paper/80 underline underline-offset-2 hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper/70"
+          className="-ml-2.5 min-h-11 rounded-sm px-2.5 font-medium text-paper/80 underline underline-offset-2 hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper/70 sm:min-h-8"
         >
           Remettre à zéro
         </button>
         <a
           href={INSCRIPTION_URL}
-          className="inline-flex min-h-8 items-center rounded-sm bg-stamp px-3 font-medium text-white hover:bg-stamp/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper/70"
+          className="inline-flex min-h-11 items-center rounded-sm bg-stamp px-3 font-medium text-white hover:bg-stamp/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper/70 sm:min-h-8"
         >
           Créer mon espace
         </a>
