@@ -70,17 +70,27 @@ async function fetchFile(file: EngineFile, state: FileProgress, onChange: () => 
 
   if (file.key !== 'pgliteData' && typeof WebAssembly.compileStreaming === 'function' && response.body) {
     // La réponse d'origine va telle quelle à la compilation (le navigateur garde alors le code
-    // compilé en cache pour les visites suivantes) ; une copie sert à compter les octets.
-    readCounting(response.clone(), count, false).catch(() => undefined)
-    return WebAssembly.compileStreaming(response)
+    // compilé en cache pour les visites suivantes) ; une copie sert à compter les octets et garde
+    // le contenu, pour le repli ci-dessous sans second téléchargement.
+    const counted = readCounting(response.clone(), count)
+    counted.catch(() => undefined)
+    try {
+      return await WebAssembly.compileStreaming(response)
+    } catch {
+      // Refus de compileStreaming (serveur qui ne sert pas le .wasm en application/wasm) :
+      // compilation classique à partir de la copie, déjà comptée. Si l'échec vient du réseau,
+      // la copie échoue aussi et son erreur remonte.
+      if (response.body && !response.body.locked) response.body.cancel().catch(() => undefined)
+      return WebAssembly.compile(await counted)
+    }
   }
   const buffer = await readCounting(response, count)
   if (file.key === 'pgliteData') return new Blob([buffer])
   return WebAssembly.compile(buffer)
 }
 
-/** Lit une réponse en entier en signalant chaque bloc reçu (`keep` : en garder le contenu). */
-async function readCounting(response: Response, onChunk: (chunk: Uint8Array) => void, keep = true): Promise<ArrayBuffer> {
+/** Lit une réponse en entier en signalant chaque bloc reçu. */
+async function readCounting(response: Response, onChunk: (chunk: Uint8Array) => void): Promise<ArrayBuffer> {
   if (!response.body) {
     // Navigateur sans flux de lecture : avancement d'un bloc à la fin du fichier.
     const buffer = await response.arrayBuffer()
@@ -92,7 +102,7 @@ async function readCounting(response: Response, onChunk: (chunk: Uint8Array) => 
   for (;;) {
     const { done, value } = await reader.read()
     if (done) break
-    if (keep) chunks.push(value)
+    chunks.push(value)
     onChunk(value)
   }
   return new Blob(chunks as BlobPart[]).arrayBuffer()
