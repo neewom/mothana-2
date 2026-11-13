@@ -741,3 +741,36 @@ Go donné pour tout le batch en une fois (liste Trello "Batch — Campagnes mail
     - **Accès** : RPC `creer_organisation` en `anon` → 401 / `42501` ; avec la session de l'admin de test → 403. Edge Function `creer-organisation` : 401 sans session et avec la clé `anon` seule, 403 pour l'admin de test (« réservé au super-admin »), préflight CORS 200. Nombre d'organisations inchangé (2).
     - **Crons** : `traiter-lots-recus`, `purger-donnees-evenements` et `purger-historique-cron` en succès.
     - **Non couvert** : création réussie d'une organisation en prod par le super-admin (l'agent n'a pas d'accès super-admin prod), à faire par l'utilisateur depuis `/super-admin`.
+
+- **Inscription freemium sur `/inscription`** (2026-11-13, PR #409, merge `04c449c`, [Trello](https://trello.com/c/hNqpdZXL)) : le bouton « Essayer gratuitement » de la landing (`ESSAI_GRATUIT_HREF = '/inscription'`) ouvre un formulaire public : association, ville, RNA / SIREN facultatifs, prénom, nom, email, message, CGU si publiées.
+  - **Confirmation d'adresse (double opt-in)**, ajoutée en cours de test sur décision de l'utilisateur :
+    - une demande est créée en `a_confirmer` et reçoit l'email « Confirme ta demande d'espace Samakan (réf. XXXX) », avec une référence unique par envoi pour que Gmail ne replie pas le nouveau lien (même piège que Coupon #206) ;
+    - lien vers `/inscription/confirmer`, avec un bouton explicite et sans confirmation au chargement, à cause des anti-virus de messagerie ;
+    - jeton de 32 octets dont seule l'empreinte SHA-256 est stockée, 48 h, usage unique ;
+    - RPC `confirmer_demande_inscription` (service_role, 10 essais par IP et par heure) et Edge Function publique `confirmer-demande-inscription` ;
+    - c'est seulement à la confirmation que la demande passe `en_attente` et que la notification super-admin (`INSCRIPTION_NOTIF_EMAIL`) part ;
+    - une resoumission met à jour la demande à confirmer, sans 2ᵉ ligne ;
+    - purge des demandes jamais confirmées 7 jours après l'expiration du lien ;
+    - la policy de lecture super-admin exclut `a_confirmer`.
+  - **Soumission** : Edge Function `soumettre-demande-inscription` (`--no-verify-jwt`) et RPC `soumettre_demande_inscription`. Limites : 5 par IP et par heure, plafond global de 200 par 24 h, 3 emails par adresse et par 24 h, champ piège anti-robot. Réponse identique dans tous les cas, sans énumération possible : compte existant, demande en cours, nouvelle demande.
+  - **Super-admin** : section « Demandes d'inscription », avec badge et pastille « Doublon possible ». « Créer l'organisation » passe par `valider-demande-inscription` :
+    - réservation atomique de la demande ;
+    - organisation créée par `creer_organisation`, avec dons et adhérents activés, RNA / SIREN dans `modele_recu_pdf` et **ville dans `organisations.ville`** (paramètre `p_ville`, l'ancienne signature est supprimée) ;
+    - compte admin et email « Ton espace Samakan est prêt » ;
+    - relance possible si l'invitation échoue.
+  - Refus en un clic, et purge 30 jours après. Fonctionnalités filtrées à la création : seules `dons` et `adherents` sont retenues (`creer_organisation_fonctionnalites_filtrees.sql`).
+  - **Abandonné en cours de route** : la suggestion de correction du domaine email (« Tu voulais dire … ? »). Elle produisait des faux positifs sur de vrais domaines (email.com, mailo.com, gmf.fr…), et la confirmation d'adresse couvre toutes les fautes, y compris avant le @. Les suggestions de domaine pendant la saisie font l'objet d'une carte séparée ([Trello](https://trello.com/c/FW5ILBZJ)).
+  - **Bugs trouvés en testant** :
+    - Une seule IP pouvait remplir le plafond global : la limite par IP est maintenant vérifiée avant l'insertion.
+    - Invitation impossible depuis le serveur de revue (`Unexpected token '<'`) : le pare-feu Cloudflare devant Supabase répond 403 en HTML dès que `redirect_to`, placé dans la query string par supabase-js, contient une IP littérale. Correctif : `origineRedirectionAuth` (`_shared/siteUrl.ts`) renvoie les liens Auth vers `https://test.samakan.fr` quand l'origine est une IP. Les erreurs Auth inexploitables donnent maintenant un message lisible (`messageErreurAuth`).
+    - Rechargement de la page de confirmation, fréquent sur mobile : le jeton reste dans l'URL (correction du lead tech).
+  - **Relecture** : 6 tours sur les ajouts successifs, bloquants corrigés à chaque fois ; revue lead tech sans bloquant ; « ok » utilisateur.
+  - **À la promotion**, dans l'ordre :
+    1. migrations `creer_organisation_fonctionnalites_filtrees.sql`, puis `demandes_inscription.sql` (transaction, puis `cron.schedule` hors transaction, via `psql`) ;
+    2. déploiement de `soumettre-demande-inscription` et `confirmer-demande-inscription` en `--no-verify-jwt`, puis de `valider-demande-inscription`, `creer-organisation` et `create-admin` ;
+    3. secret `INSCRIPTION_NOTIF_EMAIL` en prod ;
+    4. front en dernier ;
+    5. TNR.
+  - **Reste** :
+    - tester le lien d'invitation sur test.samakan.fr ;
+    - hors périmètre, relevé en revue : `create-admin` ne passe pas `site_url` par `normaliseSiteUrl` ; `request-password-reset`, `request-email-change` et `verify-pin` ont le même blocage Cloudflare depuis une IP.
