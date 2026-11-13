@@ -8,12 +8,16 @@ describe('getDemoUrl', () => {
     expect(getDemoUrl(hote)).toBe('https://demo.samakan.fr')
   })
 
-  it.each(['test.samakan.fr', 'localhost', '100.107.87.80', 'demo.samakan.fr'])(
+  it.each(['test.samakan.fr', 'localhost', '100.107.87.80'])(
     'pointe vers la démo de recette depuis %s',
     (hote) => {
       expect(getDemoUrl(hote)).toBe('https://demo-test.samakan.fr')
     },
   )
+
+  it.each(['demo.samakan.fr', 'demo-test.samakan.fr'])('reste sur la démo courante depuis %s', (hote) => {
+    expect(getDemoUrl(hote)).toBe(`https://${hote}`)
+  })
 
   it("lit l'hôte courant par défaut", () => {
     vi.stubGlobal('window', { location: { hostname: 'www.samakan.fr' } })
