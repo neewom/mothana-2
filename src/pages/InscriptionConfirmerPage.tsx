@@ -45,7 +45,8 @@ const TEXTES: Record<Exclude<EtatConfirmation, 'erreur' | 'trop_d_essais'>, { ti
 
 export default function InscriptionConfirmerPage() {
   const [params] = useSearchParams()
-  // Jeton lu une fois, puis retiré de l'URL pour qu'il ne reste pas dans l'historique.
+  // Jeton lu une fois. Il reste dans l'URL : un rechargement (onglet restauré sur mobile) doit
+  // réafficher le bouton, pas « lien non valable ». Usage unique, 48 h : risque faible.
   const [jeton] = useState(() => params.get('jeton')?.trim() ?? '')
   // Pas de confirmation automatique au chargement : les anti-virus de messagerie ouvrent les liens
   // tout seuls. La demande n'est confirmée qu'au clic sur le bouton.
@@ -55,9 +56,6 @@ export default function InscriptionConfirmerPage() {
 
   useEffect(() => {
     window.scrollTo(0, 0)
-    if (new URLSearchParams(window.location.search).has('jeton')) {
-      window.history.replaceState(window.history.state, '', window.location.pathname)
-    }
   }, [])
 
   useEffect(() => {
