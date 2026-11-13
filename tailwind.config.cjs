@@ -2,7 +2,9 @@ const tailwindcssAnimate = require('tailwindcss-animate')
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  // src/demo/ n'est scanné que par le build de la démo (vite.demo.config.ts) : ses classes
+  // n'entrent pas dans la feuille de style de l'application normale.
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}", "!./src/demo/**"],
   theme: {
     extend: {
       // Tokens du chantier de reconstruction visuelle (direction "carnet tamponné x
