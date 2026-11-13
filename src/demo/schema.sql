@@ -1,6 +1,7 @@
 -- Généré par scripts/demo-schema-build.py (spike démo PGlite) — ne pas éditer à la main.
 set check_function_bodies = off;
 create extension if not exists unaccent with schema extensions;
+create or replace function extensions.gen_random_bytes(n integer) returns bytea language sql volatile as $$ select substring(decode(replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''), 'hex') from 1 for n) $$;
 create sequence if not exists public.adherent_id_externe_seq_00000000_0000_0000_0000_000000000001;
 create sequence if not exists public.adherent_id_externe_seq_21220e8f_6b92_407b_9ef0_3df1f7f605d2;
 create sequence if not exists public.adherent_id_externe_seq_6f8bd849_9543_44ea_965a_d127b35f545a;
@@ -3380,7 +3381,7 @@ AS $function$
   )
   select c.profil_participant_id, c.recu_id, c.version_id,
          (row_number() over (
-           order by c.nom collate "fr-x-icu", coalesce(c.prenom, '') collate "fr-x-icu", c.profil_participant_id
+           order by c.nom collate "C", coalesce(c.prenom, '') collate "C", c.profil_participant_id
          ))::integer,
          c.nom, c.prenom,
          case
@@ -3481,7 +3482,7 @@ AS $function$
   )
   select pp.id,
          (row_number() over (
-           order by pe.nom collate "fr-x-icu", coalesce(pe.prenom, '') collate "fr-x-icu", pp.id
+           order by pe.nom collate "C", coalesce(pe.prenom, '') collate "C", pp.id
          ))::integer
     from donateurs dn
     join public.profils_participant pp on pp.id = dn.profil_participant_id

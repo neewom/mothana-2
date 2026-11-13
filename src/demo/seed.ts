@@ -39,7 +39,11 @@ export async function seedDemo(backend: TinbaseBackend, pg: PGlite): Promise<voi
     nom: 'Les Amis du Quartier (démo)',
     slug: 'demo',
     fonctionnalitesActivees: { dons: true, adherents: true, evenements: false },
-    modeleRecuPdf: { rna: 'W000000000', objet: 'Animation culturelle et entraide de quartier' },
+    modeleRecuPdf: {
+      rna: 'W000000000',
+      objet_social: 'Animation culturelle et entraide de quartier',
+      mention_legale: "Association loi 1901 d'intérêt général (articles 200 et 238 bis du CGI)",
+    },
   })
   if (!org.ok) throw new Error(`Création de l'organisation de démo : ${org.message}`)
   const orgId = org.organisationId
@@ -64,7 +68,7 @@ export async function seedDemo(backend: TinbaseBackend, pg: PGlite): Promise<voi
   const r = rng(42)
   const pick = <T,>(a: T[]) => a[Math.floor(r() * a.length)]
   const sql: string[] = []
-  sql.push(`update public.organisations set adresse = '12 rue des Lilas', code_postal = '75011', ville = 'Paris' where id = ${q(orgId)};`)
+  sql.push(`update public.organisations set adresse = '12 rue des Lilas', code_postal = '75011', ville = 'Paris', statuts_url = 'https://example.com/statuts-demo.pdf' where id = ${q(orgId)};`)
   sql.push(`update public.organisation_secrets set code_pin_benevole = ${q(DEMO_PIN)} where organisation_id = ${q(orgId)};`)
   sql.push(`insert into public.profils_organisation (utilisateur_id, organisation_id, role, nom_affiche) values (${q(admin.user.id)}, ${q(orgId)}, 'admin', 'Admin démo');`)
 

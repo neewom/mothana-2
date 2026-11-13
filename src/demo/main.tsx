@@ -16,6 +16,8 @@ declare global {
 async function boot() {
   const t0 = performance.now()
   say('Préparation de la démo…')
+  // Le code de l'application se télécharge pendant que la base démarre.
+  const appModule = import('./mountApp')
   const { startDemoBackend, resetDemo, DEMO_ADMIN } = await import('./backend')
   const demo = await startDemoBackend({ persist: !new URLSearchParams(location.search).has('mem') })
   const blocked = installDemoFetch(demo.backend)
@@ -40,7 +42,7 @@ async function boot() {
   }
   if (location.pathname === '/' || location.pathname === '/demo.html') history.replaceState(null, '', '/admin')
 
-  const { mountApp } = await import('./mountApp')
+  const { mountApp } = await appModule
   mountApp()
   window.__demo.timings.boot = performance.now() - t0
   window.__demo.timings.sinceNavStart = performance.now()

@@ -3,8 +3,6 @@
 // PostgREST/GoTrue/Storage (tinbase), servi in-process à supabase-js via un fetch intercepté.
 import { PGlite } from '@electric-sql/pglite'
 import { uuid_ossp } from '@electric-sql/pglite/contrib/uuid_ossp'
-import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto'
-import { citext } from '@electric-sql/pglite/contrib/citext'
 import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm'
 import { unaccent } from '@electric-sql/pglite/contrib/unaccent'
 import { createBackend, type BackendConfig, type TinbaseBackend } from 'tinbase'
@@ -14,7 +12,7 @@ import { demoFunctions } from './functionStubs'
 import { fastIntrospection } from './introspection'
 
 export const DEMO_DB_NAME = 'samakan-demo'
-const SCHEMA_VERSION = '2026-11-13'
+const SCHEMA_VERSION = '2026-11-13d'
 
 type DbEngine = NonNullable<BackendConfig['engine']>
 type Queryable = Pick<PGlite, 'query' | 'exec'>
@@ -31,9 +29,10 @@ function wrap(q: Queryable) {
   }
 }
 
-// Même moteur que celui de tinbase, avec en plus l'extension unaccent (utilisée par la recherche).
+// Même moteur que celui de tinbase, réduit aux extensions utilisées par le schéma (pgcrypto et
+// citext retirés : -1,1 Mo), plus unaccent (utilisée par la recherche).
 async function makeEngine(dataDir: string | undefined): Promise<{ engine: DbEngine; pg: PGlite }> {
-  const pg = new PGlite({ dataDir, extensions: { uuid_ossp, pgcrypto, citext, pg_trgm, unaccent } })
+  const pg = new PGlite({ dataDir, extensions: { uuid_ossp, pg_trgm, unaccent } })
   await pg.waitReady
   const engine = {
     ...wrap(pg),
