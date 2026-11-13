@@ -142,9 +142,11 @@ export default function ChampEmail({
                 onMouseMove={() => {
                   if (index !== active) setActiveIndex(index)
                 }}
+                // Option active bien visible (le focus reste dans le champ) : `paper` seul se
+                // confond avec le blanc de la liste. 44 px de haut sur mobile pour le toucher.
                 className={cn(
-                  'cursor-pointer break-all px-3 py-2 font-registre text-sm text-ink-muted',
-                  index === active && 'bg-paper'
+                  'cursor-pointer break-all px-3 py-3 font-registre text-sm sm:py-2',
+                  index === active && 'bg-paper-border-muted'
                 )}
               >
                 <span className="text-ink-faint">{suggestion.slice(0, at + 1)}</span>
