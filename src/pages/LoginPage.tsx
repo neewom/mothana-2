@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { getCanonicalSiteUrl } from '../lib/environment'
 import { cheminEspaceConnecte } from '../lib/espaceUtilisateur'
@@ -33,13 +33,16 @@ function ShieldIcon() {
 export default function LoginPage() {
   const { auth, loginAdmin } = useAuth()
   const navigate = useNavigate()
+  // `/login?mot-de-passe-oublie` (lien de l'email « Tu as déjà un espace Samakan ») : ouvre
+  // directement le formulaire de mot de passe oublié.
+  const [searchParams] = useSearchParams()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const [mode, setMode] = useState<'login' | 'forgot'>('login')
+  const [mode, setMode] = useState<'login' | 'forgot'>(() => (searchParams.has('mot-de-passe-oublie') ? 'forgot' : 'login'))
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotSending, setForgotSending] = useState(false)
   const [forgotMessage, setForgotMessage] = useState<string | null>(null)

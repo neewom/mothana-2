@@ -8,3 +8,4 @@ export const PAGES_LEGALES = [
   { path: '/confidentialite', label: 'Confidentialité' },
   { path: '/cgu', label: 'CGU' },
 ] as const
+

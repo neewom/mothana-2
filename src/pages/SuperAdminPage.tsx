@@ -28,6 +28,7 @@ import { useClientPagination } from '../hooks/useClientPagination'
 import { compareText, sortRows, type SortColumns } from '../lib/tableSort'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import BrevoWebhooksGlobalDialog from '../components/BrevoWebhooksGlobalDialog'
+import DemandesInscriptionSection from '../components/DemandesInscriptionSection'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -668,6 +669,12 @@ export default function SuperAdminPage() {
       {error && (
         <div className="rounded-sm border border-stamp/30 bg-stamp/[0.04] px-4 py-3 text-sm text-stamp">{error}</div>
       )}
+
+      {/* Demandes d'inscription (formulaire public /inscription) */}
+      <DemandesInscriptionSection
+        onOrganisationCreee={(message) => { fetchAll(); showToast(message) }}
+        onMessage={showToast}
+      />
 
       {/* Organisations table */}
       <div className="rounded-sm border border-paper-border border-l-[3px] border-l-stamp bg-white">
