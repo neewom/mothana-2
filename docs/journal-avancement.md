@@ -774,3 +774,26 @@ Go donné pour tout le batch en une fois (liste Trello "Batch — Campagnes mail
   - **Reste** :
     - tester le lien d'invitation sur test.samakan.fr ;
     - hors périmètre, relevé en revue : `create-admin` ne passe pas `site_url` par `normaliseSiteUrl` ; `request-password-reset`, `request-email-change` et `verify-pin` ont le même blocage Cloudflare depuis une IP.
+
+- **Promotion `dev` → `main` (prod)** (2026-11-13, PR #414, merge `fa630c2`, `dev` préservée) : inscription freemium (#409) et son entrée de journal (#413). Opérations faites depuis le checkout principal, avec `psql` / `pg_dump` 18 locaux via le pooler de session eu-west-1 :
+  1. `pg_dump` du schéma `public` prod (5,7 Mo, scratchpad de session `prod_public_2026-11-13_avant_inscription.sql`) ;
+  2. vérifications en lecture seule : 2 organisations, table `demandes_inscription` absente, `creer_organisation` à 6 paramètres, aucun job de purge ;
+  3. migrations `creer_organisation_fonctionnalites_filtrees.sql`, puis `demandes_inscription.sql` (`ON_ERROR_STOP`, transactions internes, `cron.schedule` hors transaction). Vérifié :
+     - `creer_organisation` (7 paramètres), `soumettre_demande_inscription`, `confirmer_demande_inscription` et la purge sont en `security definer`, avec `search_path` fixé, exécutables par `service_role` seulement ;
+     - RLS active sur `demandes_inscription` ;
+     - job `purger-demandes-inscription-refusees` planifié à `23 3 * * *` ;
+  4. Edge Functions déployées : `soumettre-demande-inscription` et `confirmer-demande-inscription` (`--no-verify-jwt`), `valider-demande-inscription`, `creer-organisation`, `create-admin` (JWT vérifié) ;
+  5. secret `INSCRIPTION_NOTIF_EMAIL` posé (alias `+samakan-inscription` de l'utilisateur, comme en recette) ;
+  6. merge, Vercel `main` en succès.
+  - **TNR prod** :
+    - **Pages publiques** (sans connexion, 375 et 1280 px) : `/`, `/login`, `/login/benevole`, `/inscription`, `/inscription/confirmer`, `/aide`, mentions légales, CGU, confidentialité et page 404, sans erreur console, réponse en erreur ni débordement. « Essayer gratuitement » pointe sur `/inscription` (8 champs, bouton « Envoyer ma demande »). `/admin`, `/admin/dons` et `/super-admin` renvoient vers `/login`.
+    - **Admin de l'asso de test « ZZ Test TNR »** (écritures bloquées par un intercepteur, aucune tentée) : connexion, puis tableau de bord, dons, donateurs, adhérents, reçus et paramètres chargés, sans échec au rechargement. `/` et `/super-admin` renvoient vers `/admin`.
+    - **Bénévole** : connexion par PIN, puis `/benevole` sur l'asso de test.
+    - **Accès** :
+      - en `anon`, les RPC `soumettre_demande_inscription`, `confirmer_demande_inscription` et `creer_organisation` sont introuvables (non exposées, `PGRST202`) et la purge renvoie `42501` ;
+      - la table `demandes_inscription` est refusée en `anon` (`42501`) ;
+      - préflight CORS 200 sur les 5 fonctions ;
+      - `valider-demande-inscription`, `create-admin` et `creer-organisation` répondent 401 sans session ;
+      - `confirmer-demande-inscription` avec un faux jeton répond `invalide` et `soumettre-demande-inscription` avec un corps vide répond 400 (aucune écriture).
+    - **Crons** : `traiter-lots-recus`, `purger-donnees-evenements` et `purger-historique-cron` en succès. La nouvelle purge n'a pas encore tourné (première exécution à 03:23). Toujours 2 organisations et 0 demande.
+    - **Non couvert** : un parcours d'inscription réel en prod (soumission, confirmation, validation par le super-admin, invitation), à faire par l'utilisateur. L'agent n'a pas d'accès super-admin prod et ne crée pas de vraie organisation.
